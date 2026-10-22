@@ -92,11 +92,16 @@ public sealed partial class GameAudio
         public int Parent;
         public Double3 Position;
         public Surface Surface;
-        public double Yaw, Action, Cold, Stride, LastScuff = double.NegativeInfinity, MovingFor, Speed, NextRatchet, NextSwing, TumbleUntil, NextBreath,
+        public double Yaw, Action, Stride, LastScuff = double.NegativeInfinity, MovingFor, Speed, NextRatchet, NextSwing, TumbleUntil, NextBreath,
             NextStumble;
         public int Health;
         public byte Placed;
         public bool Alive, Moving, Shovelful, LeftTrain, BreathIn = true;
+        /// <summary>Come off a crane's hook with a drop under them, not yet down (note 802's gag landing).</summary>
+        public bool OffHook;
+        /// <summary>Fired from the cannon and not yet down (note 828), and the whoop carried with them.</summary>
+        public bool Flying;
+        public SoundInstance? Whoop;
         public PlayerFlags Flags;
         public Tool Held;
         public Double3 AirVelocity;
@@ -130,6 +135,12 @@ public sealed partial class GameAudio
         public int Still, MendTicks;
         public int? CarrierSpace;
         public bool Broken;
+        public BodyKind Kind;
+        // A fragile find's knocks as last heard, and a jackpot's speed along its car's floor last tick (a bell brought up short rings).
+        public int Knocks;
+        public double Slide;
+        // How fast it's gone since it left the hands (m/s, in its frame; the world's once it's off the train): a landing's knock.
+        public double Fastest;
         // A healing find being used: where it was last heard, so its end is heard there once it's gone (note 322).
         public Double3 At;
         public float Occlusion;
@@ -137,11 +148,14 @@ public sealed partial class GameAudio
 
     // Hold owners for a radio's mending and a find's dose, clear of the players' ids (the boiler's ratchet is held by player).
     const int RadioMendOwner = 20_000, HealOwner = 21_000, PowderOwner = 22_000;
+    // A jackpot's slide along a car's floor lost this fast (m/s in a tick) is a knock: the church bell rings (note 783; loot.json
+    // fragile's slideKnock is 3 m/s for a find's, and a bell's half a tonne).
+    const double BellKnock = 1.5;
 
     sealed class CrewEngine
     {
         public bool FireDoor, Vented, Lamp, WrenchOut, ShovelOut, Ruptured, Sanding, Released, MendedSinceWrench;
-        public double Tender, SinceShovel, Throttle, Brake, Sand, SandTrend, Whistle, WhistleLow, LampOut;
+        public double Tender, Firebox, SinceShovel, Throttle, Brake, Sand, SandTrend, Whistle, WhistleLow, LampOut;
         public int Reverser, WhistleFalling, SandIdle;
     }
 
@@ -191,6 +205,8 @@ public sealed partial class GameAudio
         CrewEngineRoom(world);
         CrewCouplings(world);
         CrewSwitchStands(world);
+        // The flare pistol's shot or click off this machine's own Fire, before the bodies (its flare may be among them already).
+        FlarePistol(world, firePressed);
         CrewCarried(world, firePressed);
         FireDoused(world);
     }
@@ -282,7 +298,7 @@ public sealed partial class GameAudio
                     Cue("crew-mishaps.tunnel-bonk", feet + Double3.Up * HeadUp, occlusion);
                     CrewAfter(TumbleAfterBonk, "crew-mishaps.tunnel-tumble", feet, occlusion);
                 }
-                else if (s.Death == DeathCause.Crushed && HasCue("crew-mishaps.crushed"))
+                else if (s.Death is DeathCause.Crushed or DeathCause.HollowHouse && HasCue("crew-mishaps.crushed"))
                 {
                     Cue("crew-mishaps.crushed", feet, occlusion);
                     CrewAfter(ChainAfterCrush, "crew-mishaps.crane-chain", feet + Double3.Up * 5, occlusion);
@@ -303,6 +319,12 @@ public sealed partial class GameAudio
             if (s.Alive && placed && c.Surface == Surface.Roof && s.Surface == Surface.Air && s.Parent == PlayerState.World
                 && c.Parent != PlayerState.World && !c.Flags.HasFlag(PlayerFlags.Held))
                 Cue("crew-mishaps.thrown-flail", feet + Double3.Up * ChestUp, occlusion);
+            // Bringing them home (note 782): hauled aboard, lifted onto a shoulder, put down.
+            CrewRescue(world, id, s, c, feet, occlusion, placed);
+            // Off the crane's hook high up (note 798): the yelp as the drop takes them.
+            CrewHoist(world, s, c, feet, occlusion);
+            // The human cannonball (note 828): into the barrel, the shot's whoop and the flight.
+            CrewCannonball(id, s, c, feet, occlusion);
             if (!s.Alive || placed)
             {
                 Remember(c, s, world);
@@ -320,17 +342,16 @@ public sealed partial class GameAudio
                 string? mat = Footing.Under(s, world);
                 double rollAbove = tuning?.Landing.RollAbove ?? 1.5;
                 landedHard = s.Health < c.Health;
-                if (c.Surface == Surface.Air || across > rollAbove)
+                double knock = Knock(c, across, onTrain, tuning);
+                // Down after a drop off a crane's hook, the gag's landing in place of this one (note 802).
+                if (!CannonballLanding(c, feet, occlusion) && !HoistLanding(c, feet, occlusion) && (c.Surface == Surface.Air || knock > rollAbove))
                 {
-                    if (across > rollAbove)
+                    if (knock > rollAbove)
                     {
                         // Off a moving train (spec B.3): the hit, and a roll along the ballast after.
-                        Cue("crew-jump-off.impact", onTrain ? "grate" : "ground", feet, occlusion);
-                        if (!onTrain)
-                        {
-                            c.TumbleUntil = _time + Math.Min(1.5, 0.4 + 0.08 * across);
-                            CrewAfter(ScatterAfterLanding, "crew-mishaps.pocket-scatter", feet, occlusion);
-                        }
+                        Cue("crew-jump-off.impact", "ground", feet, occlusion);
+                        c.TumbleUntil = _time + Math.Min(1.5, 0.4 + 0.08 * across);
+                        CrewAfter(ScatterAfterLanding, "crew-mishaps.pocket-scatter", feet, occlusion);
                     }
                     else if (s.Surface == Surface.Coupler)
                         Cue("crew-ladder.gap-land", feet, occlusion);
@@ -342,7 +363,8 @@ public sealed partial class GameAudio
             }
             else if (c.Surface is not (Surface.Air or Surface.Ladder) && s.Surface == Surface.Air && s.Velocity.Y > 0.5)
                 Cue("crew-footsteps.jump", c.LastFooting(world), feet, occlusion);
-            else if (s.Grounded && c.Surface is not (Surface.Air or Surface.Ladder) && sameFrame && !s.Has(PlayerFlags.Held))
+            else if (s.Grounded && c.Surface is not (Surface.Air or Surface.Ladder) && sameFrame && !s.Has(PlayerFlags.Held)
+                && !s.Has(PlayerFlags.Carried)) // over a friend's shoulder, the carrier's feet are the ones on the ground (note 782)
             {
                 var d = s.Position - c.Position;
                 double flat = Math.Sqrt(d.X * d.X + d.Z * d.Z);
@@ -431,11 +453,10 @@ public sealed partial class GameAudio
                 Cue(Burning(world, s) ? "crew-hurt.burned" : "crew-hurt.hit", feet + Double3.Up * ChestUp, occlusion,
                     (float)Math.Clamp(0.5 + (c.Health - s.Health) / 40.0, 0.5, 1));
 
-            // ---- the cold (spec B.2): shivering past its onset; breath you can hear outside on a cold night.
-            if (tuning is not null && PlayerMotor.Chilled(s, tuning))
-                Hold("crew-cold.shiver", id, feet + Double3.Up * HeadUp, occlusion);
+            // ---- a cold night (the look's cold, note 852: no longer anything that hurts): breath you can hear outside on one.
+            // The shiver (crew-cold.shiver) went with the cold's onset.
             bool outside = PlayerMotor.Space(s, train) == PlayerMotor.Outside;
-            if (outside && (weather?.Cold >= 0.5 || tuning is not null && PlayerMotor.Chilled(s, tuning)))
+            if (outside && weather?.Cold >= 0.5)
             {
                 if (_time >= c.NextBreath)
                 {
@@ -490,6 +511,23 @@ public sealed partial class GameAudio
             _crewMembers.Remove(gone);
     }
 
+    /// <summary>
+    /// How hard a landing comes down across, as the sim reckons its knock (<see cref="PlayerMotor"/>'s Land, queue #533, note
+    /// 805): only on the ground, by the speed over it; less a run's own where they left the ground on foot (note 573: a
+    /// running jump is no fall), and a friend's shove's own (note 717). A landing on a car is a landing: the sim takes no knock
+    /// there, so a running jump from roof to roof isn't a jump off the train.
+    /// </summary>
+    static double Knock(CrewMember c, double across, bool onTrain, PlayerTuning? tuning)
+    {
+        if (onTrain)
+            return 0;
+        if (c.Flags.HasFlag(PlayerFlags.OffTheGround))
+            across = Math.Max(0, across - (tuning?.Run ?? 0));
+        if (c.Flags.HasFlag(PlayerFlags.Shoved))
+            across = Math.Max(0, across - (tuning?.Horseplay.Shove.Speed ?? 0));
+        return across;
+    }
+
     void Remember(CrewMember c, in PlayerState s, World world)
     {
         var train = world.Train;
@@ -512,7 +550,6 @@ public sealed partial class GameAudio
         c.Flags = s.Flags;
         c.Held = Kit.Held(s);
         c.Action = s.ActionProgress;
-        c.Cold = s.Cold;
         c.Shovelful = s.Has(PlayerFlags.Shovelful);
     }
 
@@ -653,6 +690,9 @@ public sealed partial class GameAudio
             if (to.Length <= melee.Reach + e.MeleeRadius && (flat.Length <= 0.4 || Double3.Dot(flat.Normalized, facing) >= cos))
                 return;
         }
+        // A friend in the way is bonked (note 768): heard off the knock, not as the tool ringing on the car behind them.
+        if (Bonks(world, eye, facing, melee, PlayerMotor.WorldPosition(s, train)))
+            return;
         var look = new Double3(-Math.Sin(yaw) * Math.Cos(s.Pitch), Math.Sin(s.Pitch), -Math.Cos(yaw) * Math.Cos(s.Pitch));
         if (Strike(train, eye, look, melee.Reach) is { } hit)
             Cue($"crew-melee.{ToolName(held)}-hit-{(hit.Wood ? "wood" : "metal")}", hit.At, occlusion);
@@ -822,6 +862,7 @@ public sealed partial class GameAudio
                 ShovelOut = boiler.ShovelOut,
                 Ruptured = boiler.Ruptured,
                 Tender = boiler.Tender,
+                Firebox = boiler.Firebox,
                 SinceShovel = sinceShovel,
                 Throttle = controls.Throttle,
                 Brake = controls.Brake,
@@ -842,9 +883,11 @@ public sealed partial class GameAudio
             Cue(boiler.FireDoorOpen ? "crew-firebox-door.open" : "crew-firebox-door.shut", fireDoor, cab);
         if (boiler.FireDoorOpen && Hold("crew-firebox-door.fire-open", 0, fireDoor, cab) is { } fire && train.BoilerTuning is { } bt)
             fire.Params.Set("fire", boiler.FireFraction(bt));
-        // A shovelful thrown in (spec B.6): coal out of the tender, or the door's clock started again (a full firebox
-        // takes no coal, but the throw's still made). The old composite shovel sound until the throw has its own.
-        if (boiler.Tender <= e.Tender - 0.5 || sinceShovel < e.SinceShovel - 0.05)
+        // A shovelful thrown in (spec B.6): the door's clock started again (Boiler.Shovel starts it with every throw, a full
+        // firebox's included), or a unit more in the firebox. Not the tender going down alone: a lump flung at a friend takes
+        // a unit too (note 717), and it's heard as horseplay (note 768). The old composite shovel sound until the throw has
+        // its own.
+        if (sinceShovel < e.SinceShovel - 0.05 || boiler.Firebox >= e.Firebox + 0.5)
         {
             if (Cue("crew-shovel.throw", fireDoor, cab) is null && !HasCue("crew-shovel.throw"))
                 Mixer.Play("shovel", fireDoor)?.Also(v => v.Occlusion = cab);
@@ -954,6 +997,7 @@ public sealed partial class GameAudio
         e.Ruptured = boiler.Ruptured;
         e.Tender = boiler.Tender;
         e.SinceShovel = sinceShovel;
+        e.Firebox = boiler.Firebox;
         e.Throttle = controls.Throttle;
         e.Brake = controls.Brake;
         e.Reverser = controls.Reverser;
@@ -1089,9 +1133,18 @@ public sealed partial class GameAudio
     // ------------------------------------------------------------------------------------------------ the cannons
 
     /// <summary>
-    /// Everyone's cannons (App. C.3), from the replicated gun: a round gone from it (its ammunition, which
-    /// <see cref="GunState.LastShotTick"/> goes with; that stamp is the predicting machine's own tick until the host's
-    /// arrives, so it changes more than once a shot), the gun pushed along its rail, and each step of the reload.
+    /// A shot from a gun since it was last seen (queue #528, note 801), once a shot on every machine. Not its
+    /// <see cref="GunState.LastShotTick"/>: that stamp is the predicting machine's own tick until the host's arrives, so it
+    /// changes more than once a shot. A round gone from its stock (note 374); or, with the shot endless (combat.json
+    /// infiniteAmmo, note 689, where nothing's taken), the full reload a shot leaves it needing, from none. A rack filled
+    /// from empty asks for that reload too, but brings a round with it.
+    /// </summary>
+    static bool Shot(in GunState g, CrewGun was) =>
+        g.LastShotTick > 0 && (g.Ammo < was.Ammo || g.Ammo == was.Ammo && was.Needed <= 0 && g.ReloadNeeded > 0);
+
+    /// <summary>
+    /// Everyone's cannons (App. C.3), from the replicated gun: a shot (<see cref="Shot"/>), the gun pushed along its rail,
+    /// and each step of the reload.
     /// </summary>
     void CrewGuns(World world)
     {
@@ -1122,7 +1175,7 @@ public sealed partial class GameAudio
                 var frame = train.Frames[v.Id];
                 var muzzle = frame.ToWorld(mount.Position + mount.Facing * -TrainKit.CannonMuzzle.Z);
                 float outside = Occlusion(PlayerMotor.Outside);
-                if (m.Mounted && g.Ammo < m.Ammo && g.LastShotTick > 0)
+                if (m.Mounted && Shot(g, m))
                 {
                     bool far = (muzzle - Mixer.Listener.Position).Length > ShotFar;
                     if (Cue(far ? "crew-cannon-fire.shot-far" : "crew-cannon-fire.shot-close", muzzle, outside) is null
@@ -1166,11 +1219,14 @@ public sealed partial class GameAudio
                     m.Laying = false;
                     Cue("crew-cannon-fire.traverse-stop", frame.ToWorld(mount.Position), outside, 0.6f);
                 }
-                // The reload: powder, ball, ram (App. C.3), a step at a time while Use is held.
+                // The reload: powder, pack it, the ball (note 746; App. C.3's powder, ball, ram before), a step at a time while
+                // Use is held. The last step's the ball, rolled home.
                 if (m.Mounted && g.ReloadNeeded < m.Needed)
                 {
                     int done = steps - m.Needed;
-                    Cue(g.ReloadNeeded == 0 ? "crew-cannon-ram.ram-home" : done == 0 ? "crew-cannon-reload.powder-done" : "crew-cannon-ball.ball-roll",
+                    // The gun rammers (queue #505, note 775): the sprung rod's clean clack in the wooden rammer's place.
+                    string ram = Fitted(train, "gunRammers", "up-tells.rammer") ? "up-tells.rammer" : "crew-cannon-ram.ram-home";
+                    Cue(g.ReloadNeeded == 0 ? "crew-cannon-ball.ball-roll" : done == 0 ? "crew-cannon-reload.powder-done" : ram,
                         g.ReloadNeeded == 0 || done == 0 ? muzzle : frame.ToWorld(mount.Position), outside);
                 }
                 if (g.ReloadNeeded >= steps)
@@ -1180,7 +1236,7 @@ public sealed partial class GameAudio
                     int step = steps - g.ReloadNeeded;
                     if (step <= 0)
                         Hold("crew-cannon-reload.powder", v.Id, muzzle, outside);
-                    else if (step == 1 && steps > 2)
+                    else if (step == steps - 1)
                     {
                         if (!m.BallIn)
                             Cue("crew-cannon-ball.ball-in", muzzle, outside);
@@ -1225,6 +1281,9 @@ public sealed partial class GameAudio
             bool lifted = b.Kind == BodyKind.Heavy ? b.Lifted : b.Carrier >= 0;
             if (!_crewBodies.TryGetValue(b.Id, out var m))
             {
+                // A flare fired (note 975): its shot where it flies, for whoever didn't fire it.
+                if (b.Kind == BodyKind.Flare)
+                    FlareSeen(b, centre, occlusion);
                 // A charge taken out of the powder locker (note 374): it comes into the hands there, already carried.
                 if (b.Kind == BodyKind.Powder && lifted && _crewBodiesPrimed)
                     Cue("crew-powder.take", centre, occlusion);
@@ -1239,6 +1298,8 @@ public sealed partial class GameAudio
                     Hint = train.Dynamics.Distance,
                     Broken = b.Broken,
                     MendTicks = b.MendTicks,
+                    Kind = b.Kind,
+                    Knocks = b.Knocks,
                 };
                 continue;
             }
@@ -1249,6 +1310,13 @@ public sealed partial class GameAudio
                 {
                     // A powder keg (GDD §18-19; note 185's kegs, note 245): the cask's own, the powder shifting in it.
                     BodyKind.Cargo or BodyKind.Heavy when b.Cargo == CargoKind.Ammunition => "crew-carry.keg-lift",
+                    // A two-person jackpot (note 783; note 719): a heave each end and its weight coming up, as what it is.
+                    BodyKind.Heavy when Sim.Run.Run.IsJackpot(b) => world.Run?.FindOf(b)?.Item switch
+                    {
+                        "safe" => "loot-jackpot.lift-iron",
+                        "churchBell" => "loot-jackpot.lift-bell",
+                        _ => "loot-jackpot.lift-wood",
+                    },
                     BodyKind.Crate or BodyKind.Cargo or BodyKind.Heavy => "crew-carry.crate-lift",
                     BodyKind.Lamp => "crew-carry.lamp-lift",
                     BodyKind.Toy => "crew-carry.toy-lift",
@@ -1265,6 +1333,7 @@ public sealed partial class GameAudio
             {
                 m.Falling = true;
                 m.Thrown = false;
+                m.Fastest = 0;
                 m.Still = 0;
                 m.ReleasedAt = _time;
             }
@@ -1274,6 +1343,8 @@ public sealed partial class GameAudio
                 double moved = b.Parent == m.Parent ? (b.Centre - m.Local).Length : double.PositiveInfinity;
                 if (moved / SimConstants.TickSeconds > 3)
                     m.Thrown = true;
+                if (double.IsFinite(moved))
+                    m.Fastest = Math.Max(m.Fastest, moved / SimConstants.TickSeconds);
                 m.Still = moved < AtRest ? m.Still + 1 : 0;
                 if (b.Pbd.Asleep || m.Still >= 3 || _time - m.ReleasedAt > 4)
                 {
@@ -1311,6 +1382,8 @@ public sealed partial class GameAudio
                 }
             }
 
+            if (b.Kind == BodyKind.Flare)
+                FlareBurning(b, centre, occlusion);
             // The extinguisher at work (App. C.5).
             if (b.Kind == BodyKind.Extinguisher)
             {
@@ -1380,6 +1453,37 @@ public sealed partial class GameAudio
                 m.At = centre;
                 m.Occlusion = occlusion;
             }
+            // A fragile find knocked (note 783; note 719's Body.Knocks, a knock at a time): its glass breaking.
+            if (b.Kind == BodyKind.Loot && b.Knocks > m.Knocks && world.Run is { } run && run.IsFragile(b))
+                Cue(run.FindOf(b)?.Item switch
+                {
+                    "decanter" => "loot-fragile.decanter",
+                    "mantelClock" => "loot-fragile.clock",
+                    _ => "loot-fragile.glass",
+                }, centre, occlusion);
+            m.Knocks = b.Knocks;
+            // The church bell brought up short sliding along a car's floor (note 719's loose loot riding the train): its ring.
+            if (b.Kind == BodyKind.Heavy && !lifted && !m.Falling && b.Parent == m.Parent && Sim.Run.Run.IsJackpot(b))
+            {
+                double slide = (b.Centre - m.Local).Length / SimConstants.TickSeconds;
+                if (m.Slide - slide > BellKnock && world.Run?.FindOf(b)?.Item == "churchBell")
+                    Cue("loot-jackpot.bell", centre, occlusion, (float)Math.Clamp(m.Slide / 4, 0.4, 1));
+                m.Slide = slide;
+            }
+            else
+                m.Slide = 0;
+            // A thrown lamp broken (note 781; note 728's thrown.lampBreakSpeed): on the ground (or the engine's iron) it lies
+            // Broken, its oil burning till it's gone: its glass and the oil's whump as it breaks, the small fire held while it burns.
+            if (b.Kind == BodyKind.Lamp)
+            {
+                if (b.Broken && !m.Broken)
+                    Cue("crew-lamp-broken.smash", centre, occlusion);
+                if (b.Broken)
+                    Hold("crew-lamp-broken.burn", b.Id, centre, occlusion);
+                m.Broken = b.Broken;
+                m.At = centre;
+                m.Occlusion = occlusion;
+            }
             m.Carrier = b.Carrier;
             m.Lifted = lifted;
             m.Parent = b.Parent;
@@ -1393,7 +1497,11 @@ public sealed partial class GameAudio
             // A find gone while it was being used was used up (Bodies.Dose takes it the tick the dose is done): the hurt eased.
             if (_crewBodies[gone] is { MendTicks: > 0, Broken: false } used && used.At != default)
                 Cue("crew-heal.done", used.At, used.Occlusion);
+            // A lamp gone in mid-flight broke on a car (World.BreakLamp): its oil's in the car's fire grid now, heard as the fire.
+            if (_crewBodies[gone] is { Kind: BodyKind.Lamp, Falling: true, Broken: false } lamp && lamp.At != default)
+                Cue("crew-lamp-broken.smash", lamp.At, lamp.Occlusion);
             _crewBodies.Remove(gone);
+            _flaresSeen.Remove(gone);
         }
         _crewBodiesPrimed = true;
     }
@@ -1403,12 +1511,22 @@ public sealed partial class GameAudio
     {
         var lowest = b.Pbd.Particles.MinBy(p => p.Position.Y - p.Radius);
         string mat = Footing.UnderBody(world, b.Parent, lowest.Position - Double3.Up * lowest.Radius, ref m.Hint);
-        string? name = b.Kind switch
+        // A jackpot set down (note 783; note 719): the safe's dead iron, or the figurehead's oak and the bell's headstock, and the
+        // bell's own ring. Never thrown (it takes two).
+        if (b.Kind == BodyKind.Heavy && Sim.Run.Run.IsJackpot(b))
+        {
+            string? jackpot = world.Run?.FindOf(b)?.Item;
+            Cue(jackpot == "safe" ? "loot-jackpot.set-iron" : "loot-jackpot.set-wood", centre, occlusion);
+            if (jackpot == "churchBell")
+                Cue("loot-jackpot.bell", centre, occlusion);
+        }
+        string? name = b.Kind == BodyKind.Heavy && Sim.Run.Run.IsJackpot(b) ? null : b.Kind switch
         {
             // Set down by hand, a keg is fine (a hard knock sends it up: SetPieces.Kegs, World.Blast): its own careful thunk.
             BodyKind.Cargo or BodyKind.Heavy when b.Cargo == CargoKind.Ammunition && !m.Thrown => "crew-carry.keg-set",
             BodyKind.Crate or BodyKind.Cargo or BodyKind.Heavy => m.Thrown ? "crew-carry.crate-land" : "crew-carry.crate-set",
-            BodyKind.Lamp => "crew-carry.lamp-set",
+            // Broken as it landed, its glass and oil were heard (note 781).
+            BodyKind.Lamp => b.Broken ? null : "crew-carry.lamp-set",
             BodyKind.Toy => "crew-carry.toy-drop",
             BodyKind.Radio => "crew-carry.radio-drop",
             BodyKind.Ragdoll or BodyKind.Child => m.Thrown ? "crew-carry.body-land" : "crew-carry.body-set",
@@ -1426,6 +1544,11 @@ public sealed partial class GameAudio
             _jostled[b.Id] = _time + JostleSeconds;
         if (b.Kind is BodyKind.Ragdoll or BodyKind.Child && Surfaced("crew-mishaps.body-boot", mat) is { } boot)
             CrewAfter(BootAfterBody, boot, centre, occlusion);
+        // Come down hard on the rails (note 781): the knock what hunts by vibration hears, by the host's rule for what knocks
+        // (World.Thrown's kinds; a lamp that broke broke instead).
+        if (b.Parent == PlayerState.World && !(b.Kind == BodyKind.Lamp && b.Broken) && b.Kind is BodyKind.Lamp or BodyKind.Crate or BodyKind.Cargo
+                or BodyKind.Heavy or BodyKind.Powder or BodyKind.Toy or BodyKind.Loot or BodyKind.RepairKit or BodyKind.Extinguisher)
+            RailKnock(world, centre, m.Fastest, m.Hint, occlusion);
     }
 
     /// <summary>An extinguisher standing on its car's mount (the art's own test: World.ExtinguisherMount, within 0.35 m).</summary>

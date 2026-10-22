@@ -15,6 +15,9 @@ public sealed record RunTuning(double StopBelowSpeed, double TerminusZone, doubl
     /// <summary>How far short of the outer gate a night's engine starts (run.json <c>departShortOfGateM</c>).</summary>
     public double DepartShortOfGateM { get; init; } = 8;
 
+    /// <summary>The fortress gates opening for the train and shutting behind it (run.json <c>gates</c>; note 847).</summary>
+    public GateTuning Gates { get; init; } = new(40, 3, 4);
+
     /// <summary>
     /// A terminus that's a town is home once the whole train has stopped this far in through its gate (run.json
     /// <c>homeInsideGateM</c>; note 600): its yard is the departure's length, too long to crawl to the end of. Null: home is
@@ -43,6 +46,9 @@ public sealed record RunTuning(double StopBelowSpeed, double TerminusZone, doubl
 
     /// <summary>The dispatcher and the clerk on the radio (GDD §9): run.json <c>radio</c>.</summary>
     public RadioTuning Radio { get; init; } = new();
+
+    /// <summary>Odd outcomes to find (queue #464, ARCHITECTURE §8 note 730): run.json <c>oddities</c>.</summary>
+    public OddityTuning Oddities { get; init; } = new();
 
     /// <summary>
     /// Where a night's engine starts: its front just short of the gate, ready to depart (the whole train still in the yard,
@@ -114,8 +120,16 @@ public enum RunEnd : byte { None, Delivered, Derailed, CrewLost, DawnMissed, Str
 /// </summary>
 /// <param name="Banked">Note 659: the owners (<see cref="Run.LootOwner"/>) of the finds banked and still lying aboard, so the
 /// resumed night's own bodies of them (put back where they lay) aren't banked twice. Null in an older save.</param>
+/// <param name="Finders">Note 718: who brought each of <paramref name="Stowed"/> aboard (a player id, −1 not known), for the
+/// finder's line. Null in an older save.</param>
 public sealed record RunTakings(double Scavenged, IReadOnlyList<LootFind> Stowed, double Mail, double TenderAtDeparture, double CoalLoaded,
-    int AmmoAtDeparture, IReadOnlyList<int>? Banked = null);
+    int AmmoAtDeparture, IReadOnlyList<int>? Banked = null, IReadOnlyList<int>? Finders = null);
+
+/// <summary>
+/// One of the night's best finds, as the clerk's tally names it (note 718): the kind, its name, how many came home, and what
+/// each paid (a kind's worth is always the same).
+/// </summary>
+public sealed record Prize(string Item, string Name, int Count, double Worth);
 
 /// <summary>What a night came to (spec F.1): everything still attached to the locomotive counts.</summary>
 /// <param name="Scavenged">Scrip for village finds stowed aboard (level-design P12), paid with the cargo on delivery and in Gross.</param>
@@ -131,6 +145,11 @@ public sealed record RunReport(RunEnd End, double Seconds, double DistanceKm, in
     KitLoss KitLoss = KitLoss.None)
 {
     public IReadOnlyList<ReportLine> Lines { get; init; } = [];
+    /// <summary>
+    /// Note 972: what the silly and whimsy upgrades did tonight (<see cref="World.UpgradeCounts"/>), by name: what the clerk's
+    /// tally lines for them read (<see cref="Radio.Fill"/>). In the report's JSON, so it reaches every client with it.
+    /// </summary>
+    public IReadOnlyDictionary<string, int> Counts { get; init; } = new Dictionary<string, int>();
     /// <summary>
     /// Repair kits home beyond the train's own (train.json kit.repairKits): spares the fortress sold that weren't lost, and
     /// kits found at stops and brought in (GDD v1.4 App. E.12 question 4). The campaign keeps them as its spares; −1 for a
@@ -153,6 +172,17 @@ public sealed record RunReport(RunEnd End, double Seconds, double DistanceKm, in
     public int TownHurt { get; init; }
     /// <summary>The town's houses they burnt (note 608), which the campaign remembers against the town.</summary>
     public int TownBurnt { get; init; }
+    /// <summary>
+    /// Note 718 (the director, 14 Oct 2026: players "learn what those objects are"): the night's best finds home, the worthiest
+    /// kinds first (loot.json <c>tally.best</c> of them), for the clerk's tally and the end screen.
+    /// </summary>
+    public IReadOnlyList<Prize> Prizes { get; init; } = [];
+    /// <summary>
+    /// Note 718, the finder's line: the crewmate who brought the most worth aboard among the finds home ("" for nobody), and
+    /// how much. The wallet stays shared (GDD §11): it's a line in the tally, not a share.
+    /// </summary>
+    public string Finder { get; init; } = "";
+    public double FinderWorth { get; init; }
 }
 
 /// <summary>
@@ -331,7 +361,8 @@ public sealed partial class Run
     /// What the night's taken and spent so far, for the autosave (note 500): the finds stowed, the mail caught, and the coal
     /// and rounds it left the fortress with and the coal it's loaded since.
     /// </summary>
-    public RunTakings Takings => new(Scavenged, [.. _stowed], Mail, _tenderAtDeparture, _coalLoaded, _ammoAtDeparture, [.. _banked.Values.Select(b => b.Owner)]);
+    public RunTakings Takings => new(Scavenged, [.. _stowed], Mail, _tenderAtDeparture, _coalLoaded, _ammoAtDeparture, [.. _banked.Values.Select(b => b.Owner)],
+        [.. _finders]);
 
     public void Step(World world, IReadOnlyCollection<PlayerState> crew, double dt)
     {
@@ -429,6 +460,24 @@ public sealed partial class Run
     /// The facility the engine is stopped at: on its spur, for one with a spur (GDD §17: the machinery is down there,
     /// not on the main line); in its zone on the main line, for the coaling tower. Down a dead line is nowhere.
     /// </summary>
+    /// <summary>
+    /// The facility the train stands at for the creatures (note 795), or −1: down its spur (<see cref="RunPhase.AtFacility"/>),
+    /// or standing on the main line beside it, some of the consist within its span. A crew that stops on the main at a yard or
+    /// its village and walks in is at that stop as far as what lives there is concerned, though its loading waits for the spur.
+    /// </summary>
+    public int StandsAt(TrainOnLine train)
+    {
+        if (Phase == RunPhase.AtFacility)
+            return Facility;
+        if (Phase != RunPhase.Underway || !train.OnMain || train.Dynamics.Speed >= Tuning.StopBelowSpeed)
+            return -1;
+        double front = train.Dynamics.Distance, rear = front - train.Dynamics.Consist.LengthMetres;
+        for (int i = 0; i < _facilities.Count; i++)
+            if (front >= _facilities[i].Start && rear <= _facilities[i].End)
+                return i;
+        return -1;
+    }
+
     int StoppedAt(TrainOnLine train, double front)
     {
         int path = train.Dynamics.Path;
@@ -515,7 +564,8 @@ public sealed partial class Run
         // A crate put down (or thrown) inside a cargo car's walls, and lying still there, is loaded: it stays where it lies (note
         // 659), its share in the car's load for as long as it's there. Picked up, thrown out, carried off, blown up or its car
         // gone, it's unloaded. One put back by a resumed night (Banked already) is in the saved load, and only kept track of.
-        foreach (var b in world.Bodies.All.Where(b => b.Kind is Physics.BodyKind.Cargo or Physics.BodyKind.Heavy).ToList())
+        // (A two-person jackpot is a heavy crate's ball but a find, paid as finds are: note 719.)
+        foreach (var b in world.Bodies.All.Where(b => b.Kind is Physics.BodyKind.Cargo or Physics.BodyKind.Heavy && !IsJackpot(b)).ToList())
         {
             bool inside = b.Carrier < 0 && b.TakenBy < 0 && b.Parent > 0 && b.Parent < train.Vehicles.Count && train.Vehicles[b.Parent].Kind == VehicleKind.Cargo
                 && train.Frames[b.Parent].Shape.Interior is { } room && room.Contains(b.Pbd.Particles[0].Position);
@@ -612,11 +662,26 @@ public sealed partial class Run
         if (crane.Operator >= 0)
         {
             crane.Drive(_craneIntent, world.Train, dt);
-            if (crane.Pressed(_craneIntent.Has(PlayerButtons.Fire)) && crane.Release(world.Train) is { Fell: true } drop)
+            bool fire = _craneIntent.Has(PlayerButtons.Fire);
+            bool pressed = crane.Pressed(fire);
+            // Nothing hooked and a friend on it (note 726): the press is for the hoist to answer (a shake, mischief on).
+            if (crane.Hooked is null)
+            {
+                crane.LetsGo(false, dt);
+                if (pressed && crane.Riders > 0)
+                    crane.ShakeOffBy = crane.Operator;
+            }
+            // A casting's let go of only with Fire held (note 941: a stray click let one go).
+            else if (crane.LetsGo(fire, dt) && crane.Release(world.Train) is { Fell: true } drop)
                 _drop = (drop.Landed, crane.Tuning.CrushRadius);
         }
         else
+        {
             crane.Pressed(false);
+            crane.LetsGo(false, dt);
+        }
+        // Whose hands moved it this tick (note 726): a rider's height is the lift of whoever drove it.
+        crane.LastDriver = crane.Operator;
         crane.Operator = -1;
     }
 
@@ -695,6 +760,12 @@ public sealed partial class Run
     public double YardLength { get; init; } = 600;
 
     static TrainDynamics EngineRake(TrainOnLine train) => train.Rakes.First(r => r.Consist.HasEngine);
+
+    /// <summary>Where the engine's front is along the main line, as the run measures it (its rake's, when the train's cut).</summary>
+    public static double EngineFront(TrainOnLine train) => EngineRake(train).Distance;
+
+    /// <summary>The engine's own speed (m/s), as the run reads it for a stop.</summary>
+    public static double EngineSpeed(TrainOnLine train) => EngineRake(train).Speed;
 
     /// <summary>
     /// Where the engine's front has to be for the night to be delivered, stopped: the whole of its rake in through a town
@@ -819,6 +890,13 @@ public sealed partial class Run
     // Who has a hand on the lever, and for how long (the ground isn't part of the train, so not ActionProgress).
     readonly Dictionary<int, double> _lever = new();
 
+    /// <summary>
+    /// Where the coal's falling, while the chute's open (note 730: whoever's under it comes out sooted): the spout's point on
+    /// the main line under it, as every machine has it (the chute's state is mirrored); null while it's shut.
+    /// </summary>
+    public Double3? Pouring(RailLine line) =>
+        ChuteOpen && Facility >= 0 && Facility < _facilities.Count ? line.Sample(ChuteAt(_facilities[Facility], line).SpoutAlong).Position : null;
+
     /// <summary>Coal falls while the chute's open: into the tender if it's under the spout, onto the ballast if not.</summary>
     void Pour(TrainOnLine train, double dt)
     {
@@ -879,15 +957,21 @@ public sealed partial class Run
     /// parted these cars, and who was driving, in the clerk's words.
     /// </summary>
     static string PinParted(World world, int car) =>
-        world.Attribution.LooseOf(car) is { } l ? PinParted(world, l.Cause, l.Speed, l.Driver) : PinParted(world, LooseCause.None, 0, -1);
+        world.Attribution.LooseOf(car) is { } l ? PinParted(world, l.Cause, l.Speed, l.Driver, l.Board) : PinParted(world, LooseCause.None, 0, -1);
 
-    static string PinParted(World world, LooseCause cause, double speed, int driver)
+    static string PinParted(World world, LooseCause cause, double speed, int driver, int board = 0)
     {
         string driving = driver >= 0 ? $" Driving: {IncidentLog.NameOf(world, driver)}." : "";
         return cause switch
         {
             LooseCause.RunIn => $"A hard brake at {Kmh(speed)} worked the coupling's pin loose, and it parted.{driving} ",
             LooseCause.Knock => $"Coupled up at {Kmh(speed)}, the knock worked the coupling's pin loose, and it parted.{driving} ",
+            LooseCause.Bend => $"A bend taken at {Kmh(speed)}{(board > 0 ? $" (its board said {board} km/h)" : "")} worked the coupling's pin loose, and it parted.{driving} ",
+            // Note 865: a pin a rail joint jumped, nobody to hold it; or the two holding it, and the one who let go.
+            LooseCause.Jumped => $"A rail joint at {Kmh(speed)} jumped the coupling's pin, nobody held it, and it parted.{driving} ",
+            LooseCause.LetGoPin => $"Two had hold of the jumped pin, {IncidentLog.NameOf(world, driver)} let go of it, and it parted. ",
+            LooseCause.LetGoBrake => $"Two had hold of the jumped pin, {IncidentLog.NameOf(world, driver)} let go of the brake wheel, and it parted. ",
+            LooseCause.LetGoThrottle => $"Two had hold of the jumped pin, {IncidentLog.NameOf(world, driver)} opened the throttle on it, and it parted. ",
             _ => "The coupling worked loose and parted. ",
         };
     }
@@ -901,7 +985,7 @@ public sealed partial class Run
     static string LostCause(World world, NewsEvent e) => (Parting)e.Cause switch
     {
         Parting.Crew when e.Who >= 0 => $"Coupler: {IncidentLog.NameOf(world, e.Who)}. ",
-        Parting.Pin => PinParted(world, (LooseCause)e.Detail, e.Speed, e.Who),
+        Parting.Pin => PinParted(world, (LooseCause)e.Detail, e.Speed, e.Who, e.Cars.Length > 0 && world.Attribution.LooseOf(e.Cars[0]) is { } l ? l.Board : 0),
         Parting.Knotter => "A Knotter took the coupling, and it parted. ",
         Parting.Apart => CameApart,
         _ => "",
@@ -934,6 +1018,7 @@ public sealed partial class Run
         // The finds stowed aboard, and those on a locker's shelf in a car still on the engine (note 649).
         double scavenged = Scavenged + LockerFinds(world, attached);
         double gross = delivered ? freightPay + childPay + scavenged + Mail : 0;
+        var (prizes, finder, finderWorth) = Prized(world, attached);
         double coal = Math.Max(0, _tenderAtDeparture + _coalLoaded - train.Boiler.Tender) * e.CoalPerUnit;
         double ammo = Math.Max(0, _ammoAtDeparture - train.Vehicles.Sum(v => v.Gun.Ammo)) * e.RoundsPerRound;
         // A derelict was battered before the night began (note 294): not the crew's to mend.
@@ -969,7 +1054,9 @@ public sealed partial class Run
         var (lines, shown) = MarkBookmarks(world, ReportLines(world, attached, delivered, feeEach, refundEach, broughtEach));
         return new RunReport(End, Math.Round(Seconds, 1), Math.Round(engine.Distance / 1000, 2), home.Count, cargo.Count - home.Count,
             Math.Round(cargoValue, 2), Math.Round(gross), Math.Round(coal), Math.Round(ammo), Math.Round(repairs),
-            Math.Round(gross - coal - ammo - repairs - fees + refunds - recovery - broughtFees), crewHome, crew.Count - crewHome, delivered ? Math.Round(scavenged) : 0,
+            // Note 766: the net is its rounded parts' sum, so the tally's figures add up to it on the screen (rounded once from the
+            // unrounded parts, it could be a scrip or two off what's read out).
+            Math.Round(gross) - Math.Round(coal) - Math.Round(ammo) - Math.Round(repairs) - fees + refunds - recovery - broughtFees, crewHome, crew.Count - crewHome, delivered ? Math.Round(scavenged) : 0,
             deaths, bodiesHome, fees, refunds, Math.Round(delivered ? Mail : 0), recovery, stranded ? Kit.Loss : KitLoss.None)
         {
             Lines = lines,
@@ -980,12 +1067,40 @@ public sealed partial class Run
             BroughtInFees = broughtFees,
             TownHurt = hurt,
             TownBurnt = delivered ? Tuning.BroughtIn.Burns * _broughtIn.Count : 0,
+            Prizes = delivered ? prizes : [],
+            Finder = delivered && finder >= 0 ? IncidentLog.NameOf(world, finder) : "",
+            FinderWorth = delivered && finder >= 0 ? finderWorth : 0,
             // D.8: who everyone is now, for the campaign to carry into the next night.
             Identities = Identity.ByName(world, world.LastCrew.Select(c => c.Id)),
+            // Note 972: what the silly upgrades did tonight, for the clerk's lines about them (Radio.Fill).
+            Counts = world.UpgradeCounts(),
             // Home with the cars that are (in one of them, its floor or a locker) or in a living crewmate's hands.
             SpareKitsHome = Math.Max(0, world.Bodies.All.Count(b => b.Kind == Physics.BodyKind.RepairKit && b.Claimed
                 && (b.Carrier >= 0 || attached.Contains(b.Parent))) - train.Dynamics.Tuning.Kit.RepairKits),
         };
+    }
+
+    /// <summary>
+    /// Note 718: the night's finds as they pay (those stowed, and those on a locker's shelf in a car still on the engine), the
+    /// worthiest kinds of them (loot.json <c>tally.best</c>), and who brought the most worth aboard (−1 for nobody, or when the
+    /// tally doesn't read it). Ties go to the kind's key and the lower player id, so every reading is the same.
+    /// </summary>
+    (List<Prize> Prizes, int Finder, double Worth) Prized(World world, HashSet<int> attached)
+    {
+        if (_loot is not { } t)
+            return ([], -1, 0);
+        var finds = _stowed.Select((f, i) => (Find: f, By: _finders[i])).ToList();
+        foreach (var b in world.Bodies.All.Where(b => b.Kind == Physics.BodyKind.Loot && b.Stowed && attached.Contains(b.Parent)))
+            if (FindOf(b) is { } f)
+                finds.Add((f, FinderOf(b)));
+        // Note 719: a fragile find knocked is its own line, named by its damage ("Find: mantel clock, dented, 60.").
+        var prizes = finds.GroupBy(x => (x.Find.Item, x.Find.Knocks)).Select(g => new Prize(g.Key.Item, t.Named(g.Key.Item, g.Key.Knocks), g.Count(), g.Max(x => x.Find.Value)))
+            .OrderByDescending(p => p.Worth).ThenBy(p => p.Item, StringComparer.Ordinal).ThenBy(p => p.Name, StringComparer.Ordinal).Take(Math.Max(0, t.Tally.Best)).ToList();
+        if (!t.Tally.Finder)
+            return (prizes, -1, 0);
+        var best = finds.Where(x => x.By >= 0).GroupBy(x => x.By).Select(g => (By: g.Key, Worth: g.Sum(x => x.Find.Value)))
+            .OrderByDescending(x => x.Worth).ThenBy(x => x.By).FirstOrDefault((-1, 0));
+        return (prizes, best.Worth > 0 ? best.By : -1, best.Worth);
     }
 
     /// <summary>
@@ -1123,6 +1238,8 @@ public sealed partial class Run
             Scavenged = takings.Scavenged;
             _stowed.Clear();
             _stowed.AddRange(takings.Stowed);
+            _finders.Clear();
+            _finders.AddRange(takings.Finders is { } by && by.Count == takings.Stowed.Count ? by : takings.Stowed.Select(_ => -1));
             _banked.Clear();
             _alreadyBanked.Clear();
             _alreadyBanked.AddRange(takings.Banked ?? []);

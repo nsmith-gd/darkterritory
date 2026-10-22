@@ -385,7 +385,7 @@ public class CargoTests
             var n = new Night(5, speed: 8);
             foreach (var v in n.Train.Vehicles.Where(v => v.Kind == VehicleKind.Cargo))
                 v.Cargo = cargo;
-            var fire = n.World.AddEnemy(id => CarFire.In(id, n.Train, 2, 2, EveryKind.Enemies.CarFire));
+            var fire = n.World.AddEnemy(id => CarFire.In(id, n.Train, 2, 2, EveryKind.Enemies.CarFire, FireCause.Set));
             n.Run(20);
             double grown = fire.Extra;
             double t = 20;
@@ -448,12 +448,34 @@ public class CargoTests
         n.Crew[2] = n.Crew[1] with { Position = beside + new Double3(0, 0, 2) };
         n.Run(SimConstants.TickSeconds);
         var rule = Spawns.For(EnemyKind.SootChildren)!;
-        Assert.True(rule.Spawn(new SpawnContext(n.World, t, n.World.Director!)));
+        Assert.True(rule.Spawn(new SpawnContext(n.World, t, n.World.Director!)).Placed);
         var first = Assert.IsType<SootChildren>(n.World.ActiveEnemies.Last());
         Assert.False(first.Soot);
         Assert.True(n.World.ChildCalled);
         Assert.False(n.World.NextChildReal);
-        Assert.True(rule.Spawn(new SpawnContext(n.World, t, n.World.Director!)));
+        Assert.True(rule.Spawn(new SpawnContext(n.World, t, n.World.Director!)).Placed);
         Assert.True(Assert.IsType<SootChildren>(n.World.ActiveEnemies.Last()).Soot);
+    }
+
+    [Fact]
+    public void AloneAtAStopAChildStillCalls()
+    {
+        // Note 770 (the director, 15 Oct, after "I also haven't seen like a rescue child ever"): the call came only to a crew of
+        // two or more (enemies.json sootChildren.minCrew 2), and it's the only way a child is in a night, so a solo night never
+        // had one. Alone, it calls too.
+        var stop = new FacilityTests.Stop(FacilityKind.GrainElevator);
+        stop.Crew.Add(stop.OnTheGround(stop.Site.SpoutLever + new Double3(3, -0.9, 0)));
+        stop.World.EnableEnemies(Tuning.Enemies, null, 1, crew: 1, authority: true);
+        stop.Step(SimConstants.TickSeconds, [default]);
+        var ctx = new SpawnContext(stop.World, Tuning.Enemies, stop.World.Director!);
+        Assert.Equal(1, ctx.Crew);
+        Assert.Equal(1, Tuning.Enemies.SootChildren.MinCrew);
+        var rule = Spawns.For(EnemyKind.SootChildren)!;
+        Assert.NotNull(rule.Weight(ctx));
+        Assert.True(rule.Spawn(ctx).Placed);
+        Assert.IsType<SootChildren>(stop.World.ActiveEnemies.Last());
+        // Put back to a crew of two's rule, the lone hand hears nothing: what kept a solo night childless.
+        var two = Tuning.Enemies with { SootChildren = Tuning.Enemies.SootChildren with { MinCrew = 2 } };
+        Assert.Null(rule.Weight(new SpawnContext(stop.World, two, stop.World.Director!)));
     }
 }

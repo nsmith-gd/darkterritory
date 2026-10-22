@@ -18,11 +18,12 @@ sealed class Night
     public TrainControls Controls = new() { Reverser = 1 };
 
     /// <param name="front">Where the engine's front stands (m along the line); by default 2 km in, or 400 m on a route.</param>
+    /// <param name="trainTuning">The train as the campaign's upgrades make it (the whimsies' tests); the plain one by default.</param>
     public Night(int cars, double speed, Route.Route? route = null, bool boiler = false, ulong seed = 1, EnemyTuning? enemies = null, RailLine? line = null,
-        double? front = null)
+        double? front = null, TrainTuning? trainTuning = null)
     {
         line ??= route?.Build() ?? new RailLine(new LineDefinition("t", [new TrackSegment(40_000)]));
-        var train = new TrainOnLine(new TrainDynamics(Consist.Uniform(Tuning.Train, cars, 1)), line, front ?? (route is null ? 2_000 : 400), boiler ? Tuning.Boiler : null);
+        var train = new TrainOnLine(new TrainDynamics(Consist.Uniform(trainTuning ?? Tuning.Train, cars, 1)), line, front ?? (route is null ? 2_000 : 400), boiler ? Tuning.Boiler : null);
         train.Dynamics.Velocity = speed;
         World = new World(train, Tuning.Combat);
         World.EnableEnemies(enemies ?? Tuning.Enemies, route, seed, crew: 4, authority: true);
@@ -380,14 +381,20 @@ public class EnemyTests
             // minding the fire.
             // Nothing of the director's own before the night's grace, pressed or not (note 266).
             Assert.All(d.Log.Where(l => l.Kind is not EnemyKind.Stoker), l => Assert.True(l.Tick * SimConstants.TickSeconds >= d.Grace, $"spawn at {l.Tick / 30} s"));
-            // Pressed spawns (the pressure at pressAt) come when they must, cooldown or not.
-            var spawns = d.Log.Where(l => l.Kind is not EnemyKind.Stoker && !l.Paced).ToList();
+            // Pressed spawns (the pressure at pressAt) come when they must, cooldown or not; and the night's curve's free ones
+            // (note 849, Director.SpendFree) go beside the pressure, neither waiting on the cooldown nor setting it.
+            var spawns = d.Log.Where(l => l.Kind is not EnemyKind.Stoker && !l.Paced && !l.Free).ToList();
             for (int i = 1; i < spawns.Count; i++)
-                Assert.True((spawns[i].Tick - spawns[i - 1].Tick) * SimConstants.TickSeconds >= E.Director.CooldownSeconds[0] - 1);
+                Assert.True((spawns[i].Tick - spawns[i - 1].Tick) * SimConstants.TickSeconds >= E.Director.CooldownSeconds[0] - 1, $"seed {seed}: {spawns[i - 1]} then {spawns[i]}");
             // The caps are on what's engaged; the condition-triggered ones aren't capped (App. B.5). A long train's two each
             // (note 647; from 8 cars in the director's roster, note 652) grows the hard cap in step.
             var o = E.Director.Orchestrator;
-            int hard = (int)Math.Round(E.Director.MaxConcurrentSmallCrew * o.PerPlayerFor(10) / o.PerPlayer);
+            // Note 906 (#611): with the concurrency on, the cap counts threats (a car fire, a far-off Knotter, a Whistler
+            // waiting in its gap are about but off it), and the bodies about are held to the cap and the threat states'
+            // ambient room (Director.Crowded, note 881); off, App. B.1's flat hard cap as before.
+            var c = E.Director.Encounters.Concurrency;
+            int hard = c.On ? Concurrency.EngagedCap(4, 10, c) + E.Director.Threats.AmbientRoom
+                : (int)Math.Round(E.Director.MaxConcurrentSmallCrew * o.PerPlayerFor(10) / o.PerPlayer);
             Assert.All(d.Log.Where(l => l.Kind is not EnemyKind.Stoker),
                 l => Assert.True(l.ActiveInZone <= E.Director.MaxConcurrentZone && l.ActiveTotal <= hard, $"{l}"));
             Assert.All(d.Log, l => Assert.True(l.TrainDistance <= route.Length - 500));

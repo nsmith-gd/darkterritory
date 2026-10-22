@@ -1,0 +1,85 @@
+// The sense table (GDD App. A.1 "sense triggers", App. C, §21; queue #462, ARCHITECTURE §8 note 728; the director, 14 Oct
+// 2026, App. F.6). The creatures already run on senses: sound, light, heat, movement, scent, vibration, sight, absence. This
+// is what the crew's things give off, or mask, in that same language, so a creature answers a thing the way it answers
+// anything else with its sense, and a crew can find out by trying (Hackers, docs/design/friendslop.md). A creature only
+// ever answers its own sense (App. A.1: a sense it doesn't have, it ignores). One query reads it all (World.Emitters).
+{
+  // What each thing gives off: a sense, how far it carries (m) and how strong it is there (0..1, the same scale as a voice,
+  // whose strength is its level / 255). A negative strength masks that sense instead (the extinguisher's cold on heat).
+  "items": {
+    // The hand lamp (BodyKind.Lamp): lit carried or set down, dark only put away in a slot. A lamp set or thrown into a dark
+    // house lights what's waiting there (it's drawn as a light where it lies), and draws the Fire Flies.
+    "handLamp": [ { "sense": "light", "radius": 12, "strength": 1 } ],
+    // A car's own lamps (Vehicle.LampLit): App. A.5's "a lit lamp inside a car".
+    "carLamp": [ { "sense": "light", "radius": 10, "strength": 1 } ],
+    // The noisy toys (App. C item 4): a squeaker sounds only squeezed in the hands; a music box and a wind-up drummer are
+    // wound, and set down or thrown keep playing where they lie (toys.playsSeconds) until they run down.
+    "squeaker": [ { "sense": "sound", "radius": 15, "strength": 0.4 } ],
+    "musicBox": [ { "sense": "sound", "radius": 30, "strength": 0.6 } ],
+    "drummer": [ { "sense": "sound", "radius": 35, "strength": 0.8 } ],
+    // The extinguisher's spray (App. C.5), Fire held with one in the hands: cold along the look, out to its radius in a cone
+    // of spray.coneDeg: it masks heat (playtest 13 Oct evening, line 24: "I can take a fire extinguisher and use them on
+    // the cinder hounds, can't I?").
+    "extinguisherSpray": [ { "sense": "heat", "radius": 3.5, "strength": -1 } ],
+    // A knock on the rail: a coal lump thrown (note 717) or a crate or anything heavy dropped onto one (knock below).
+    "knock": [ { "sense": "vibration", "radius": 40, "strength": 1 } ],
+    // A thrown lamp broken on the ground: its oil burning a short while (thrown.groundBurnSeconds).
+    "burningLamp": [ { "sense": "light", "radius": 10, "strength": 0.8 }, { "sense": "heat", "radius": 3, "strength": 0.6 } ],
+    // Food among the finds (foodFinds): its smell, lying about or in the hands.
+    "food": [ { "sense": "scent", "radius": 15, "strength": 0.5 } ],
+    // A body (App. D.9): what the Mourners come for (App. A.6, absence; they read the bodies themselves, note 362).
+    "body": [ { "sense": "absence", "radius": 20, "strength": 1 } ],
+    // A flare from the flare pistol, burning where it came down (note 871; upgrades.md §4: "a flare lights a village"): the
+    // brightest light there is, and a little heat close to.
+    "flare": [ { "sense": "light", "radius": 60, "strength": 1 }, { "sense": "heat", "radius": 2, "strength": 0.5 } ]
+  },
+  // How long a wound toy plays once it's let go (s): 0, only while it's in the hands.
+  "toys": { "playsSeconds": { "squeaker": 0, "musicBox": 90, "drummer": 30 } },
+  // The extinguisher's spray: a cone this wide (degrees, either side of the look) from the eye, as the fire's (enemies.json
+  // carFire.sprayConeDeg). Its reach is its item's radius.
+  "spray": { "coneDeg": 25 },
+  // A knock: something landing at speedFrom (m/s, the change in its speed) or more on the ground within railWithin (m) of a
+  // track's centre (the rails are 0.72 m either side of it); heard for seconds.
+  "knock": { "railWithin": 1.1, "speedFrom": 3, "seconds": 2 },
+  // Thrown things do what they are. A lamp brought up short at breakSpeed (m/s, the change in its speed: a throw, a fall off
+  // a roof; set down by hand from the hands' height it's about 4.5) breaks: on or in a car its oil lights that car's fire
+  // grid at the cell nearest where it broke, at fireHeat (enemies.json carFire's cells, 0..1); on the ground it burns
+  // groundBurnSeconds where it lies. A powder keg brought up short goes up as it always has (facilities.json kegs.blowSpeed).
+  "thrown": { "lampBreakSpeed": 6, "lampFireHeat": 0.35, "groundBurnSeconds": 25 },
+  // The finds that smell of food (loot.json kinds).
+  "foodFinds": ["treats", "tinnedFood", "preserves"],
+  // How each creature answers the table, by its own sense (App. A).
+  "answers": {
+    // THE MOOSE (sound, with movement): goes for the loudest thing it hears. A toy playing within its own radius of the moose,
+    // louder than any voice there, turns its head and walks it over (searchSpeed) to standOff m of it, while it's within its
+    // leash; a toy draws nobody's blame into its meter (it isn't anyone). Searching for whoever riled it, a toy louder than
+    // any voice is where it searches. Quiet again, it goes home.
+    "moose": { "toysLure": true, "standOff": 3 },
+    // THE CHOIR (sound): a toy playing where it lies counts on the meter as it would carried, in the name of the last one to
+    // hold it (App. C.7's "anything noisy they carry"), while it's within its own radius of a living crewmate.
+    "choir": { "lyingToysCount": true },
+    // THE GAUNT (sound: silence): a toy playing within its listenRadius isn't silence (its anger holds), but it isn't talk
+    // either: only a voice talks it down. So a music box keeps the Gaunt where it is, and feeds the Choir while it does.
+    "gaunt": { "toyHoldsSilence": true, "toyTalksDown": false },
+    // CINDER HOUNDS (heat): sprayed (the extinguisher's cold on it, aimed at it within the spray's reach and cone, the same
+    // side of a car's walls), a hound lets go of whoever it holds, can't bite, and backs off along its car at backOffSpeed;
+    // it keeps off repelSeconds after the spray stops. Sprayed driveOffSeconds in all within driveOffWindow, it leaps off
+    // the train and is gone. Weaker than a gun's suppression (cinderHounds.suppressRounds sends a running pack off at once);
+    // the spray only reaches the ones aboard.
+    "cinderHounds": { "sprayRepels": true, "repelSeconds": 3, "driveOffSeconds": 4, "driveOffWindow": 10, "backOffSpeed": 2.5 },
+    // FIRE FLIES (light): a lit hand lamp lying in a car counts as that car's lamp (they come to it, and it doesn't go out
+    // with the car's lamps); one lying out of every car within lureRadius of a swarm draws the swarm off the car to it
+    // (lureSpeed m/s), where its igniting breaks the lamp into a ground burn instead of setting a car alight.
+    // Note 871: a burning flare draws a swarm off its car from flareLureRadius (it's seen from further than a lamp), and they
+    // follow it (upgrades.md §4: "the Fire Flies follow it away from the train"): they swarm round it while it burns, set
+    // nothing alight (it's burning already), and are gone when it's out.
+    "fireFlies": { "lampsAboardCount": true, "lureRadius": 30, "lureSpeed": 3, "flareLureRadius": 80 },
+    // CAR HUGGER (vibration): lurking, a knock within the knock's radius draws it to the knock along the line (crawlSpeed m/s)
+    // and off the formation's edge (lateral m out); while drawn (drawnSeconds from the last knock) it latches onto nothing.
+    "carHugger": { "knocksDraw": true, "drawnSeconds": 15, "crawlSpeed": 2, "lateral": 6 },
+    // TOWER JAW (vibration): a knock within the knock's radius and it stops gnawing, turns to the knock and rears (its
+    // threat, at no one) for listenSeconds. The Knotter and Hotbox answer the train's own running (its speed), never a
+    // knock. They ignore it.
+    "towerJaw": { "knocksTurn": true, "listenSeconds": 4 }
+  }
+}

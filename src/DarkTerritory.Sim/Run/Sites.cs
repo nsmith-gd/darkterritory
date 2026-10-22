@@ -154,15 +154,48 @@ public sealed record CraneTuning
     public double TrolleySpeed { get; init; } = 1.0;
     public double HoistSpeed { get; init; } = 0.8;
     public double ControlsReach { get; init; } = 1.2;
+    /// <summary>Note 736: the cab hangs under the bridge's far end, this far out past it (m).</summary>
+    public double CabOut { get; init; } = 1.4;
     public double RigReach { get; init; } = 1.5;
     public double RigHeight { get; init; } = 2.2;
     public double RigSeconds { get; init; } = 2;
     public double DropAbove { get; init; } = 0.6;
     public double CrushRadius { get; init; } = 1.4;
+    /// <summary>Note 941: how long the operator holds Fire for the hook to let go of a casting (s).</summary>
+    public double ReleaseHold { get; init; } = 0.5;
     /// <summary>Note 581: a casting this low over an open hatch's roof (m, its base) that overlaps it is eased over the opening ...</summary>
     public double GuideAbove { get; init; }
     /// <summary>... at this speed (m/s); 0: never.</summary>
     public double GuideSpeed { get; init; }
+    /// <summary>Note 707: the operator's view from the cab (presentation only; the sim never reads it).</summary>
+    public CraneViewTuning View { get; init; } = new();
+    /// <summary>Note 726: a crewmate riding the hook.</summary>
+    public HoistTuning Hoist { get; init; } = new();
+}
+
+/// <summary>A friend on the crane's hook (GDD §18, note 726). Field docs in facilities.json <c>crane.hoist</c>.</summary>
+public sealed record HoistTuning
+{
+    public bool Enabled { get; init; } = true;
+    public double Reach { get; init; } = 1.2;
+    public double[] Height { get; init; } = [-0.4, 1.9];
+    public double GrabSeconds { get; init; } = 0.6;
+    public int Riders { get; init; } = 2;
+    public double FeetAbove { get; init; } = 0.05;
+    public double Spread { get; init; } = 0.45;
+    public double Headroom { get; init; } = 1.7;
+    public bool ShakeOff { get; init; } = true;
+}
+
+/// <summary>The crane operator's view (GDD §18, note 707). Field docs in facilities.json <c>crane.view</c>.</summary>
+public sealed record CraneViewTuning
+{
+    public double Fov { get; init; } = 55;
+    public double LowerFrom { get; init; } = 4;
+    public double Down { get; init; }
+    public double Lean { get; init; }
+    public double Ground { get; init; }
+    public double Window { get; init; }
 }
 
 /// <summary>Who works a facility stop (note 261; spec D.2's "Crew" column). Field docs in facilities.json.</summary>
@@ -177,8 +210,17 @@ public sealed record StopCrewTuning
     public double VillageReach { get; init; } = 150;
     /// <summary>Nobody goes to the village with less of the night than this left (s).</summary>
     public double VillageDawnSpare { get; init; } = 900;
+    /// <summary>
+    /// Note 934: a driver bot stands this long at each halt on the night's line (an abandoned village's on the main line) that
+    /// the night has time for (0: drives past them, as before).
+    /// </summary>
+    public double HaltStandSeconds { get; init; }
+    /// <summary>Note 934: only with this much of the night in hand past the run home (s), as the other optional stops.</summary>
+    public double HaltAllowance { get; init; } = 600;
     /// <summary>Note 403: how far from where it stands a crate lying loose elsewhere in the yard may be for a hand to fetch it (m; 0: none).</summary>
     public double YardReach { get; init; }
+    /// <summary>Note 867: how far a two-person jackpot may lie for a hand to fetch it, or be held alone for a hand to come to its other end (m; 0: as before).</summary>
+    public double JackpotReach { get; init; }
     /// <summary>Note 413: how far the Choir's gathered (0 to 1) when a hand on foot at a stop gets behind a door (0: never).</summary>
     public double ShelterAt { get; init; }
     /// <summary>Gathered less than this, and not here, it comes out again.</summary>
@@ -187,6 +229,8 @@ public sealed record StopCrewTuning
     public double ShelterReach { get; init; } = 60;
     /// <summary>A house is taken over the train while its door's no further than this many times the train's nearest car.</summary>
     public double ShelterOverTrain { get; init; } = 2;
+    /// <summary>Note 935: a bot driving runs in to a stop's hold no faster than a stop at this from where it is (m/s²; 0: the brake's curve).</summary>
+    public double ApproachEase { get; init; }
 }
 
 /// <summary>The grain elevator's spout (GDD §18 "one spout, one car at a time"; spec D.2 gravity chute). Field docs in facilities.json.</summary>
@@ -197,7 +241,7 @@ public sealed record SpoutTuning
     public double LeverAlong { get; init; } = 2;
     public double LeverLateral { get; init; } = 3.4;
     public double LeverReach { get; init; } = 1.2;
-    public double Tolerance { get; init; } = 1.5;
+    public double EndMargin { get; init; } = 1;
     public double PourPerSecond { get; init; } = 0.05;
     public double Bin { get; init; } = 3;
     public double OverfillDamagePerLoad { get; init; } = 0.6;
@@ -218,7 +262,7 @@ public sealed record LiftTuning
     public double SteamReach { get; init; } = 56;
     public double SteamPerSkip { get; init; } = 20;
     public double PerSkip { get; init; } = 0.25;
-    public double Tolerance { get; init; } = 1.5;
+    public double EndMargin { get; init; } = 1;
     public double Ore { get; init; } = 3;
     public double OverfillDamagePerLoad { get; init; } = 0.6;
 }
@@ -241,7 +285,7 @@ public sealed record ConveyorTuning
     public double StarterReach { get; init; } = 1.4;
     public double StartSeconds { get; init; } = 4;
     public double StartRounds { get; init; } = 0.25;
-    public double Tolerance { get; init; } = 1.5;
+    public double EndMargin { get; init; } = 1;
     public double PerSecond { get; init; } = 0.04;
     public double Grain { get; init; } = 3;
     public double[] JamEvery { get; init; } = [30, 60];
@@ -402,8 +446,12 @@ public sealed class WreckHeap(int index, Double3 centre, double yaw, int salvage
 /// <summary>A wreck heap's replicated state.</summary>
 public readonly record struct HeapState(int Salvage, bool Found, double Stability, double Groan, int Shifts);
 
-/// <summary>Where a crane's casting is (T48): on the ground where it was stacked, on the hook, or lashed on a car.</summary>
-public enum CastingState : byte { Stacked, Hooked, Loaded, Lost }
+/// <summary>
+/// Where a crane's casting is (T48): on the ground where it was stacked, on the hook, or lashed on a car. Taken: dragged off by
+/// the Mouse Moose out of the hook's reach, lying where it was left or still being dragged, and nobody's to load (note 790);
+/// Lost: gone for good.
+/// </summary>
+public enum CastingState : byte { Stacked, Hooked, Loaded, Lost, Taken }
 
 /// <summary>A site's replicated state (the Run record), for a client to adopt.</summary>
 public readonly record struct SiteState(bool Stocked, double Progress, int SledsLeft, bool Turning, bool OutOfRhythm, double Crank,
@@ -861,6 +909,16 @@ public sealed class Site
     public double Restart { get; internal set; }
     /// <summary>Who's at the powerhouse restarting it this tick (−1 for nobody). Host only.</summary>
     internal int Restarter = -1;
+
+    /// <summary>
+    /// Whether <paramref name="player"/> has their hands on one of this site's modules this tick (note 753, the census's
+    /// commitment): a winch handle, a lever (spout, lift, tipple), the conveyor's starter or its jam, the herd, the powerhouse,
+    /// a crane's controls or its rigging. Host only: these are the hands the run reads, set as the crew act and cleared as it
+    /// steps.
+    /// </summary>
+    internal bool Works(int player) => player >= 0 && (Cranking[0] == player || Cranking[1] == player || Pourer == player || Winder == player
+        || Starter == player || Clearer == player || Tippler == player || Restarter == player || Herders.Contains(player)
+        || Cranes.Any(c => c.Operator == player || c.Rigger == player));
 
     public SiteState State => new(Stocked, Progress, SledsLeft, Turning, OutOfRhythm, Crank, Power, Restart)
     {

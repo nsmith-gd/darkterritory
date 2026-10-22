@@ -38,6 +38,24 @@ jobs:
             curl -fsSL "$STEAM_REDIST_URL" -o "$RUNNER_TEMP/redist.zip"
             unzip -oj "$RUNNER_TEMP/redist.zip" '*steam_api64.dll' '*libsteam_api.so' -d external/steam || [ $? = 11 ]  # 11: one of them isn't in it
           fi
+      - name: Epic's EOS SDK and the game's EOS credentials (note 896)
+        env:
+          EOS_SDK_URL: ${{ secrets.EOS_SDK_URL }}
+          EOS_PRODUCT_ID: ${{ secrets.EOS_PRODUCT_ID }}
+          EOS_SANDBOX_ID: ${{ secrets.EOS_SANDBOX_ID }}
+          EOS_DEPLOYMENT_ID: ${{ secrets.EOS_DEPLOYMENT_ID }}
+          EOS_CLIENT_ID: ${{ secrets.EOS_CLIENT_ID }}
+          EOS_CLIENT_SECRET: ${{ secrets.EOS_CLIENT_SECRET }}
+        run: |
+          # Without them the build still works: online play off Steam is LAN and direct IP only, and the game says so.
+          if [ -n "$EOS_SDK_URL" ]; then
+            curl -fsSL "$EOS_SDK_URL" -o "$RUNNER_TEMP/eos.zip"
+            mkdir -p external/eos && unzip -oq "$RUNNER_TEMP/eos.zip" 'SDK/Source/*' 'SDK/Bin/EOSSDK-Win64-Shipping.dll' 'SDK/Bin/libEOSSDK-Linux-Shipping.so' -d external/eos || [ $? = 11 ]
+          fi
+          if [ -n "$EOS_PRODUCT_ID" ]; then
+            mkdir -p external/eos
+            python3 -c 'import json, os; json.dump({k: os.environ["EOS_" + v] for k, v in [("productId", "PRODUCT_ID"), ("sandboxId", "SANDBOX_ID"), ("deploymentId", "DEPLOYMENT_ID"), ("clientId", "CLIENT_ID"), ("clientSecret", "CLIENT_SECRET")]} | {"relay": "allow"}, open("external/eos/eos.json", "w"))'
+          fi
       - run: sudo apt-get update -qq && sudo apt-get install -y -qq zip
       - run: tools/package.sh ${{ inputs.demo && '--demo' || '' }} win-x64 linux-x64
       - name: steamcmd

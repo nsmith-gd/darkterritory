@@ -85,6 +85,22 @@ public class TrendsTests
     }
 
     [Fact]
+    public void TheGrabsJudgedAreTheOnesNobodyBroke()
+    {
+        // Note 986: seed 7's Car Hugger, fought at its mouth: 17 grabs, every one pulled free, nobody hurt.
+        var report = JsonNode.Parse("""{ "threats": { "grabs": { "CarHugger": 17, "Ribbit": 2 }, "rescues": { "CarHugger": 17 }, "punishes": { "Ribbit": 1 } } }""")!;
+        var m = TrendMetrics.FromHarness(report);
+        Assert.Equal(19, m["balance.grabs"]);
+        Assert.Equal(2, m["balance.grabsUnbroken"]);
+        Assert.Equal(1, m["balance.punishes"]);
+        // The shipped bands judge the unbroken grabs, and only track the grabs begun.
+        var bands = TrendBands.Load(TrendBands.DefaultPath(Content));
+        Assert.Equal(Worse.None, bands.For("balance.grabs").Bad);
+        Assert.Equal(Worse.Either, bands.For("balance.grabsUnbroken").Bad);
+        Assert.Equal(Worse.Up, bands.For("balance.punishes").Bad);
+    }
+
+    [Fact]
     public void AStepWithTooLittleBeforeItIsNotJudged()
     {
         Assert.Empty(TrendSeries.Steps(Series("balance.km", 19, 19, 5), Bands));
@@ -190,8 +206,8 @@ public class TrendsTests
         Assert.Equal(1, Assert.Single(line.Seeds).Seed);
         var m = line.Metrics;
         string[] expected = ["balance.km", "balance.deaths", "balance.delivered", "balance.carsLost", "balance.carsDelivered", "balance.cargo",
-            "balance.net", "balance.crewHome", "balance.grabs", "balance.fairness", "pacing.beatsPerMinute", "pacing.longestQuietSeconds",
-            "net.downKbps", "net.maxCorrectionM", "sim.cpuMsPerTick"];
+            "balance.net", "balance.crewHome", "balance.grabs", "balance.grabsUnbroken", "balance.punishes", "balance.fairness", "pacing.beatsPerMinute", "pacing.longestQuietSeconds",
+            "driving.brakesPerMinute", "driving.brakeTaps", "net.downKbps", "net.maxCorrectionM", "sim.cpuMsPerTick"];
         foreach (string name in expected)
             Assert.Contains(name, m.Keys);
         Assert.DoesNotContain(m.Keys, k => k.StartsWith("moments.", StringComparison.Ordinal));

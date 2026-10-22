@@ -26,7 +26,10 @@ namespace DarkTerritory.Sim.Train;
 public static class CrewActions
 {
     /// <param name="hand">The hand tuning, when hands are reported at all (<see cref="World.Hand"/>).</param>
-    public static void Apply(ref PlayerState s, in PlayerIntent intent, TrainOnLine train, double dt, HandTuning? hand = null)
+    /// <param name="pace">Note 752: how fast this hand works a shared job (a breach, the burst boiler) this tick, the world's
+    /// say (train.json repair.pairRate with a crewmate at it); unset, 1.</param>
+    public static void Apply(ref PlayerState s, in PlayerIntent intent, TrainOnLine train, double dt, HandTuning? hand = null,
+        Func<BreakKind, int, double>? pace = null)
     {
         if (Uncoupling(s, intent, train, hand))
         {
@@ -56,6 +59,18 @@ public static class CrewActions
         }
         // A loose coupling (note 356): the wrench in the gap, Use held, and it's tight. Before the plate's doors: at a loose
         // pin with the wrench in hand, it's the pin that's worked.
+        // Note 865: a pin jumped clear at speed is held down by hand, wrench or none, and goes home only while a second takes the
+        // slack off it (the host's say, Vehicle.Pinned): alone, the hands are on it and it doesn't move.
+        if (s.Alive && intent.Has(PlayerButtons.Use) && intent.MoveZ <= 0.5 && train.Loose is { Enabled: true } jt
+            && Couplings.Within(s, train, jt) is { } jumped && Couplings.TakesTwo(train.Vehicles[jumped].LooseCause))
+        {
+            s.Flags &= ~PlayerFlags.Shovelful;
+            if (!train.Vehicles[jumped].Pinned || s.ActionProgress >= jt.Jump.DriveSeconds)
+                s.ActionProgress = 0;
+            if (train.Vehicles[jumped].Pinned && (s.ActionProgress += dt) >= jt.Jump.DriveSeconds)
+                train.Vehicles[jumped].Loose = 0;
+            return;
+        }
         if (s.Alive && intent.Has(PlayerButtons.Use) && intent.MoveZ <= 0.5 && train.Loose is { Enabled: true } lt
             && Couplings.Tightens(s, train) && Couplings.Within(s, train, lt) is { } pin)
         {
@@ -97,7 +112,7 @@ public static class CrewActions
             s.Flags &= ~PlayerFlags.Shovelful;
             if (s.ActionProgress >= board)
                 s.ActionProgress = 0;
-            s.ActionProgress += dt;
+            s.ActionProgress += dt * (pace?.Invoke(BreakKind.Breach, breached) ?? 1);
             if (s.ActionProgress >= board)
                 train.Vehicles[breached].Breached = false;
             return;
@@ -134,7 +149,16 @@ public static class CrewActions
             ShovelByHand(ref s, near?.Thing.Kind, train, boiler, dt);
             return;
         }
-        s.Flags &= ~PlayerFlags.Shovelful;
+        // Note 717: the coal on the shovel stays on it while Use is held in the cab, turned from the fire (to throw it, or to
+        // bring it back); at the firebox the stroke goes on. Anywhere else it's back in the tender, as ever.
+        bool loaded = s.Has(PlayerFlags.Shovelful) && PlayerMotor.InCab(s, train) && near?.Thing.Kind is null or InteractableKind.Coal;
+        if (!loaded && near?.Thing.Kind != InteractableKind.Firebox)
+            s.Flags &= ~PlayerFlags.Shovelful;
+        if (loaded)
+        {
+            s.ActionProgress = 0;
+            return;
+        }
 
         // Use on the coupler plate works a door, never the coupling (T91: that's Uncouple, looking down).
         if (s.Surface == Surface.Coupler && near?.Thing.Kind != InteractableKind.Door)
@@ -161,7 +185,8 @@ public static class CrewActions
             // A ruptured boiler, the wrench in hand (note 301; the repair kit where the wrench isn't the tool, T109, GDD §12):
             // worked there, it's mended.
             case InteractableKind.Firebox when train.BoilerTuning is { } rt && train.Boiler.Ruptured && Repairs.MendsBoiler(s, train) && PlayerMotor.InCab(s, train):
-                s.ActionProgress += dt;
+                s.Flags &= ~PlayerFlags.Shovelful;
+                s.ActionProgress += dt * (pace?.Invoke(BreakKind.Rupture, 0) ?? 1);
                 if (s.ActionProgress >= rt.RepairSeconds)
                 {
                     train.Boiler.Repair();
@@ -173,14 +198,22 @@ public static class CrewActions
                 if (bt.ShovelInHand && !TakeShovel(ref s, train))
                 {
                     s.ActionProgress = 0;
+                    s.Flags &= ~PlayerFlags.Shovelful;
                     break;
                 }
+                // A count left from mending the boiler beside a crewmate who finished it (note 752) isn't a stroke under way.
+                if (s.ActionProgress >= bt.ShovelSeconds)
+                    s.ActionProgress = 0;
                 s.ActionProgress += dt;
                 if (s.ActionProgress >= bt.ShovelSeconds)
                 {
                     train.Boiler.Shovel(bt);
                     s.ActionProgress -= bt.ShovelSeconds;
+                    s.Flags &= ~PlayerFlags.Shovelful;
                 }
+                // Note 717: the coal's on the shovel from scoopSeconds into the stroke till it goes in (horseplay's to throw).
+                else if (s.ActionProgress >= bt.ScoopSeconds)
+                    s.Flags |= PlayerFlags.Shovelful;
                 break;
             // Out on the running boards at a sandbox: sand going down under the drivers while it's held (App. A.2).
             case InteractableKind.Sandbox when s.Parent == 0 && s.Surface == Surface.Deck:
@@ -222,6 +255,11 @@ public static class CrewActions
                     else
                         train.SetHandbrake(s.Parent, !train.RakeOf(s.Parent).Handbrake);
                 }
+                break;
+            // The BBQ deck's grill (note 698): held, it's lit; lit, held, it cooks, a sausage at a time (the host hands each
+            // over: World).
+            case InteractableKind.Grill when s.Parent == near.Value.Vehicle:
+                Bbq.Work(ref s, train, near.Value.Vehicle, before, dt);
                 break;
             // A battered car's dent, the wrench in hand (note 301): its shell comes back while it's worked.
             case null when Repairs.Dent(s, train, hand) is { } dented:
@@ -340,8 +378,10 @@ public static class CrewActions
         if (!s.Alive || s.Surface != Surface.Coupler || s.Parent == PlayerState.World || s.Has(PlayerFlags.Held)
             || Math.Abs(intent.MoveX) > 0.1 || Math.Abs(intent.MoveZ) > 0.1)
             return false;
+        // Note 865: a headset hand down at a jumped pin is holding it down, not cutting the coupling under it.
         if (Hand(s, hand))
-            return intent.Has(PlayerButtons.Use) && s.Hand.Y < ReachedDown;
+            return intent.Has(PlayerButtons.Use) && s.Hand.Y < ReachedDown
+                && !(train.Loose is { Enabled: true } lt && Couplings.Within(s, train, lt) is { } pin && Couplings.TakesTwo(train.Vehicles[pin].LooseCause));
         double down = train.Dynamics.Tuning.Couplings.UncoupleLookDownDegrees * Math.PI / 180;
         return intent.Has(PlayerActions.Uncouple) && s.Pitch <= -down;
     }
@@ -363,7 +403,16 @@ public static class CrewActions
     /// firebox, as it always has).
     /// </para>
     /// </summary>
-    public static (Interactable Thing, int Vehicle)? NearestInteractable(in PlayerState s, TrainOnLine train, HandTuning? hand = null)
+    public static (Interactable Thing, int Vehicle)? NearestInteractable(in PlayerState s, TrainOnLine train, HandTuning? hand = null) =>
+        Pick(s, train, hand, lookedOnly: false);
+
+    /// <summary>
+    /// What this player's look picks in reach (note 267's look, or note 675's lid), not merely the nearest: Use works that, so
+    /// a gun beside it isn't loaded by a hand meant for it (note 752). Null with nothing looked at.
+    /// </summary>
+    public static (Interactable Thing, int Vehicle)? LookedAt(in PlayerState s, TrainOnLine train) => Pick(s, train, null, lookedOnly: true);
+
+    static (Interactable Thing, int Vehicle)? Pick(in PlayerState s, TrainOnLine train, HandTuning? hand, bool lookedOnly)
     {
         if (s.Parent == PlayerState.World)
             return null;
@@ -433,6 +482,6 @@ public static class CrewActions
             var world = train.Frames[s.Parent].ToWorld(from);
             Search(behind, train.Frames[behind].ToLocal(world), doorsOnly: true);
         }
-        return lid ?? looked ?? best;
+        return lookedOnly ? lid ?? looked : lid ?? looked ?? best;
     }
 }

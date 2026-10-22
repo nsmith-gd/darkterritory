@@ -44,13 +44,40 @@ public class RadioReadingTests
             ],
         };
         var lines = Radio.Tally(report);
-        Assert.Equal("Cars delivered: 3. Cargo: 1240.", lines[1]);
+        // Note 766: the cargo alone (the gross less the mail, read on its own line).
+        Assert.Equal("Cars delivered: 3. Cargo: 1150.", lines[1]);
         Assert.Contains("Cars lost: 1.", lines);
         Assert.Contains("Sam. Body recovered. Fee 350. Refund 263.", lines);
         Assert.Contains("Ana. Body not recovered. Fee 350.", lines);
         Assert.Contains("Mail: 90.", lines);
         Assert.Equal("Net: 1158. Next.", lines[^1]);
         Assert.DoesNotContain(lines, l => l.Contains("Dave"));
+    }
+
+    [Fact]
+    public void ANightInTheRedSaysWhatCostMostAndItsFiguresAddUp()
+    {
+        // Note 766, a night like the director's (13 Oct: "Powder and shot zero. Repairs 91 ... net negative 1607"): nothing
+        // paid, a crewmate's fee the most of it.
+        var report = new RunReport(RunEnd.CrewLost, 1500, 9, 0, 0, 0, 0, 16, 0, 91, -1607, 0, 1, Deaths: 1, CrewLossFees: 1500)
+        {
+            Lines = [new ReportLine(IncidentKind.Death, "Nick", "Grabbed ...", 1500, 0)],
+        };
+        var lines = Radio.Tally(report);
+        Assert.Contains("Nick. Body not recovered. Fee 1500.", lines);
+        Assert.Contains("Coal: 16. Powder and shot: 0. Repairs: 91.", lines);
+        Assert.Equal("Net: -1607. Most of it the crew lost, 1500. Next.", lines[^1]);
+        var ledger = Radio.Ledger(report);
+        Assert.Equal([("the crew lost", -1500.0), ("coal", -16.0), ("repairs", -91.0)], ledger);
+        Assert.Equal(report.Net, ledger.Sum(i => i.Amount));
+        // In the black, the net alone, as before.
+        Assert.Equal("Net: 1158. Next.", Radio.Tally(report with { Net = 1158 })[^1]);
+        // The stranded's tow and the town's brigade are read too: they were in the net without a word.
+        var towed = Radio.Tally(report with { Recovery = 420 });
+        Assert.Contains("Recovery: 420.", towed);
+        var brought = new RunReport(RunEnd.Delivered, 1, 1, 1, 0, 1, 500, 0, 0, 0, 425, 1, 0) { BroughtInFees = 75 };
+        Assert.Contains("Brigade fees: 75.", Radio.Tally(brought));
+        Assert.Equal(brought.Net, Radio.Ledger(brought).Sum(i => i.Amount));
     }
 
     [Fact]

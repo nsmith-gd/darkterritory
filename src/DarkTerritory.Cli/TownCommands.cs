@@ -20,7 +20,39 @@ static class TownCommands
         string spec = Str(args, "--route", "frontier:7");
         var route = Routes.Generate(content, spec, (int)Opt(args, "--cars", 6));
         double gate = route.GateOr(RouteTuning.Load(content).YardLength);
-        var plan = TownGenerator.Generate(towns, TownSite.Of(route, gate, roster, towns, Str(args, "--last", "") is { Length: > 0 } last ? last : null));
+        var site = TownSite.Of(route, gate, roster, towns, Str(args, "--last", "") is { Length: > 0 } last ? last : null);
+        // --form: the town made as that type (note 692; "street" the street town of note 335), whatever its trade draws.
+        if (Str(args, "--form", "") is { Length: > 0 } formArg)
+            site = site with { Form = formArg == "street" ? "" : formArg };
+        var plan = TownGenerator.Generate(towns, site);
+        // `dt town map`: the town's plan top-down as a PNG (note 692).
+        if (args.Length > 1 && args[1] == "map")
+        {
+            string png = Str(args, "--out", $"out/towns/{spec.Replace(':', '-')}{(plan.Form.Length > 0 ? "-" + plan.Form : "")}.png");
+            DarkTerritory.Game.TownMap.Save(plan, png, (int)Opt(args, "--width", 1800));
+            // Its climbs (note 692): each stair or ramp's ends along its frame and their levels.
+            var climbs = plan.Ways.Where(w => w.Levels is not null).Select(w => new
+            {
+                from = new[] { Math.Round(w.Points[0].S, 1), Math.Round(w.Points[0].D, 1), Math.Round(w.Levels![0], 1) },
+                to = new[] { Math.Round(w.Points[^1].S, 1), Math.Round(w.Points[^1].D, 1), Math.Round(w.Levels[^1], 1) },
+            });
+            var ground = TownGround.Of(plan);
+            return new
+            {
+                png,
+                plan.Name,
+                plan.Form,
+                plan.Population,
+                houses = plan.Houses.Count,
+                plan.Laid,
+                plan.Frame,
+                plan.Margin,
+                climbs,
+                highest = ground.Flat ? 0 : Math.Round(plan.Houses.Max(h => h.Level), 1),
+                lowest = ground.Flat ? 0 : Math.Round(plan.Houses.Min(h => h.Level), 1),
+                districts = plan.Districts.Where(d => d.Name.Length > 0).Select(d => $"{d.Kind} {d.Id} {d.Name}")
+            };
+        }
         return new
         {
             route = spec,
@@ -56,6 +88,17 @@ static class TownCommands
                 along = new[] { Math.Round(wk.S0 - gate, 1), Math.Round(wk.S1 - gate, 1) },
                 across = new[] { Math.Round(wk.Side * wk.Near, 1), Math.Round(wk.Side * wk.Far, 1) },
                 pieces = plan.Fixtures.Where(f => wk.Holds(f.S, f.D)).Select(f => $"{f.Kind} at {f.S - wk.S0:0.0} ({f.Name})"),
+            } : null,
+            // Its rail yard (note 502): where it runs behind the platform, its siding, and each piece from its start, how far out.
+            yard = plan.Yard is { } ry ? new
+            {
+                along = new[] { Math.Round(ry.S0 - gate, 1), Math.Round(ry.S1 - gate, 1) },
+                across = new[] { Math.Round(ry.Side * ry.Near, 1), Math.Round(ry.Side * ry.Far, 1) },
+                siding = new[] { Math.Round(ry.Siding0 - ry.S0, 1), Math.Round(ry.Siding1 - ry.S0, 1), Math.Round(ry.Side * ry.SidingD, 1) },
+                pieces = plan.Fixtures.Where(f => ry.Holds(f.S, f.D) && f.Kind != "yardlamp")
+                    .Select(f => $"{f.Kind} at {f.S - ry.S0:0.0}, {f.D:0.0} out ({f.Name})"),
+                lamps = plan.Fixtures.Count(f => ry.Holds(f.S, f.D) && f.Kind == "yardlamp"),
+                porters = plan.People.Count(p => p.Role == "porter" && ry.Holds(p.S, p.D)),
             } : null,
             open = plan.Houses.Where(h => h.Kind == HouseKind.Open).Select(h => new
             {

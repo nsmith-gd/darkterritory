@@ -34,6 +34,8 @@ public abstract record Launch
         public string? Password { get; init; }
         /// <summary>Hosting: who the run is for (note 450), said in its listing.</summary>
         public RunMood Mood { get; init; }
+        /// <summary>Hosting: the CREW MISCHIEF switch as the host set it (note 724); null, where the mood and visibility have it.</summary>
+        public bool? Mischief { get; init; }
         public override Launch Redacted() => Password is null ? this : this with { Password = "***" };
     }
     /// <summary>Someone else's night, at an address (host[:port]).</summary>
@@ -56,11 +58,18 @@ public abstract record Launch
     /// </summary>
     public sealed record CampaignNight(int Slot, int Contract, bool Resume, bool Host) : Launch
     {
+        /// <summary>The same night again from its yard, the train as the blacksmith's just fitted it (note 697).</summary>
+        public bool Refit { get; init; }
         /// <summary>
         /// The crew's bots (note 611; T89): the fortress board's CREW, or <c>--bots</c>. The host going on to the next night
         /// from the town (note 606) keeps them: the board's next contract carries the same.
         /// </summary>
         public int Bots { get; init; }
+        /// <summary>
+        /// A crew ridden with (note 724; GDD §11): its id among the crews kept on this machine, and <paramref name="Slot"/> 0.
+        /// Null: the slot's own crew.
+        /// </summary>
+        public string? Crew { get; init; }
     }
     /// <summary>
     /// The crew goes on together (note 606): a joiner whose host left a delivered campaign night to go on to the next, waiting
@@ -70,6 +79,8 @@ public abstract record Launch
     public sealed record Quit : Launch;
     /// <summary>The in-night menu's INVITE (note 292): the platform's invite dialog, over the night.</summary>
     public sealed record Invite : Launch;
+    /// <summary>The in-night menu's CREW MISCHIEF (note 724), the host's in the yard: the switch set so, for every machine. The menu stays up.</summary>
+    public sealed record SetMischief(bool On) : Launch;
     /// <summary>The in-night menu's LEAVE, confirmed (note 292): out of the night and back to the menus.</summary>
     public sealed record Leave : Launch;
     /// <summary>A folder shown in the system's file browser (note 411: where the crash reports are). The menu stays up.</summary>
@@ -103,10 +114,26 @@ public abstract record Launch
 /// <param name="JoinAt">Hosting on the network: the address friends type on JOIN.</param>
 /// <param name="Over">The night's over (the report's up): leaving costs nothing, so it isn't asked twice.</param>
 /// <param name="Yard">In the yard before the gate (GDD §9), where outfits are tried on (note 298): OUTFIT is on the menu.</param>
+/// <param name="Lobby">Hosting a listed run (note 535): who it's for and whether it's locked, which the host changes from here.
+/// Null: a joiner, or a run nobody finds on a list.</param>
 public sealed record NightMenu(bool Hosting = true, int Others = 0, bool Campaign = false, bool Invites = false, string? JoinAt = null, bool Over = false,
-    bool Yard = false);
+    bool Yard = false, HostLobby? Lobby = null)
+{
+    /// <summary>The host in the yard (note 724): the CREW MISCHIEF switch as it stands, to change; null for anyone else, or past the gate.</summary>
+    public bool? Mischief { get; init; }
+}
 
-public enum Screen { Title, Slots, Fortress, Upgrades, QuickNight, Join, Settings, Controls, Host, Stores, Credits, Night, Leave, Profile, DeleteCrew, Mods, Crashed, Password }
+/// <summary>A listed run's lobby as its host has it now (note 535): its mood, and whether it's behind a password.</summary>
+public sealed record HostLobby(RunMood Mood, bool Locked);
+
+public enum Screen { Title, Slots, Fortress, Upgrades, QuickNight, Join, Settings, Controls, Host, Stores, Credits, Night, Leave, Profile, DeleteCrew, Mods, Crashed, Password, Paint, Smithy, Consent, PlaytestData, Survey }
+
+/// <summary>
+/// The blacksmith's catalogue, open over the yard (ARCHITECTURE §8 note 697): who's selling, the crew's campaign as it stands
+/// (its scrip, its cars, what's fitted), and whether this player pays (the host owns the campaign and its wallet, spec E;
+/// otherwise <paramref name="Payer"/> is who to ask).
+/// </summary>
+public sealed record SmithyShop(string Smith, CampaignState State, bool CanBuy, string? Payer = null);
 
 /// <summary>A mod laid over the game (note 323), as the MODS screen lists it: the app's scan of what's installed.</summary>
 public sealed record InstalledMod(string Name, string Version, string? Description);
@@ -119,7 +146,7 @@ public sealed record MenuItem(string Label, string? Detail = null, bool Enabled 
 /// The front end's text fields (note 264, the director's notes on build 1121: "when I go to name of lobby, it just starts
 /// automatically typing"). None takes typing on being chosen: Enter or a click starts editing, Enter or Esc ends it.
 /// </summary>
-public enum TextField { LobbyName, Address, PlayerName, CrewName, LobbyPassword, JoinPassword }
+public enum TextField { LobbyName, Address, PlayerName, CrewName, LobbyPassword, JoinPassword, NightPassword, EngineName, PlaytestCode, SurveyComment }
 
 /// <summary>Where a pointer is over the front end (note 264): an item, and on a value's row, its arrows (−1, +1) or the row (0).</summary>
 public readonly record struct MenuHit(int Item, int Step = 0);
@@ -159,6 +186,24 @@ public sealed class FrontEnd
         set => _bots = Math.Clamp(value, 0, MaxBots);
     }
     bool _host;
+    /// <summary>The host screen's CREW MISCHIEF (note 724) as the host set it; null, where the run's mood and visibility have it.</summary>
+    bool? _mischief;
+
+    /// <summary>The CREW MISCHIEF switch as the host set it for the run they open (note 724); null: as its mood and visibility have it.</summary>
+    public bool? Mischief => _mischief;
+
+    /// <summary>Horseplay's tuning (player.json, note 724): where the CREW MISCHIEF switch starts by mood. The app sets the content's.</summary>
+    public Sim.Player.HorseplayTuning Horseplay { get; set; } = new();
+
+    /// <summary>The switch as the host screen shows it: the host's choice, or the run's mood and visibility's.</summary>
+    bool MischiefShown => _mischief ?? Moods.MischiefByDefault(Settings.Mood, !Settings.PublicLobby, Horseplay);
+
+    /// <summary>The host screen's and the fortress board's CREW MISCHIEF row (note 724).</summary>
+    Entry MischiefEntry() =>
+        new(new($"CREW MISCHIEF: {(MischiefShown ? "ON" : "OFF")}", MischiefShown
+                ? "Shoves, bonks and coal at the crew land. Nobody's hurt by them, but a shove off a roof at speed is a fall."
+                : "Shoves, bonks and coal at the crew land on nobody. You can change it in the yard."),
+            () => { _mischief = !MischiefShown; return null; }, _ => _mischief = !MischiefShown);
 
     /// <param name="newSeed">Where a new campaign's seed comes from (tests pin it).</param>
     /// <param name="edition">Which game this is (T79): the demo has a quick night on its own tiers, and no campaign.</param>
@@ -184,13 +229,45 @@ public sealed class FrontEnd
     public string? Message { get; private set; }
     /// <summary>The campaign open at the fortress.</summary>
     public CampaignState? Open { get; private set; }
+    /// <summary>The blacksmith's catalogue open over the yard (note 697), or null.</summary>
+    public SmithyShop? Smithy { get; private set; }
+    /// <summary>
+    /// The host's purchase at the forge (note 697): the app buys it on its own campaign, saves it, and fits it before the gate.
+    /// </summary>
+    public Func<string, Purchase>? SmithyBuy { get; set; }
+
+    /// <summary>
+    /// The blacksmith's shelves with no prices and no stock rules (a developer build's unlock, note 747, sets it): every upgrade
+    /// is FREE, and one owned can be taken off again.
+    /// </summary>
+    public bool SmithyFree { get; set; }
+
+    /// <summary>A row of its own at the top of the blacksmith's catalogue, and what choosing it does (a developer build's, note 747).</summary>
+    public Func<(MenuItem Item, Action Choose)>? SmithyMode { get; set; }
     public Settings Settings { get; private set; }
     public EditionTuning Edition => _edition;
     /// <summary>
     /// The public games for the join screen (T116; the user's playtest, "I see active lobbies I can join and then what my
     /// ping is"): the app's <see cref="LobbyBrowser"/> sets them each frame, nearest first.
     /// </summary>
-    public IReadOnlyList<ListedGame> Games { get; set; } = [];
+    public IReadOnlyList<ListedGame> Games
+    {
+        get => _games;
+        set
+        {
+            // Note 985 (a friend's first join, headless): the join screen opened before the host's game was heard, so the
+            // selection sat on MOOD under the list, and Enter changed the mood. The first game you can join that turns up
+            // takes the selection, until you've moved it yourself.
+            bool had = _games.Any(Joinable);
+            _games = value;
+            if (Screen == Screen.Join && _joinUntouched && !had && value.Any(Joinable))
+                Show(Screen.Join);
+        }
+    }
+    IReadOnlyList<ListedGame> _games = [];
+    // The join screen's selection is still where it opened (note 985).
+    bool _joinUntouched;
+    bool Joinable(ListedGame g) => g.Protocol == Protocol && !g.Full;
     /// <summary>
     /// The derailment's music for the credits screen (GDD v1.4 App. E.6: "the credits screen lists every performer"; note
     /// 194): the manifest's tracks, which the app loads from content/audio/music. Empty, the screen says there's none.
@@ -228,6 +305,59 @@ public sealed class FrontEnd
     /// opens on <see cref="Screen.Crashed"/> while there are; OK or Escape puts it away for good.
     /// </summary>
     public CrashNotice? Crash { get; set; }
+
+    /// <summary>
+    /// Note 914: the player's answer about playtest data, and what the question and the "what we collect" page say
+    /// (content/ui/playtest-data.json). The app opens on <see cref="Screen.Consent"/> while it's due; both null, and
+    /// nothing asks or offers it.
+    /// </summary>
+    public Telemetry.PlaytestConsent? Playtest { get; set; }
+    public Telemetry.PlaytestNotice? PlaytestNotice { get; set; }
+    /// <summary>
+    /// Note 968: the first boot's line (<see cref="Telemetry.PlaytestNotice.FirstBootLine"/>), small at the bottom of the title
+    /// menu for this launch. Null: nothing there.
+    /// </summary>
+    public string? PlaytestLine { get; private set; }
+
+    /// <summary>
+    /// The app's start (note 968): with the casual notice, a first boot shows its line under the title menu (and it's not shown
+    /// again); otherwise the question or the playtest's notice, while it's due. Then the crash notice, if one's waiting.
+    /// </summary>
+    public void OpenPlaytest()
+    {
+        if (Playtest is { } p && PlaytestNotice is { } n && p.NeedsAsking(n))
+        {
+            if (n.Casual)
+            {
+                PlaytestLine = n.FirstBootLine;
+                p.SawLine(n);
+            }
+            else
+            {
+                Show(Screen.Consent);
+                return;
+            }
+        }
+        if (Crash is not null)
+            Show(Screen.Crashed);
+    }
+
+    // Where WHAT WE COLLECT was opened from (the question, or the settings), for its BACK.
+    Screen _playtestBack = Screen.Settings;
+
+    /// <summary>
+    /// The playtest kit (queue #628, note 916): the cohort code typed in PLAYTEST DATA or baked into a playtest build, and
+    /// whether a night's end asks the survey. Null: neither is offered.
+    /// </summary>
+    public DarkTerritory.Game.Telemetry.PlaytestKit? Kit { get; set; }
+
+    /// <summary>The survey answered or skipped (the app writes it into the session: <c>SessionRecorder.Survey</c>).</summary>
+    public Action<DarkTerritory.Game.Telemetry.SurveyAnswers>? Surveyed { get; set; }
+
+    // The survey's answers as they're given, and where it goes after (where the night's end left the menu, and what it said).
+    DarkTerritory.Game.Telemetry.SurveyAnswers _survey = new();
+    Screen _surveyThen = Screen.Title;
+    string? _surveyThenSaid;
 
     /// <summary>Note 452: where reports go (content/ui/reports.json); without an address nothing offers to send one.</summary>
     public ReportsTuning? Reports { get; set; }
@@ -327,6 +457,7 @@ public sealed class FrontEnd
         }
         var was = Enum.GetValues<Control>().FirstOrDefault(o => o != c && Settings.KeyFor(o) == key, c);
         Change(Settings.Bind(c, key));
+        Telemetry?.Rebind(c.ToString());
         Message = was != c ? $"{Controls.Label(was)} moved to {Controls.KeyLabel(Settings.KeyFor(was))}." : null;
         Cue?.Invoke(UiCue.Select);
     }
@@ -348,6 +479,9 @@ public sealed class FrontEnd
         // A crew's name erased to nothing is its slot's again (note 320).
         if (Editing == TextField.CrewName && Open is { } crew && crew.Name.Trim().Length == 0)
             SaveCrew(crew with { Name = DefaultCrewName(crew.Slot) });
+        // An engine's name erased to nothing is unnamed again.
+        if (Editing == TextField.EngineName && Open is { } engine && (engine.EngineName ?? "").Trim().Length == 0 && engine.EngineName is not null)
+            SaveCrew(engine with { EngineName = null });
         Editing = null;
         _blankName = false;
         Cue?.Invoke(UiCue.Select);
@@ -390,8 +524,9 @@ public sealed class FrontEnd
         // From the title there's nowhere to back out to.
         if (Screen != Screen.Title)
             Cue?.Invoke(UiCue.Back);
-        // In a night (note 292): Escape on the menu's first page closes it, as Escape opened it; the rest back up to it.
-        if (Night is not null && Screen == Screen.Night)
+        // In a night (note 292): Escape on the menu's first page closes it, as Escape opened it; the rest back up to it. The
+        // blacksmith's catalogue (note 697) is a first page of its own.
+        if (Night is not null && Screen is Screen.Night or Screen.Smithy)
         {
             CloseNight();
             return;
@@ -402,6 +537,23 @@ public sealed class FrontEnd
             PutCrashAway();
             return;
         }
+        // Note 914: Escape on the question answers nothing (asked again next time; nothing recorded meanwhile).
+        if (Screen == Screen.Consent)
+        {
+            AfterConsent();
+            return;
+        }
+        if (Screen == Screen.PlaytestData)
+        {
+            Show(_playtestBack);
+            return;
+        }
+        // Note 916: Escape on the night's questions skips them.
+        if (Screen == Screen.Survey)
+        {
+            EndSurvey(new DarkTerritory.Game.Telemetry.SurveyAnswers(Skipped: true));
+            return;
+        }
         Show(Screen switch
         {
             Screen.Upgrades or Screen.Stores or Screen.DeleteCrew => Screen.Fortress,
@@ -410,6 +562,8 @@ public sealed class FrontEnd
             Screen.Password => Screen.Join,
             Screen.Title => Screen.Title,
             Screen.Leave or Screen.Settings when Night is not null => Screen.Night,
+            // Note 731: back to where PAINT YOUR MASK was chosen (the settings, or the yard's menu).
+            Screen.Paint => PaintBack,
             _ => Screen.Title,
         });
     }
@@ -422,6 +576,12 @@ public sealed class FrontEnd
         {
             EndEdit();
             return joining;
+        }
+        // Note 535: Enter on a new password typed in a night locks the run with it (blank, nothing changes).
+        if (Editing == TextField.NightPassword && NightPassword.Trim().Length > 0)
+        {
+            Change(Settings with { LobbyPassword = NightPassword.Trim(), PublicLobby = false });
+            Message = "THE RUN'S LOCKED WITH THE NEW PASSWORD. TELL YOUR CREW.";
         }
         // Enter ends typing in a field (note 264): it doesn't also choose what's selected.
         if (Editing is not null)
@@ -441,6 +601,7 @@ public sealed class FrontEnd
         {
             Editing = field;
             _blankName = false;
+            NightPassword = "";
             Cue?.Invoke(UiCue.Select);
             return null;
         }
@@ -465,9 +626,13 @@ public sealed class FrontEnd
     {
         TextField.PlayerName => Settings.PlayerName,
         TextField.CrewName => Open?.Name ?? "",
+        TextField.EngineName => Open?.EngineName ?? "",
         TextField.Address => Address,
         TextField.LobbyPassword => Settings.LobbyPassword,
         TextField.JoinPassword => JoinPassword,
+        TextField.NightPassword => NightPassword,
+        TextField.PlaytestCode => Kit?.Typed ?? "",
+        TextField.SurveyComment => _survey.Comment ?? "",
         _ => NamingLobby ? LobbyName : "",
     };
 
@@ -494,17 +659,29 @@ public sealed class FrontEnd
             return;
         }
         // Note 450: a password, as the lobby's name is typed (upper case: it doesn't count, so it's shown as it'll be said).
-        if (Editing is TextField.LobbyPassword or TextField.JoinPassword)
+        if (Editing is TextField.LobbyPassword or TextField.JoinPassword or TextField.NightPassword)
         {
-            string typed = Editing == TextField.LobbyPassword ? Settings.LobbyPassword : JoinPassword;
+            string typed = Editing switch { TextField.LobbyPassword => Settings.LobbyPassword, TextField.NightPassword => NightPassword, _ => JoinPassword };
             foreach (char c in text.ToUpperInvariant())
                 if ((char.IsLetterOrDigit(c) || c is ' ' or '\'' or '.' or '-' or '!' or '?') && typed.Length < MaxPassword && c < 0x7f)
                     typed += c;
             typed = typed.TrimStart();
             if (Editing == TextField.LobbyPassword)
                 Change(Settings with { LobbyPassword = typed });
+            else if (Editing == TextField.NightPassword)
+                NightPassword = typed;
             else
                 JoinPassword = typed;
+            return;
+        }
+        // The engine's name (the nameplate, note 714): the crew's name's letters and length.
+        if (Editing == TextField.EngineName && Open is { } named)
+        {
+            string name = named.EngineName ?? "";
+            foreach (char c in text)
+                if ((char.IsLetterOrDigit(c) || c is ' ' or '\'' or '.' or '-' or '!' or '?') && name.Length < MaxCrewName && c < 0x7f)
+                    name += c;
+            SaveCrew(named with { EngineName = name.TrimStart() });
             return;
         }
         if (Editing == TextField.CrewName && Open is { } crew)
@@ -514,6 +691,21 @@ public sealed class FrontEnd
                 if ((char.IsLetterOrDigit(c) || c is ' ' or '\'' or '.' or '-' or '!' or '?') && name.Length < MaxCrewName && c < 0x7f)
                     name += c;
             SaveCrew(crew with { Name = name.TrimStart() });
+            return;
+        }
+        // Note 916: the playtest's code (letters, digits and dashes: Kit.Clean keeps it so), and the survey's comment, as typed.
+        if (Editing == TextField.PlaytestCode && Kit is { } kit)
+        {
+            kit.Type(kit.Typed + text);
+            return;
+        }
+        if (Editing == TextField.SurveyComment)
+        {
+            string said = _survey.Comment ?? "";
+            foreach (char c in text)
+                if (c is >= ' ' and < (char)0x7f && said.Length < DarkTerritory.Game.Telemetry.SurveyAnswers.CommentLength)
+                    said += c;
+            _survey = _survey with { Comment = said.TrimStart() };
             return;
         }
         if (Editing != TextField.Address)
@@ -560,6 +752,11 @@ public sealed class FrontEnd
             Change(Settings with { LobbyPassword = Settings.LobbyPassword[..^1] });
             return;
         }
+        if (Editing == TextField.NightPassword && NightPassword.Length > 0)
+        {
+            NightPassword = NightPassword[..^1];
+            return;
+        }
         if (Editing == TextField.JoinPassword && JoinPassword.Length > 0)
         {
             JoinPassword = JoinPassword[..^1];
@@ -570,23 +767,51 @@ public sealed class FrontEnd
             SaveCrew(crew with { Name = crew.Name[..^1] });
             return;
         }
+        if (Editing == TextField.EngineName && Open is { EngineName.Length: > 0 } engine)
+        {
+            SaveCrew(engine with { EngineName = engine.EngineName[..^1] });
+            return;
+        }
         if (Editing == TextField.Address && Address.Length > 0)
             Address = Address[..^1];
+        if (Editing == TextField.PlaytestCode && Kit is { Typed.Length: > 0 } kit)
+            kit.Type(kit.Typed[..^1]);
+        if (Editing == TextField.SurveyComment && _survey.Comment is { Length: > 0 } said)
+            _survey = _survey with { Comment = said[..^1] };
+    }
+
+    /// <summary>The playtest session recorder (note 913): purchases, rebinds and the screens' times go to it. Null: nothing's told.</summary>
+    public Telemetry.SessionRecorder? Telemetry { get; set; }
+    readonly System.Diagnostics.Stopwatch _onScreen = System.Diagnostics.Stopwatch.StartNew();
+
+    /// <summary>The screen up till now is left (for another, or the menus closed): its time on screen told.</summary>
+    void Opened()
+    {
+        Telemetry?.Menu(Screen.ToString(), _onScreen.Elapsed.TotalSeconds);
+        _onScreen.Restart();
     }
 
     public void Show(Screen screen)
     {
+        // Note 913: the screen left, and how long it was up (the playtest telemetry's menu event).
+        if (screen != Screen)
+            Opened();
         // The in-night menu's pages are only there over a night (note 292).
-        if (screen is Screen.Night or Screen.Leave && Night is null)
+        if (screen is Screen.Night or Screen.Leave && Night is null || screen is Screen.Smithy && (Night is null || Smithy is null))
             screen = Screen.Title;
         if (screen is Screen.DeleteCrew && Open is null)
             screen = Screen.Slots;
         if (screen is Screen.Crashed && Crash is null)
             screen = Screen.Title;
+        if (screen is Screen.Consent or Screen.PlaytestData && (Playtest is null || PlaytestNotice is null))
+            screen = Screen.Title;
+        if (screen is Screen.Survey && Kit is null)
+            screen = Screen.Title;
         _blankName = false;
         Editing = null;
         Screen = screen;
         Selected = 0;
+        _joinUntouched = screen == Screen.Join;
         _scroll = 0;
         _follow = true;
         // Skip to the first item you can do something with.
@@ -634,12 +859,28 @@ public sealed class FrontEnd
             Selected = Math.Max(0, count - 1);
     }
 
+    /// <summary>
+    /// Opens the blacksmith's catalogue over the yard (note 697): Use held on the town's blacksmith. It's the in-night menu's
+    /// kind of page, the night going on behind it, and Escape or DONE shuts it.
+    /// </summary>
+    public void OpenSmithy(NightMenu night, SmithyShop shop)
+    {
+        _before ??= (Screen, Selected, Message);
+        Night = night;
+        Smithy = shop;
+        Message = null;
+        Show(Screen.Smithy);
+        Cue?.Invoke(UiCue.Select);
+    }
+
     /// <summary>Shuts the in-night menu (RESUME, or Escape on its first page): back to the night.</summary>
     public void CloseNight()
     {
         if (Night is null)
             return;
+        Opened();
         Night = null;
+        Smithy = null;
         Editing = null;
         Capturing = null;
         if (_before is var (screen, selected, message))
@@ -664,6 +905,18 @@ public sealed class FrontEnd
         // In the yard (GDD §9: the crew "try on outfits"; note 298): put one on, and the crew see it.
         if (n.Yard)
             list.Add(OutfitEntry("Left and right to try one on: the crew see it."));
+        if (n.Yard && HatNames.Count > 0)
+            list.Add(HatEntry("From the hat rack: left and right to try one on."));
+        // Note 731: and paint the mask, on its own page.
+        if (n.Yard)
+            list.Add(PaintEntry("Its colour and a stencil, tried on at once: the crew see it."));
+        // Note 724: the host's CREW MISCHIEF, in the yard: every machine has it as it's set.
+        if (n.Mischief is { } on)
+            list.Add(new(new($"CREW MISCHIEF: {(on ? "ON" : "OFF")}", on ? "Shoves, bonks and coal at the crew land." : "Shoves, bonks and coal at the crew land on nobody."),
+                () => new Launch.SetMischief(!on)));
+        // Note 535 (note 450's "not yet"): the host of a listed run changes who it's for and its password with the lobby open.
+        if (n.Lobby is { } lobby)
+            list.AddRange(LobbyEntries(lobby));
         // Someone to ask along: a platform lobby that takes invites (its overlay), or a host on the network (its address,
         // to type on JOIN). A night nobody can join (alone, on this machine only) has no INVITE.
         if (n.Invites)
@@ -671,10 +924,43 @@ public sealed class FrontEnd
         else if (n.Hosting && n.JoinAt is { } at)
             list.Add(new(new("INVITE", "Friends on your network join by its address."),
                 () => { Message = $"Friends join at {at}: JOIN, then type it."; return null; }));
-        // Over, there's nothing to lose by leaving: it goes at once, as Enter does.
-        list.Add(new(new(n.Hosting && n.Others > 0 && !n.Over ? "END THE NIGHT" : "LEAVE"), n.Over ? () => new Launch.Leave() : Go(Screen.Leave)));
+        // Over, there's nothing to lose by leaving: it goes at once. Enter on the end screen goes on with the crew (to the
+        // fortress, or the next night from the town); LEAVE goes to the title (note 937).
+        list.Add(new(new(n.Hosting && n.Others > 0 && !n.Over ? "END THE NIGHT" : "LEAVE", n.Over ? LeaveOver : null),
+            n.Over ? () => new Launch.Leave() : Go(Screen.Leave)));
         return list;
     }
+
+    /// <summary>
+    /// A listed run's rows in its host's in-night menu (note 535). MOOD steps from the run's own. PASSWORD shows whether there
+    /// is one, never the words (a host's screen may be on a stream): Enter types a new one from blank, Enter again puts it on
+    /// the run, Esc keeps the old. OPEN THE RUN takes the lock off. Each goes into the settings, so the next night from the
+    /// town is hosted the same; the app hands the run what changed.
+    /// </summary>
+    List<Entry> LobbyEntries(HostLobby lobby)
+    {
+        bool typing = Editing == TextField.NightPassword;
+        var list = new List<Entry>
+        {
+            new(new($"MOOD: {Moods.Label(lobby.Mood)}", "Said beside your run on the list: players looking for the same find it first."),
+                Toggle(s => s with { Mood = Moods.Step(lobby.Mood, 1) }), by => Change(Settings with { Mood = Moods.Step(lobby.Mood, by) })),
+            new(new($"PASSWORD: {(typing ? NightPassword + "_" : lobby.Locked ? "SET" : "NONE")}",
+                    typing ? "Type the new one, Enter to lock the run with it. Esc keeps the old."
+                    : lobby.Locked ? "Listed with a lock. Enter to type a new one: who's aboard stays aboard."
+                    : "Anyone who finds it joins. Enter to type one: the run's listed with a lock."),
+                Field: TextField.NightPassword),
+        };
+        if (lobby.Locked)
+            list.Add(new(new("OPEN THE RUN", "The lock comes off: anyone who finds it on the list joins."),
+                () => { Change(Settings with { PublicLobby = true }); Message = "THE RUN'S OPEN."; return null; }));
+        return list;
+    }
+
+    /// <summary>LEAVE's line on a night that's over (note 937): where it goes, and where Enter goes instead.</summary>
+    public const string LeaveOver = "Back to the title. Enter on the night's end goes on with the crew.";
+
+    /// <summary>The new password being typed in a night (note 535), from blank; it's the run's on Enter, and nothing on Esc.</summary>
+    public string NightPassword { get; private set; } = "";
 
     /// <summary>
     /// LEAVE's confirmation (note 292): STAY first, so the Enter that chose LEAVE and the next one don't take you out, and
@@ -747,6 +1033,139 @@ public sealed class FrontEnd
         return new Launch.Mail(report.MailTo(Reports!, path), Path.GetDirectoryName(path)!);
     }
 
+    /// <summary>
+    /// Note 914: the first-run question. YES lit first only in a developer build, where it's on unless the player says no;
+    /// a player's build lights neither answer above the other (NO is first: saying yes is a choice made, not a key pressed
+    /// through).
+    /// </summary>
+    List<Entry> ConsentEntries(Telemetry.PlaytestConsent p, Telemetry.PlaytestNotice n)
+    {
+        // Note 946: a playtest build's is on already: a notice, OK lit first and TURN IT OFF beside it (one key away).
+        if (p.OnByNotice)
+            return
+            [
+                new(new("OK, KEEP IT ON", "Your nights in this playtest are recorded anonymously. Off or deleted any time in Settings, PLAYTEST DATA."),
+                    () =>
+                    {
+                        p.Acknowledge(n);
+                        AfterConsent();
+                        Message = "Thank you. Playtest data is on: Settings, PLAYTEST DATA to change it.";
+                        return null;
+                    }),
+                new(new("TURN IT OFF", "Nothing more is recorded, in this playtest or after. On again any time in Settings, PLAYTEST DATA."),
+                    () => Answer(p, n, yes: false)),
+                new(new("WHAT WE COLLECT", "Every kind of thing it records, where it goes and for how long."),
+                    () => { _playtestBack = Screen.Consent; Show(Screen.PlaytestData); return null; }),
+            ];
+        // What it's for is said under the heading, read before either answer (ConsentLines); each answer says what it does.
+        string dev = p.DefaultOn && n.DevBuild.Length > 0 ? " " + n.DevBuild : "";
+        var yes = new Entry(new("YES, RECORD MY NIGHTS", "Your nights are recorded anonymously, to help tune the game. Off or deleted any time in Settings." + dev),
+            () => Answer(p, n, yes: true));
+        var no = new Entry(new("NO THANKS", "Nothing is recorded. You can change this any time in Settings, PLAYTEST DATA."), () => Answer(p, n, yes: false));
+        var what = new Entry(new("WHAT WE COLLECT", "Every kind of thing it records, and for how long, before you answer."),
+            () => { _playtestBack = Screen.Consent; Show(Screen.PlaytestData); return null; });
+        return p.DefaultOn ? [yes, no, what] : [no, yes, what];
+    }
+
+    Launch? Answer(Telemetry.PlaytestConsent p, Telemetry.PlaytestNotice n, bool yes)
+    {
+        p.Choose(yes, n);
+        AfterConsent();
+        Message = yes ? "Thank you. Playtest data is on: Settings, PLAYTEST DATA to change it." : "Playtest data is off.";
+        return null;
+    }
+
+    /// <summary>After the question: the crash notice if there's one waiting, else the title.</summary>
+    void AfterConsent() => Show(Crash is not null ? Screen.Crashed : Screen.Title);
+
+    /// <summary>
+    /// The night's questions (note 916), asked as the menu comes back after a night, when the kit asks them (a playtest, and
+    /// playtest data on: <paramref name="recording"/>). Answered or skipped, the menu goes where the night left it.
+    /// </summary>
+    public void AskSurvey(bool recording)
+    {
+        if (Kit is not { } kit || !kit.AsksSurvey(recording))
+            return;
+        (_surveyThen, _surveyThenSaid) = (Screen, Message);
+        _survey = new();
+        Show(Screen.Survey);
+        Message = null;
+    }
+
+    void EndSurvey(DarkTerritory.Game.Telemetry.SurveyAnswers answers)
+    {
+        Surveyed?.Invoke(answers);
+        Show(_surveyThen);
+        Message = answers.Skipped ? _surveyThenSaid : $"Thank you.{(_surveyThenSaid is { } said ? " " + said : "")}";
+    }
+
+    /// <summary>A 1-5 question: unsaid until it's stepped onto, then left and right along it.</summary>
+    Entry Rating(string label, string detail, int? now, Func<int?, DarkTerritory.Game.Telemetry.SurveyAnswers> with)
+    {
+        void Step(int by) => _survey = with(Math.Clamp((now ?? (by > 0 ? 0 : 6)) + by, 1, 5));
+        return new(new($"{label}: {(now is { } n ? $"{n} OF 5" : "-")}", detail), () => { Step(+1); return null; }, Step);
+    }
+
+    List<Entry> SurveyEntries() =>
+    [
+        Rating("HOW FUN", "How fun was tonight? 1, not at all; 5, the most fun you've had in a while.", _survey.Fun, n => _survey with { Fun = n }),
+        Rating("HOW FRIGHTENING", "How frightening was it? 1, not at all; 5, you didn't want to look.", _survey.Fear, n => _survey with { Fear = n }),
+        Rating("ANOTHER NIGHT", "Would you play another? 1, not again; 5, right now.", _survey.Again, n => _survey with { Again = n }),
+        new(new($"A WORD FOR US: {_survey.Comment}{(Editing == TextField.SurveyComment ? "_" : "")}", Editing == TextField.SurveyComment
+                ? $"Anything about tonight, in your own words (up to {DarkTerritory.Game.Telemetry.SurveyAnswers.CommentLength} letters). Please no names. Enter or Esc when it's done."
+                : "Optional: Enter to write something about tonight. It's sent only if you tick SEND MY WORDS TOO."), Field: TextField.SurveyComment),
+        // The comment is typed text, the one kind the recorder keeps (note 916): sent only with this ticked, its own yes.
+        new(new($"SEND MY WORDS TOO: {(_survey.SendComment ? "YES" : "NO")}", "Your comment goes in the record only with this on, as you wrote it. Off, it's left here.",
+                _survey.Comment is { Length: > 0 }),
+            () => { _survey = _survey with { SendComment = !_survey.SendComment }; return null; }, _ => _survey = _survey with { SendComment = !_survey.SendComment }),
+        new(new("SEND", "Your answers go in tonight's playtest record.", _survey.Said), () => { EndSurvey(_survey); return null; }),
+        new(new("SKIP", "Nothing is asked again for this night."), () => { EndSurvey(new DarkTerritory.Game.Telemetry.SurveyAnswers(Skipped: true)); return null; }, Back: true),
+    ];
+
+    /// <summary>Settings' PLAYTEST CODE (note 916): the code a playtest's organiser gives out, so its testers' nights group together.</summary>
+    Entry CodeEntry(DarkTerritory.Game.Telemetry.PlaytestKit kit) =>
+        new(new($"PLAYTEST CODE: {(Editing == TextField.PlaytestCode ? kit.Typed + "_" : kit.Cohort ?? "NONE")}", Editing == TextField.PlaytestCode
+                ? $"Letters, digits and dashes, up to {DarkTerritory.Game.Telemetry.PlaytestKit.CodeLength}; blank for none{(kit.Build?.Cohort is { } baked ? $" (this build's, {baked})" : "")}. Enter or Esc when it's done; it counts from your next session."
+                : "In a playtest, the code you were given: your nights are grouped with the other testers', and a few questions follow each night."),
+            Field: TextField.PlaytestCode);
+
+    Entry PlaytestSwitch(Telemetry.PlaytestConsent p) =>
+        new(new($"PLAYTEST DATA: {(p.Recording ? "ON" : "OFF")}", PlaytestNotice is { Casual: true }
+                // Note 968: the director's own words.
+                ? p.Recording ? "Playtest data is recorded to help me improve game balancing. Left and right, or Enter, to turn it off."
+                    : "Nothing is recorded. Turn it on to help me balance the game."
+            : p.Recording
+                ? "Your nights are recorded, anonymously, to help tune the game. Left and right, or Enter, to turn it off."
+                    + (p.OnByNotice ? " On by default in this playtest build." : "")
+                : "Nothing is recorded. On, your nights are recorded anonymously to help tune the game."),
+            () => { p.Choose(!p.Recording, PlaytestNotice!); return null; }, _ => p.Choose(!p.Recording, PlaytestNotice!));
+
+    /// <summary>
+    /// Note 914, WHAT WE COLLECT: the switch, each kind of thing the recorder writes (its detail under it as it's chosen),
+    /// what it never does, where it goes and for how long, and DELETE.
+    /// </summary>
+    List<Entry> PlaytestDataEntries(Telemetry.PlaytestConsent p, Telemetry.PlaytestNotice n) =>
+    [
+        PlaytestSwitch(p),
+        Heading("WHAT WE COLLECT"),
+        .. n.Collect.Select(f => new Entry(new(f.What, f.Detail))),
+        new(new("WHAT WE NEVER COLLECT", n.Never)),
+        // Note 968 (the director: "remove all the legal sounding stuff"): the casual page says what's recorded and lets you
+        // turn it off or delete it; how long it's kept and who keeps it are #625's and note 946's.
+        .. n.Casual ? (Entry[])[] : [new Entry(new($"KEPT FOR {n.RetentionMonths} MONTHS", n.WhereLine))],
+        // Note 946: who keeps it for the studio (#637's PostHog).
+        .. !n.Casual && n.ThirdParty.Length > 0 ? [new Entry(new("WHO KEEPS IT", n.ThirdParty))] : (Entry[])[],
+        new(new("DELETE MY PLAYTEST DATA", n.Casual ? "Deletes every night recorded on this computer, and starts a fresh random id."
+                : "Deletes every night recorded on this computer, and starts a new id, so nothing sent before can be tied to you after."),
+            () =>
+            {
+                int gone = p.Delete();
+                Message = $"Deleted {gone} recorded {(gone == 1 ? "night" : "nights")}{(p.Recording ? "; a new id from now on" : "")}.";
+                return null;
+            }),
+        BackTo(_playtestBack),
+    ];
+
     /// <summary>The crash notice put away: its reports aren't said again, and the title's up.</summary>
     void PutCrashAway()
     {
@@ -790,15 +1209,32 @@ public sealed class FrontEnd
     }
 
     /// <summary>Back at the title after a quick night or a join, with the edition's word after a night (the demo's).</summary>
-    public void NightOver()
+    /// <param name="say">What to say over the edition's word: the crew put this player off (note 724).</param>
+    public void NightOver(string? say = null)
     {
         Show(Screen.Title);
-        Message = _edition.AfterNight is { Length: > 0 } after ? after : null;
+        Message = say ?? (_edition.AfterNight is { Length: > 0 } after ? after : null);
         // The demo's end card (T79): its wishlist line coming up, and (note 434) WISHLIST ON STEAM lit under it.
         if (Message is not null)
             Cue?.Invoke(UiCue.EndCard);
         if (Items.ToList().FindIndex(i => i.Label == "WISHLIST ON STEAM") is >= 0 and int wishlist)
             Selected = wishlist;
+    }
+
+    /// <summary>
+    /// Opens a crew ridden with at the fortress (note 724): its save as this machine keeps it, hosted from here. Gone (or one
+    /// that won't read), the slots and crews.
+    /// </summary>
+    public void ShowCrew(string crew, string? message = null)
+    {
+        Open = _saves.LoadCrew(crew);
+        if (Open is null)
+        {
+            Show(Screen.Slots);
+            return;
+        }
+        Show(Screen.Fortress);
+        Message = message;
     }
 
     /// <summary>Opens a slot at the fortress (after a night, with how it went).</summary>
@@ -854,6 +1290,7 @@ public sealed class FrontEnd
         if (item < 0 || item >= entries.Count || !entries[item].Item.Enabled)
             return;
         Selected = item;
+        _joinUntouched = false;
         Cue?.Invoke(UiCue.Move);
     }
 
@@ -908,6 +1345,7 @@ public sealed class FrontEnd
         if (entries.Count == 0)
             return;
         int was = Selected;
+        _joinUntouched = false;
         // Moving off a field ends typing in it (the text's kept).
         if (Editing is not null)
         {
@@ -929,6 +1367,7 @@ public sealed class FrontEnd
 
     void Adjust(int by)
     {
+        _joinUntouched = false;
         var entries = Entries();
         if (Selected >= entries.Count || entries[Selected].Adjust is not { } adjust)
             return;
@@ -989,9 +1428,11 @@ public sealed class FrontEnd
             .. DevEntries.Select(d => new Entry(new(d.Label, d.Hint), () => d.Launch)),
             new(new("QUIT"), () => new Launch.Quit()),
         ],
-        Screen.Slots => [.. _saves.List().Select(x => SlotEntry(x.Slot, x.State)), BackTo(Screen.Title)],
+        Screen.Slots => [.. _saves.List().Select(x => SlotEntry(x.Slot, x.State)), .. CrewEntries(), BackTo(Screen.Title)],
         Screen.Fortress => FortressEntries(),
+        Screen.Paint => PaintEntries(),
         Screen.Upgrades => UpgradeEntries(),
+        Screen.Smithy when Smithy is { } shop => SmithyEntries(shop),
         Screen.Stores => StoreEntries(),
         Screen.QuickNight =>
         [
@@ -1016,6 +1457,7 @@ public sealed class FrontEnd
                     Field: TextField.LobbyPassword),
             ],
             MoodEntry("Said beside your run on the list, so players looking for the same find it first."),
+            MischiefEntry(),
             new(new($"{NameLabel}{LobbyName}{(NamingLobby ? "_" : "")}", NamingLobby ? "Type the name; Enter or Esc when it's done." : "Enter to rename it: what the join screen calls it."),
                 Field: TextField.LobbyName),
             new(new("OPEN THE LOBBY", PasswordMissing ? "Type a password first: a private run needs one." : "You wait in the yard with the train; you drive out when everyone's in.",
@@ -1027,6 +1469,7 @@ public sealed class FrontEnd
                     LobbyName = LobbyName.Trim() is { Length: > 0 } named ? named : DefaultLobbyName,
                     Password = Settings.PublicLobby ? null : Settings.LobbyPassword.Trim(),
                     Mood = Settings.Mood,
+                    Mischief = _mischief,
                 }),
             BackTo(Screen.Title),
         ],
@@ -1040,11 +1483,11 @@ public sealed class FrontEnd
         ],
         Screen.Join =>
         [
-            new(new(Row("LOBBY", "CREW", "TIER", "MOOD", "PING"), null, false)),
+            new(new(Row("LOBBY", "CREW", "TIER", "MOOD", "RECORD", "PING"), null, false)),
             .. ListedGame.Sort(Games, Settings.Mood).Select(g => new Entry(new(Row((g.Locked ? $"{BitmapFont.Lock} " : "") + g.Name.ToUpperInvariant(), g.Max > 0 ? $"{g.Aboard}/{g.Max}" : $"{g.Aboard}",
                     // What can't be joined says why where its tier would be (the row's width is the frame's).
                     g.Protocol != Protocol ? "OTHER VERSION" : g.Full ? "FULL" : Enum.TryParse<RouteTier>(g.Tier, out var t) ? Name(t) : "-",
-                    Moods.Tag(g.Mood), g.PingMs is { } ms ? $"{ms:0} MS" : "-- MS"),
+                    Moods.Tag(g.Mood), g.RecordKm is { } km ? $"{km} KM" : "-", g.PingMs is { } ms ? $"{ms:0} MS" : "-- MS"),
                     g.Locked ? $"Private: the host's password to join. {g.Where}" : g.Where, g.Protocol == Protocol && !g.Full),
                 () =>
                 {
@@ -1059,14 +1502,17 @@ public sealed class FrontEnd
             MoodEntry("Runs of your mood first on the list, nearest first. Your runs are listed with it too."),
             new(new("REFRESH", "Look again, and ping everyone afresh."), () => { _refresh = true; Message = "Looking..."; return null; }),
             new(new($"ADDRESS: {Address}{(Editing == TextField.Address ? "_" : "")}", Editing == TextField.Address
-                    ? "Type it, and the host's port if it isn't the usual one (host:port); Enter or Esc when it's done."
-                    : "A private game, or one far off: Enter to type its address."), Field: TextField.Address),
+                    ? "Type it, and the host's port if it isn't the usual one (host:port), or the host's join code; Enter or Esc when it's done."
+                    : "A private game, or one far off: Enter to type its address, or its join code (note 896)."), Field: TextField.Address),
             new(new("JOIN", null, Address.Length > 0), () => new Launch.Join(Address)),
             BackTo(Screen.Title),
         ],
         Screen.Settings =>
         [
             // Note 386: in sections, a heading over each (never selected), so TEXT SIZE isn't found past the microphone.
+            // Note 904 (the director, 16 Oct: "I don't see a developer setting to be able to go in and unlock everything"): a
+            // developer build's unlock (note 747) is here, first, as well as at the forge. A player's build never sets SmithyMode.
+            .. SmithyMode is not null ? [Heading("DEVELOPER"), DevUnlockEntry()] : (Entry[])[],
             Heading("YOU"),
             // Note 267: the name the crew and the report know you by, typed here (empty: your Steam or system name). Not in a
             // night (note 292): the crew have it already, from when you joined.
@@ -1074,6 +1520,7 @@ public sealed class FrontEnd
                 Editing == TextField.PlayerName ? "Type your name; Enter or Esc when it's done. Erased, it's your Steam or system name."
                     : "Enter to type the name the crew and the report know you by."), Field: TextField.PlayerName)],
             OutfitEntry(Night is null ? "Left and right to change: what the crew see you in." : "Tried on in the yard; past the gate, from the next night."),
+            PaintEntry(Night is null ? "Your gas mask's colour and a stencil: what the crew see on it." : "Tried on in the yard; past the gate, from the next night."),
             Heading("SOUND AND VOICE"),
             new(new($"SOUND: {(Settings.Mute ? "OFF" : "ON")}"), Toggle(s => s with { Mute = !s.Mute }), _ => Change(Settings with { Mute = !Settings.Mute })),
             new(new($"VOICE: {(Settings.PushToTalk ? $"PUSH TO TALK ({(Settings.ToggleHolds ? "TAP" : "HOLD")} {Controls.KeyLabel(Settings.KeyFor(Control.Talk))})" : "OPEN MIC")}"), Toggle(s => s with { PushToTalk = !s.PushToTalk }), _ => Change(Settings with { PushToTalk = !Settings.PushToTalk })),
@@ -1144,6 +1591,12 @@ public sealed class FrontEnd
             // Note 350: a new player's first nights.
             new(new($"FIRST NIGHTS: {(Settings.FirstNights ? "ON" : "OFF")}", "Tips while a night's built, and the controls in the yard for your first nights."),
                 Toggle(s => s with { FirstNights = !s.FirstNights }), _ => Change(Settings with { FirstNights = !Settings.FirstNights })),
+            // Note 914: playtest data, on or off, and what it is.
+            .. Playtest is { } playtest && PlaytestNotice is not null
+                ? [Heading("PLAYTEST DATA"), PlaytestSwitch(playtest),
+                    .. Kit is { } kit ? [CodeEntry(kit)] : (Entry[])[],
+                    new Entry(new("WHAT WE COLLECT", "Every kind of thing it records, for how long, and DELETE."), () => { _playtestBack = Screen.Settings; Show(Screen.PlaytestData); return null; })]
+                : (Entry[])[],
             // Note 452: something wrong that didn't crash it, reported as a crash is, from the player's own mail.
             .. CanMail && ProblemReport is not null
                 ? [Heading("HELP"), new Entry(new("REPORT A PROBLEM", "Writes what the game's doing and its log to a file, and opens a mail to the studio to send it with a few words."),
@@ -1159,6 +1612,9 @@ public sealed class FrontEnd
         Screen.Leave when Night is { } n => LeaveEntries(n, Go(Screen.Night)),
         Screen.DeleteCrew when Open is { } s => DeleteEntries(s),
         Screen.Crashed when Crash is { } c => CrashEntries(c),
+        Screen.Consent when Playtest is { } p && PlaytestNotice is { } n => ConsentEntries(p, n),
+        Screen.PlaytestData when Playtest is { } p && PlaytestNotice is { } n => PlaytestDataEntries(p, n),
+        Screen.Survey => SurveyEntries(),
         // Note 323: a row a mod, its description under it; what couldn't load, why. Nothing here changes them: they're laid
         // over as the game starts, from its folders or a mod manager's profile (note 53).
         Screen.Mods =>
@@ -1190,10 +1646,12 @@ public sealed class FrontEnd
 
     /// <summary>
     /// The join screen's columns: the font's fixed-width, so spaces line them up under the header. A private run's name
-    /// starts with the font's padlock (note 450); the ping always has a figure, "--" till it's measured.
+    /// starts with the font's padlock (note 450); the ping always has a figure, "--" till it's measured. RECORD (note 535) is
+    /// how far the host's crews have gone, beside who the run's for: what a player feeling competitive looks for. For its room
+    /// the name keeps to a name's longest (a locked one's last two letters give way to the padlock).
     /// </summary>
-    static string Row(string name, string crew, string tier, string mood, string ping) =>
-        $"{(name.Length > MaxLobbyName + 1 ? name[..(MaxLobbyName + 1)] : name),-26}{crew,-6}{tier,-15}{mood,-8}{ping,6}";
+    static string Row(string name, string crew, string tier, string mood, string record, string ping) =>
+        $"{(name.Length > MaxLobbyName ? name[..MaxLobbyName] : name),-25}{crew,-6}{tier,-15}{mood,-8}{record,7}{ping,7}";
 
     /// <summary>A private run with no password yet: it can't be opened (note 450).</summary>
     bool PasswordMissing => !Settings.PublicLobby && Settings.LobbyPassword.Trim().Length == 0;
@@ -1208,6 +1666,22 @@ public sealed class FrontEnd
     Func<Launch?> Go(Screen screen) => () => { Show(screen); return null; };
 
     /// <summary>A section's heading (note 386): greyed so the keys pass over it, drawn as a heading.</summary>
+    /// <summary>The developer build's unlock as a row (note 747; in Settings, note 904): its toggle, and the menu redrawn.</summary>
+    Entry DevUnlockEntry()
+    {
+        var mode = SmithyMode!();
+        return new(mode.Item, () =>
+        {
+            mode.Choose();
+            SmithyMode!();
+            return null;
+        }, _ =>
+        {
+            mode.Choose();
+            SmithyMode!();
+        });
+    }
+
     static Entry Heading(string label) => new(new(label, null, Enabled: false, Heading: true));
 
     Entry BackTo(Screen screen) => new(new("BACK"), Go(screen), Back: true);
@@ -1219,6 +1693,87 @@ public sealed class FrontEnd
     /// is its colour and the cap or helmet and scarf that come with it.
     /// </summary>
     public IReadOnlyList<string> OutfitNames { get; set; } = ["RED", "BLUE", "OCHRE", "TEAL", "GREEN", "VIOLET", "ORANGE", "WHITE"];
+
+    /// <summary>The hat rack's hats by name (note 714; look.json crewHats): the app sets them when the train has the rack, else none.</summary>
+    public IReadOnlyList<string> HatNames { get; set; } = [];
+
+    /// <summary>HAT (note 714): none, then each of the rack's in turn, round again; offered only with the rack aboard.</summary>
+    Entry HatEntry(string detail)
+    {
+        int n = HatNames.Count, now = Math.Clamp(Settings.Hat, 0, n);
+        return new(new($"HAT: {(now == 0 ? "NONE" : HatNames[now - 1].ToUpperInvariant())}", detail), Toggle(s => s with { Hat = (now + 1) % (n + 1) }),
+            by => Change(Settings with { Hat = ((now + by) % (n + 1) + n + 1) % (n + 1) }));
+    }
+
+    /// <summary>The mask paints by name (note 731; look.json maskPaintNames), in order (the app sets them).</summary>
+    public IReadOnlyList<string> MaskPaintNames { get; set; } = ["BONE", "SOOT", "SIGNAL RED", "OXBLOOD", "OCHRE", "LEAF GREEN", "SEA BLUE", "SLATE", "PLUM", "PITCH PINE"];
+    /// <summary>The stencils by name (note 731; look.json maskStencils), in order (the app sets them).</summary>
+    public IReadOnlyList<string> StencilNames { get; set; } = ["STRIPE", "CROSS", "TEETH", "STAR", "NUMBER", "MOUSTACHE", "HEART", "CROW", "BOLT", "SMILE", "X EYES", "ANCHOR"];
+    /// <summary>A stencil's colour when none's picked (look.json maskInk, from 1).</summary>
+    public int MaskInk { get; set; } = 1;
+
+    /// <summary>Where PAINT YOUR MASK goes back to: the settings, or the yard's menu (note 731).</summary>
+    Screen _paintBack = Screen.Settings;
+    Screen PaintBack => _paintBack is Screen.Night && Night is null ? Screen.Settings : _paintBack;
+
+    /// <summary>PAINT YOUR MASK (note 731): the settings' and the yard menu's way onto its page, saying what's on it now.</summary>
+    Entry PaintEntry(string detail)
+    {
+        var p = Settings.MaskPaint(MaskPaintNames.Count, StencilNames.Count);
+        string now = !p.Painted ? "UNPAINTED"
+            : p.Stencil == 0 ? MaskPaintNames[p.Colour - 1]
+            : $"{(p.Colour == 0 ? "BARE" : MaskPaintNames[p.Colour - 1])}, {StencilNames[p.Stencil - 1]}";
+        return new(new($"PAINT YOUR MASK: {now}", detail), () =>
+        {
+            _paintBack = Screen;
+            Show(Screen.Paint);
+            return null;
+        });
+    }
+
+    /// <summary>
+    /// PAINT YOUR MASK's page (note 731, GDD §29): the coat, the stencil and the stencil's colour, each left and right round
+    /// its list (the coat and the stencil through none). In the yard each change is tried on at once (the app sends it as the
+    /// outfit's is); past the gate it's kept for the next night.
+    /// </summary>
+    List<Entry> PaintEntries()
+    {
+        int paints = MaskPaintNames.Count, stencils = StencilNames.Count;
+        var p = Settings.MaskPaint(paints, stencils);
+        int ink = p.Ink > 0 ? p.Ink : Math.Clamp(MaskInk, 1, Math.Max(1, paints));
+        string tried = Night is { Yard: true } ? "The crew see it at once." : Night is not null ? "Past the gate: from the next night." : "What the crew see on your mask.";
+        // Round a list from 1 with none (0) among it, or without.
+        static int Round(int now, int by, int count, bool none) =>
+            none ? ((now + by) % (count + 1) + count + 1) % (count + 1) : ((now - 1 + by) % count + count) % count + 1;
+        var list = new List<Entry>
+        {
+            new(new($"COAT: {(p.Colour == 0 ? "UNPAINTED" : MaskPaintNames[p.Colour - 1])}", $"The mask's colour. {tried}"),
+                Toggle(s => s with { MaskColour = Round(p.Colour, 1, paints, true) }), by => Change(Settings with { MaskColour = Round(p.Colour, by, paints, true) })),
+            new(new($"STENCIL: {(p.Stencil == 0 ? "NONE" : StencilNames[p.Stencil - 1])}", $"Painted over the coat. {tried}"),
+                Toggle(s => s with { MaskStencil = Round(p.Stencil, 1, stencils, true) }), by => Change(Settings with { MaskStencil = Round(p.Stencil, by, stencils, true) })),
+        };
+        if (p.Stencil > 0 && paints > 0)
+            list.Add(new(new($"STENCIL COLOUR: {MaskPaintNames[ink - 1]}", $"The stencil's paint: pick one that shows on the coat. {tried}"),
+                Toggle(s => s with { MaskInk = Round(ink, 1, paints, false) }), by => Change(Settings with { MaskInk = Round(ink, by, paints, false) })));
+        list.Add(new(new("DONE"), () => { Show(PaintBack); return null; }, Back: true));
+        return list;
+    }
+
+    /// <summary>
+    /// The fortress board's CREW SIGIL (note 731): none, then each stencil in turn. Saved with the crew at once; whoever hosts
+    /// from this board takes it into the night, on the engine's side and small on every mask.
+    /// </summary>
+    Entry SigilEntry(CampaignState s)
+    {
+        int n = StencilNames.Count, now = Math.Clamp(s.Sigil, 0, n);
+        Launch? Set(int by)
+        {
+            SaveCrew(s with { Sigil = ((now + by) % (n + 1) + n + 1) % (n + 1) });
+            return null;
+        }
+        return new(new($"CREW SIGIL: {(now == 0 ? "NONE" : StencilNames[now - 1])}", "Your crew's mark, painted on the engine's side and small on every mask."),
+            () => Set(1), by => Set(by));
+    }
 
     /// <summary>OUTFIT (note 298): the crew's pick (your place's look), then each look in turn, round again.</summary>
     Entry OutfitEntry(string detail)
@@ -1239,6 +1794,34 @@ public sealed class FrontEnd
     {
         string[] all = ["", .. MicDevices];
         return Settings.Cycle(all, Array.IndexOf(all, now) < 0 ? "" : now, by);
+    }
+
+    /// <summary>A crew ridden with's id, for its night's launch (note 724); null for a slot's own crew.</summary>
+    static string? RodeWith(CampaignState s) => s.Slot == 0 ? s.CrewId : null;
+
+    /// <summary>
+    /// The crews this player has ridden with (GDD §11; note 724), under the slots: each crew's save as its host last sent it,
+    /// "CREW &lt;NAME&gt; · NIGHT 7 · LAST HOSTED BY DAVE", and any of them hosted from here. A crew in one of this player's own
+    /// slots is listed only when the copy ridden with has gone further. One whose train was taken at dawn stays listed, ended.
+    /// </summary>
+    List<Entry> CrewEntries()
+    {
+        var mine = _saves.List().Where(x => x.State is not null).Select(x => x.State!).ToList();
+        var crews = _saves.Crews().Where(c => !mine.Any(m => m.CrewId == c.CrewId && m.Runs >= c.Runs)).ToList();
+        if (crews.Count == 0)
+            return [];
+        var list = new List<Entry> { new(new("CREWS YOU'VE RIDDEN WITH", null, false, Heading: true)) };
+        foreach (var c in crews)
+        {
+            string host = c.LastHost.Length > 0 ? $" · LAST HOSTED BY {Sim.Net.Messages.CleanName(c.LastHost).ToUpperInvariant()}" : "";
+            string id = c.CrewId;
+            list.Add(c.Over
+                ? new(new($"CREW {CrewName(c).ToUpperInvariant()} · TAKEN AT DAWN{host}", $"{c.Runs} nights. The company has no more trains for them."),
+                    () => { ShowCrew(id); return null; })
+                : new(new($"CREW {CrewName(c).ToUpperInvariant()} · NIGHT {c.Runs + 1}{host}", $"{c.Cars} cars, {c.Scrip:0} scrip. Host its next night from here."),
+                    () => { ShowCrew(id); return null; }));
+        }
+        return list;
     }
 
     Entry SlotEntry(int slot, CampaignState? s)
@@ -1278,7 +1861,7 @@ public sealed class FrontEnd
             // Spec E: a night that was under way picks up from its last autosave (or starts again, if it had none).
             string from = s.Checkpoint is null ? "from the yard" : "from the last facility it left";
             list.Add(new(new($"CARRY ON: {Name(tonight.Tier)} {tonight.Seed}", $"The night that was under way, {from}."),
-                () => new Launch.CampaignNight(s.Slot, -1, Resume: true, _host) { Bots = _bots }));
+                () => new Launch.CampaignNight(s.Slot, -1, Resume: true, _host) { Bots = _bots, Crew = RodeWith(s) }));
         }
         else
         {
@@ -1290,7 +1873,7 @@ public sealed class FrontEnd
                 // GDD §9 "choose a route" (note 637: a contract is just a route): the train leaves empty, and its cars are paid
                 // by what its stops load, about the tier's car-load each.
                 list.Add(new(new($"TONIGHT: {Name(c.Tier)} {c.Seed}, ABOUT {c.PerCar:0} A CAR-LOAD", $"Whatever its stops load. Up to about {c.PerCar * s.Cars:0} on {s.Cars} cars."),
-                    () => new Launch.CampaignNight(s.Slot, contract, Resume: false, _host) { Bots = _bots }));
+                    () => new Launch.CampaignNight(s.Slot, contract, Resume: false, _host) { Bots = _bots, Crew = RodeWith(s) }));
             }
         }
         // The crew's bots (note 611): who goes out with you tonight, and on to the next night from the town after it.
@@ -1298,7 +1881,7 @@ public sealed class FrontEnd
         double carCost = Campaign.NextCarCost(_campaign, s);
         bool full = s.Cars >= _campaign.MaxCars;
         list.Add(new(new(full ? "BUY A CAR: THE CONSIST IS FULL" : $"BUY A CAR: {carCost:0} SCRIP", full ? null : $"Car {s.Cars + 1}. More cars carry more, and burn more, and need more hands.",
-            !full && s.Current is null), () => Buy(Campaign.BuyCar(_campaign, s), $"A car bought: {s.Cars + 1} now.")));
+            !full && s.Current is null), () => Buy(Campaign.BuyCar(_campaign, s), $"A car bought: {s.Cars + 1} now.", "car")));
         // GDD §9 "add or remove railcars" (note 182): a car off brings back a share of its price; a shorter train works a lower tier.
         if (_campaign.SellCar is { } sell)
         {
@@ -1307,7 +1890,7 @@ public sealed class FrontEnd
             string after = tierAfter != Campaign.TierFor(_campaign, s.Cars) ? $" The consist drops to {Name(tierAfter)} work." : "";
             list.Add(new(new(fewest ? $"TAKE A CAR OFF: {sell.Fewest} IS THE FEWEST" : $"TAKE A CAR OFF: +{Campaign.SellBack(_campaign, s):0} SCRIP",
                 fewest ? null : $"Car {s.Cars} back to the yard for {sell.Share:P0} of its price.{after}", !fewest && s.Current is null),
-                () => Buy(Campaign.SellCar(_campaign, s), $"A car taken off: {s.Cars - 1} now.")));
+                () => Buy(Campaign.SellCar(_campaign, s), $"A car taken off: {s.Cars - 1} now.", "carSold")));
         }
         // GDD v1.4 App. E.12 question 4: the fortress sells spare repair kits; each rides in a crew locker (note 173).
         if (_campaign.SpareKit is { } spare)
@@ -1316,16 +1899,37 @@ public sealed class FrontEnd
             string have = s.SpareKits == 0 ? "None aboard yet" : $"{s.SpareKits} aboard";
             list.Add(new(new(most ? $"SPARE REPAIR KIT: THE LOCKERS HOLD {spare.Most}" : $"BUY A SPARE REPAIR KIT: {spare.Cost:0} SCRIP",
                 $"{have}. A ruptured boiler with every kit lost strands the night; spares ride in the crew lockers.", !most && s.Current is null),
-                () => Buy(Campaign.BuySpareKit(_campaign, s), $"A spare repair kit bought: {s.SpareKits + 1} now.")));
+                () => Buy(Campaign.BuySpareKit(_campaign, s), $"A spare repair kit bought: {s.SpareKits + 1} now.", "spareKit")));
         }
         if (_campaign.Stores is not null)
             list.Add(new(new("STORES", StoresLine(s.Stores), s.Current is null), () => { Show(Screen.Stores); return null; }));
-        list.Add(new(new("UPGRADES", null, s.Current is null), () => { Show(Screen.Upgrades); return null; }));
+        // Bought from the town's blacksmith, in the yard (note 697): here, what's on their shelves, to plan the night's buying.
+        list.Add(new(new("UPGRADES", "What the blacksmith sells. Buy it at their forge, in the yard.", s.Current is null), () => { Show(Screen.Upgrades); return null; }));
+        // Note 731: the crew's sigil, picked by whoever hosts from here: on the engine's side and every mask, kept in the save.
+        list.Add(SigilEntry(s));
         list.Add(new(new($"PLAY: {(_host ? "HOST FOR FRIENDS" : "ALONE")}", "Left and right to change."), () => { _host = !_host; return null; }, _ => _host = !_host));
+        // Note 724: hosting, the run's CREW MISCHIEF, as on the host screen.
+        if (_host)
+            list.Add(MischiefEntry());
+        // A crew ridden with (note 724) is the crew's, not this machine's: its name and its file are whoever hosts it last's.
+        if (s.Slot == 0)
+        {
+            list.Add(BackTo(Screen.Slots));
+            return list;
+        }
         // Note 320 (note 33's "not yet": renaming a crew or deleting a slot was `dt campaign`'s alone).
         bool naming = Editing == TextField.CrewName;
         list.Add(new(new($"{NameLabel}{(naming ? s.Name : CrewName(s)).ToUpperInvariant()}{(naming ? "_" : "")}",
             naming ? "Type the name; Enter or Esc when it's done." : "Enter to rename the crew."), Field: TextField.CrewName));
+        // The nameplate (note 714): the engine's name, once its plates are bought.
+        if (s.Upgrades.Contains("nameplate"))
+        {
+            bool christening = Editing == TextField.EngineName;
+            string engineName = s.EngineName is { Length: > 0 } en ? en : christening ? "" : "UNNAMED";
+            list.Add(new(new($"ENGINE: {engineName.ToUpperInvariant()}{(christening ? "_" : "")}",
+                christening ? "Type her name; Enter or Esc when it's done." : "Enter to name the engine: it's cast in her plates, and the clerk reads it."),
+                Field: TextField.EngineName));
+        }
         list.Add(new(new("DELETE THIS CREW", $"Slot {s.Slot} emptied for a new crew. It asks first."), Go(Screen.DeleteCrew)));
         list.Add(BackTo(Screen.Slots));
         return list;
@@ -1356,22 +1960,108 @@ public sealed class FrontEnd
     {
         if (Open is not { } s)
             return [BackTo(Screen.Fortress)];
-        var list = new List<Entry>();
-        foreach (var u in _campaign.Upgrades)
-        {
-            bool owned = s.Upgrades.Contains(u.Id);
-            double cost = Campaign.UpgradeCost(_campaign, s, u);
-            // The shop says which upgrades the night doesn't model yet (ARCHITECTURE §8 note 29).
-            string detail = $"{(u.Size == UpgradeSize.Major ? "Major" : "Small")}{(u.Effect.Count == 0 ? ", not modelled yet" : "")}.";
-            list.Add(new(new(owned ? $"{u.Name.ToUpperInvariant()}: OWNED" : $"{u.Name.ToUpperInvariant()}: {cost:0}", detail, !owned),
-                () => Buy(Campaign.BuyUpgrade(_campaign, s, u.Id), $"{u.Name} bought.")));
-        }
+        // Note 687: bought from the town's blacksmith, not the menu; here it's to look at.
+        var list = CatalogueEntries(s, _ => () => { Message = "Buy it from the blacksmith, at the forge in the yard."; return null; });
+        if (Purse(s, false) is { } purse)
+            list.Insert(0, purse);
         list.Add(BackTo(Screen.Fortress));
         return list;
     }
 
+    /// <summary>The blacksmith's catalogue (note 697): the shelves as the menu's, bought on the host's word.</summary>
+    List<Entry> SmithyEntries(SmithyShop shop)
+    {
+        var list = CatalogueEntries(shop.State, u => () =>
+        {
+            if (!shop.CanBuy || SmithyBuy is not { } buy)
+            {
+                Message = $"The host keeps the crew's scrip: ask {shop.Payer ?? "them"} to buy it.";
+                return null;
+            }
+            bool had = shop.State.Upgrades.Contains(u.Id);
+            var p = buy(u.Id);
+            if (p.Ok)
+                Smithy = shop with { State = p.State };
+            Message = !p.Ok ? p.Refused : had && !p.State.Upgrades.Contains(u.Id) ? $"{u.Name}: taken off before the gate."
+                : had ? $"{u.Name}: painted before the gate." : $"{u.Name}: fitted before the gate.";
+            return null;
+        }, free: SmithyFree);
+        if (Purse(shop.State, SmithyFree) is { } purse)
+            list.Insert(0, purse);
+        if (SmithyMode?.Invoke() is { } mode)
+            list.Insert(0, new(mode.Item, () =>
+            {
+                mode.Choose();
+                return null;
+            }));
+        list.Add(new(new("DONE", "Back to the yard."), () => { CloseNight(); return null; }, Back: true));
+        return list;
+    }
+
+    /// <summary>
+    /// The catalogue's first line when the crew can't buy anything on it yet (note 904; the director, 16 Oct: "It should tell me
+    /// that nothing is available to purchase until you have scrip"): no scrip at all, or less than the cheapest thing they could
+    /// otherwise have. Null when something's in reach (or the shelves are free, a developer build's unlock, note 747).
+    /// </summary>
+    Entry? Purse(CampaignState s, bool free)
+    {
+        if (free)
+            return null;
+        var costs = _campaign.Upgrades.Where(u => !s.Upgrades.Contains(u.Id) && Campaign.Unavailable(_campaign, s, u) is null)
+            .Select(u => Campaign.UpgradeCost(_campaign, s, u)).ToList();
+        if (costs.Count == 0 || s.Scrip >= costs.Min())
+            return null;
+        string earn = "Scrip's paid at the end of a night for what the train delivered. What each thing costs is on its line.";
+        return new(new(s.Scrip <= 0 ? "NOTHING CAN BE BOUGHT UNTIL YOU HAVE SCRIP" : $"NOTHING HERE YOU CAN AFFORD YET: {s.Scrip:0} SCRIP",
+            s.Scrip <= 0 ? $"The crew has none. {earn}" : $"The cheapest is {costs.Min():0} scrip. {earn}", Enabled: false));
+    }
+
+    /// <summary>
+    /// The catalogue by what it's for (note 678), for <paramref name="s"/>: the tools first, then the rest of the shelves, each
+    /// with its line, and why one isn't for sale (a tier the train doesn't work yet, or a fitting it won't go with).
+    /// </summary>
+    List<Entry> CatalogueEntries(CampaignState s, Func<UpgradeDef, Func<Launch?>> select, bool free = false)
+    {
+        var list = new List<Entry>();
+        foreach (var kind in new[] { UpgradeKind.Tool, UpgradeKind.Whimsy, UpgradeKind.Fun, UpgradeKind.Silly })
+        {
+            var shelf = _campaign.Upgrades.Where(u => u.Kind == kind).ToList();
+            if (shelf.Count == 0)
+                continue;
+            list.Add(new(new(KindHeading(kind), Heading: true)));
+            foreach (var u in shelf)
+            {
+                bool owned = s.Upgrades.Contains(u.Id);
+                double cost = Campaign.UpgradeCost(_campaign, s, u);
+                string? why = owned || free ? null : Campaign.Unavailable(_campaign, s, u);
+                // The shop says which upgrades the night doesn't model yet (ARCHITECTURE §8 note 29).
+                string detail = u.Line ?? $"{(u.Size == UpgradeSize.Major ? "Major" : "Small")}{(u.Effect.Count == 0 && u.Tally is null ? ", not modelled yet" : "")}.";
+                // A livery owned is picked by choosing it again (note 714): the train's in the last picked.
+                bool livery = u.Effect.ContainsKey("livery");
+                bool painted = livery && owned && Campaign.LiveryOf(_campaign, s) == u.Id;
+                string label = free ? $"{u.Name.ToUpperInvariant()}: {(owned ? "OWNED, TAKE IT OFF" : "FREE")}"
+                    : painted ? $"{u.Name.ToUpperInvariant()}: ON THE TRAIN"
+                    : livery && owned ? $"{u.Name.ToUpperInvariant()}: OWNED, PAINT HER IN IT"
+                    : owned ? $"{u.Name.ToUpperInvariant()}: OWNED"
+                    // Note 904 (the director, 16 Oct: "it should tell me ... until you have scrip"): what it costs, on every line.
+                    : why is not null && Campaign.TierFor(_campaign, s.Cars) < u.FromTier ? $"{u.Name.ToUpperInvariant()}: {Name(u.FromTier)} AND ON, {cost:0} SCRIP"
+                    : $"{u.Name.ToUpperInvariant()}: {cost:0} SCRIP";
+                list.Add(new(new(label, why is null ? detail : $"{why}.", (free || !owned || livery && !painted) && why is null), select(u)));
+            }
+        }
+        return list;
+    }
+
+    static string KindHeading(UpgradeKind kind) => kind switch
+    {
+        UpgradeKind.Tool => "TOOLS",
+        UpgradeKind.Whimsy => "WHIMSY",
+        UpgradeKind.Fun => "FUN",
+        _ => "SILLY",
+    };
+
     static string StoresLine(Stores st) => st.Any
-        ? $"Bought for tonight: {st.Powder} powder, {st.Lamps} lamps, {st.Extinguishers} extinguishers."
+        ? $"Bought for tonight: {st.Powder} powder, {st.Lamps} lamps, {st.Extinguishers} extinguishers{(st.Flares > 0 ? $", {st.Flares} flare pistols" : "")}."
         : "Powder and shot, spare lamps and extinguishers for tonight.";
 
     /// <summary>The departure's stores (GDD §9 "stock ... powder and shot, lamps, repair supplies"; note 182): for the coming night.</summary>
@@ -1385,19 +2075,30 @@ public sealed class FrontEnd
             int have = s.Stores.Of(kind);
             bool most = have >= item.Most;
             list.Add(new(new(most ? $"{name}: {have} OF {item.Most}, ALL A NIGHT TAKES" : $"{name}: {item.Cost:0} SCRIP ({have} OF {item.Most})", detail, !most && s.Current is null),
-                () => Buy(Campaign.BuyStores(_campaign, s, kind), $"{name.ToLowerInvariant()} bought for tonight.")));
+                () => Buy(Campaign.BuyStores(_campaign, s, kind), $"{name.ToLowerInvariant()} bought for tonight.", $"stores:{kind}")));
         }
         Row(StoreKind.Powder, st.Powder, "POWDER AND SHOT", $"A crate: {st.Powder.Each} more rounds for every gun tonight.");
         Row(StoreKind.Lamp, st.Lamps, "SPARE LAMP", "In the guard van beside its own, for when one goes out over the side.");
         Row(StoreKind.Extinguisher, st.Extinguishers, "SPARE EXTINGUISHER", "Loose in the guard van: a second hand on a fire. It doesn't recharge.");
+        // Note 871: the flare pistol, stocked from the Frontier tier (upgrades.md §4).
+        if (st.Flares is { } flares)
+        {
+            if (Campaign.TierFor(_campaign, s.Cars) < flares.FromTier)
+                list.Add(new(new($"FLARE PISTOL: STOCKED FOR {Campaign.TierWords(flares.FromTier).ToUpperInvariant()} WORK",
+                    "A longer train first.", false), () => null));
+            else
+                Row(StoreKind.Flare, flares, "FLARE PISTOL", $"Loaded with {flares.Each} flares. Each lights a village for a minute, and the Fire Flies follow it away from the train.");
+        }
         list.Add(BackTo(Screen.Fortress));
         return list;
     }
 
-    Launch? Buy(Purchase p, string done)
+    Launch? Buy(Purchase p, string done, string what)
     {
         if (p.Ok)
         {
+            // Note 913: what was bought (or sold back: a negative cost), and the scrip after.
+            Telemetry?.Purchase(what, (Open?.Scrip ?? p.State.Scrip) - p.State.Scrip, p.State.Scrip);
             _saves.Save(p.State);
             Open = p.State;
         }
@@ -1464,6 +2165,12 @@ public sealed class FrontEnd
         [.. Enum.GetValues<UiStyle.Commendation>().Select(c => (c, Profile.Commendations.GetValueOrDefault(Sim.Run.Commendations.StarterSet[(int)c])))];
 
     /// <summary>The line over the PROFILE page's badges: how many in all, or how they're come by.</summary>
+    /// <summary>
+    /// The player's record (note 535), as the PROFILE page says it: the furthest any of their crews has gone, which a run they
+    /// host is listed with beside its mood. Null till a crew's gone a kilometre.
+    /// </summary>
+    public string? RecordLine => Profile.RecordKm is >= 1 and var km ? $"RECORD: {(int)km} KM, THE FURTHEST A CREW OF YOURS HAS GONE" : null;
+
     public string TallyLine => Tally.Sum(t => t.Given) is var total && total == 0
         ? "NO COMMENDATIONS YET: A CREW GIVES THEM AT THE END OF A NIGHT." : $"GIVEN BY YOUR CREWS: {total} IN ALL";
 
@@ -1475,6 +2182,13 @@ public sealed class FrontEnd
     float DrawProfile(Overlay o, float x, float y, int width, int height)
     {
         var tally = Tally;
+        // Note 535: the record a run you host is listed with, over the tally.
+        if (RecordLine is { } record)
+            foreach (var line in UiStyle.Wrap(o, record, width - x - 8))
+            {
+                o.Text(x, y, line, Ink);
+                y += 10;
+            }
         // Wrapped at a bigger TEXT SIZE (note 347).
         foreach (var line in UiStyle.Wrap(o, TallyLine, width - x - 8))
         {
@@ -1559,14 +2273,21 @@ public sealed class FrontEnd
             Screen.Slots => "CAMPAIGN",
             Screen.DeleteCrew when Open is { } s => $"DELETE {CrewName(s).ToUpperInvariant()}?",
             Screen.Crashed => "DARK TERRITORY STOPPED LAST TIME",
+            Screen.Consent => Playtest is { OnByNotice: true } && PlaytestNotice is { OnByDefaultTitle.Length: > 0 } on ? on.OnByDefaultTitle
+                : PlaytestNotice?.Question ?? "PLAYTEST DATA",
+            Screen.PlaytestData => "PLAYTEST DATA",
+            Screen.Survey => "TONIGHT, IN THREE NUMBERS",
             Screen.Fortress or Screen.Upgrades or Screen.Stores when Open is { } s =>
                 $"{CrewName(s).ToUpperInvariant()}{(s.Town is { } town ? $" IN {town.Name.ToUpperInvariant()}" : "")}: {s.Cars} CARS, {s.Scrip:0} SCRIP, NIGHT {s.Runs + 1}, {Name(Campaign.TierFor(_campaign, s.Cars))}",
             Screen.Upgrades => "UPGRADES",
+            // Note 687: who's selling, and what the crew has to spend.
+            Screen.Smithy when Smithy is { } shop => $"{shop.Smith.ToUpperInvariant()}, BLACKSMITH: TRAIN UPGRADES. {shop.State.Scrip:0} SCRIP",
             Screen.QuickNight => "QUICK NIGHT",
             Screen.Join => "JOIN",
             Screen.Password when _locked is { } locked => $"{locked.Name.ToUpperInvariant()} IS PRIVATE",
             Screen.Host => "HOST",
             Screen.Settings => "SETTINGS",
+            Screen.Paint => "PAINT YOUR MASK",
             Screen.Controls => "CONTROLS",
             Screen.Credits => "CREDITS",
             Screen.Mods => ModsOff ? "MODS: OFF, STARTED WITH --NO-MODS" : "MODS, IN THE ORDER THEY'RE LAID OVER THE GAME",
@@ -1584,11 +2305,27 @@ public sealed class FrontEnd
             o.Text(x, y, Clip(o, $"LAST NIGHT: {last.Route.ToUpperInvariant()}, {last.End.ToString().ToUpperInvariant()}, {(last.Net >= 0 ? "+" : "")}{last.Net:0} SCRIP", width - x - 8), Faint);
             y += 10;
         }
-        if (Screen == Screen.Upgrades)
-        {
-            o.Text(x, y, "UPGRADES COST A SHARE OF THE NEXT CAR", Faint);
-            y += 10;
-        }
+        // (Wrapped, as the heading is, at a bigger TEXT SIZE: note 347.)
+        string? under = Screen == Screen.Consent && Playtest is { OnByNotice: true } && PlaytestNotice is { OnByDefault.Length: > 0 } onNotice
+                ? string.Join(" ", onNotice.OnByDefault).Replace("{code}", Kit?.Cohort ?? "no code", StringComparison.Ordinal).ToUpperInvariant()
+            : Screen == Screen.Consent && PlaytestNotice is { } notice
+                ? (string.Join(" ", notice.Ask) + (Kit?.Build is { } build && notice.PlaytestBuild.Length > 0
+                    ? " " + notice.PlaytestBuild.Replace("{code}", build.Cohort ?? "no code", StringComparison.Ordinal) : "")).ToUpperInvariant()
+            : Screen == Screen.Survey ? "FOR THE PLAYTEST: EACH FROM 1 TO 5, LEFT AND RIGHT. SKIP IT IF YOU'D RATHER."
+            : Screen == Screen.Upgrades ? "BOUGHT FROM THE BLACKSMITH, AT THE FORGE IN THE YARD"
+            : Screen == Screen.Smithy && Smithy is { } selling
+                ? !selling.CanBuy ? $"THE HOST PAYS: ASK {(selling.Payer ?? "THEM").ToUpperInvariant()}"
+                    // Note 904: with nothing in reach, why, where every one of its rows can see it.
+                    : Purse(selling.State, SmithyFree) is { } purse ? purse.Item.Detail!.ToUpperInvariant()
+                    : "A SHARE OF THE NEXT CAR. FITTED BEFORE THE GATE"
+            : null;
+        if (under is not null)
+            foreach (var row in UiStyle.Wrap(o, under, width - x - 8))
+            {
+                // The playtest question's reasons are read before answering (note 914): as bright as the heading.
+                o.Text(x, y, row, Screen == Screen.Consent ? Dim : Faint);
+                y += 10;
+            }
         if (Screen == Screen.Stores)
         {
             o.Text(x, y, "STORES FOR TONIGHT: SPENT WITH THE NIGHT", Faint);
@@ -1609,8 +2346,12 @@ public sealed class FrontEnd
         // A value's row has its arrows at the plate's right, for the mouse (note 264): < and > step it, as left and right do.
         bool arrows = entries.Any(e => e.Adjust is not null);
         float plate = Math.Min(width - x, widest + 12 + (arrows ? 24 : 0));
-        // A list longer than the screen (the controls) scrolls: the selection kept in view, or where the wheel put it.
-        int rows = Math.Max(1, (int)((height - y - 44) / 10));
+        // A list longer than the screen (the controls) scrolls: the selection kept in view, or where the wheel put it. Room is
+        // left under it for the longest detail any row has (note 946: WHAT WE COLLECT's run to three lines, and the third ran
+        // into the keys' line), so the list doesn't change length as the selection moves.
+        int detailLines = items.Where(i => i.Enabled && i.Detail is not null)
+            .Select(i => UiStyle.Wrap(o, i.Detail!.ToUpperInvariant(), width - x - 8).Count()).DefaultIfEmpty(0).Max();
+        int rows = Math.Max(1, (int)((height - y - 24 - 10 * Math.Max(2, detailLines)) / 10));
         int first = First(rows, items.Count);
         int shown = Math.Min(rows, items.Count - first);
         UiStyle.Plate(o, x - 8, y - 6, plate, shown * 10 + 10);
@@ -1662,11 +2403,25 @@ public sealed class FrontEnd
             }
         if (Message is { } m)
             o.Text(x, y, m.ToUpperInvariant(), Amber);
+        // Note 968: the first boot's line, small and faint at the foot of the title menu, over the keys' line.
+        if (Screen == Screen.Title && Night is null && PlaytestLine is { } said)
+        {
+            var saidRows = UiStyle.Wrap(o, said.ToUpperInvariant(), width - x - 8).ToList();
+            float at = height - 28 - 10 * (saidRows.Count - 1);
+            foreach (var row in saidRows)
+            {
+                o.Text(x, at, row, Faint);
+                at += 10;
+            }
+        }
         string hints = Capturing is not null ? "PRESS THE KEY   [ESC] KEEP IT"
             // Note 450: on the password page Enter joins.
             : Editing == TextField.JoinPassword ? "TYPE   [ENTER] JOIN   [ESC] DONE"
+            : Editing == TextField.NightPassword ? "TYPE   [ENTER] LOCK   [ESC] KEEP THE OLD"
             : Editing is not null ? "TYPE   [ENTER] DONE   [ESC] DONE"
-            // The in-night menu's own pages have nothing to change (note 292); Escape on the first is back to the night.
+            // The in-night menu's own pages have nothing to change (note 292) but a listed run's MOOD (note 535); Escape on the
+            // first is back to the night.
+            : Screen == Screen.Night && Night?.Lobby is not null ? "[UP/DOWN] OR MOUSE   [ENTER] OR CLICK   [LEFT/RIGHT] CHANGE   [ESC] RESUME"
             : Screen == Screen.Night ? "[UP/DOWN] OR MOUSE   [ENTER] OR CLICK   [ESC] RESUME"
             // LEFT/RIGHT only where there's a value to change (note 293).
             : Headset ? arrows ? "[STICK UP/DOWN] CHOOSE   [TRIGGER]   [STICK LEFT/RIGHT] CHANGE   [B] BACK" : "[STICK UP/DOWN] CHOOSE   [TRIGGER]   [B] BACK"

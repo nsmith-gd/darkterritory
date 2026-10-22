@@ -127,8 +127,12 @@ public static class AudioBench
     }
 
     /// <param name="scenario">"bed" (train only), "tells" (quiet train, every demo tell), "chaos" (everything at once) or
-    /// "wreck" (the train derails, heard from beside the line), "toys" (the noisy toys carried on the listener's roof), "feet"
-    /// (the crew walking: <see cref="FeetAt"/>).</param>
+    /// "wreck" (the train derails, heard from beside the line), "toys" (the noisy toys carried on the listener's roof), "band"
+    /// (the band round the listener on the roof, playing <paramref name="track"/>: a tune's title or place), "chaos+band"
+    /// (chaos with the whole band playing on the listener's roof, or the first car's from the cab: the crew's own music
+    /// mustn't bury a tell, note 775), "feet" (the crew walking: <see cref="FeetAt"/>), "pin" (note 865: the pin behind car 3
+    /// working loose from half a second in, through its warning to the jump and on, the listener in the cab or up on a roof),
+    /// "brought" (note 958: a creature ridden into the arrival town and fought in its yard, heard from beside it).</param>
     /// <param name="listenerCar">0 = in the cab; otherwise on that car's roof (in "feet", inside it, or the last beside it).</param>
     /// <param name="space">Hear it all as if in this space (content/audio/spaces.json); null, where the listener is.</param>
     /// <param name="track">"wreck": the music track to play (a manifest id); null, the host's draw from a fresh bag.</param>
@@ -139,14 +143,39 @@ public static class AudioBench
         var playerTuning = DataFile.Load<PlayerTuning>(Path.Combine(content, PlayerTuning.File));
         var boilerTuning = DataFile.Load<BoilerTuning>(Path.Combine(content, BoilerTuning.File));
         var combat = DataFile.Load<CombatTuning>(Path.Combine(content, CombatTuning.File));
-        var line = RailLine.Load(Path.Combine(content, "lines", "test-loop.json"));
-        var train = new TrainOnLine(new TrainDynamics(Consist.Uniform(trainTuning, cars, 1)), line, cars * 16.0 + 200, boilerTuning);
+        // "brought" (note 958): frontier:7 drawn in to its terminus town, the train stood in the yard past the gate, hounds
+        // ridden in on car 2 (Staging.Patrol, as `dt screenshot --arrival brought --patrol` has them) for the yard's fight
+        // (run.json broughtIn.fightSeconds) and then gone; heard from the ground beside car 2, on the square's side.
+        bool brought = scenario == "brought";
+        var route = brought ? Sim.LineGen.Routes.Generate(content, "frontier:7", cars = Math.Min(cars, 6)) : null;
+        var runTuning = brought ? DataFile.Load<Sim.Run.RunTuning>(Path.Combine(content, Sim.Run.RunTuning.File)) : null;
+        var consist = Consist.Uniform(trainTuning, cars, 1);
+        var line = route?.Build() ?? RailLine.Load(Path.Combine(content, "lines", "test-loop.json"));
+        double startAt = route?.Plan?.Terminus is { } end
+            ? end.GateM + (runTuning!.HomeInsideGateM ?? 0) + consist.LengthMetres + 10 : cars * 16.0 + 200;
+        if (brought)
+            speed = 0;
+        var train = new TrainOnLine(new TrainDynamics(consist), line, startAt, boilerTuning);
         train.Dynamics.Velocity = speed;
         var world = new World(train, combat) { WreckTuning = DataFile.Load<WreckTuning>(Path.Combine(content, WreckTuning.File)) };
+        if (route is not null)
+        {
+            var routeTuning = Sim.Route.RouteTuning.Load(content);
+            double gate = route.GateOr(routeTuning.YardLength);
+            world.EnableRun(runTuning!, route, gate, authority: true,
+                DataFile.Load<Sim.Run.FacilityTuning>(Path.Combine(content, Sim.Run.FacilityTuning.File)),
+                DataFile.Load<Sim.Stops.LootTuning>(Path.Combine(content, Sim.Stops.LootTuning.File)));
+            var enemyTuning = DataFile.Load<Sim.Enemies.EnemyTuning>(Path.Combine(content, Sim.Enemies.EnemyTuning.File));
+            // A client's: the creatures are only the staged ones (MirrorEnemies), and the wall guns have their tuning.
+            world.EnableEnemies(enemyTuning, route, route.Seed, crew: 1, authority: false);
+            if (Sim.Towns.TownContent.Load(content) is { } towns)
+                world.EnableTown(towns, route, gate, enemyTuning.Director.Roster,
+                    arrival: Sim.Towns.TownAt.Terminus(route, Sim.LineGen.LineGenContent.Cached(content).Config.Tiers.Fortress.Identities));
+        }
         var audio = new GameAudio(content) { SpaceOverride = space };
         // Offline: every take decodes the moment it's asked for, so a render is the same every time.
         audio.Bank.Samples.InlineBytes = long.MaxValue;
-        bool chaos = scenario == "chaos", tells = chaos || scenario == "tells";
+        bool chaos = scenario is "chaos" or "chaos+band", tells = chaos || scenario == "tells";
         // "wreck" (T117): the train comes off half a second in, heard from beside the line where the engine left it.
         bool wreck = scenario == "wreck";
         // "sound:<name>": one sound, 6 m off the listener's right, over the train (stopped, with --speed 0, for a quiet bed):
@@ -167,8 +196,35 @@ public static class AudioBench
                 toy.Carrier = i + 1;
             }
         }
+        // "band" (note 700): the whole band on the listener's roof and the next car's, one of each instrument, playing the tune
+        // asked for (--track: its title or its place in the repertoire; the first, without).
+        if (scenario is "band" or "chaos+band")
+        {
+            var bandTuning = DataFile.Load<Sim.Player.BandTuning>(Path.Combine(content, Sim.Player.BandTuning.File));
+            world.EnableBand(bandTuning);
+            int tune = int.TryParse(track, out int n) ? n : Math.Max(0, Array.FindIndex(bandTuning.Repertoire, t => t.Title == track));
+            world.Band = new Sim.Player.BandState(tune % bandTuning.Repertoire.Length, 0);
+            int car = Math.Clamp(listenerCar, 1, train.Frames.Count - 1);
+            var crew = new List<(int, PlayerState)>();
+            for (int i = 0; i < bandTuning.Instruments.Length; i++)
+            {
+                // Round the listener in a ring, along the roof: the melody ahead, the rhythm and the drums behind.
+                var s = PlayerMotor.SpawnOnRoof(train, car, 0, playerTuning);
+                s = s with { Position = s.Position + new Double3(i % 2 == 0 ? -0.6 : 0.6, 0, (i - 3.5) * 1.6), Flags = s.Flags | PlayerFlags.Playing };
+                var held = world.Bodies.SpawnCrate(train, car, s.Position + Double3.Up, Sim.Physics.BodyKind.Instrument);
+                held.Instrument = (byte)i;
+                held.Carrier = i + 1;
+                crew.Add((i + 1, s));
+            }
+            audio.CrewStates = crew;
+        }
         // "feet" (note 667): your own steps and a crewmate's a stride behind, walking, on what's under each, over the train.
         bool feet = scenario == "feet";
+        // "pin" (note 865): a pin that takes two, its warning and its jump, as the cab and the roofs hear them.
+        bool pin = scenario == "pin";
+        var loose = pin ? DataFile.Load<UpkeepTuning>(Path.Combine(content, UpkeepTuning.File)).Coupling : null;
+        if (loose is not null)
+            train.Loose = loose;
         // The sweep's last listener (cars - 1) stands beside its car on the ground, the train at a stop, where the crew walk
         // the ballast.
         int lastCar = Math.Min(cars - 1, train.Frames.Count - 1);
@@ -216,6 +272,8 @@ public static class AudioBench
                     controls.Throttle = (int)(simClock / 1.5) % 2 == 0 ? 1 : 0;
                     controls.Brake = (int)(simClock / 2.5) % 2 == 1 ? 1 : 0;
                 }
+                if (brought)
+                    world.MirrorEnemies(simClock < runTuning!.BroughtIn.FightSeconds + 0.5 ? Staging.Patrol(train) : []);
                 if (tells)
                 {
                     world.Choir = chaos ? new ChoirState { Present = true, Build = 1, Loudness = combat.Choir.MaxLoudness } : new ChoirState { Build = 0.6, Loudness = combat.Choir.Threshold };
@@ -239,6 +297,17 @@ public static class AudioBench
                         laughter.Fill(words);
                     deadChannel!.Write(words);
                 }
+                // The pin behind car 3: working loose half a second in, through its warning, then jumped and knocking.
+                if (loose is not null && simClock >= 0.5 && train.Vehicles.Count > 4)
+                {
+                    var v = train.Vehicles[3];
+                    if (v.Loose <= 0)
+                        (v.Loose, v.LooseCause) = (SimConstants.TickSeconds, LooseCause.Working);
+                    else if (v.LooseCause == LooseCause.Working && v.Loose >= loose.Jump.WarnSeconds)
+                        (v.Loose, v.LooseCause) = (SimConstants.TickSeconds, LooseCause.Jumped);
+                    else
+                        v.Loose += SimConstants.TickSeconds;
+                }
                 world.Step(controls);
                 if (train.Wreck is null)
                     train.Dynamics.Velocity = speed; // hold the moment still in speed
@@ -248,6 +317,10 @@ public static class AudioBench
                     : listenerCar == 0 ? PlayerMotor.SpawnInCab(train, playerTuning) : PlayerMotor.SpawnOnRoof(train, listenerCar, 0, playerTuning);
                 var frame = train.Frames[player.Parent == PlayerState.World ? lastCar : player.Parent];
                 var feetAt = player.Parent == PlayerState.World ? player.Position : frame.ToWorld(player.Position);
+                // Beside car 2 on the square's side (or the right, with no town), on the ground.
+                if (brought)
+                    trackside ??= train.Frames[Math.Min(2, train.Frames.Count - 1)] is var by
+                        ? by.ToWorld(new Double3((world.Arrival?.Plan.Square.Side is -1 ? -1 : 1) * 5, 0, 0)) with { Y = by.Origin.Y + 1.65 - 1.1 } : null;
                 var ear = trackside ?? feetAt + Double3.Up * 1.65;
                 if (feet)
                     audio.Update(world, controls, Listener.At(ear, frame.Heading + player.Yaw), exposed: player.Parent == PlayerState.World, SimConstants.TickSeconds,

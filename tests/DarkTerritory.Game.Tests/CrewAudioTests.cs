@@ -47,12 +47,16 @@ public class CrewAudioTests
 
         public TrainOnLine Train => World.Train;
 
+        /// <summary>Run each tick after the world's step and before what's heard (a client's copy of the host's records).</summary>
+        public Action? Mirror;
+
         /// <summary>One tick: the world, then what's heard with this crew aboard.</summary>
         public void Step(params (int Id, PlayerState State)[] crew)
         {
             World.BeginTick();
             World.Step(World.Controls);
             World.StepBodies(crew);
+            Mirror?.Invoke();
             Audio.CrewStates = crew;
             Audio.Update(World, World.Controls, Listener.At(Train.Frames[1].Origin + Double3.Up * 2, 0), exposed: true, Dt);
             // The crew's (and the old gunshot), not the train's bed going on underneath.
@@ -531,7 +535,7 @@ public class CrewAudioTests
         var t = enemies.CarFire;
         var room = b.Train.Frames[car].Shape.Interior!.Value;
         var grid = Sim.Enemies.FireGrid.Of(b.Train, car, t.CellSize)!;
-        var fire = Sim.Enemies.CarFire.In(100, b.Train, car, 2, t);
+        var fire = Sim.Enemies.CarFire.In(100, b.Train, car, 2, t, Sim.Enemies.FireCause.Set);
         int cell = grid.FloorAt(fire.Local), other = grid.Next[cell][0];
         var heat = new double[grid.Count];
         heat[cell] = heat[other] = 0.8;
@@ -584,6 +588,62 @@ public class CrewAudioTests
         Assert.Equal(1, b.Count("crew-extinguisher.fire-out"));
         Assert.Equal(1, b.Count("crew-extinguisher.cell-out"));
         Assert.False(OnFire());
+    }
+
+    [Fact]
+    public void AFiresHeatIsHeardOnWhoeverItReachesFromTheFirstTickLouderTheHotter()
+    {
+        // Note 833 (note 821, the director's 14 Oct playtest line 25: "I wasn't getting any feedback that I was being burned"):
+        // a coat smouldering, held on whoever the fire's heat reaches (CarFire.HeatOn, off a client's copy of the fire), from
+        // the first tick, at the HUD's heat glow's strength: faint but there at its edge, full in it, none out of its reach.
+        var b = new Bench();
+        b.Audio.Bank.Add("crew-scorch.sizzle", new SoundDef(3, [new LayerDef(SourceKind.Sine, 0.3, Frequency: 440)], Loop: true, MaxInstances: 16));
+        var enemies = DataFile.Load<Sim.Enemies.EnemyTuning>(Path.Combine(Content, Sim.Enemies.EnemyTuning.File));
+        b.World.EnableEnemies(enemies, null, 1, 1, authority: false);
+        int car = 2;
+        var t = enemies.CarFire;
+        var room = b.Train.Frames[car].Shape.Interior!.Value;
+        var grid = Sim.Enemies.FireGrid.Of(b.Train, car, t.CellSize)!;
+        var fire = Sim.Enemies.CarFire.In(100, b.Train, car, 2, t, Sim.Enemies.FireCause.Set);
+        int cell = grid.FloorAt(fire.Local);
+        var heat = new double[grid.Count];
+        heat[cell] = 0.9;
+        // Alight, as the host's record has it: past its telegraph, burning.
+        fire.Restore(Sim.Enemies.SpinePhase.Punish, 5, fire.Health, fire.Attached, fire.Local, 0, 0, 0, 0.9, 0);
+        fire.RestoreHeat(heat);
+        b.Mirror = () => b.World.MirrorEnemies([fire]);
+        var at = grid.Centre[cell];
+        PlayerState Stood(double z) => new() { Parent = car, Position = new Double3(room.Centre.X, room.Min.Y, z), Surface = Surface.Deck, Health = P.Health };
+        SoundInstance? Sizzle() => b.Audio.Mixer.Voices.FirstOrDefault(v => v.Name == "crew-scorch.sizzle" && !v.Stopped);
+        // Down the car from it, along to the last place its heat reaches, and past that.
+        double end = Math.Abs(room.Max.Z - at.Z) > Math.Abs(room.Min.Z - at.Z) ? room.Max.Z - 0.3 : room.Min.Z + 0.3, step = Math.Sign(end - at.Z) * 0.05;
+        b.Step((1, Stood(at.Z)));
+        double edge = double.NaN;
+        for (double z = at.Z; (end - z) * Math.Sign(step) > 0; z += step)
+            if (Sim.Enemies.CarFire.HeatOn(Stood(z), b.World) > 0)
+                edge = z;
+        Assert.False(double.IsNaN(edge));
+        // Out of its reach: nothing.
+        b.Step((1, Stood(edge + 6 * step)));
+        b.Step((1, Stood(edge + 6 * step)));
+        Assert.Null(Sizzle());
+        // At its edge, the first tick: there, faint (the glow's least).
+        var warm = Stood(edge - step);
+        Assert.InRange(Sim.Enemies.CarFire.HeatOn(warm, b.World), 1e-6, 0.3);
+        b.Step((1, warm));
+        var sizzle = Assert.IsType<SoundInstance>(Sizzle());
+        Assert.InRange(sizzle.Volume, Hud.HeatGlowLeast - 1e-3, 0.7);
+        Assert.True((sizzle.Position - b.Train.Frames[car].ToWorld(warm.Position + Double3.Up * 1.2)).Length < 1e-6);
+        // In it: full.
+        b.Step((1, Stood(at.Z)));
+        Assert.Equal(1, Sizzle()!.Volume, 3);
+        // Out again (or dead in it): gone.
+        b.Step((1, Stood(edge + 6 * step)));
+        b.Step((1, Stood(edge + 6 * step)));
+        Assert.Null(Sizzle());
+        b.Step((1, Stood(at.Z) with { Health = 0, Death = DeathCause.Burned }));
+        b.Step((1, Stood(at.Z) with { Health = 0, Death = DeathCause.Burned }));
+        Assert.Null(Sizzle());
     }
 
     [Fact]
@@ -660,6 +720,46 @@ public class CrewAudioTests
         for (int i = 0; i < SimConstants.TickRate / 2; i++)
             b.Step((1, ground));
         Assert.Equal(1, b.Count("crew-mishaps.pocket-scatter"));
+    }
+
+    [Fact]
+    public void ARunningJumpBetweenRoofsOrAlongTheGroundIsALandingNotAJumpOffTheTrain()
+    {
+        // Queue #533, note 805: the sim knocks a landing only on the ground (PlayerMotor's Land), less a run's own speed where
+        // they left the ground on foot; on a car it's a landing. Heard by its across speed alone, every running jump from roof
+        // to roof was the hit of a jump off a moving train (34 in 8 minutes of a bot night), and a running jump on open ground
+        // that, a tumble and the pockets scattering too.
+        string[] feet = ["wood", "grate", "plate", "roof", "coal", "ballast", "dirt", "grass", "mud", "cobbles", "concrete", "water"];
+        var b = new Bench([.. feet.Select(m => $"crew-footsteps.land.{m}"), "crew-jump-off.impact.ground", "crew-jump-off.impact.grate",
+            "crew-mishaps.pocket-scatter"]);
+        int Landings() => b.Heard.Count(h => h.Name.StartsWith("crew-footsteps.land."));
+        int Impacts() => b.Heard.Count(h => h.Name.StartsWith("crew-jump-off.impact"));
+        // Running across the gap onto the next roof, at a run over the car (the car's frame).
+        var roof = PlayerMotor.SpawnOnRoof(b.Train, 1, 0, P);
+        var leaping = roof with { Surface = Surface.Air, Velocity = new Double3(0, -1, -P.Run), Position = roof.Position + Double3.Up * 0.3 };
+        b.Step((1, roof));
+        b.Step((1, leaping));
+        b.Step((1, roof));
+        Assert.Equal(0, Impacts());
+        Assert.Equal(1, b.Count("crew-footsteps.land.roof"));
+        // A running jump along the ground (left on foot: OffTheGround), at a run.
+        var at = b.Train.Line.Sample(4_000).Position;
+        var ground = PlayerMotor.SpawnOnGround(at, b.Train.Line, 4_000, P);
+        var jumping = ground with
+        {
+            Surface = Surface.Air,
+            Flags = PlayerFlags.OffTheGround,
+            Velocity = new Double3(P.Run, -1, 0),
+            Position = ground.Position + Double3.Up * 0.3
+        };
+        b.Step((2, ground));
+        b.Step((2, jumping));
+        b.Step((2, ground));
+        for (int i = 0; i < SimConstants.TickRate; i++)
+            b.Step((2, ground));
+        Assert.Equal(0, Impacts());
+        Assert.Equal(2, Landings());
+        Assert.Equal(0, b.Count("crew-mishaps.pocket-scatter"));
     }
 
     [Fact]
@@ -913,6 +1013,39 @@ public class CrewAudioTests
     }
 
     [Fact]
+    public void WithTheNightsStockAShotIsARoundGoneAndARackFilledFromEmptyIsNoShot()
+    {
+        // combat.json infiniteAmmo false (note 374): a shot takes a round, and the last one leaves nothing to reload; a charge
+        // carried up to an empty rack asks for the reload too, and is no shot.
+        var b = new Bench("crew-cannon-fire.shot-close", "crew-cannon-fire.shot-far", "crew-cannon-fire.recoil", "crew-powder.filled");
+        var guard = b.Train.Vehicles.Last(v => v.HasGun);
+        b.Step();
+        guard.Gun.Ammo--;
+        guard.Gun.Rack = Math.Max(0, guard.Gun.Rack - 1);
+        guard.Gun.LastShotTick = 99;
+        guard.Gun.ReloadNeeded = C.Guns.ReloadSteps;
+        b.Step();
+        b.Step();
+        guard.Gun.ReloadNeeded = 0;
+        b.Step();
+        // The last round: nothing left to reload.
+        guard.Gun.Ammo--;
+        guard.Gun.Rack = 0;
+        guard.Gun.LastShotTick = 120;
+        b.Step();
+        Assert.Equal(2, b.Count("crew-cannon-fire.shot-close") + b.Count("crew-cannon-fire.shot-far"));
+        Assert.Equal(2, b.Count("crew-cannon-fire.recoil"));
+        // A charge carried up to it from the lockers: the rack filled, the reload asked for, no shot.
+        guard.Gun.Ammo += 2;
+        guard.Gun.Rack = 2;
+        guard.Gun.ReloadNeeded = C.Guns.ReloadSteps;
+        b.Step();
+        b.Step();
+        Assert.Equal(2, b.Count("crew-cannon-fire.shot-close") + b.Count("crew-cannon-fire.shot-far"));
+        Assert.Equal(1, b.Count("crew-powder.filled"));
+    }
+
+    [Fact]
     public void EveryonesShotIsHeardOnceFromTheGunAndAGunPushedOntoAnotherCarIsNoShot()
     {
         var b = new Bench("crew-cannon-fire.shot-close", "crew-cannon-fire.shot-far", "crew-cannon-fire.recoil", "crew-cannon-fire.traverse",
@@ -920,8 +1053,10 @@ public class CrewAudioTests
             "crew-cannon-ball.ball-roll", "crew-cannon-ram.ram", "crew-cannon-ram.ram-home");
         var guard = b.Train.Vehicles.Last(v => v.HasGun);
         b.Step();
-        // A crewmate's shot (it's in nobody's world.Shots but theirs): a round gone, the gun to reload.
-        guard.Gun.Ammo--;
+        // A crewmate's shot (it's in nobody's world.Shots but theirs), as Guns.TryFire leaves the gun with the shot endless
+        // (combat.json infiniteAmmo, note 689): nothing taken from it, its full reload to do (queue #528, note 801: the shot
+        // was heard only off a round gone, so with nothing ever taken it never was).
+        Assert.True(C.Guns.InfiniteAmmo);
         guard.Gun.LastShotTick = 99;
         guard.Gun.ReloadNeeded = C.Guns.ReloadSteps;
         b.Step();
@@ -1038,5 +1173,76 @@ public class CrewAudioTests
         Assert.Equal(1, b.Count("crew-coupling.knuckle-release"));
         Assert.Equal(1, b.Count("crew-coupling.hose-part"));
         Assert.Equal(0, b.Count("crew-coupling.knuckle-close"));
+    }
+
+    // ---- Horseplay (queue #498, note 768) ---------------------------------------------------------------------------------
+
+    static (int, PlayerState) OnRoof(int id, int car, double z) =>
+        (id, new PlayerState { Parent = car, Position = new Double3(0, 3.9, z), Surface = Surface.Roof, Health = P.Health });
+
+    [Fact]
+    public void ALumpFlungAtAFriendIsntHeardAsStokingAndAShovelfulInIs()
+    {
+        // Note 768: a lump off the shovel takes a unit of the tender (note 717), and the stoking hook heard that as a
+        // shovelful into the fire. The fire door's clock is what a shovelful starts, every one (Boiler.Shovel).
+        var b = new Bench("crew-melee.shovel-swing");
+        var crew = new[] { OnRoof(1, 0, 2), OnRoof(2, 1, 0) };
+        b.Train.Boiler.Tender = 10;
+        b.Step(crew);
+        b.Train.Boiler.Tender -= 1;
+        b.Mirror = () => b.World.MirrorHorseplay([new HorseplayEvent(7, b.World.Tick, 1, KnockKind.Coal, -1)], []);
+        b.Step(crew);
+        b.Step(crew);
+        Assert.Equal(0, b.Count("crew-shovel.throw"));
+        Assert.Equal(1, b.Count("crew-melee.shovel-swing"));
+        b.Mirror = null;
+        // What Boiler.Shovel does with a shovelful (the bench's boiler has no firebox to take it).
+        b.Train.Boiler.Tender -= 1;
+        b.Train.Boiler.Firebox += 1;
+        b.Train.Boiler.FireDoorOpen = true;
+        b.Step(crew);
+        Assert.Equal(1, b.Count("crew-shovel.throw"));
+    }
+
+    [Fact]
+    public void EachKnockIsHeardOnceOnWhomItLandedAndALumpWhereItCameDown()
+    {
+        // Note 768: a shove, a bump, a bonk and a lump off a coat, each once (the knocks are kept a while and sent every
+        // snapshot), at the friend it landed on; a lump gone out of the air with nobody hit came down on the train or the
+        // ground, and is heard on what it came down on.
+        var b = new Bench("crew-horseplay.shove", "crew-horseplay.bump", "crew-horseplay.bonk", "crew-horseplay.coal-hit",
+            "crew-horseplay.coal-land.roof", "crew-horseplay.coal-land.wood", "crew-horseplay.coal-land.ground");
+        var crew = new[] { OnRoof(1, 1, 3), OnRoof(2, 1, -3) };
+        var knocks = new List<HorseplayEvent>();
+        var lumps = new List<LumpInFlight>();
+        b.Mirror = () => b.World.MirrorHorseplay(knocks, lumps);
+        b.Step(crew);
+        knocks.Add(new HorseplayEvent(10, b.World.Tick, 1, KnockKind.Shove, 2));
+        knocks.Add(new HorseplayEvent(11, b.World.Tick, 2, KnockKind.Bump, 1));
+        for (int i = 0; i < 5; i++)
+            b.Step(crew);
+        knocks.Add(new HorseplayEvent(12, b.World.Tick, 1, KnockKind.Bonk, 2));
+        knocks.Add(new HorseplayEvent(13, b.World.Tick, 1, KnockKind.Coal, 2));
+        for (int i = 0; i < 5; i++)
+            b.Step(crew);
+        foreach (var cue in new[] { "crew-horseplay.shove", "crew-horseplay.bump", "crew-horseplay.bonk", "crew-horseplay.coal-hit" })
+            Assert.Equal(1, b.Count(cue));
+        var head = b.Heard.First(h => h.Name == "crew-horseplay.bonk").At;
+        var friend = PlayerMotor.WorldPosition(crew[1].Item2, b.Train);
+        Assert.InRange(head.Y - friend.Y, 1.5, 1.8);
+        // A lump on the roof of car 2, then gone with nobody hit: the tin; one over the ground beside the line: the ground.
+        var roof = b.Train.Frames[2].ToWorld(new Double3(0, b.Train.Frames[2].Shape.RoofHeight + 0.1, 0));
+        lumps.Add(new LumpInFlight(40, 1, roof));
+        b.Step(crew);
+        lumps.Clear();
+        b.Step(crew);
+        Assert.Equal(1, b.Count("crew-horseplay.coal-land.roof"));
+        var beside = b.Train.Frames[2].ToWorld(new Double3(6, 0.1, 0));
+        lumps.Add(new LumpInFlight(41, 1, beside));
+        b.Step(crew);
+        lumps.Clear();
+        b.Step(crew);
+        Assert.Equal(1, b.Count("crew-horseplay.coal-land.ground"));
+        Assert.Equal(0, b.Count("crew-horseplay.coal-land.wood"));
     }
 }

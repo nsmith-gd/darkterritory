@@ -8,8 +8,9 @@ public enum EnemyKind : byte
 {
     // GDD v1.1 §21's roster, and two hazards that are still things in the world: Sleepers (v1.1's track debris) and the Drift
     // (the marsh). v1.0's retired enemies' numbers (Clingers, the Hollow, the Rattle, Lamplighters, the Deadman, the
-    // Ferryman, the Long Whistle, the Weight, the loose load and the Gnawers) aren't reused.
-    Sleepers = 1, CinderHound = 2, Switchman = 5, SootChildren = 6, Dragger = 7, Stoker = 11, Climber = 14, Gaunt = 16,
+    // Ferryman, the Long Whistle, the Weight, the loose load and the Gnawers) aren't reused; nor is the Switchman's 5 (cut by
+    // the director, 16 Oct 2026, note 852).
+    Sleepers = 1, CinderHound = 2, SootChildren = 6, Dragger = 7, Stoker = 11, Climber = 14, Gaunt = 16,
     CarFire = 17, Passenger = 20, Follower = 21, Drift = 22,
     TrackDoll = 23, CarHugger = 24, Whistler = 25, TippyToesie = 26, FireFlies = 27, Ribbit = 28, Grumbler = 29, Choir = 30,
     // The Moose (GDD §21, the director's decisions of 7 Oct 2026; note 339).
@@ -37,7 +38,9 @@ public enum EnemyKind : byte
     // The Pickers (GDD §21, the director's pick to prototype, 9 Oct 2026; note 592).
     Pickers = 42,
     // The house creatures (GDD §21, the director, 9 Oct 2026; notes 583–586).
-    Lodger = 43, Householder = 44, HollowHouse = 45, Hanger = 46
+    Lodger = 43, Householder = 44, HollowHouse = 45, Hanger = 46,
+    // The Mouse Moose (GDD §21, the director, 15 Oct 2026; note 790).
+    MouseMoose = 47
 }
 
 /// <summary>
@@ -181,6 +184,13 @@ public abstract class Enemy
     public virtual bool StaysAboard => false;
 
     /// <summary>
+    /// Host: doing a train system harm now, whether or not anyone is near (note 881): a Hotbox in its truck, a pack feeding
+    /// aboard, a Knotter in a coupling, a Brakeman at the brakes. Such a creature is <see cref="ThreatState.Threatening"/> with
+    /// nobody near it (<see cref="Threats.Of(Enemy, World, ThreatTuning)"/>).
+    /// </summary>
+    public virtual bool Working(World world) => false;
+
+    /// <summary>
     /// A vehicle it drags on while the train's over <see cref="DragAbove"/> (the Car Hugger's speed cap), or −1. From
     /// replicated state, so a predicting client drags the same.
     /// </summary>
@@ -212,7 +222,6 @@ public abstract class Enemy
     {
         EnemyKind.Sleepers => new Sleepers(id),
         EnemyKind.CinderHound => new CinderHound(id, (int)extra),
-        EnemyKind.Switchman => new Switchman(id),
         EnemyKind.SootChildren => new SootChildren(id),
         EnemyKind.Dragger => new Dragger(id),
         EnemyKind.Stoker => new Stoker(id),
@@ -245,6 +254,7 @@ public abstract class Enemy
         EnemyKind.Householder => new Householder(id),
         EnemyKind.HollowHouse => new HollowHouse(id),
         EnemyKind.Hanger => new Hanger(id),
+        EnemyKind.MouseMoose => new MouseMoose(id),
         _ => new ChoirGhost(id),
     };
 
@@ -344,12 +354,12 @@ public abstract class Enemy
     static IEnumerable<(int Id, PlayerState State)> CrewOf(EnemyContext ctx) => ctx.Crew.Select(c => ((int)c.Player.Id, c.Player.State));
 
     /// <summary>
-    /// The held player's own struggle, counted by the world at a crew of one (the solo rule): Use held. One try a grab, and a
+    /// The held player's own struggle, counted by the world when no friend is near (the solo rule; in a crew, note 756): Use held. One try a grab, and a
     /// chance at best (App. C.1; the director, 13 Oct: "holding e shouldn't always result in escape it should at best give me
     /// a 15% chance of escape"; note 681): rolled on the night's seed, this creature and the tick it took hold, so the host
     /// rolls it the same however the night is replayed.
     /// </summary>
-    internal void Struggle(EnemyContext ctx, double amount)
+    internal void Struggle(EnemyContext ctx, double amount, double chance)
     {
         if (Phase != SpinePhase.Grab || _struggled)
             return;
@@ -358,7 +368,7 @@ public abstract class Enemy
             return;
         _struggled = true;
         var dice = new Pcg32((ctx.World.Director?.Seed ?? 0) ^ (ulong)Id * 0x9E3779B97F4A7C15UL, 0x5357_0000UL + _grabbedAt);
-        if (dice.NextDouble() < ctx.Tuning.Grab.SoloStruggleChance)
+        if (dice.NextDouble() < chance)
             Rescued(ctx, Holding);
     }
 
@@ -497,6 +507,37 @@ public abstract class Enemy
         string names = string.Join(", ", gang.Select(id => Run.IncidentLog.NameOf(ctx.World, id)));
         ctx.World.Attribution.Add(Run.IncidentLog.Event(ctx.World, Run.IncidentKind.Slain, $"Killed {Called} together",
             gang.Count > 0 ? gang[0] : -1, gang.Count > 0 ? $"By {names}." : "", WorldPosition(ctx.Train)));
+        // Note 718 (the director, 14 Oct 2026: team-killable creatures "can sometimes leave trophies").
+        LeaveTrophy(ctx);
+    }
+
+    /// <summary>
+    /// Killed by the crew: now and then (loot.json <c>trophies</c>' chance for its kind, from the run's seed and its id) a piece
+    /// of it is left where it fell, a find (<see cref="Run.Run.TrophyOwner"/>) that pays when it's stowed aboard (note 340's
+    /// Gannet's head, every time; note 718's the rest, sometimes). On a car, on what it stood on there (its roof, or the
+    /// floor); off the train, on the ground under it. Host only, as the spine is.
+    /// </summary>
+    protected void LeaveTrophy(EnemyContext ctx)
+    {
+        if (ctx.World.Run?.TrophyFor(Kind, Id) is null)
+            return;
+        var train = ctx.Train;
+        Physics.Body body;
+        if (Attached >= 0 && Attached < train.Frames.Count)
+        {
+            var shape = train.Frames[Attached].Shape;
+            double x = Math.Clamp(Local.X, -shape.HalfWidth + 0.3, shape.HalfWidth - 0.3), z = Math.Clamp(Local.Z, -shape.HalfLength + 0.5, shape.HalfLength - 0.5);
+            double top = shape.TopAt(x, z, train.Vehicles[Attached], Local.Y + 0.3)?.Top ?? shape.RoofHeight;
+            body = ctx.World.Bodies.SpawnCrate(train, Attached, new Double3(x, top, z), Physics.BodyKind.Loot);
+        }
+        else
+        {
+            var at = WorldPosition(train);
+            double hint = Attached == Loose ? train.Dynamics.Distance : LineDistance;
+            body = ctx.World.Bodies.SpawnLoot(at with { Y = PlayerMotor.GroundAt(at, train.Line, ref hint) }, hint, 0, 0.15);
+        }
+        body.Owner = Run.Run.TrophyOwner(Kind);
+        body.Claimed = false;
     }
 
     /// <summary>Moves the spine. Commit is only reachable from a telegraph at least the reaction window long.</summary>

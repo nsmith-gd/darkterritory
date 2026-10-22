@@ -26,6 +26,7 @@ public static class HostedAsApp
         new(Route: Sim.Campaign.Campaign.RouteOf(s, contract), Cars: s.Cars, Enemies: enemies)
         {
             Upgrades = s.Upgrades,
+            EngineName = s.EngineName,
             SpareKits = s.SpareKits,
             MusicBag = s.Music,
             Identities = s.Identities,
@@ -33,9 +34,17 @@ public static class HostedAsApp
             Powder = s.Stores.Powder,
             SpareLamps = s.Stores.Lamps,
             SpareExtinguishers = s.Stores.Extinguishers,
+            Flares = s.Stores.Flares,
             LastTown = s.LastTown,
             Burnt = s.Burnt.Count > 0 ? s.Burnt : null,
             CampaignNight = true,
+            Scrip = s.Scrip,
+            // Note 721: whose logbook the night goes in, and which night it is.
+            Crew = s.Name,
+            CrewKey = Sim.Campaign.Logbook.Key(s),
+            Night = s.Runs + 1,
+            // Note 731: the crew's sigil, on the engine's side and every mask.
+            Sigil = s.Sigil,
         };
 
     /// <summary>The harness's arguments for <paramref name="setup"/>'s night with <paramref name="bots"/> bots, for up to

@@ -116,12 +116,12 @@ public sealed class Picker(int id) : Enemy(id)
         // Carrying: to its drain, biting whoever comes right up to it (and dropping the crate).
         if (held is { } crate)
         {
-            if (living.Where(c => Flat(c.World - me) <= t.BiteWithin).OrderBy(c => Flat(c.World - me)).ThenBy(c => c.Player.Id)
+            if (living.Where(c => Flat(c.World - me) <= t.BiteWithin).OrderBy(c => ctx.Weigh(c.Player.Id, Flat(c.World - me))).ThenBy(c => c.Player.Id)
                 .Select(c => (int?)c.Player.Id).FirstOrDefault() is { } bitten)
             {
                 if (_biteAgain <= 0)
                 {
-                    ctx.Bite(bitten, t.Bite, DeathCause.Gnawed);
+                    ctx.Bite(bitten, t.Bite, DeathCause.Pickers);
                     _biteAgain = t.BiteEvery;
                 }
                 ctx.World.Bodies.LetGo(crate);

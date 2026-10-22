@@ -4,9 +4,12 @@ namespace DarkTerritory.Sim.Train;
 
 /// <summary>
 /// What a vehicle is for (GDD §10): engine at the front, guard car with the rear gun at the back, and a crew car (the
-/// GDD's "utility car": stores and a stove, warm and lamp-lit, §26) if the crew have bought one (note 184).
+/// GDD's "utility car": stores and a stove, warm and lamp-lit, §26) if the crew have bought one (note 184). And the
+/// <see cref="Handcar"/>: the pump trolley (note 729), a rake of its own on the rails or hung on the guard van's back; never
+/// coupled, never cargo, never the train's.
 /// </summary>
-public enum VehicleKind : byte { Engine, Cargo, Guard, Utility }
+/// <summary>What a vehicle is. <see cref="Dining"/> is the dining car (upgrades.md §8.5, note 959): a cargo car converted, with its bar.</summary>
+public enum VehicleKind : byte { Engine, Cargo, Guard, Utility, Handcar, Dining }
 
 /// <summary>
 /// A mounted gun's state (spec B.7). Lives on the vehicle whose roof rail it's on (T93): a gun slides along the rail and
@@ -33,7 +36,7 @@ public struct GunState
     public bool Jammed;
     /// <summary>Tick of the last round fired (for muzzle flash and sound on clients), 0 if never.</summary>
     public uint LastShotTick;
-    /// <summary>Reload steps still to do before it can fire (GDD v1.1 App. C.3: powder, ball, ram); 0 is loaded.</summary>
+    /// <summary>Reload steps still to do before it can fire (GDD v1.1 App. C.3; note 746: powder, pack, ball); 0 is loaded.</summary>
     public int ReloadNeeded;
     /// <summary>Seconds into the current reload step.</summary>
     public double ReloadProgress;
@@ -84,6 +87,8 @@ public sealed class Vehicle(int id, VehicleKind kind, double load)
     public int Id { get; } = id;
     public VehicleKind Kind { get; set; } = kind;
     public bool IsEngine => Kind == VehicleKind.Engine;
+    /// <summary>The handcar (note 729): a vehicle of its own kind, never one of the train's cars.</summary>
+    public bool IsHandcar => Kind == VehicleKind.Handcar;
     /// <summary>The mounted gun's state, if this vehicle carries one (the engine's and guard van's to begin with; T93).</summary>
     public GunState Gun;
     public bool HasGun => Gun.Mounted;
@@ -163,6 +168,15 @@ public sealed class Vehicle(int id, VehicleKind kind, double load)
     /// out, it's dark, and the Climbers and Followers like it that way. Lit at departure.
     /// </summary>
     public bool LampLit { get; set; } = true;
+    /// <summary>
+    /// The engine's BBQ (note 698): the seconds of charcoal it has left burning, 0 out. Lit, it warms who's by it and brings
+    /// the Cinder Hounds as a hot boiler does.
+    /// </summary>
+    public double Grill { get; set; }
+    /// <summary>The beers left in the engine's BBQ-deck cooler tonight (note 698).</summary>
+    public int Beers { get; set; }
+    /// <summary>Sausages that have come off its grill this night (note 698): the host hands each one to whoever cooked it.</summary>
+    public int Cooked { get; set; }
     public bool DoorOpen(int index) => (DoorsOpen & (1 << index)) != 0;
 
     /// <summary>
@@ -177,6 +191,17 @@ public sealed class Vehicle(int id, VehicleKind kind, double load)
     public double Gutter { get; set; }
     /// <summary>Seconds the coupling behind it has been working loose (note 356, <see cref="Couplings"/>); 0 tight.</summary>
     public double Loose { get; set; }
+    /// <summary>
+    /// What worked the coupling behind it loose (note 640), while it's <see cref="Loose"/>: on its record (note 732) so every
+    /// client hears the moment the pin jumped as what jumped it, a run-in's slam, a knock's clash or a bend's lurch.
+    /// </summary>
+    public LooseCause LooseCause { get; set; }
+    /// <summary>
+    /// Note 865: its jumped pin (<see cref="LooseCause.Jumped"/>) has two on it, one holding it down and one taking the slack
+    /// off (<see cref="Couplings.Hands"/>), so the pinner's Use drives it home (<see cref="CrewActions"/>). The host's say, on the
+    /// car's record, so a pinner's client predicts their own hands as the host works them.
+    /// </summary>
+    public bool Pinned { get; set; }
     /// <summary>
     /// Its handbrake wound on by the Brakeman (note 364): in the engine's rake, its own handbrake's drag on the train (train.json
     /// <c>handbrakeDecel</c> of its mass), until a crewmate unwinds it at its wheel.
@@ -243,9 +268,10 @@ public sealed class Vehicle(int id, VehicleKind kind, double load)
 
     public double MassTonnes(TrainTuning t) =>
         IsEngine ? t.Mass.EngineTonnes
+            : IsHandcar ? t.Handcar.MassTonnes
             : t.Mass.EmptyCarTonnes + Load * (t.Mass.LoadedCarTonnes - t.Mass.EmptyCarTonnes) + (Armoured ? t.Composition.ArmourTonnes : 0);
 
-    public double Length(TrainTuning t) => IsEngine ? t.Geometry.EngineLength : t.Geometry.CarLength;
+    public double Length(TrainTuning t) => IsEngine ? t.Geometry.EngineLength : IsHandcar ? t.Handcar.Length : t.Geometry.CarLength;
 }
 
 /// <summary>
@@ -301,7 +327,11 @@ public sealed class Consist
             int utility = Math.Min(Math.Max(0, t.UtilityCars), spare - guards);
             for (int i = 0; i < utility; i++)
                 Convert(cargo[i], VehicleKind.Utility);
-            var left = cargo.Skip(utility).ToList();
+            // The dining car (upgrades.md §8.5, note 959) next behind them, if a cargo car's to spare after the guns.
+            int dining = t.DiningCar && spare - guards - utility > 0 ? 1 : 0;
+            if (dining > 0)
+                Convert(cargo[utility], VehicleKind.Dining);
+            var left = cargo.Skip(utility + dining).ToList();
             for (int i = 0; i < guards; i++)
             {
                 var v = left[left.Count * (i + 1) / (guards + 1)];

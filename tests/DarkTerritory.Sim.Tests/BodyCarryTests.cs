@@ -68,11 +68,54 @@ public class BodyCarryTests
     }
 
     [Theory]
-    [InlineData(BodyKind.Ragdoll)]
+    [InlineData(BodyKind.Cargo)]
     [InlineData(BodyKind.Toy)]
-    [InlineData(BodyKind.Loot)]
     [InlineData(BodyKind.Child)]
-    public void HandLootIsCarriedSlowlyAndKeepsYouOffLadders(BodyKind kind)
+    public void AThingInTheHandsGoesAsItsCarriersAndLandsWhereTheHostHasIt(BodyKind kind)
+    {
+        // Note 954: on the wire a one-piece thing in someone's hands is theirs (no place sent, so nothing while it's carried),
+        // and a client puts it at their hands from their state in the same snapshot, where the host has it.
+        var n = new Night();
+        int a = n.Add(PlayerMotor.SpawnOnGround(n.Beside(3), n.Train.Line, 2_950, P));
+        n.Add(PlayerMotor.SpawnInCab(n.Train, P));
+        var thing = n.World.Bodies.SpawnItem(n.Beside(3), 2_950, kind);
+        thing.Carrier = a;
+        n.Step(0.5);
+        var players = n.Crew.Select(c => new Net.PlayerSnapshot((byte)c.Id, c.State)).ToList();
+        var records = Net.WorldRecords.Capture(n.World, new TrainControls { Reverser = 1 }, players);
+        var record = records.Single(r => r.Kind == Net.RecordKind.Body && r.Id == thing.Id);
+        Assert.Equal(2, record.Fields[4] & 2);
+        Assert.All(record.Fields[^3..], v => Assert.Equal(0, v));
+
+        var client = new World(new TrainOnLine(new TrainDynamics(Consist.Uniform(Tuning.Train, 4, 0)), n.Route.Build(), 3_000, Tuning.Boiler), Tuning.Combat);
+        var controls = new TrainControls();
+        Net.WorldRecords.Apply(records, client, ref controls, []);
+        var there = client.Bodies.All.Single(b => b.Id == thing.Id);
+        Assert.Equal(thing.Parent, there.Parent);
+        Assert.True((there.Pbd.Particles[0].Position - thing.Pbd.Particles[0].Position).Length < 1e-3,
+            $"{there.Pbd.Particles[0].Position} vs the host's {thing.Pbd.Particles[0].Position}");
+        Assert.Equal(thing.Yaw, there.Yaw, 3);
+    }
+
+    [Fact]
+    public void ABodyOverTheShoulderStillGoesWhole()
+    {
+        // Its limbs hang free on the host: they can't be put back from the carrier alone.
+        var n = new Night();
+        int a = n.Add(PlayerMotor.SpawnOnGround(n.Beside(3), n.Train.Line, 2_950, P));
+        n.Add(PlayerMotor.SpawnInCab(n.Train, P));
+        var corpse = n.Corpse(n.Beside(3));
+        corpse.Carrier = a;
+        n.Step(0.2);
+        var records = Net.WorldRecords.Capture(n.World, new TrainControls { Reverser = 1 }, n.Crew.Select(c => new Net.PlayerSnapshot((byte)c.Id, c.State)).ToList());
+        Assert.Equal(0, records.Single(r => r.Kind == Net.RecordKind.Body && r.Id == corpse.Id).Fields[4] & 2);
+    }
+
+    [Theory]
+    [InlineData(BodyKind.Ragdoll)]
+    [InlineData(BodyKind.Child)]
+    [InlineData(BodyKind.Cargo)]
+    public void TwoHandedThingsAreCarriedSlowlyAndKeepYouOffLadders(BodyKind kind)
     {
         var n = new Night();
         int a = n.Add(PlayerMotor.SpawnOnGround(n.Beside(3), n.Train.Line, 2_950, P));
@@ -82,11 +125,49 @@ public class BodyCarryTests
         n.Step(0.1);
         Assert.True(n.Crew[a].State.Has(PlayerFlags.Heavy));
         Assert.False(n.Crew[a].State.Has(PlayerFlags.SoloCarry));
-        // Running flat out: no faster than carryHeavy.
+        // Running flat out from a stand: held to carryHeavy (about half a run's pace, the start's pick-up blurring it).
+        Assert.InRange(RunFlatOut(n, a), 0.4, 0.75);
+    }
+
+    /// <summary>
+    /// Note 897 (the director, the inbox, 20 Oct 2026: "We shouldn't be slowed carrying anything unless it's a two handed
+    /// object"): a toy or a find in the hands is one-handed: full pace, and up a ladder. player.json twoHanded.only off puts
+    /// back the rule before it.
+    /// </summary>
+    [Theory]
+    [InlineData(BodyKind.Toy)]
+    [InlineData(BodyKind.Loot)]
+    public void AOneHandedFindInTheHandsDoesNotSlowYou(BodyKind kind)
+    {
+        var n = new Night();
+        int a = n.Add(PlayerMotor.SpawnOnGround(n.Beside(3), n.Train.Line, 2_950, P));
+        n.Add(PlayerMotor.SpawnInCab(n.Train, P));
+        n.World.Bodies.SpawnItem(n.Beside(3), 2_950, kind).Carrier = a;
+        n.Step(0.1);
+        Assert.False(n.Crew[a].State.Has(PlayerFlags.Heavy));
+        Assert.Equal(1, RunFlatOut(n, a), 9);
+
+        Assert.True(new TwoHandedTuning(Only: false).Slows(kind));
+        Assert.False(P.TwoHanded.Slows(kind));
+    }
+
+    /// <summary>
+    /// How fast crewmate <paramref name="a"/> covers the ground running flat out for a second (over the ground: a ground walker
+    /// keeps no velocity), as their state is over the same run with nothing in their hands (1 is unslowed).
+    /// </summary>
+    static double RunFlatOut(Night n, int a)
+    {
+        static double Run(PlayerState s, Night n)
+        {
+            var start = s.Position;
+            int ticks = (int)Math.Round(1 / SimConstants.TickSeconds);
+            for (int i = 0; i < ticks; i++)
+                PlayerMotor.Step(ref s, new PlayerIntent { MoveZ = 1, Buttons = PlayerButtons.Run }, n.Train, P, Tuning.Train, SimConstants.TickSeconds);
+            var d = s.Position - start;
+            return new Double3(d.X, 0, d.Z).Length;
+        }
         var s = n.Crew[a].State;
-        for (int i = 0; i < 30; i++)
-            PlayerMotor.Step(ref s, new PlayerIntent { MoveZ = 1, Buttons = PlayerButtons.Run }, n.Train, P, Tuning.Train, SimConstants.TickSeconds);
-        Assert.True(new Double3(s.Velocity.X, 0, s.Velocity.Z).Length <= P.CarryHeavy + 1e-9);
+        return Run(s, n) / Run(s with { Flags = s.Flags & ~PlayerFlags.Heavy }, n);
     }
 
     [Fact]

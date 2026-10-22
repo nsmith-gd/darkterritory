@@ -1,0 +1,1 @@
+{ "$patch": true, "gannet": { "lowArrive": { "on": true, "arriveAbove": 12 } } }

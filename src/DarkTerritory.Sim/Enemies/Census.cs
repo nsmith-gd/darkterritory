@@ -22,7 +22,16 @@ public enum Post : byte
 }
 
 /// <summary>A crewmate as the census last saw them: their post, the seconds since they had anything to answer, and the threats on them.</summary>
-public sealed record CensusEntry(int Player, Post Post, double Slack, int On);
+/// <param name="Committed">
+/// Note 753: their hands are on a job that holds them there (<see cref="Census.IsCommitted"/>); read only with
+/// <see cref="OrchestratorTuning.Commitment"/> on.
+/// </param>
+/// <param name="At">Where they stand (world), for the collision's reach.</param>
+public sealed record CensusEntry(int Player, Post Post, double Slack, int On, bool Committed = false, Double3 At = default)
+{
+    /// <summary>Note 867: the one on the same pair job with them (<see cref="Census.PartnerOf"/>), or −1.</summary>
+    public int Partner { get; init; } = -1;
+}
 
 /// <summary>
 /// The orchestrator's census (ARCHITECTURE §8 note 345; docs/design/orchestrator.md §3.1, §3.2 items 2–4; GDD App. F.3: threats
@@ -38,11 +47,12 @@ public sealed record CensusEntry(int Player, Post Post, double Slack, int On);
 /// </summary>
 public sealed class Census
 {
-    readonly SortedDictionary<int, (Post Post, double Slack, int On)> _now = [];
+    readonly SortedDictionary<int, (Post Post, double Slack, int On, bool Committed, Double3 At, int Partner)> _now = [];
     readonly SortedDictionary<int, (double Max, double Over)> _stats = [];
 
     /// <summary>The crewmates counted this second, by player id.</summary>
-    public IReadOnlyList<CensusEntry> Entries => [.. _now.Select(kv => new CensusEntry(kv.Key, kv.Value.Post, kv.Value.Slack, kv.Value.On))];
+    public IReadOnlyList<CensusEntry> Entries =>
+        [.. _now.Select(kv => new CensusEntry(kv.Key, kv.Value.Post, kv.Value.Slack, kv.Value.On, kv.Value.Committed, kv.Value.At) { Partner = kv.Value.Partner })];
 
     /// <summary>Each crewmate's most slack tonight, and the seconds they've spent at or past <see cref="OrchestratorTuning.SlackPress"/>.</summary>
     public IReadOnlyDictionary<int, (double Max, double Over)> Stats => _stats;
@@ -79,21 +89,22 @@ public sealed class Census
         s.Parent >= 0 && s.Parent < train.Frames.Count && Math.Abs(s.Position.X) < train.Frames[s.Parent].Shape.HalfWidth ? Post.Rider : Post.Walker;
 
     /// <summary>
-    /// One second: posts, who each engaged threat is on, and slack. <paramref name="counting"/>: out on the line (past the
+    /// One second: posts, who each threat in <paramref name="threats"/> is on (note 881: the director's threats now, see
+    /// <see cref="Director.Threatening"/>; everything <see cref="Director.Engaged"/> with <c>director.threats</c> off), and slack. <paramref name="counting"/>: out on the line (past the
     /// grace, out of the forts, short of the final approach); otherwise slack holds where it is.
     /// </summary>
-    public void Count(World world, IReadOnlyList<Enemy> active, OrchestratorTuning t, double behindM, bool counting)
+    public void Count(World world, IReadOnlyList<Enemy> threats, OrchestratorTuning t, double behindM, bool counting)
     {
         var train = world.Train;
         var crew = world.CrewThisTick.Where(c => c.State.Alive).OrderBy(c => c.Id).ToList();
         var posts = crew.Select(c => (c.Id, Post: PostOf(c.State, train, behindM), At: PlayerMotor.WorldPosition(c.State, train), c.State.Parent)).ToList();
         var on = new SortedDictionary<int, int>();
-        foreach (var e in active.Where(Director.Engaged).OrderBy(e => e.Id))
+        foreach (var e in threats.OrderBy(e => e.Id))
             if (On(e, posts, train, t) is { } who)
                 on[who] = on.GetValueOrDefault(who) + 1;
         bool anyHotBox = train.Vehicles.Any(v => v.HotBox > 0 || v.Loose > 0), anyGutter = train.Vehicles.Any(v => v.Gutter > 0);
         var seen = new HashSet<int>();
-        foreach (var (id, post, _, parent) in posts)
+        foreach (var (id, post, at, parent) in posts)
         {
             seen.Add(id);
             int n = on.GetValueOrDefault(id);
@@ -112,12 +123,65 @@ public sealed class Census
             bool driving = post == Post.Cab && Math.Abs(train.Dynamics.Velocity) > t.DrivingAbove;
             double slack = _now.TryGetValue(id, out var was) ? was.Slack : 0;
             slack = n > 0 || hotBox || driving || post == Post.LeftBehind ? 0 : counting ? slack + 1 : slack;
-            _now[id] = (post, slack, n);
+            // Committed (note 753) is read wherever the census counts, at a stop as on the run.
+            bool committed = t.Commitment && IsCommitted(world, id, crew.First(c => c.Id == id).State);
+            _now[id] = (post, slack, n, committed, at, committed ? PartnerOf(world, id) : -1);
             var st = _stats.GetValueOrDefault(id);
             _stats[id] = (Math.Max(st.Max, slack), st.Over + (counting && slack >= t.SlackPress ? 1 : 0));
         }
         foreach (int id in _now.Keys.Where(k => !seen.Contains(k)).ToList())
             _now.Remove(id);
+    }
+
+    /// <summary>
+    /// Committed (note 753; the audit's R5, §7): their hands on a job that holds them where they are, read from the state that's
+    /// already there. At a crane's controls (<see cref="PlayerFlags.Operating"/>); carrying something that needs both arms
+    /// (<see cref="PlayerFlags.Heavy"/>); a timed Use job under way (<see cref="PlayerState.ActionProgress"/>: grease at a hot
+    /// box, a coupling tightened, a breach boarded up, a mend with the wrench, the shovel at the fire); seated at a gun with
+    /// its reload under way or its bore being cleared; on one of the stop's modules (a winch handle, a lever, the herd, a
+    /// crane's rigging); breaking into a Holdout.
+    /// </summary>
+    public static bool IsCommitted(World world, int id, in PlayerState s)
+    {
+        if (s.Has(PlayerFlags.Operating) || s.Has(PlayerFlags.Heavy) || s.ActionProgress > 0)
+            return true;
+        var train = world.Train;
+        if (s.Has(PlayerFlags.Seated) && s.Parent >= 0 && s.Parent < train.Vehicles.Count
+            && train.Vehicles[s.Parent].Gun is var gun && (gun.ReloadProgress > 0 || gun.Jammed))
+            return true;
+        if (world.Run is { Phase: Run.RunPhase.AtFacility, CurrentSite: { } site } && site.Works(id))
+            return true;
+        return world.Holdouts?.All.Any(h => h.Breacher == id) == true;
+    }
+
+    /// <summary>
+    /// Note 867: the crewmate on the same pair job as <paramref name="id"/>, or −1: the other end of a heavy crate or a jackpot
+    /// up between them, the winch's other handle, the crane's operator for its rigger (and the rigger for its operator).
+    /// </summary>
+    public static int PartnerOf(World world, int id)
+    {
+        foreach (var b in world.Bodies.All)
+            if (b.Kind == Physics.BodyKind.Heavy && b.Carrier >= 0 && b.Second >= 0 && b.HeldBy(id))
+                return b.Carrier == id ? b.Second : b.Carrier;
+        if (world.Run is { Phase: Run.RunPhase.AtFacility, CurrentSite: { } site })
+        {
+            if (site.Cranking[0] >= 0 && site.Cranking[1] >= 0 && site.Cranking[0] != site.Cranking[1])
+            {
+                if (site.Cranking[0] == id)
+                    return site.Cranking[1];
+                if (site.Cranking[1] == id)
+                    return site.Cranking[0];
+            }
+            foreach (var crane in site.Cranes)
+                if (crane.Operator >= 0 && crane.Rigger >= 0 && crane.Operator != crane.Rigger)
+                {
+                    if (crane.Operator == id)
+                        return crane.Rigger;
+                    if (crane.Rigger == id)
+                        return crane.Operator;
+                }
+        }
+        return -1;
     }
 
     /// <summary>The crewmate an engaged threat is on, or null (nobody near and nobody at a post that answers it).</summary>

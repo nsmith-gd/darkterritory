@@ -8,11 +8,14 @@ namespace DarkTerritory.Sim.Run;
 /// <remarks>
 /// Note 190: the rows that aren't a death, each the tick it happens: the Track Doll or the Sleepers struck (<see cref="Struck"/>),
 /// the Fire Flies setting a car alight (<see cref="Fire"/>), Followers nesting (<see cref="Nest"/>), a Grumbler craned
-/// aboard (<see cref="Aboard"/>), a Stoker in the firebox (<see cref="Runaway"/>), the Switchman's points (<see cref="Points"/>),
+/// aboard (<see cref="Aboard"/>), a Stoker in the firebox (<see cref="Runaway"/>), points run through (<see cref="Points"/>; the Switchman's once, note 852),
 /// and any other PUNISH that held nobody (<see cref="Punished"/>). Note 287: the night's first threat and the draw that
-/// brought it (<see cref="Drawn"/>): "Cinder Hounds came first at km 2. Drawn by the whistle: Dave."
+/// brought it (<see cref="Drawn"/>): "Cinder Hounds came first at km 2. Drawn by the whistle: Dave." Note 717: a crewmate
+/// bonked by their friends' tools often enough to be told (<see cref="Bonked"/>): "Bonked 14 times, mostly by Priya." Note 720: a
+/// creature the crew sang off (<see cref="Sang"/>: "Sang the Gaunt off at km 12. Singing: Dave, Dunmore."), and the train stood by a
+/// lamp signal (<see cref="Signalled"/>: "Stopped by a lamp signal at km 9. Signalled by Priya.").
 /// </remarks>
-public enum IncidentKind : byte { Grab, Death, Rescue, Rupture, CarLost, Derailed, Stranded, Voted, Struck, Fire, Nest, Aboard, Runaway, Points, Punished, Drawn, Slain, BroughtIn }
+public enum IncidentKind : byte { Grab, Death, Rescue, Rupture, CarLost, Derailed, Stranded, Voted, Struck, Fire, Nest, Aboard, Runaway, Points, Punished, Drawn, Slain, BroughtIn, Bonked, Sang, Signalled, Marked, Letter, Whimsy }
 
 /// <summary>
 /// One fact for the incident report (C.9, D.12): what happened, to whom and where, and the <b>contributing action</b>: the
@@ -40,7 +43,7 @@ public sealed class Attribution
     // Note 511: the cars a loose coupling's dropped pin parted from the train (note 356), nobody's hand on it: each to the car
     // whose pin it was. Note 640: what worked each pin loose, who was driving, and the train's speed then.
     readonly Dictionary<int, int> _parted = [];
-    readonly Dictionary<int, (LooseCause Cause, int Driver, double Speed)> _loosened = [];
+    readonly Dictionary<int, (LooseCause Cause, int Driver, double Speed, int Board)> _loosened = [];
     readonly HashSet<int> _apart = [];
 
     public IReadOnlyList<Incident> Log => _log;
@@ -92,10 +95,18 @@ public sealed class Attribution
         }
     }
     public bool Parted(int vehicle) => _parted.ContainsKey(vehicle);
-    /// <summary>Note 640: a pin worked loose (the car ahead of its gap), by what, with whom driving and at what speed.</summary>
-    public void Loosened(int car, LooseCause cause, double speed) => _loosened[car] = (cause, Driver, speed);
+    /// <summary>
+    /// Note 640: a pin worked loose (the car ahead of its gap), by what, with whom driving and at what speed; for a bend, its
+    /// posted board in km/h (note 854).
+    /// </summary>
+    public void Loosened(int car, LooseCause cause, double speed, int board = 0) => _loosened[car] = (cause, Driver, speed, board);
+    /// <summary>
+    /// Note 865: a jumped pin two had hold of, parted as <paramref name="who"/> let go (<see cref="LooseCause.LetGoPin"/>, the brake
+    /// wheel, the throttle): in place of what jumped it, so the parting names them ("Driver" is who let go).
+    /// </summary>
+    public void LetGo(int car, LooseCause how, int who, double speed) => _loosened[car] = (how, who, speed, 0);
     /// <summary>What worked loose the pin that parted this car from the train, or null.</summary>
-    public (LooseCause Cause, int Driver, double Speed)? LooseOf(int vehicle) =>
+    public (LooseCause Cause, int Driver, double Speed, int Board)? LooseOf(int vehicle) =>
         _parted.TryGetValue(vehicle, out int pin) && _loosened.TryGetValue(pin, out var l) ? l : null;
     /// <summary>A car that came apart, battered and let go (note 576): what parted the train ahead of it.</summary>
     public void CameApart(int vehicle) => _apart.Add(vehicle);

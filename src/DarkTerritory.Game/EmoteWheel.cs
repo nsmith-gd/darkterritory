@@ -5,19 +5,47 @@ using DarkTerritory.Sim.Player;
 namespace DarkTerritory.Game;
 
 /// <summary>
-/// The emote wheel (note 298; GDD §9's yard, where the crew "hang out, dance"): held on its key, the three emotes round the
+/// The emote wheel (note 298; GDD §9's yard, where the crew "hang out, dance"): held on its key, the emotes round the
 /// crosshair, the mouse leaning toward one; let go, that one is sent as intent. A tap with no lean sends the last one picked
 /// (the dance, the first time). While it's held the mouse picks rather than looks. The app feeds it; tests drive it.
 /// </summary>
 public sealed class EmoteWheel
 {
-    /// <summary>What's on the wheel, and where: the dance up, the wave to the left, the point to the right.</summary>
+    /// <summary>
+    /// What's on the wheel, and where, round a clock face (note 722: twelve places, 30° apart): the dance up (12), the wave
+    /// to the left (9), the point to the right (3), ABOARD down (6, note 740); the emotes for two up to the right of the
+    /// dance (the high five at 1, the fist bump at 2), the edges down to the right of the point (sit at 4, lean at 5).
+    /// <see cref="Kept"/> are the "more emotes" upgrade's (note 714); 11 is free. A place with nothing in it isn't drawn, and
+    /// leaning at it picks a neighbour.
+    /// </summary>
     public static readonly (Emote Emote, string Label, Vector2 At)[] Spokes =
     [
-        (Emote.Dance, "DANCE", new(0, -1)),
-        (Emote.Wave, "WAVE", new(-1, 0)),
-        (Emote.Point, "POINT", new(1, 0)),
+        (Emote.Dance, "DANCE", Clock(12)),
+        (Emote.HighFive, "HIGH FIVE", Clock(1)),
+        (Emote.FistBump, "FIST BUMP", Clock(2)),
+        (Emote.Point, "POINT", Clock(3)),
+        (Emote.SitEdge, "SIT", Clock(4)),
+        (Emote.LeanOut, "LEAN OUT", Clock(5)),
+        // Note 740 (GDD §17): the call back to the horn, down.
+        (Emote.Aboard, "ABOARD", Clock(6)),
+        (Emote.Wave, "WAVE", Clock(9)),
     ];
+
+    /// <summary>
+    /// The "more emotes" upgrade's (note 714; docs/design/upgrades.md §4), in the places note 722 kept for it: the bow at 7,
+    /// the salute at 8, the conga at 10. On the wheel while the train has it (<see cref="More"/>).
+    /// </summary>
+    public static readonly (Emote Emote, string Label, Vector2 At)[] Kept =
+        [(Emote.Bow, "BOW", Clock(7)), (Emote.Salute, "SALUTE", Clock(8)), (Emote.Conga, "CONGA", Clock(10))];
+
+    /// <summary>The bow, the salute and the conga are on the wheel (the train has the "more emotes" upgrade, note 714).</summary>
+    public bool More { get; set; }
+
+    /// <summary>The spokes on offer: <see cref="Spokes"/>, and <see cref="Kept"/> with <see cref="More"/>.</summary>
+    public IEnumerable<(Emote Emote, string Label, Vector2 At)> Offered => More ? Spokes.Concat(Kept) : Spokes;
+
+    /// <summary>A place round the wheel by the clock's hour (12 up), on screen (+y down).</summary>
+    public static Vector2 Clock(int hour) => new(MathF.Round(MathF.Sin(hour * MathF.PI / 6), 5), MathF.Round(-MathF.Cos(hour * MathF.PI / 6), 5));
 
     /// <summary>How far the mouse has to lean (its counts) before a spoke is picked over the last one.</summary>
     public const float Lean = 40;
@@ -36,7 +64,7 @@ public sealed class EmoteWheel
             if (_lean.Length() < Lean)
                 return Last;
             var dir = Vector2.Normalize(_lean);
-            return Spokes.MaxBy(s => Vector2.Dot(s.At, dir)).Emote;
+            return Offered.MaxBy(s => Vector2.Dot(s.At, dir)).Emote;
         }
     }
 
@@ -71,13 +99,14 @@ public sealed class EmoteWheel
     {
         if (!Open)
             return;
-        float cx = width / 2f, cy = height / 2f, r = 22;
+        // (Note 722: wider than the four-spoke wheel's 22, so the labels at 30° don't overlap.)
+        float cx = width / 2f, cy = height / 2f, r = 30;
         var picked = Picked;
-        foreach (var (emote, label, at) in Spokes)
+        foreach (var (emote, label, at) in Offered)
         {
             bool on = emote == picked;
             float w = o.Measure(label, scale);
-            float x = cx + at.X * r - (at.X < 0 ? w : at.X > 0 ? 0 : w / 2), y = cy + at.Y * r - o.Font.Height * scale / 2;
+            float x = cx + at.X * r - (at.X < -0.1f ? w : at.X > 0.1f ? 0 : w / 2), y = cy + at.Y * r * 1.15f - o.Font.Height * scale / 2;
             o.Text(MathF.Round(x), MathF.Round(y), label, on ? new Vector4(1.0f, 0.7f, 0.3f, 1) : new Vector4(0.88f, 0.84f, 0.74f, 0.75f), scale);
         }
     }

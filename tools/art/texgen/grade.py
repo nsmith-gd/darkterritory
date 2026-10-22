@@ -47,6 +47,16 @@ ALBEDO = {
     "stone_block": 0.11, "brick_soot": 0.075, "concrete_stain": 0.13, "plaster_ruin": 0.13, "roof_slate": 0.06,
     # foliage
     "pine_card": 0.04, "pine_bough": 0.04, "dead_tree_card": 0.07, "grass_card": 0.08, "brass_weed_card": 0.08,
+    # the blighted trees' hangings (mat_blight, note 696): wrack and lichen as dark as the boughs they hang among, the dead
+    # leaves a little lighter; the membrane as light as flesh, so the tint it's given (red, white) reads against the bark
+    "wrack_card": 0.05, "leaf_card": 0.07, "membrane_web": 0.14,
+    # quartz: the palest thing in the woods, near the granite's lightest, so the crystal tree reads white under the moon
+    "quartz": 0.3,
+    # round two (the director's notes, 13 Oct): the raw flesh in the splits darker than the skin, the barnacles' crust chalky
+    # and the palest of the barnacle spruce, its drips as black as the tar they're of; the glow pod is light, so ungraded
+    "wound": 0.06, "barnacle_crust": 0.11, "tar_drip": 0.035, "glow_pod": None,
+    # the shrouds the palest thing on the barnacle spruce, so they hang ghost-grey against the black of it
+    "shroud_card": 0.13,
     # cloth and crew
     "coat_oilskin": 0.07, "leather": 0.08, "wool": 0.06, "fleece": 0.2, "skin": 0.14, "crew_atlas": 0.09,
     # corruption (flesh/skin already sit right; sac comes down)
@@ -54,7 +64,7 @@ ALBEDO = {
     # glass
     "glass_dirty": 0.04,
     # not graded: emitted colour, paper/dials, FX, sky
-    "lamp_lens": None, "window_lit": None, "firebox": None, "ember_crack": None,
+    "lamp_lens": None, "lantern_pane": None, "window_lit": None, "firebox": None, "ember_crack": None,
     "gauge_face": None, "paper_form": None, "sky_backdrop": None,
     "fx_smoke": None, "fx_steam": None, "fx_spark": None, "fx_fog": None, "fx_frost": None,
 }

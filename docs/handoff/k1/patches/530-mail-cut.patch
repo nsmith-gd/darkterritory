@@ -1,0 +1,411 @@
+diff --git a/content/tuning/hud.json b/content/tuning/hud.json
+index df08fe87..440a0a95 100644
+--- a/content/tuning/hud.json
++++ b/content/tuning/hud.json
+@@ -16,7 +16,8 @@
+ 
+   // A mail crane (note 673): once the lamp reads its board, "MAIL CRANE >" (its side) and how far come up as a place does;
+   // in its last seconds before your car (s), the line stays up for anyone in a car, and the open side door on its side
+-  // says the hook (hold fire as the car goes by). A bag caught says what was in it.
++  // says the hook (hold fire as the car goes by). A bag caught says what was in it. (The mail's cut for now, note 803:
++  // with sight.json mailCranes off there's no crane, so none of this comes up.)
+   "mailLeadSeconds": 12,
+ 
+   // Note 740 (GDD §17): after a horn at a stand, the cab keeps the roll of who's called "Aboard!" this long (s), and says
+diff --git a/content/tuning/sight.json b/content/tuning/sight.json
+index 6bcf18cc..8183aec7 100644
+--- a/content/tuning/sight.json
++++ b/content/tuning/sight.json
+@@ -39,6 +39,12 @@
+   // A tunnel's mouth, to anyone standing on a roof going into it.
+   "struckDamage": 200,
+ 
++  // The mail cut for now (queue #530, ARCHITECTURE §8 note 803; the director, 15 Oct 2026: "Im soft on the mail. I dont
++  // like it so far. Lets cut for now."). false: no mail crane or its board on any line (Lineside.Drops places none), so
++  // there's nothing to see, catch or hear, no MAIL CRANE line on the HUD, no hook at the door, and no mail in the pay.
++  // The code stays: true brings it all back as below. (SightTuning's default mirrors this one, as the line's prop boards,
++  // the linegen map and a screenshot's boards read the defaults: LinesideTests holds the two in step.)
++  "mailCranes": false,
+   // The mail cranes (the playtest's rewards: something to reach for between the threats). One every dropSpacing (m) from
+   // dropFrom to the terminus's board, clear of tunnels, bridges, facilities and junctions by dropClear, each with a board
+   // dropBoardAhead short of it saying which side. Caught by someone in a cargo car's open side door on that side, within
+diff --git a/docs/ROADMAP.md b/docs/ROADMAP.md
+index f08df273..7750ed2d 100644
+--- a/docs/ROADMAP.md
++++ b/docs/ROADMAP.md
+@@ -240,7 +240,7 @@ M3 is done but for a test with eight people.
+ **Pacing (after the 100-night playtest: "a reward or a problem every 30 s at most, ideally 20"):**
+ - The world logs each moment (a threat showing itself, a board, a bag), and counts the quiet out on the line. `dt harness` reports it.
+ - At 18 s of quiet the director sends something, cooldown or not. It prefers kinds it hasn't sent lately, and its caps count only threats that are engaged.
+-- Mail cranes line the route with a board before each. Hook a bag from an open cargo side door as it passes: pay, coal, rounds or spares.
++- Mail cranes line the route with a board before each. Hook a bag from an open cargo side door as it passes: pay, coal, rounds or spares. *Cut for now (the director, 15 Oct 2026; note 803): kept behind sight.json `mailCranes`.*
+ - Nights measured in the harness: longest quiet 21–26 s, typical 12–16 s.
+ 
+ **Trouble inside the cars (after the 100-night playtest):**
+diff --git a/docs/design/friendslop.md b/docs/design/friendslop.md
+index c2b68b51..f9c8aba7 100644
+--- a/docs/design/friendslop.md
++++ b/docs/design/friendslop.md
+@@ -50,6 +50,9 @@ runs a home that moves. Griefers, Hackers and Opportunists go to target.
+ - **Comet cargo** "needs to be at actual stops and needs to be extra valuable loot that players get excited for when they
+   see". Team-killable creatures "can sometimes leave trophies". "Very big value things should take two to carry."
+ - K1 is authorised to build all of it and to merge as it goes green.
++- **The mail, cut for now** (15 Oct 2026): "Im soft on the mail. I dont like it so far. Lets cut for now." No mail cranes
++  on the line (#461's catch and F1's note 673 with it); kept in the code behind sight.json `mailCranes`, so it can come
++  back with one switch (queue #530, ARCHITECTURE §8 note 803).
+ 
+ ## 3. The work (queue #450–#467)
+ 
+@@ -66,7 +69,7 @@ runs a home that moves. Griefers, Hackers and Opportunists go to target.
+ | 458 | **Sessions.** The crew's save travels with any member who hosts; a friend joining takes a bot's seat; kick and mute in public lobbies | 724 |
+ | 459 | **Cuts you can get back** (a car cut at a stand stays put; one cut at speed can be caught by backing up within the 400 m) and the chart table's lamp per crewmate aboard | 725 |
+ | 460 | **Hoist a friend** on the crane's hook | 726 |
+-| 461 | **The mail catch:** the bag snagged from the car door as the train passes a mail crane | 727 |
++| 461 | **The mail catch:** the bag snagged from the car door as the train passes a mail crane. *Cut for now (the director, 15 Oct 2026; queue #530): no mail cranes on the line, kept behind sight.json `mailCranes`* | 727, 803 |
+ | 462 | **The sense table** (every item gives off or masks a sense the creatures answer: a thrown music box lures what hunts by sound, the extinguisher's cold drives the hounds back, a lamp shows what waits in a dark house) **and thrown things do what they are** (a lamp breaks into fire, a keg rolls and blows) | 728 |
+ | 463 | **The handcar:** a two-person pump trolley on a flatcar, for a branch, a friend left behind, or a race | 729 |
+ | 464 | **Odd outcomes to find,** about ten a tier, never in the Wiki | 730 |
+diff --git a/docs/design/gdd.md b/docs/design/gdd.md
+index 5b92bf9a..8d3af4e0 100644
+--- a/docs/design/gdd.md
++++ b/docs/design/gdd.md
+@@ -676,7 +676,9 @@ Cargo is physically represented and **changes the run** rather than just scoring
+ - **The jackpot house.** At some stops (a third of frontier stops, more deeper in), the village's biggest house is locked up. Its door is panelled and painted, not plank like the rest, and a lamp burns in its window, so it's seen from the line. A held Use doesn't open it. The wrench does: held at the lock six seconds, quietly, as it opens a Holdout's lock (App. D.7). Inside, it keeps better things than any other house: its cupboards and boards turn up the best of what they could hold, two or three more finds lie on its floor, and two in five hold a jackpot. Something is likelier to live in it, too (the house creatures' odds, doubled).
+ - **Loose loot rides the train.** What's put down in a car stays a thing, and feels the car moving. On a bend it slides outward; under the brakes, forward; pulling away, back. It slides till it stops against the car's side or end, or another thing, or goes out through an open side door onto the line, lost unless someone goes back for it. Things lie on things, and one balanced badly on another topples off. A fragile find that slides hard into the end of the car is knocked. A car's stowed finds are paid only for what's still in it at the gate. Stack carefully, and shut the doors.
+ 
+-**The mail cranes** *(notes 673, 727; the director, 14 Oct 2026, App. F.6)*. Between the stops, mail cranes stand beside the line, each with a board a way ahead saying which side. Someone in a car's open side door on that side, holding the hook out as the car goes by, catches its bag: pay, coal for the tender, rounds for the guns or spares for the worst car. The board posts the speed the hook holds a bag at ("MAIL > 50"), and a bag hooked faster tears off and is lost, so the one at the door calls the driver down for it.
++**The mail cranes: cut for now** *(the director, 15 Oct 2026: "Im soft on the mail. I dont like it so far. Lets cut for now."; ARCHITECTURE §8 note 803)*. No mail crane stands by the line on any night: nothing to see, catch or hear, no MAIL CRANE on the screen and no mail in the night's pay. It's kept in the code behind one switch (sight.json `mailCranes`, false), so it can come back as it was:
++
++**The mail cranes** *(notes 673, 727; the director, 14 Oct 2026, App. F.6; cut for now, note 803)*. Between the stops, mail cranes stand beside the line, each with a board a way ahead saying which side. Someone in a car's open side door on that side, holding the hook out as the car goes by, catches its bag: pay, coal for the tender, rounds for the guns or spares for the worst car. The board posts the speed the hook holds a bag at ("MAIL > 50"), and a bag hooked faster tears off and is lost, so the one at the door calls the driver down for it.
+ 
+ ---
+ 
+@@ -2898,6 +2900,10 @@ genre ... It's extremely important that friends exceeds our target meaningfully.
+   two.** *Queue #452, #453.*
+ - The rest of docs/design/friendslop.md §3 goes ahead (queue #450–#466). Among it, **bringing them home**: the hand-up onto
+   a moving car (§17), carrying a living friend and a bandage on someone else (§23.5). *Queue #457, note 723.*
++- **The mail catch** (the audit's O6: the bag snagged from the car's door at a mail crane, too fast and it tears). *Queue
++  #461, note 727.* **Cut for now** (the director, 15 Oct 2026: "Im soft on the mail. I dont like it so far. Lets cut for
++  now."; ARCHITECTURE §8 note 803): no mail cranes on the line, kept in the code behind sight.json `mailCranes` (§22's
++  mail cranes). *Queue #530.*
+ - **Odd outcomes to find,** about ten, never in the Wiki: odd things happen in the towns and at the stops, unexplained (§3.3). *Queue #464, note 730.*
+ 
+ ## F.5 2026-10-13 — the creature gym, Test build 21 (ca0d37e)
+diff --git a/docs/notes/673.md b/docs/notes/673.md
+index 363716e9..06882621 100644
+--- a/docs/notes/673.md
++++ b/docs/notes/673.md
+@@ -12,3 +12,5 @@
+   never hears of a catch (`Lineside.Caught` is the host's), so only the host and a solo player see the caught line.
+ - Merged (#905, dc8e4ec4); the note `done` in `uiux_notes`. Next: the caught line on a joiner wants the catch sent (a small net event), if the
+   director wants it.
++- **Cut for now** (the director, 15 Oct 2026: "Lets cut for now"): no mail cranes on the line, kept behind sight.json
++  `mailCranes` (queue #530, note 803).
+diff --git a/docs/notes/727.md b/docs/notes/727.md
+index 5190a4b5..75a8f136 100644
+--- a/docs/notes/727.md
++++ b/docs/notes/727.md
+@@ -22,3 +22,5 @@ with the rest of App. F.6.
+ **Handoff** (14 Oct, K1)
+ - Done: merged ([#992](https://github.com/nsmith-gd/darkterritory/pull/992)).
+ - Next: nothing unless the director wants the post per tier.
++- **Cut for now** (the director, 15 Oct 2026: "Lets cut for now"): no mail cranes on the line, the catch and its post
++  kept behind sight.json `mailCranes` (queue #530, note 803).
+diff --git a/src/DarkTerritory.Cli/Program.cs b/src/DarkTerritory.Cli/Program.cs
+index d106e611..79e40358 100644
+--- a/src/DarkTerritory.Cli/Program.cs
++++ b/src/DarkTerritory.Cli/Program.cs
+@@ -1164,7 +1164,9 @@ static object Screenshot(TrainTuning t, string content, string[] args)
+         at = line.Branches[junction].Toe - (args.Contains("--through") ? 10 : 25);
+     // --mail [s]: at the night's first mail crane, car 2's side door by it; s > 0, the bag caught s seconds ago (its snatch
+     // and the arms falling).
+-    Drop? mail = args.Contains("--mail") && generated is not null ? DarkTerritory.Sim.Route.Lineside.Drops(DataFile.Load<SightTuning>(Path.Combine(content, SightTuning.File)), generated).FirstOrDefault() : null;
++    // (The mail's cut for now, note 803: the view turns sight.json's mailCranes back on for itself, so the crane's still seen.)
++    var mailSight = DataFile.Load<SightTuning>(Path.Combine(content, SightTuning.File)) with { MailCranes = true };
++    Drop? mail = args.Contains("--mail") && generated is not null ? DarkTerritory.Sim.Route.Lineside.Drops(mailSight, generated).FirstOrDefault() : null;
+     if (mail is not null)
+         at = mail.At + t.Geometry.EngineLength + t.Geometry.CarLength * 1.5 + t.Geometry.CouplingGap * 2;
+     // --structure type: the night's first of the plan's structures of that type on the main line (a girder, truss, trestle
+@@ -2043,6 +2045,7 @@ static object Screenshot(TrainTuning t, string content, string[] args)
+         Town = town,
+         Arrival = arrival,
+         DropCaught = mail is not null ? id => id == mail.Id && Opt(args, "--mail", 0) > 0 : null,
++        Signs = mail is not null && generated is not null ? [.. DarkTerritory.Sim.Route.Lineside.Boards(mailSight, generated)] : null,
+         StagedCatch = Opt(args, "--mail", 0),
+         StagedCold = args.Contains("--cold") ? Opt(args, "--cold", 0) : null,
+         StagedWind = args.Contains("--wind") ? Opt(args, "--wind", 0) : null, // the towns' flags fly in it (note 674)
+diff --git a/src/DarkTerritory.Game/Staging.cs b/src/DarkTerritory.Game/Staging.cs
+index 68c8aafd..f8203872 100644
+--- a/src/DarkTerritory.Game/Staging.cs
++++ b/src/DarkTerritory.Game/Staging.cs
+@@ -354,11 +354,13 @@ public static partial class Staging
+     /// </summary>
+     public static PrototypeSession MailCrane(string content, Sim.Route.Route route, int cars, double seconds = 6, bool atDoor = true)
+     {
+-        var sight = DataFile.Load<Sim.Route.SightTuning>(Path.Combine(content, Sim.Route.SightTuning.File));
++        // The mail's cut for now (note 803): the staged night turns sight.json's mailCranes back on for itself.
++        var sight = DataFile.Load<Sim.Route.SightTuning>(Path.Combine(content, Sim.Route.SightTuning.File)) with { MailCranes = true };
+         var drop = Sim.Route.Lineside.Drops(sight, route).FirstOrDefault(d => d.At > route.Gate + 1500)
+             ?? throw new InvalidOperationException($"{route.Name} has no mail crane past its yard");
+         const double speed = 12;
+         var session = new PrototypeSession(content, route, cars, enemies: false, at: drop.At - speed * (seconds + 1));
++        session.World.EnableLineside(sight, route);
+         session.Controls = new Sim.Train.TrainControls { Reverser = 1 };
+         int car = Math.Min(2, session.Train.Frames.Count - 1);
+         var shape = session.Train.Frames[car].Shape;
+diff --git a/src/DarkTerritory.Sim/Route/Lineside.cs b/src/DarkTerritory.Sim/Route/Lineside.cs
+index 6aacab29..021b9d2d 100644
+--- a/src/DarkTerritory.Sim/Route/Lineside.cs
++++ b/src/DarkTerritory.Sim/Route/Lineside.cs
+@@ -30,6 +30,9 @@ public sealed record SightTuning
+     public double SandSeconds { get; init; } = 8;
+     public double SandFadeSeconds { get; init; } = 3;
+     public int StruckDamage { get; init; } = 200;
++    // Note 803: the mail cut for now. Mirrors sight.json (false); the callers that read the defaults (the line's prop
++    // boards, the linegen map, a screenshot's boards) see the cut through it.
++    public bool MailCranes { get; init; }
+     public double[] DropSpacing { get; init; } = [350, 600];
+     public double DropFrom { get; init; } = 900;
+     public double DropClear { get; init; } = 80;
+@@ -152,10 +155,15 @@ public sealed class Lineside
+     /// <summary>
+     /// The mail cranes along a route (the playtest's rewards, so there's something to reach for between the threats): every
+     /// <see cref="SightTuning.DropSpacing"/> from the yard to the terminus's board, on either side, clear of tunnels, bridges,
+-    /// facilities and junctions. From the route's seed, so every machine has the same.
++    /// facilities and junctions. From the route's seed, so every machine has the same. None while the mail's cut
++    /// (<see cref="SightTuning.MailCranes"/>, note 803).
+     /// </summary>
+     public static IEnumerable<Drop> Drops(SightTuning t, Route route)
+     {
++        // The mail cut for now (queue #530, note 803; the director, 15 Oct 2026): with the switch off there are no cranes,
++        // so no boards, catches, HUD lines, sounds, bot errands or mail pay downstream of here.
++        if (!t.MailCranes)
++            yield break;
+         var rng = new Pcg32(route.Seed, 0xD209);
+         var kinds = new (DropKind Kind, double Weight)[]
+         {
+diff --git a/tests/DarkTerritory.Game.Tests/MailAndCometSoundTests.cs b/tests/DarkTerritory.Game.Tests/MailAndCometSoundTests.cs
+index 5e829c91..3ee4f63c 100644
+--- a/tests/DarkTerritory.Game.Tests/MailAndCometSoundTests.cs
++++ b/tests/DarkTerritory.Game.Tests/MailAndCometSoundTests.cs
+@@ -24,7 +24,8 @@ public class MailAndCometSoundTests : IDisposable
+     static readonly PlayerTuning P = DataFile.Load<PlayerTuning>(Path.Combine(Content, PlayerTuning.File));
+     static readonly CombatTuning C = DataFile.Load<CombatTuning>(Path.Combine(Content, CombatTuning.File));
+     static readonly RunTuning R = DataFile.Load<RunTuning>(Path.Combine(Content, RunTuning.File));
+-    static readonly SightTuning S = DataFile.Load<SightTuning>(Path.Combine(Content, SightTuning.File));
++    // The mail cranes up (cut for now, note 803): the catch is still heard for when it comes back.
++    static readonly SightTuning S = DataFile.Load<SightTuning>(Path.Combine(Content, SightTuning.File)) with { MailCranes = true };
+ 
+     readonly string _root = Path.Combine(Path.GetTempPath(), "dt-mail-" + Guid.NewGuid().ToString("N"));
+ 
+diff --git a/tests/DarkTerritory.Game.Tests/MailHudTests.cs b/tests/DarkTerritory.Game.Tests/MailHudTests.cs
+index 7569fb34..ca95d4b6 100644
+--- a/tests/DarkTerritory.Game.Tests/MailHudTests.cs
++++ b/tests/DarkTerritory.Game.Tests/MailHudTests.cs
+@@ -53,6 +53,43 @@ public class MailHudTests
+         Assert.False(s.World.Lineside!.Caught(drop.Id));
+     }
+ 
++    [Fact]
++    public void WithTheMailCutANightHasNoCraneAndTheHudNeverSaysOne()
++    {
++        // Queue #530, note 803 (the director, 15 Oct 2026: "Im soft on the mail. I dont like it so far. Lets cut for now."):
++        // a night on the shipped tuning, by where the first crane would stand, in the open side door on its side with the
++        // hook held out the whole way past: no crane, no board, no MAIL CRANE line, no hook at the crosshair, no pay.
++        var sight = DataFile.Load<SightTuning>(Path.Combine(Content, SightTuning.File));
++        Assert.False(sight.MailCranes);
++        var would = Lineside.Drops(sight with { MailCranes = true }, Frontier).First(d => d.At > Frontier.Gate + 1500);
++        var s = new PrototypeSession(Content, Frontier, 6, enemies: false, at: would.At - 12 * 8);
++        Assert.Empty(s.World.Lineside!.AllDrops);
++        Assert.DoesNotContain(s.World.Lineside.Signs, b => b.Kind == SignKind.Drop);
++        s.Controls = new Sim.Train.TrainControls { Reverser = 1 };
++        int car = Math.Min(2, s.Train.Frames.Count - 1);
++        var shape = s.Train.Frames[car].Shape;
++        s.Respawn(car);
++        if (Sim.Bots.StopHand.SideDoor(shape, would.Side) is { } door && !s.Train.Vehicles[car].DoorOpen(door))
++            s.Train.Vehicles[car].ToggleDoor(door);
++        var room = shape.Interior!.Value;
++        s.Player = s.Player with
++        {
++            Parent = car,
++            Position = new Ballast.Double3(would.Side * (room.HalfSize.X - 0.35), room.Min.Y, 0),
++            Surface = Surface.Deck,
++            Yaw = -would.Side * Math.PI / 2,
++        };
++        for (int i = 0; i < 20 * Sim.SimConstants.TickRate && s.Train.Dynamics.RearDistance < would.At + 5; i++)
++        {
++            s.Train.Dynamics.Velocity = 12;
++            s.Step(new PlayerIntent { Buttons = PlayerButtons.Fire });
++            Assert.Null(Hud.MailAhead(s));
++            Assert.Null(Hud.MailPrompt(s));
++        }
++        Assert.True(s.Train.Dynamics.RearDistance >= would.At + 5, "the train never got past where the crane would be");
++        Assert.Equal(0, s.World.Run!.Mail);
++    }
++
+     [Theory]
+     [InlineData(DropKind.Mail, "MAIL: 40 SCRIP")]
+     [InlineData(DropKind.Coal, "COAL: THE TENDER")]
+diff --git a/tests/DarkTerritory.Sim.Tests/BoardSightTests.cs b/tests/DarkTerritory.Sim.Tests/BoardSightTests.cs
+index 456b19b9..bf88ac9d 100644
+--- a/tests/DarkTerritory.Sim.Tests/BoardSightTests.cs
++++ b/tests/DarkTerritory.Sim.Tests/BoardSightTests.cs
+@@ -15,7 +15,9 @@ namespace DarkTerritory.Sim.Tests;
+ public class BoardSightTests
+ {
+     static readonly string Content = DataFile.FindContentRoot();
+-    static readonly string[] Nights = ["frontier:7", "deadLines:2", "deepTerritory:2"];
++    /// <summary>The mail cranes up (note 803: cut for now, sight.json mailCranes), so their boards are still tested.</summary>
++    static readonly Route.SightTuning MailOn = new() { MailCranes = true };
++    static readonly string[] Nights =["frontier:7", "deadLines:2", "deepTerritory:2"];
+     /// <summary>Nights with a through truss on the main line (deadLines:2 at 1.7 km, local:3 at 1.75 km).</summary>
+     static readonly string[] TrussNights = ["deadLines:2", "local:3"];
+ 
+@@ -275,7 +277,7 @@ public class BoardSightTests
+         var route = Routes.Generate(Content, "frontier:7", 6);
+         var side = LinesideProps.Of(route, route.Build())!;
+         var rules = route.Plan!.Rules;
+-        var mail = Route.Lineside.Boards(new Route.SightTuning(), route).Single(b => b.Kind == Route.SignKind.Drop && Math.Abs(b.Board - 4010) < 1);
++        var mail = Route.Lineside.Boards(MailOn, route).Single(b => b.Kind == Route.SignKind.Drop && Math.Abs(b.Board - 4010) < 1);
+         var site = side.SightBoard(mail);
+         Assert.True(site.SeenM >= 0.4 * site.ApproachM, $"MAIL at 4010 read over {site.SeenM} m of {site.ApproachM}");
+         var inner = site.Bottom - site.Right * (site.Side * site.Face.Width / 2);
+@@ -306,7 +308,7 @@ public class BoardSightTests
+         {
+             var route = Routes.Generate(Content, spec, 6);
+             var side = LinesideProps.Of(route, route.Build())!;
+-            var drops = Route.Lineside.Boards(new Route.SightTuning(), route).Where(b => b.Kind == Route.SignKind.Drop).ToList();
++            var drops = Route.Lineside.Boards(MailOn, route).Where(b => b.Kind == Route.SignKind.Drop).ToList();
+             int across = 0;
+             foreach (var sign in drops)
+             {
+@@ -403,7 +405,11 @@ public class BoardSightTests
+         var boards = Route.Lineside.Boards(sight, route).ToList();
+         Assert.Equal(Route.Lineside.Boards(new Route.SightTuning(), route).Select(b => (b.Kind, b.Board)), boards.Select(b => (b.Kind, b.Board)));
+         var side = LinesideProps.Of(route, route.Build())!;
+-        Assert.Contains(boards, b => b.Kind == Route.SignKind.Drop);
++        // (Mail boards among them while the mail's up; cut for now, note 803, none.)
++        if (sight.MailCranes)
++            Assert.Contains(boards, b => b.Kind == Route.SignKind.Drop);
++        else
++            Assert.DoesNotContain(boards, b => b.Kind == Route.SignKind.Drop);
+         foreach (var b in boards)
+         {
+             var site = side.SightBoard(b);
+diff --git a/tests/DarkTerritory.Sim.Tests/BotGunnerTests.cs b/tests/DarkTerritory.Sim.Tests/BotGunnerTests.cs
+index 681de242..b36dac1c 100644
+--- a/tests/DarkTerritory.Sim.Tests/BotGunnerTests.cs
++++ b/tests/DarkTerritory.Sim.Tests/BotGunnerTests.cs
+@@ -30,7 +30,8 @@ public class BotGunnerTests
+             Route = route,
+             Run = Tuning.Run,
+             Facilities = DataFile.Load<Run.FacilityTuning>(Path.Combine(Content, Run.FacilityTuning.File)),
+-            Sight = DataFile.Load<Route.SightTuning>(Path.Combine(Content, Route.SightTuning.File)),
++            // The mail cranes up (cut for now, note 803): what is tested is the gunner walking past them.
++            Sight = DataFile.Load<Route.SightTuning>(Path.Combine(Content, Route.SightTuning.File)) with { MailCranes = true },
+             YardLength = gate,
+             Holdouts = Tuning.Holdouts,
+         }, Tuning.Boiler);
+diff --git a/tests/DarkTerritory.Sim.Tests/CrewOfTwoTests.cs b/tests/DarkTerritory.Sim.Tests/CrewOfTwoTests.cs
+index 3604305b..dec12dc6 100644
+--- a/tests/DarkTerritory.Sim.Tests/CrewOfTwoTests.cs
++++ b/tests/DarkTerritory.Sim.Tests/CrewOfTwoTests.cs
+@@ -41,7 +41,8 @@ public class CrewOfTwoTests
+     }
+ 
+     /// <summary>A crew (of two, unless said) on a route, as `dt harness --insist` runs it (the combination sweep's night by hand).</summary>
+-    /// <param name="cranes">The mail cranes up (false: none, every other board as it is).</param>
++    /// <param name="cranes">The mail cranes up, as these nights were found (sight.json mailCranes on for the night: the mail is
++    /// cut for now, note 803); false: none, every other board as it is.</param>
+     /// <summary>The departure load these nights were found with (run.json departureLoad before note 575).</summary>
+     internal const double AsFound = 0.5;
+ 
+@@ -70,7 +71,7 @@ public class CrewOfTwoTests
+             Run = Tuning.Run with { DepartureLoad = AsFound },
+             Facilities = DataFile.Load<Run.FacilityTuning>(Path.Combine(Content, Run.FacilityTuning.File)),
+             Sight = DataFile.Load<Route.SightTuning>(Path.Combine(Content, Route.SightTuning.File)) is var sight && !cranes
+-                ? sight with { DropFrom = double.MaxValue } : sight,
++                ? sight with { MailCranes = false } : sight with { MailCranes = true },
+             YardLength = gate,
+             Upkeep = upkeep,
+             Holdouts = Tuning.Holdouts,
+diff --git a/tests/DarkTerritory.Sim.Tests/LinesideTests.cs b/tests/DarkTerritory.Sim.Tests/LinesideTests.cs
+index f1fb854a..2ecf5bb7 100644
+--- a/tests/DarkTerritory.Sim.Tests/LinesideTests.cs
++++ b/tests/DarkTerritory.Sim.Tests/LinesideTests.cs
+@@ -501,21 +501,42 @@ public class DropAndPacingTests
+     static readonly TrainTuning T = Tuning.Train;
+     static readonly PlayerTuning P = Tuning.Player;
+     static readonly SightTuning S = DataFile.Load<SightTuning>(Path.Combine(DataFile.FindContentRoot(), SightTuning.File));
++    // The mail's cut for now (note 803): its tests turn the switch back on for themselves, so it's still tested for its return.
++    static readonly SightTuning M = S with { MailCranes = true };
++
++    [Fact]
++    public void WithTheMailCutANightHasNoCranesAndNoBoardsForThem()
++    {
++        // Queue #530, note 803 (the director, 15 Oct 2026: "Lets cut for now"): the shipped tuning places no crane on any
++        // line, so nothing downstream (the boards, the catch, the HUD, the bots, the pay) has one to show.
++        Assert.False(S.MailCranes);
++        // The line's prop boards, the linegen map and a screenshot's boards read SightTuning's defaults: they mirror the file.
++        Assert.Equal(S.MailCranes, new SightTuning().MailCranes);
++        foreach (var name in (string[])["local:3", "frontier:7", "deadLines:3", "deepTerritory:7"])
++        {
++            var generated = DarkTerritory.Sim.LineGen.Routes.Generate(DataFile.FindContentRoot(), name, 6);
++            Assert.Empty(Lineside.Drops(S, generated));
++            Assert.DoesNotContain(Lineside.Boards(S, generated), b => b.Kind == SignKind.Drop);
++            Assert.Empty(new Lineside(S, generated).AllDrops);
++            // And on, they're back where they were.
++            Assert.NotEmpty(Lineside.Drops(M, generated));
++        }
++    }
+ 
+     [Fact]
+     public void CranesStandAlongTheLineClearOfItsStructuresEachWithABoard()
+     {
+         var route = RouteGenerator.Generate(Tuning.Route, RouteTier.Frontier, 7);
+-        var drops = Lineside.Drops(S, route).ToList();
+-        Assert.True(drops.Count >= route.Length / S.DropSpacing[1] * 0.6, $"{drops.Count} cranes on {route.Length:0} m");
++        var drops = Lineside.Drops(M, route).ToList();
++        Assert.True(drops.Count >= route.Length / M.DropSpacing[1] * 0.6, $"{drops.Count} cranes on {route.Length:0} m");
+         for (int i = 1; i < drops.Count; i++)
+-            Assert.True(drops[i].At - drops[i - 1].At >= S.DropSpacing[0] - 1e-6);
++            Assert.True(drops[i].At - drops[i - 1].At >= M.DropSpacing[0] - 1e-6);
+         Assert.All(drops, d => Assert.DoesNotContain(route.Features, f => f.Kind is FeatureKind.Tunnel or FeatureKind.Bridge or FeatureKind.Facility && f.Contains(d.At)));
+-        var boards = Lineside.Boards(S, route).Where(s => s.Kind == SignKind.Drop).ToList();
++        var boards = Lineside.Boards(M, route).Where(s => s.Kind == SignKind.Drop).ToList();
+         Assert.Equal(drops.Count, boards.Count);
+-        Assert.Equal(3, Lineside.Boards(S, route).Count(s => s.Kind == SignKind.Terminus));
++        Assert.Equal(3, Lineside.Boards(M, route).Count(s => s.Kind == SignKind.Terminus));
+         // Every machine has the same cranes.
+-        Assert.Equal(drops, Lineside.Drops(S, route).ToList());
++        Assert.Equal(drops, Lineside.Drops(M, route).ToList());
+     }
+ 
+     /// <summary>A train at speed past a crane with someone in car 2's side door on its side, door open or not, hook out or not.</summary>
+@@ -526,7 +547,7 @@ public class DropAndPacingTests
+         var world = new World(train, Tuning.Combat);
+         world.EnableBodies();
+         world.EnableRun(Tuning.Run, route, Tuning.Route.YardLength, authority: true);
+-        world.EnableLineside(S, route);
++        world.EnableLineside(M, route);
+         var lineside = world.Lineside!;
+         var drop = lineside.AllDrops.First();
+         var shape = train.Frames[2].Shape;
+@@ -567,13 +588,13 @@ public class DropAndPacingTests
+     {
+         // The mail catch (queue #461, note 727): the crane's board posts the speed the hook holds a bag at; over it, the bag
+         // tears off and what was in it is gone, so the one at the door calls the driver down for it.
+-        Assert.True(S.CatchMaxSpeed > 13);
+-        var (torn, world) = Past(open: true, hook: true, speed: S.CatchMaxSpeed + 2);
++        Assert.True(M.CatchMaxSpeed > 13);
++        var (torn, world) = Past(open: true, hook: true, speed: M.CatchMaxSpeed + 2);
+         var drop = torn.AllDrops.First();
+         Assert.True(torn.Torn(drop.Id) && torn.Passed(drop.Id) && !torn.Caught(drop.Id));
+         Assert.Equal(0, world.Run!.Mail);
+-        var board = Lineside.Boards(S, DarkTerritory.Sim.LineGen.Routes.Generate(DataFile.FindContentRoot(), "frontier:7", 6)).First(b => b.Kind == SignKind.Drop);
+-        Assert.Equal((int)(Math.Floor(S.CatchMaxSpeed * 3.6 / 5) * 5), board.LimitKmh);
++        var board = Lineside.Boards(M, DarkTerritory.Sim.LineGen.Routes.Generate(DataFile.FindContentRoot(), "frontier:7", 6)).First(b => b.Kind == SignKind.Drop);
++        Assert.Equal((int)(Math.Floor(M.CatchMaxSpeed * 3.6 / 5) * 5), board.LimitKmh);
+     }
+ 
+     [Fact]

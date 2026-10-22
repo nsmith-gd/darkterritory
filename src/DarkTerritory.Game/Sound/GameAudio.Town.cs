@@ -22,11 +22,71 @@ public sealed partial class GameAudio
     // and how often what's near is looked up again (the town doesn't move; its people, on their rounds, slowly).
     const double TownReach = 40, TownFolkReach = 30, TownLook = 0.25;
     const int TownFires = 4, TownRoomThings = 3;
+    // Nicki's party carries further than a house's range or clock (music, a crowd), and holds by the house's own id.
+    const double TownPartyReach = 70;
+    const int TownPartyId = 90_000, TownForgeId = 91_000, TownFlameId = 92_000;
+    // A harbour town's Hope Tower (B2's #1091, note 819; queue #554, note 826): its Flame burns in an iron basket on the
+    // tower's top, a little over the basket's brim (TownFixtures' "lighthouse" height), and is heard far out over the town.
+    const double FlameOverBrim = 2.5, FlameReach = 800;
+    // The night market on the square (B2's #1111, note 825; queue #555, note 827): a stall's own trade heard at its counter
+    // (the tea boiler, the clocks, the needles), and its keeper calling to the crew now and then, from across the square.
+    const double StallReach = 16, StallCounter = 1.0, StallCallReach = 30;
+    // About once every twenty seconds one of the stallholders near enough calls (not while they're away on their round).
+    const double StallCallOften = 0.05;
+    readonly List<Townsperson> _stallholders = [];
     // A house's walls between the ear and a sound on the other side of them (a range heard from the street, the square's
     // fires from a kitchen): the doors and windows are shut, more than a stop's broken-open room (walls.json roomWall).
     const float TownWall = 0.6f;
 
     readonly List<(int Id, string Cue, Double3 At, int House)> _townNear = [];
+    // The nearest forge within reach (note 775), for the smith's work at it.
+    Double3? _townForge;
+    // The smith at work, now and then: the hammer on the anvil (in a run of blows), the bellows, the quench (per second).
+    const double AnvilRuns = 0.12, BellowsOften = 0.06, QuenchOften = 0.03;
+
+    /// <summary>
+    /// The blacksmith at the forge (queue #505, note 775): a run of hammer blows on the anvil now and then, the bellows worked,
+    /// hot iron quenched, where the hearth is heard.
+    /// </summary>
+    void Smithy(float outside, double dt)
+    {
+        if (_townForge is not { } at)
+            return;
+        if (Sometimes(AnvilRuns, dt))
+        {
+            int blows = 3 + (int)(OutsideOdds() * 4);
+            for (int b = 0; b < blows; b++)
+                CueLater(b * (0.42 + 0.1 * OutsideOdds()), "up-forge.anvil", at + Double3.Up * 0.2, outside, b == 0 ? 1 : 0.85f);
+        }
+        if (Sometimes(BellowsOften, dt))
+            Cue("up-forge.bellows", at, outside);
+        if (Sometimes(QuenchOften, dt))
+            Cue("up-forge.quench", at - Double3.Up * 0.5, outside);
+    }
+    /// <summary>A market stall's own trade, by what it sells (world/towns.json's market): the stalls that make a sound.</summary>
+    string? StallCue(string stall)
+    {
+        string? cue = stall switch
+        {
+            "the tea stall" => "place-town.stall-tea",
+            "the clock stall" => "place-town.stall-clocks",
+            "the knitting stall" => "place-town.stall-knitting",
+            _ => null,
+        };
+        return cue is not null && HasCue(cue) ? cue : null;
+    }
+
+    /// <summary>A stallholder calling their wares now and then (note 827), where they stand at their stall: not on their round.</summary>
+    void StallCalls(Town town, float walls, double dt)
+    {
+        if (_stallholders.Count == 0 || !Sometimes(StallCallOften, dt))
+            return;
+        var p = _stallholders[(int)(OutsideOdds() * _stallholders.Count) % _stallholders.Count];
+        var pose = town.Now(p);
+        if (!pose.Walking)
+            Cue("place-town.stall-call", pose.Feet + Double3.Up * 1.55, walls);
+    }
+
     readonly List<Double3> _townFolk = [];
     double _townLookAt = double.NegativeInfinity;
     int _townEarHouse = -1;
@@ -43,9 +103,34 @@ public sealed partial class GameAudio
     Townsperson? _townGear;
     double _townStepHint = double.NaN;
 
+    // The arrival town is the one heard once the engine's this near its start (m; note 958): its streets, fires and folk
+    // come into earshot as the train draws in through its gate.
+    const double ArrivalHeard = 300;
+    Town? _townHeard;
+
+    /// <summary>
+    /// The town the crew are in or at (note 958; GDD v1.6 "Not yet": the terminus had only its threshold and gates): the
+    /// departure town, till the engine's within <see cref="ArrivalHeard"/> of the arrival town's start; then that one.
+    /// </summary>
+    static Town? HeardTown(World world) =>
+        world.Arrival is { Origin: { } start } arrival
+            && world.Train.Line.MainDistance(world.Train.Dynamics.Path, world.Train.Dynamics.Distance) >= start - ArrivalHeard
+            ? arrival : world.Town;
+
     void TownSounds(World world, Double3 ear, double dt)
     {
-        if (world.Town is not { } town)
+        var town = HeardTown(world);
+        if (!ReferenceEquals(town, _townHeard))
+        {
+            // Another town: what was near in the last one, and its walkers' strides, are nothing here.
+            _townHeard = town;
+            _townLookAt = double.NegativeInfinity;
+            _townStrides.Clear();
+            _townNear.Clear();
+            _townFolk.Clear();
+        }
+        YardFightSounds(world, ear, dt);
+        if (town is null)
             return;
         if (_time - _townLookAt >= TownLook || _time < _townLookAt)
         {
@@ -60,6 +145,8 @@ public sealed partial class GameAudio
             float walls = house >= 0 ? (house == _townEarHouse ? 0 : TownWall) : _townEarHouse >= 0 ? TownWall : 0;
             HoldLevel(cue, TownOwner + id, at, Math.Max(outside, walls), 1);
         }
+        Smithy(outside, dt);
+        StallCalls(town, Math.Max(outside, _townEarHouse >= 0 ? TownWall : 0), dt);
         FolkOnTheirRounds(world, town, ear, outside);
         if (_townFolk.Count == 0)
             return;
@@ -81,17 +168,36 @@ public sealed partial class GameAudio
     {
         _townNear.Clear();
         _townFolk.Clear();
+        _townForge = null;
         _townEarHouse = TownHouseAt(town, ear);
         var fires = new List<(double D, int Id, Double3 At)>();
         var rooms = new List<(double D, int Id, string Cue, Double3 At, int House)>();
         foreach (var f in town.Plan.Fixtures)
         {
+            // The Flame of Hope, high over everything: heard from anywhere in the town and out along the line, never through
+            // a house's things' short reach.
+            if (f.Kind == "marketstall")
+            {
+                var counter = town.World(f.S, f.D, StallCounter);
+                if (StallCue(f.Name) is { } trade && (counter - ear).Length <= StallReach)
+                    _townNear.Add((f.Id, trade, counter, -1));
+                continue;
+            }
+            if (f.Kind == "lighthouse" && f.House < 0)
+            {
+                var flame = town.World(f.S, f.D, TownFixtures.Size(f.Kind).Height + FlameOverBrim);
+                if (HasCue("place-town.flame") && (flame - ear).Length <= FlameReach)
+                    _townNear.Add((TownFlameId + f.Id, "place-town.flame", flame, -1));
+                continue;
+            }
             string? cue = f.Kind switch
             {
                 "barrel" or "brazier" => "place-town.fire",
                 "stove" => "place-town.range",
                 "clock" => "place-town.clock",
                 "radio" => "place-town.radio",
+                // The blacksmith's forge (U1's #967, note 697; queue #505, note 775), where it's installed.
+                "forge" when HasCue("up-forge.hearth") => "up-forge.hearth",
                 _ => null,
             };
             if (cue is null)
@@ -101,6 +207,12 @@ public sealed partial class GameAudio
             double d = (at - ear).Length;
             if (d > TownReach)
                 continue;
+            if (cue == "up-forge.hearth")
+            {
+                if (_townForge is not { } forge || d < (forge - ear).Length)
+                    _townForge = at;
+                continue;
+            }
             if (cue == "place-town.fire")
                 fires.Add((d, f.Id, at));
             else
@@ -110,13 +222,23 @@ public sealed partial class GameAudio
             _townNear.Add((id, "place-town.fire", at, -1));
         foreach (var (_, id, cue, at, house) in rooms.OrderBy(x => x.D).Take(TownRoomThings))
             _townNear.Add((id, cue, at, house));
+        // The forge out of doors, the nearest, held by its own id (not one of a house's things).
+        if (_townForge is { } hearth)
+            _townNear.Add((TownForgeId, "up-forge.hearth", hearth, -1));
+        // Nicki's party (note 571; note 773): the one house up late, heard through its walls from further than a range.
+        foreach (var h in town.Plan.Houses)
+            if (h.Party && town.World(h.S, h.D, 1.5) is var party && (party - ear).Length <= TownPartyReach)
+                _townNear.Add((TownPartyId + h.Id, "figures.party", party, h.Id));
         // The folk out of doors for the murmur; and on their rounds (note 446), the nearest within earshot of a step, the
         // nearest out of doors close enough to breathe on you, and the watch with their lanterns. Each one's feet found once.
         var near = new List<(Townsperson P, double D)>();
+        _stallholders.Clear();
         foreach (var p in town.Plan.People)
         {
             var feet = town.Feet(p);
             double d = (feet - ear).Length;
+            if (p.Role == "stallholder" && d <= StallCallReach)
+                _stallholders.Add(p);
             if (p.House < 0 && d <= TownFolkReach)
                 _townFolk.Add(feet);
             if (d <= TownLanternReach)

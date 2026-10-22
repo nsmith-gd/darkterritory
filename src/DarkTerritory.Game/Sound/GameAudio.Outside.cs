@@ -79,6 +79,12 @@ public sealed partial class GameAudio
         _startledUntil.Clear();
         _livestockAccel = double.NaN;
         _craneMoved.Clear();
+        _dropsHeard.Clear();
+        _dropsPrimed = false;
+        _cuckooOut = null;
+        _handcarWas = null;
+        _picked.Clear();
+        _pickMoved.Clear();
         _castings.Clear();
         _beltStarted.Clear();
         _jamWas.Clear();
@@ -128,13 +134,16 @@ public sealed partial class GameAudio
         RadioDevice(ear, radioDead, primed);
         RoofGust(train);
         TownSounds(world, ear, dt);
+        MailAndCometSounds(world, ear);
+        CrewCarSounds(world);
+        HandcarSounds(world);
         if (_places is { } places)
         {
             WorldNight(world, run, ear, tunnel, underground, dt);
             WorldTunnels(train, places, ear, front, tunnel, dt, primed);
             WorldBridges(train, places, ear, dt);
             WorldWeather(world, train, places, ear, earMain, tunnel, underground, dt);
-            WaterSounds(places, ear, earMain, tunnel, underground);
+            WaterSounds(world, places, ear, earMain, tunnel, underground);
             WorldBrass(train, places, primed);
             PlaceThreshold(run, train, places, front, primed);
             PlaceWorks(world, run, train, places, ear, underground, dt, primed);
@@ -316,6 +325,9 @@ public sealed partial class GameAudio
             cars.Clear();
             foreach (var v in rake.Consist.Vehicles)
             {
+                // Half a tonne of handcar doesn't sound a bridge (note 784).
+                if (v.IsHandcar)
+                    continue;
                 var pose = train.Cars[v.Id];
                 double centre = pose.FrontDistance - pose.Length / 2;
                 var (edge, s) = places.Plan is { } plan ? TrackRules.Locate(plan, places.Line, rake.Path, centre) : ("main", places.Line.MainDistance(rake.Path, centre));
@@ -509,21 +521,22 @@ public sealed partial class GameAudio
         Double3 Yard(double s, double side) => line.Sample(s) is var t ? t.Position + Double3.Cross(t.Tangent, Double3.Up).Normalized * side + Double3.Up * 4 : default;
         if (run.Phase == RunPhase.Yard)
             HoldLevel("place-threshold.fortress", 0, Yard(Math.Max(0, Math.Min(front, gate) - 60), 30), Occlusion(PlayerMotor.Outside), 1);
-        PlaceGates(0, gate, front, rear, line, primed);
+        PlaceGates(0, gate, front, rear, line, primed, run.Tuning.Gates);
         if (places.Plan?.Terminus is { Silent: false } terminus && terminus.GateM > 0)
         {
             if (front >= terminus.GateM - 300 || run.Phase == RunPhase.Arrived)
                 HoldLevel("place-threshold.fortress", 1, Yard(terminus.GateM + 80, 30), Occlusion(PlayerMotor.Outside), 1);
-            PlaceGates(1, terminus.GateM, front, rear, line, primed);
+            PlaceGates(1, terminus.GateM, front, rear, line, primed, run.Tuning.Gates);
         }
     }
 
-    void PlaceGates(int which, double gate, double front, double rear, RailLine line, bool primed)
+    // (When the leaves are seen and stood swinging, note 847: run.json gates, Sim.Run.Fortresses.Open.)
+    void PlaceGates(int which, double gate, double front, double rear, RailLine line, bool primed, Sim.Run.GateTuning gates)
     {
         var at = line.Sample(gate).Position + Double3.Up * 3;
-        if (Flipped("place-threshold.open", which, front >= gate - 40 && front < gate + 5, primed) > 0)
+        if (Flipped("place-threshold.open", which, front >= gate - gates.OpenAheadM && front < gate + 5, primed) > 0)
             Cue("place-threshold.gate-open", at, Occlusion(PlayerMotor.Outside));
-        if (!double.IsNaN(rear) && Flipped("place-threshold.shut", which, rear >= gate + 3, primed) > 0)
+        if (!double.IsNaN(rear) && Flipped("place-threshold.shut", which, rear >= gate + gates.ShutBehindM, primed) > 0)
             Cue("place-threshold.gate-shut", at, Occlusion(PlayerMotor.Outside));
     }
 
@@ -670,9 +683,10 @@ public sealed partial class GameAudio
     }
 
     /// <summary>
-    /// A facility's site: each crane's motor while it moves, its chain while the hook does, a load creaking as the crane starts
-    /// and stops under it, a casting set down on a car or the ground (or dropped); and at a wreck yard, the cargo dragged out
-    /// of a wreck while the winch turns, the wreckage shifting as each sled comes in, and the wrecks creaking.
+    /// A facility's site: each crane's motor while it moves, its chain while the hook does, the cable under anyone riding it,
+    /// a load creaking as the crane starts and stops under it, a casting set down on a car or the ground (or dropped); and at a
+    /// wreck yard, the cargo dragged out of a wreck while the winch turns, the wreckage shifting as each sled comes in, and the
+    /// wrecks creaking.
     /// </summary>
     void PlaceSite(Site site, TrainOnLine train, Double3 ear, double dt, bool primed)
     {
@@ -692,13 +706,18 @@ public sealed partial class GameAudio
                 HoldLevel("place-crane.motor", key, crane.Cab, outside, 1);
             if (hook > 1e-4)
                 HoldLevel("place-crane.chain", key, crane.HookAt, outside, 1);
-            if (Flipped("place-crane.running", key, running, primed) != 0 && crane.Hooked is not null)
+            // Note 798: the cable creaking under a friend riding the hook, louder while the crane moves them.
+            HoistCreak(crane, key, outside, running);
+            // Note 726: a friend on the hook swings as a casting does.
+            if (Flipped("place-crane.running", key, running, primed) != 0 && crane.Loaded)
                 Cue("place-crane.load-swing", crane.HookAt, outside);
             for (int c = 0; c < crane.Castings.Length; c++)
             {
                 var casting = crane.Castings[c];
                 var was = _castings.TryGetValue((key, c), out var w) ? w : casting.State;
                 _castings[(key, c)] = casting.State;
+                if (primed)
+                    LostDown(was, casting.State, casting.At, outside);
                 if (!primed || was != CastingState.Hooked || casting.State == CastingState.Hooked)
                     continue;
                 bool onCar = casting.State == CastingState.Loaded && casting.Car >= 0 && casting.Car < train.Frames.Count;
@@ -810,8 +829,36 @@ public sealed partial class GameAudio
             return;
         foreach (var d in walls.HouseDoors)
             if (Flipped("crew-house-door", d.Key, walls.Shut(d.Key), primed) is not 0 and var flip)
-                AtADoor(Cue(flip > 0 ? "crew-house-door.shut" : "crew-house-door.open", DoorSound(d), DoorOcclusion(d)));
+            {
+                // The jackpot house's lock picked open (note 783): it gives as the door swings.
+                if (flip < 0 && _picked.GetValueOrDefault(d.Key) > 0)
+                    Cue("place-breach.pick-give", DoorSound(d), DoorOcclusion(d));
+                // Thrown by a house creature (note 767): the Hollow House's slam, the Lodger's last blow, when they're installed.
+                var by = HouseDoorBy(world, d, flip > 0);
+                AtADoor(by is not null && HasCue(by) ? Cue(by, DoorSound(d), DoorOcclusion(d))
+                    : Cue(flip > 0 ? "crew-house-door.shut" : "crew-house-door.open", DoorSound(d), DoorOcclusion(d)));
+            }
+        // The jackpot house's lock being picked with the wrench (note 783; note 719's StopWalls.Picking, on the doors' record):
+        // worked quietly at the door as a Holdout's lock is (D.7's wrench), held while it moves. The tick it's done the door's
+        // open and the picking's gone, so what was being picked is kept a tick for the give above.
+        var picking = walls.PickingDoors.ToList();
+        foreach (var (key, progress) in picking)
+        {
+            if (progress > _picked.GetValueOrDefault(key))
+                _pickMoved[key] = _time;
+            if (_time - _pickMoved.GetValueOrDefault(key, double.NegativeInfinity) >= BreachStill)
+                continue;
+            foreach (var d in walls.HouseDoors)
+                if (d.Key == key)
+                    HoldLevel("place-breach.pick", -1 - key, DoorSound(d), DoorOcclusion(d), 1);
+        }
+        _picked.Clear();
+        foreach (var (key, progress) in picking)
+            _picked[key] = progress;
     }
+
+    /// <summary>The jackpot house's locks being picked as last heard (note 783): each door's key and how far, and when it last moved.</summary>
+    readonly Dictionary<int, double> _picked = [], _pickMoved = [];
 
     /// <summary>
     /// Where a house door is heard (note 409): its leaf, a hand's height up, half a metre in from the doorway's outside edge
@@ -873,14 +920,10 @@ public sealed partial class GameAudio
                 if (Cue($"voice-prisoner-sets.{(kind < 9 ? "call" : "shout")}.set{set}", inside, 0.35f) is null)
                     Mixer.Play("holdout-shout", inside)?.Also(v => v.Occlusion = 0.35f);
             }
-            else if (!HasCue("voice-callout.bang"))
+            // A call's banging is one bout: each take is a whole frantic bout of blows, as the synthesised stand-in is
+            // (note 810; they were played two to four at once, 0.3 s apart, as if each were one blow).
+            else if (Cue("voice-callout.bang", inside, 0.35f) is null)
                 Mixer.Play("holdout-bang", inside)?.Also(v => v.Occlusion = 0.35f);
-            else
-            {
-                int bangs = 2 + (int)(roll / 20 % 3);
-                for (int b = 0; b < bangs; b++)
-                    CueLater(b * (0.28 + 0.06 * (b % 2)), "voice-callout.bang", inside, 0.35f, b == 0 ? 1 : 0.85f);
-            }
         }
     }
 

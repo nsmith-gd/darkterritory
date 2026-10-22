@@ -28,6 +28,8 @@ public class HoldoutTests
         public readonly Route.Route Route;
         public readonly List<(int Id, PlayerState State)> Crew = [];
         public readonly List<HoldoutEvent> Events = [];
+        /// <summary>The sound cues in the world made (note 732), each once.</summary>
+        public readonly List<WorldCue> Cues = [];
         public PlayerIntent[] Intents = [];
 
         /// <param name="wrench">Note 301's <c>repair.wrench</c>: the wrench in hand opens a lock quietly. Off, the repair kit does (D.7).</param>
@@ -92,6 +94,7 @@ public class HoldoutTests
                 World.Step(new TrainControls { Reverser = 1 });
                 World.StepBodies(Crew);
                 Events.AddRange(World.StepHoldouts(Crew, (id, s) => Crew[id] = (id, s)));
+                Cues.AddRange(World.Cues.Where(c => !Cues.Any(x => x.Id == c.Id)));
             }
         }
 
@@ -179,7 +182,7 @@ public class HoldoutTests
         Assert.Equal(HoldoutState.Freed, h.State);
 
         var calls = new Bots.CrewCalls();
-        var bot = new Bots.RoofWalkerBot(21, P.Cold, new Bots.StopHand(Bots.StopJob.Crates, calls, 1, P.Cold)) { Me = dead };
+        var bot = new Bots.RoofWalkerBot(21, new Bots.StopHand(Bots.StopJob.Crates, calls, 1)) { Me = dead };
         var s = n[dead];
         var from = s.Position;
         double bound = 30 + ((h.Door - n.Train.Frames[1].Origin) with { Y = 0 }).Length / P.Walk * 1.5;
@@ -216,7 +219,7 @@ public class HoldoutTests
         var behind = h.Door + into.Normalized * (depth * 2 + 1.5);
         Assert.InRange(((behind - h.Door) with { Y = 0 }).Length, 2, 10);
         n.Stand(living, behind);
-        var hand = new Bots.StopHand(Bots.StopJob.Crates, new Bots.CrewCalls(), living, P.Cold);
+        var hand = new Bots.StopHand(Bots.StopJob.Crates, new Bots.CrewCalls(), living);
         var s = n[living];
         double closest = double.MaxValue;
         for (uint tick = 0; tick < 60 * SimConstants.TickRate && h.State != HoldoutState.Freed; tick++)
@@ -282,6 +285,10 @@ public class HoldoutTests
             n.Step(1, speed: 30);
         Assert.Equal(HoldoutState.Dormant, h.State);
         Assert.Contains(n.Events, e => e.Kind == HoldoutEventKind.Released && e.PlayerId == dead);
+        // Note 732: a far bell from the Holdout left with them in it.
+        var bell = Assert.Single(n.Cues, c => c.Kind == CueKind.Bell);
+        Assert.Equal((byte)BellFor.HoldoutLeft, bell.Of);
+        Assert.True(((bell.At - h.Inside) with { Y = 0 }).Length < 0.01);
         Assert.Equal(dead, n.World.Holdouts!.Queue[0].PlayerId);
         // Back into the zone: it takes them again (D.5 "if the crew comes back for them").
         while (engine.Distance > n.Site.End - 20)
@@ -855,13 +862,20 @@ public class HoldoutTests
         byte driverId = n.Crew[0].Session.PlayerId!.Value;
         bool wentOut = false;
         double leftPressure = 0, leftFire = 0;
-        double outAt = 0;
+        double outAt = 0, least = double.MaxValue, top = 0;
         int litTicks = 0;
         n.Run(400, until: () => n.Lockup.State == HoldoutState.Freed, watch: () =>
         {
             var d = n.Of(driverId);
             if (n.Lockup.Lit)
                 litTicks++;
+            // Note 935: what the gauge did while it was in the cab, the run up and the stand.
+            if (!wentOut)
+            {
+                top = Math.Max(top, n.Host.Train.Boiler.Pressure);
+                if (n.Host.Train.Dynamics.Speed < 0.1)
+                    least = Math.Min(least, n.Host.Train.Boiler.Pressure);
+            }
             if (!wentOut && !PlayerMotor.InCab(d, n.Host.Train) && n.Lockup.Lit)
             {
                 wentOut = true;
@@ -877,8 +891,13 @@ public class HoldoutTests
                 Assert.True(n.Host.Train.Dynamics.Speed < 0.1, $"the train moved at {n.Host.Train.Dynamics.Speed:0.00} m/s with the driver out");
         });
         Assert.True(wentOut, "the driver got down");
-        // Vented to 60; the fresh fire has it climbing again by the time it's out of the doorway.
-        Assert.True(leftPressure <= 65, $"vented down before it went: {leftPressure:0.0}");
+        // Vented to 60 at the stand; the fresh fire has it climbing again by the time it's out of the doorway, 5 on the gauge
+        // at the old rate and 17% more since note 843 (the gauge moves 17% faster). Note 935: 5.25, the fire it leaves fuller
+        // (0.83 of the box, was 0.82) now the run up's vented over the working band, where it sat on the safety valve.
+        Assert.True(least <= 60, $"vented down to {least:0.0} at the stand");
+        Assert.True(leftPressure <= 60 + 5.25 * 1.17, $"vented down before it went: {leftPressure:0.0}");
+        // Note 935: never into the red on the way (it ran up to the Lockup at 95, on the safety valve).
+        Assert.True(top < Tuning.Boiler.Redline, $"the gauge to {top:0.0} on the way");
         Assert.True(leftFire >= 0.75, $"fired up before it went: {leftFire:0.00}");
         var lockup = n.Lockup;
         Assert.Equal(HoldoutState.Freed, lockup.State);

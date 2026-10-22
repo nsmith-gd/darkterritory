@@ -354,6 +354,181 @@ public static partial class TownKit
         }
     }
 
+    /// <summary>
+    /// The tints over the boards' own colour a house's dresser and sideboard wear (note 760): their doors' worn milk paint, a
+    /// muddy olive gone grey; the carcass stained dark; the dark of inside one; its shelves.
+    /// </summary>
+    public static readonly Vector3 Painted = new(0.72f, 0.78f, 0.6f), Stained = new(0.7f, 0.55f, 0.42f), Inside = new(0.06f, 0.05f, 0.04f),
+        Shelf = new(0.65f, 0.52f, 0.4f);
+
+    // The dresser's and the sideboard's fronts (note 760), shut in the cooked house and swung open by the scene once searched
+    // (GreyboxScene.SearchedSpots, FrontPiece): their doors' heights off the boards, the frames round their panels, how far
+    // in from the sides and apart in the middle they are; the sideboard's drawer; the panels a shade darker than the frames;
+    // the grain, a board to a door. Not design numbers: a kitchen dresser and a sideboard.
+    public static readonly (float From, float To)[] DresserDoors = [(0.12f, 0.86f), (0.99f, 1.76f)];
+    public const float DoorFrame = 0.065f, DoorInset = 0.03f, DoorGap = 0.006f, DrawerFrom = 0.64f, DrawerTo = 0.8f, DrawerFrame = 0.035f,
+        DrawerInset = 0.04f, PanelShade = 0.8f, FrameShade = 1.0f, PanelTile = 1.2f, FrontTile = 2.5f, CarcassTile = 2f;
+
+    /// <summary>The jackpot house's door's paint (note 719): oxblood, gone dull.</summary>
+    public static readonly Vector3 Oxblood = new(0.42f, 0.09f, 0.07f);
+
+    /// <summary>
+    /// An open house's door (notes 401, 719, 941), in its own frame: x across from its hinge at 0 to its free edge at
+    /// <paramref name="width"/> (with <paramref name="mirror"/>, the hinge at <paramref name="width"/> and the free edge at
+    /// 0), y up from 0 to <paramref name="height"/>, z through it, its outside face out along +z and its leaf
+    /// 2·<see cref="DoorThick"/> thick about z = 0. The director, 20 Oct: "there's no texture for the abandoned village
+    /// doors, so it looks like I'm picking nothing". A village's is boards of the houses' grey deal, ledged and braced on the
+    /// room's side, strap hinges and a ring latch of rusted iron on the outside. The jackpot house's (<paramref name="better"/>)
+    /// is panelled and painted oxblood with a brass knob and knocker, and its lock is what the wrench picks: a brass plate
+    /// under the knob with its keyhole black in it, and while it's <paramref name="locked"/> a barrel bolt shot into the
+    /// frame with a padlock hung through it.
+    /// </summary>
+    public static MeshAsset HouseDoor(Look? look, float width, float height, bool better, bool locked, bool mirror)
+    {
+        var k = new Kit(look, better ? 64 : 63);
+        const float T = DoorThick;
+        float X(float a) => mirror ? width - a : a;
+        void At(float a, float y, float z, float hx, float hy, float hz) => k.BoxAt(new Vector3(X(a), y, z), new Vector3(hx, hy, hz));
+        // An upright piece, its grain up it: built lying along x (the texture's grain) and stood up.
+        void Upright(float a, float y, float z, float hx, float hy, float hz) =>
+            k.With(Matrix4x4.CreateRotationZ(MathF.PI / 2) * Kit.At(X(a), y, z), () => k.BoxAt(Vector3.Zero, new Vector3(hy, hx, hz)));
+        if (better)
+        {
+            // Stiles and rails round four sunk panels, the panels a shade darker, the whole painted and worn.
+            k.Use("wood_floor", Oxblood, 0.8f, 0.08f, tile: PanelTile).Tint = Oxblood * PanelShade;
+            At(width / 2, height / 2, 0, width / 2 - 0.004f, height / 2 - 0.004f, T * 0.6f);
+            k.Use("wood_grey", Oxblood, 0.75f, 0.08f, tile: FrontTile).Tint = Oxblood;
+            float stile = 0.11f, rail = 0.13f, mid = height * 0.52f;
+            foreach (float a in new[] { stile / 2, width / 2, width - stile / 2 })
+                Upright(a, height / 2, 0, a == width / 2 ? 0.04f : stile / 2, height / 2, T);
+            foreach (float y in new[] { rail / 2, mid, height - rail / 2 })
+                At(width / 2, y, 0, width / 2, y == mid ? 0.08f : rail / 2, T);
+            // Raised fields in the panels, outside and in.
+            k.Use("wood_floor", Oxblood, 0.8f, 0.08f, tile: PanelTile).Tint = Oxblood * 0.9f;
+            float pw = (width - 2 * stile - 0.08f) / 2;
+            foreach (float a in new[] { stile + pw / 2, width - stile - pw / 2 })
+                foreach (var (y0, y1) in new[] { (rail, mid - 0.08f), (mid + 0.08f, height - rail) })
+                    foreach (float z in new[] { 1f, -1f })
+                        At(a, (y0 + y1) / 2, z * T * 0.75f, pw / 2 - 0.035f, (y1 - y0) / 2 - 0.035f, T * 0.3f);
+            k.Use("brass", Palette.TarnishedBrass, 0.55f, 0.6f, tile: 0.3f);
+            // The knob and its rose, the knocker on the top rail, and the lock: its plate, keyhole and all.
+            float knob = width - 0.09f;
+            k.Cylinder(new Vector3(X(knob), 1.0f, T), new Vector3(X(knob), 1.0f, T + 0.05f), 0.012f, 8, radiusB: 0.03f);
+            k.Cylinder(new Vector3(X(knob), 1.0f, T), new Vector3(X(knob), 1.0f, T + 0.008f), 0.035f, 10);
+            At(width / 2, height - 0.42f, T + 0.012f, 0.05f, 0.07f, 0.012f);
+            k.Cylinder(new Vector3(X(width / 2) - 0.05f, height - 0.5f, T + 0.03f), new Vector3(X(width / 2) + 0.05f, height - 0.5f, T + 0.03f), 0.012f, 6);
+            At(knob, 0.86f, T + 0.006f, 0.035f, 0.075f, 0.006f);
+            k.Use("rust_heavy", Palette.SootBlack, 0.95f, 0, tile: 1).Tint = Palette.SootBlack * 0.3f;
+            k.Cylinder(new Vector3(X(knob), 0.885f, T + 0.012f), new Vector3(X(knob), 0.885f, T + 0.0125f), 0.011f, 8);
+            At(knob, 0.855f, T + 0.0122f, 0.0045f, 0.022f, 0.0005f);
+            if (locked)
+            {
+                // A barrel bolt shot into the frame (the doorway's jamb hides where it goes), padlocked through its staple.
+                k.Use("rust_heavy", Palette.IronGrey, 0.9f, 0.3f, tile: 1);
+                float bolt = 1.24f, staple = width - 0.1f;
+                At(width - 0.17f, bolt, T + 0.006f, 0.17f, 0.035f, 0.006f);
+                k.Cylinder(new Vector3(X(width - 0.32f), bolt, T + 0.022f), new Vector3(X(width + 0.02f), bolt, T + 0.022f), 0.011f, 8);
+                At(staple, bolt, T + 0.03f, 0.012f, 0.045f, 0.018f);
+                // The padlock hung from the staple: its shackle and its brass body, the keyhole black in it.
+                foreach (float sx in new[] { -0.025f, 0.025f })
+                    k.Rod(new Vector3(X(staple + sx), bolt - 0.075f, T + 0.04f), new Vector3(X(staple + sx), bolt - 0.005f, T + 0.04f), 0.007f);
+                k.Rod(new Vector3(X(staple - 0.025f), bolt - 0.005f, T + 0.04f), new Vector3(X(staple + 0.025f), bolt - 0.005f, T + 0.04f), 0.007f);
+                k.Use("brass", Palette.TarnishedBrass, 0.7f, 0.45f, tile: 0.3f);
+                At(staple, bolt - 0.12f, T + 0.04f, 0.042f, 0.05f, 0.017f);
+                k.Use("rust_heavy", Palette.SootBlack, 0.95f, 0, tile: 1).Tint = Palette.SootBlack * 0.3f;
+                At(staple, bolt - 0.13f, T + 0.058f, 0.005f, 0.016f, 0.001f);
+            }
+            return k.Build(locked ? "house-door-locked" : "house-door-better");
+        }
+        // Boards side by side, each its own width, a hair apart.
+        k.Use("wood_grey", new Vector3(0.42f, 0.34f, 0.24f), 0.9f, 0.03f, tile: 1);
+        int boards = 5;
+        for (int i = 0; i < boards; i++)
+        {
+            float a0 = width * i / boards, a1 = width * (i + 1) / boards;
+            k.Shade(i % 2 == 0 ? 1f : 0.92f);
+            Upright((a0 + a1) / 2, height / 2 - (i % 3) * 0.004f, 0, (a1 - a0) / 2 - 0.003f, height / 2 - (i % 3) * 0.004f, T);
+            k.Shade(i % 2 == 0 ? 1f : 1 / 0.92f);
+        }
+        // On the room's side: the ledges top and bottom and the brace between them, rising from the hinge's foot.
+        k.Shade(0.85f);
+        foreach (float y in new[] { 0.3f, height - 0.3f })
+            At(width / 2, y, -T - 0.012f, width / 2 - 0.04f, 0.06f, 0.012f);
+        var foot = new Vector3(X(0.08f), 0.36f, -T - 0.012f);
+        var head = new Vector3(X(width - 0.08f), height - 0.36f, -T - 0.012f);
+        k.Cylinder(foot, head, 0.05f, 4, smooth: false);
+        // Strap hinges and the ring latch, rusted iron, on the outside.
+        k.Use("rust_heavy", Palette.IronGrey, 0.9f, 0.3f, tile: 1);
+        foreach (float y in new[] { 0.3f, height - 0.3f })
+        {
+            At(width * 0.32f, y, T + 0.004f, width * 0.32f, 0.022f, 0.004f);
+            k.Cylinder(new Vector3(X(0.012f), y - 0.06f, T + 0.006f), new Vector3(X(0.012f), y + 0.06f, T + 0.006f), 0.012f, 6);
+        }
+        float latch = width - 0.1f;
+        At(latch, 1.0f, T + 0.004f, 0.025f, 0.06f, 0.004f);
+        for (int i = 0; i < 8; i++)
+        {
+            float a0 = i * MathF.Tau / 8, a1 = (i + 1) * MathF.Tau / 8;
+            k.Rod(new Vector3(X(latch) + 0.04f * MathF.Sin(a0), 0.93f - 0.04f * MathF.Cos(a0), T + 0.014f),
+                new Vector3(X(latch) + 0.04f * MathF.Sin(a1), 0.93f - 0.04f * MathF.Cos(a1), T + 0.014f), 0.005f);
+        }
+        return k.Build("house-door");
+    }
+
+    /// <summary>Half an open house's door's thickness (m): a plank door's boards, an inch and a bit.</summary>
+    public const float DoorThick = 0.025f;
+
+    /// <summary>
+    /// A door or a drawer front on its own (note 760; the one a searched dresser's swung open on), in its own frame: x across
+    /// from 0 to <paramref name="width"/>, y up from 0 to <paramref name="height"/>, its back on z = 0 and its face out along
+    /// +z. As TownKit's shut ones: a frame of stiles and rails round its panel, set back, in the worn milk paint; its knob at
+    /// (<paramref name="knobX"/>, <paramref name="knobY"/>); with <paramref name="drawer"/>, the drawer's box behind it.
+    /// </summary>
+    public static MeshAsset FrontPiece(Look? look, float width, float height, float frame, float knobX, float knobY, float drawer = 0)
+    {
+        var k = new Kit(look, 61);
+        k.Use("wood_floor", Painted, 0.85f, 0.05f, tile: PanelTile).Tint = Painted * PanelShade;
+        k.Box(new Vector3(0.004f, 0.004f, 0), new Vector3(width - 0.004f, height - 0.004f, 0.008f));
+        k.Use("wood_grey", Painted, 0.8f, 0.05f, tile: FrontTile).Tint = Painted * FrameShade;
+        k.Box(new Vector3(0, 0, 0.008f), new Vector3(width, frame, 0.018f));
+        k.Box(new Vector3(0, height - frame, 0.008f), new Vector3(width, height, 0.018f));
+        k.Box(new Vector3(0, frame, 0.008f), new Vector3(frame, height - frame, 0.018f));
+        k.Box(new Vector3(width - frame, frame, 0.008f), new Vector3(width, height - frame, 0.018f));
+        if (drawer > 0)
+        {
+            // Its sides and bottom, raw deal, and the dark in it.
+            k.Use("wood_grey", Shelf, 0.85f, 0.03f, tile: FrontTile).Tint = Shelf * 1.3f;
+            k.Box(new Vector3(0.01f, 0.01f, -drawer), new Vector3(0.022f, height - 0.02f, 0));
+            k.Box(new Vector3(width - 0.022f, 0.01f, -drawer), new Vector3(width - 0.01f, height - 0.02f, 0));
+            k.Box(new Vector3(0.01f, 0.01f, -drawer), new Vector3(width - 0.01f, 0.022f, 0));
+            k.Box(new Vector3(0.01f, 0.01f, -drawer), new Vector3(width - 0.01f, height - 0.02f, -drawer + 0.012f));
+        }
+        k.Use("rust_heavy", Palette.IronGrey, 0.7f, 0.35f, tile: 1);
+        k.Cylinder(new Vector3(knobX, knobY, 0.018f), new Vector3(knobX, knobY, 0.036f), 0.012f, 6, radiusB: 0.016f);
+        return k.Build("furniture-front");
+    }
+
+    /// <summary>
+    /// What a searched dresser shows where its doors were (note 760), in its own frame: x across its face (its middle at 0), y up
+    /// off the boards, z out of it: the dark inside, out past its shut doors' knobs (the cooked house still has them), its two
+    /// halves' shelves and the worktop's ledge between them, catching a lamp.
+    /// </summary>
+    public static MeshAsset DresserInside(Look? look)
+    {
+        var k = new Kit(look, 62);
+        float half = (float)Sim.Run.StopWalls.CupboardWidth - DoorInset;
+        k.Use("wood_grey", Inside, 0.95f, 0, tile: FrontTile).Tint = Inside;
+        foreach (var (h0, h1) in DresserDoors)
+            k.Box(new Vector3(-half, h0, 0), new Vector3(half, h1, 0.004f));
+        k.Use("wood_grey", Shelf, 0.85f, 0.03f, tile: FrontTile).Tint = Shelf;
+        foreach (var (h0, h1) in DresserDoors)
+        {
+            float shelf = h0 + (h1 - h0) * 0.48f;
+            k.Box(new Vector3(-half, shelf - 0.012f, 0.004f), new Vector3(half, shelf + 0.012f, 0.03f));
+        }
+        return k.Build("dresser-inside");
+    }
+
     /// <param name="clutter">What a ransack left about it (StopWalls.ClutterOf).</param>
     /// <param name="nest">Where the Gaunt nests in it, if it does (StopWalls.Nest).</param>
     public static void OpenHouse(Kit k, Sim.Stops.StopBuilding b, IEnumerable<Sim.Stops.StopContainer> kept,
@@ -455,7 +630,7 @@ public static partial class TownKit
                 k.Use("rust_heavy", Palette.IronGrey, 0.7f, 0.4f);
                 k.Lathe(at + new Vector3(0, height - 0.12f, 0), [new(0.07f, 0), new(0.08f, 0.03f), new(0.06f, 0.06f)], 8, smooth: false);
                 k.Lathe(at + new Vector3(0, height + 0.06f, 0), [new(0.06f, 0), new(0.04f, 0.05f), new(0.015f, 0.1f)], 8, smooth: false);
-                k.Use("lamp_lens", Palette.LampAmber * 0.5f, 0, 0, tile: 0.25f);
+                k.Use("lantern_pane", Palette.LampAmber * 0.5f, 0, 0, tile: 0.25f);
                 k.Emissive = 1;
                 k.Cylinder(at + new Vector3(0, height - 0.06f, 0), at + new Vector3(0, height + 0.06f, 0), 0.045f, 8, caps: false);
                 k.Emissive = 0;
@@ -474,21 +649,95 @@ public static partial class TownKit
             }
         }
 
+        // A piece of furniture in its own frame (note 760): u out from the wall it stands against into the room (its face at
+        // +depth), w across its face, h up off the boards; drawn in the building's frame by which way it faces.
+        void Piece(double cx, double cy, double fx, double fy, double u, double w, double hu, double hw, float h0, float h1) =>
+            Box(cx + fx * u - fy * w, cy + fy * u + fx * w, Math.Abs(fx) * hu + Math.Abs(fy) * hw, Math.Abs(fy) * hu + Math.Abs(fx) * hw, Floor + h0, Floor + h1);
+        Vector3 PieceAt(double cx, double cy, double fx, double fy, double u, double w, float h) => K(cx + fx * u - fy * w, cy + fy * u + fx * w, Floor + h);
+        // A door or a drawer front on a face at depth d (as FrontPiece draws one on its own: a searched one swung open): a
+        // frame of stiles and rails round its panel, set back, from h0 to h1 and w0 to w1 across.
+        void Front(double cx, double cy, double fx, double fy, double d, double w0, double w1, float h0, float h1, float frame)
+        {
+            double wm = (w0 + w1) / 2, hw = (w1 - w0) / 2;
+            k.Use("wood_floor", Painted, 0.85f, 0.05f, tile: PanelTile).Tint = Painted * PanelShade;
+            Piece(cx, cy, fx, fy, d + 0.004, wm, 0.004, hw - 0.004, h0 + 0.004f, h1 - 0.004f);
+            k.Use("wood_grey", Painted, 0.8f, 0.05f, tile: FrontTile).Tint = Painted * FrameShade;
+            Piece(cx, cy, fx, fy, d + 0.013, wm, 0.005, hw, h0, h0 + frame);
+            Piece(cx, cy, fx, fy, d + 0.013, wm, 0.005, hw, h1 - frame, h1);
+            Piece(cx, cy, fx, fy, d + 0.013, w0 + frame / 2, 0.005, frame / 2, h0 + frame, h1 - frame);
+            Piece(cx, cy, fx, fy, d + 0.013, w1 - frame / 2, 0.005, frame / 2, h0 + frame, h1 - frame);
+        }
+        void Knob(double cx, double cy, double fx, double fy, double d, double w, float h)
+        {
+            k.Use("rust_heavy", Palette.IronGrey, 0.7f, 0.35f, tile: 1);
+            k.Cylinder(PieceAt(cx, cy, fx, fy, d + 0.018, w, h), PieceAt(cx, cy, fx, fy, d + 0.036, w, h), 0.012f, 6, radiusB: 0.016f);
+        }
+        // The kitchen dresser a find's kept in (the director, 14 Oct, `docs/playtest/2026-10-14.md` line 21: "Cupboards that
+        // definitely need a redesign"): on a plinth, two panelled doors below a worktop, two over it, a cornice; iron knobs
+        // and hinges; the carcass dark, its doors a worn milk paint. Its face stays inside the sim's 1.0 x 0.5 x 1.9 box but
+        // for the worktop's and the cornice's lip and the knobs (the scene's searched one covers them, GreyboxScene).
+        void Dresser(double cx, double cy, double fx, double fy)
+        {
+            const double D = Sim.Run.StopWalls.CupboardDepth, W = Sim.Run.StopWalls.CupboardWidth;
+            k.Use("wood_grey", Stained, 0.9f, 0.02f, tile: CarcassTile).Tint = Stained * 0.65f;
+            Piece(cx, cy, fx, fy, -0.01, 0, D - 0.04, W - 0.03, 0, 0.08f);
+            k.Use("wood_grey", Stained, 0.85f, 0.05f, tile: CarcassTile).Tint = Stained;
+            Piece(cx, cy, fx, fy, -0.005, 0, D - 0.005, W, 0.08f, 1.8f);
+            // The worktop's edge between the two halves, and the cornice: proud of the face.
+            k.Use("wood_grey", Stained, 0.8f, 0.08f, tile: CarcassTile).Tint = Stained * 1.15f;
+            Piece(cx, cy, fx, fy, 0.01, 0, D + 0.01, W + 0.015, 0.9f, 0.95f);
+            Piece(cx, cy, fx, fy, 0.012, 0, D + 0.012, W + 0.02, 1.8f, 1.86f);
+            Piece(cx, cy, fx, fy, 0.02, 0, D + 0.02, W + 0.03, 1.86f, 1.9f);
+            foreach (double s in new[] { -1.0, 1.0 })
+            {
+                double w0 = s < 0 ? -W + DoorInset : DoorGap, w1 = s < 0 ? -DoorGap : W - DoorInset;
+                foreach (var (h0, h1) in DresserDoors)
+                    Front(cx, cy, fx, fy, D - 0.005, w0, w1, h0, h1, DoorFrame);
+                Knob(cx, cy, fx, fy, D - 0.005, s * 0.06, 0.6f);
+                Knob(cx, cy, fx, fy, D - 0.005, s * 0.06, 1.18f);
+                // The hinges at the outer edges, two a door.
+                k.Use("rust_heavy", Palette.RustRed, 0.8f, 0.3f, tile: 1).Tint = new Vector3(0.7f, 0.55f, 0.5f);
+                foreach (float h in new[] { 0.2f, 0.74f, 1.08f, 1.64f })
+                    Piece(cx, cy, fx, fy, D + 0.012, s * (W - 0.02), 0.004, 0.012, h, h + 0.05f);
+            }
+        }
+        // The low cabinet a find's kept in: a sideboard on a plinth, a wide drawer under its top (where the scene's searched
+        // one pulls it out), two panelled doors under that, the top lipped.
+        void Sideboard(double cx, double cy, double fx, double fy)
+        {
+            const double D = Sim.Run.StopWalls.CabinetDepth, W = Sim.Run.StopWalls.CabinetWidth;
+            k.Use("wood_grey", Stained, 0.9f, 0.02f, tile: CarcassTile).Tint = Stained * 0.65f;
+            Piece(cx, cy, fx, fy, -0.01, 0, D - 0.035, W - 0.025, 0, 0.07f);
+            k.Use("wood_grey", Stained, 0.85f, 0.05f, tile: CarcassTile).Tint = Stained;
+            Piece(cx, cy, fx, fy, -0.005, 0, D - 0.005, W, 0.07f, 0.95f);
+            k.Use("wood_grey", Stained, 0.8f, 0.08f, tile: CarcassTile).Tint = Stained * 1.15f;
+            Piece(cx, cy, fx, fy, 0.012, 0, D + 0.012, W + 0.02, 0.95f, 1.0f);
+            Front(cx, cy, fx, fy, D - 0.005, -W + DrawerInset, W - DrawerInset, DrawerFrom, DrawerTo, DrawerFrame);
+            Knob(cx, cy, fx, fy, D - 0.005, -0.18, 0.72f);
+            Knob(cx, cy, fx, fy, D - 0.005, 0.18, 0.72f);
+            foreach (double s in new[] { -1.0, 1.0 })
+            {
+                Front(cx, cy, fx, fy, D - 0.005, s < 0 ? -W + DoorInset : DoorGap, s < 0 ? -DoorGap : W - DoorInset, 0.1f, 0.6f, 0.055f);
+                Knob(cx, cy, fx, fy, D - 0.005, s * 0.05, 0.42f);
+            }
+        }
+
         // What the finds are kept in, each where the sim puts its find (its thin side to the wall it stands against).
         foreach (var c in kept)
         {
             // The find lies out in the room; a cupboard stands behind it against the back wall, a cabinet against the side,
             // as solid as the walls (StopWalls.Furniture; the scene draws a searched one opened).
-            var (x, y, faceX, _) = Sim.Run.StopWalls.Kept(b, c.Kind, c.Index);
+            var (x, y, faceX, faceY) = Sim.Run.StopWalls.Kept(b, c.Kind, c.Index);
             // The boards run the way the spot faces into the room (a plain house's toward its door).
             bool endOn = Math.Abs(faceX) > 0.5;
             switch (c.Kind)
             {
                 case Sim.Stops.ContainerKind.Cupboard or Sim.Stops.ContainerKind.Cabinet:
                     var piece = Sim.Run.StopWalls.Furniture(b, [c]).Single();
-                    bool cupboard = c.Kind == Sim.Stops.ContainerKind.Cupboard;
-                    k.Use("wood_grey", cupboard ? Palette.DeepBrown : Palette.RustRed, 0.8f, cupboard ? 0.05f : 0.1f, tile: 1);
-                    Box(piece.X, piece.Y, piece.HalfX, piece.HalfY, Floor, cupboard ? 1.9f : 1.0f);
+                    if (c.Kind == Sim.Stops.ContainerKind.Cupboard)
+                        Dresser(piece.X, piece.Y, faceX, faceY);
+                    else
+                        Sideboard(piece.X, piece.Y, faceX, faceY);
                     break;
                 case Sim.Stops.ContainerKind.Cellar:
                     k.Use("wood_grey", Palette.SootBlack, 0.9f, 0, tile: 1);

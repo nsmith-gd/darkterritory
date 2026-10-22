@@ -46,7 +46,21 @@ public enum SurfaceKind : byte { Roof, Deck, Coupler }
 /// <summary>What a solid is, so presentation can draw and colour it. Collision ignores this, but for an open roof hatch (T99).</summary>
 /// <summary><see cref="CrewLocker"/> is one of the kit car's row of crew lockers (ARCHITECTURE §8 note 173); <see cref="Locker"/> the guard van's tool locker.</summary>
 /// <summary><see cref="Stove"/> and <see cref="Bunk"/> are a crew car's (note 184): its stove, and the berths down its right side.</summary>
-public enum PartKind : byte { Body, Chassis, Boiler, Stack, CabWall, CabRoof, Tender, Coupler, GunMount, Wall, Cargo, Locker, Steps, RunningBoard, Hatch, CrewLocker, Stove, Bunk, Firebox }
+/// <summary>
+/// <see cref="ChartTable"/>, <see cref="Gallery"/> (its raised floor and treads) and <see cref="Bench"/> are the big cab's, the
+/// crew car's (note 716); <see cref="BbqDeck"/>, <see cref="Rail"/>, <see cref="Cooler"/> and <see cref="Grill"/> are the BBQ
+/// deck's (note 698).
+/// </summary>
+public enum PartKind : byte
+{
+    Body, Chassis, Boiler, Stack, CabWall, CabRoof, Tender, Coupler, GunMount, Wall, Cargo, Locker, Steps, RunningBoard, Hatch, CrewLocker, Stove, Bunk, Firebox,
+    ChartTable, Gallery, Bench,
+    BbqDeck, Rail, Cooler, Grill,
+    /// <summary>A piece of furniture the art draws as itself (the gramophone's table, note 715): solid, never drawn as a box.</summary>
+    Furniture,
+    /// <summary>A tread of the ramp up the engine's coupler plate from car 1's floor to its deck (note 905), drawn as one slope.</summary>
+    Ramp
+}
 
 /// <summary>Where a gun is bolted on, and which way it faces in the car's frame (−Z forward, +Z back).</summary>
 /// <summary>
@@ -87,6 +101,22 @@ public readonly record struct Solid(Box Box, SurfaceKind Top, PartKind Part)
 public readonly record struct Ladder(Double3 Foot, double Top, Double3 Inward, double Over = 0);
 
 /// <summary>
+/// A ladder standing in the world, not on a car (note 973: a houseboat's, leant up against its bow): its foot on the ground
+/// and its top at the deck's edge, in world coordinates; which way is in over the top (level); and how far in past the top
+/// a climber steps off. Grabbed and climbed as a car's is (<c>PlayerMotor</c>), the climber up along it as it leans.
+/// </summary>
+public readonly record struct WorldLadder(Double3 Foot, Double3 Top, Double3 Inward, double Onto)
+{
+    /// <summary>The point on it at height <paramref name="y"/> (world), held between its foot and its top.</summary>
+    public Double3 At(double y)
+    {
+        double rise = Top.Y - Foot.Y;
+        double t = rise > 1e-6 ? Math.Clamp((y - Foot.Y) / rise, 0, 1) : 0;
+        return Foot + (Top - Foot) * t;
+    }
+}
+
+/// <summary>
 /// <see cref="Coal"/> is the tender's coal face, where a hand fills the shovel (T29). <see cref="Locker"/> is a crew locker's
 /// door (its <see cref="Interactable.Index"/> the locker's), worked like a car door and wanting facing as one does.
 /// </summary>
@@ -95,7 +125,11 @@ public readonly record struct Ladder(Double3 Foot, double Top, Double3 Inward, d
 /// <see cref="Whistle"/> is the whistle cord's handle (GDD §12; note 264): Use held there blows the engine's whistle, and
 /// only when it's looked at (<see cref="CrewActions.NearestInteractable"/>), so nobody pulls it reaching for the firebox.
 /// </remarks>
-public enum InteractableKind : byte { Firebox, Vent, Handbrake, Door, Coal, Sandbox, Hatch, ToolRack, Locker, Points, Whistle }
+/// <remarks>
+/// <see cref="Chair"/>, <see cref="Cooler"/> and <see cref="Grill"/> are on the BBQ deck (note 698): a Muskoka chair to sit in
+/// (<see cref="Interactable.Index"/> which), the cooler of beers, the BBQ on its stand.
+/// </remarks>
+public enum InteractableKind : byte { Firebox, Vent, Handbrake, Door, Coal, Sandbox, Hatch, ToolRack, Locker, Points, Whistle, Chair, Cooler, Grill, Gramophone, Hammock, HotTub, Launcher, Bench, Bar }
 
 /// <summary>
 /// A thing a player uses by standing near it and holding Use. <see cref="Index"/> says which door. <see cref="Aim"/> is how
@@ -138,8 +172,33 @@ public readonly record struct LockerBay(int Index, Box Box, string Name)
     public Double3 Front => new(Facing > 0 ? Box.Max.X : Box.Min.X, Box.Min.Y, (Box.Min.Z + Box.Max.Z) / 2);
 }
 
-/// <summary>A hinged door: solid while shut. <see cref="Index"/> is its bit in <see cref="Vehicle.DoorsOpen"/>.</summary>
-public readonly record struct Door(Box Box, int Index);
+/// <summary>
+/// The BBQ deck's things in the engine's frame (note 698): each chair's seat (where its sitter's feet are; they face down
+/// the line, −Z), the cooler's middle and the grill's, on the deck; and the deck's front edge (Z).
+/// </summary>
+public sealed record BbqLayout(IReadOnlyList<Double3> Chairs, Double3 Cooler, Double3 Grill, double Front);
+
+/// <summary>
+/// The dining car's room (upgrades.md §8.5, note 959), in its frame: the table laid for eight down the middle, the bar's
+/// counter across its rear end, where you stand to order (<see cref="Bar"/>, the bar's <see cref="InteractableKind.Bar"/>).
+/// </summary>
+public sealed record DiningLayout(Box Table, Box Counter, Double3 Bar);
+
+/// <summary>A whimsy's place to lie or soak (note 744): the hammock, the hot tub; or a big cab's bench seat (note 905).</summary>
+public enum LoungeKind : byte { Hammock, HotTub, Bench }
+
+/// <summary>
+/// Somewhere to lounge that isn't a Muskoka chair (note 744): where a crewmate's set in it (their feet's place in the car's
+/// frame) and the way they face (a player's yaw: −Z at 0).
+/// </summary>
+public readonly record struct Lounge(LoungeKind Kind, Double3 At, double Yaw);
+
+/// <summary>
+/// A door: solid while shut. <see cref="Index"/> is its bit in <see cref="Vehicle.DoorsOpen"/>. Drawn open, a side door's leaf
+/// steps <see cref="Out"/> m out from its wall and slides its own width along it, back (+Z, <see cref="Slide"/> 1) or forward
+/// (−1): the engine's cab side doors (note 856) slide clear of the cab's rail and away from its windows.
+/// </summary>
+public readonly record struct Door(Box Box, int Index, int Slide = 1, double Out = 0.12);
 
 /// <summary>
 /// Greybox collision for one car in its own frame: solids to stand on and bump into, ladders,
@@ -173,6 +232,22 @@ public sealed record CarShape(Box Bounds, IReadOnlyList<Solid> Solids, IReadOnly
     public const double HatchLookDegrees = 35;
     /// <summary>A crew car's stove (note 184), standing on its floor: the heat a crew car has of its own.</summary>
     public Box? Stove { get; init; }
+    /// <summary>The BBQ deck on the engine's front (note 698), where it's fitted: its chairs, its cooler and its grill.</summary>
+    public BbqLayout? Bbq { get; init; }
+    /// <summary>The dining car's table and bar (note 959), where it's the dining car.</summary>
+    public DiningLayout? Dining { get; init; }
+    /// <summary>The hammock and the hot tub's seats, where fitted (note 744); a <see cref="InteractableKind.Hammock"/> or <see cref="InteractableKind.HotTub"/>'s Index is one.</summary>
+    public IReadOnlyList<Lounge> Lounges { get; init; } = [];
+
+    /// <summary>
+    /// The middle of the engine's footplate, the work at the cab's front (note 716): where the 5 m cab's middle was, and what
+    /// comes into the cab comes down onto (a Climber over the roof, the Lamplighter at the brake). The crew car behind it is
+    /// the crew's. On anything but the engine, the origin.
+    /// </summary>
+    public Double3 FootplateMiddle => Cab is { } c ? c.Centre with { Z = Math.Min(c.Centre.Z, c.Min.Z + FootplateHalf) } : default;
+
+    /// <summary>Half the footplate's length (m): half the cab it was before note 716.</summary>
+    public const double FootplateHalf = 2.5;
 
     public double HalfLength => Bounds.Max.Z;
     public double HalfWidth => Bounds.Max.X;
@@ -180,6 +255,21 @@ public sealed record CarShape(Box Bounds, IReadOnlyList<Solid> Solids, IReadOnly
     public double RoofHeight => Bounds.Max.Y;
 
     /// <summary>The highest walkable surface over a point in the car's frame (at or below <paramref name="maxY"/>), and what kind it is.</summary>
+    /// <summary>
+    /// The highest footing at (x, z) no higher than <paramref name="maxY"/> as it is on <paramref name="v"/> now: a cargo car's
+    /// heap only as high as what's poured in, and not at all when nothing has been (<see cref="Solid.Present"/>). Note 708: a
+    /// casting set down through a hatch came to rest on the empty car's heap at its full height, in the air.
+    /// </summary>
+    public (double Top, SurfaceKind Kind)? TopAt(double x, double z, Vehicle v, double maxY = double.MaxValue)
+    {
+        (double, SurfaceKind)? best = null;
+        var p = new Double3(x, 0, z);
+        foreach (var solid in Solids)
+            if (solid.Present(v) && solid.BoxIn(v) is var box && box.ContainsXZ(p) && box.Max.Y <= maxY + 1e-6 && (best is null || box.Max.Y > best.Value.Item1))
+                best = (box.Max.Y, solid.Top);
+        return best;
+    }
+
     public (double Top, SurfaceKind Kind)? TopAt(double x, double z, double maxY = double.MaxValue)
     {
         (double, SurfaceKind)? best = null;
@@ -204,6 +294,7 @@ public sealed record CarShape(Box Bounds, IReadOnlyList<Solid> Solids, IReadOnly
         },
         VehicleKind.Guard => Guard(g, hasCarBehind) with { RoofRail = (-g.CarLength / 2 + RailEnd, g.CarLength / 2 - RailEnd) },
         VehicleKind.Utility => Utility(g, hasCarBehind) with { RoofRail = (-g.CarLength / 2 + RailEnd, g.CarLength / 2 - RailEnd) },
+        VehicleKind.Dining => DiningRoom(g, hasCarBehind) with { RoofRail = (-g.CarLength / 2 + RailEnd, g.CarLength / 2 - RailEnd) },
         _ => Car(g, hasCarBehind) with { RoofRail = (-g.CarLength / 2 + RailEnd, g.CarLength / 2 - RailEnd) },
     };
 
@@ -271,6 +362,30 @@ public sealed record CarShape(Box Bounds, IReadOnlyList<Solid> Solids, IReadOnly
     }
 
     /// <summary>
+    /// The dining car (upgrades.md §8.5, note 959; the director, 13 Oct: "If we have a dining car, we should be able to order
+    /// drinks at the bar"): a cargo car converted, walled like the crew car (no side doors, no freight). Its table laid for
+    /// eight stands down the middle right of the aisle, the aisle from end door to end door on the left (the end doors stand
+    /// left of centre); the bar's counter is across its rear end on the right, the aisle past it to the rear door, and Use at
+    /// the counter's front orders a drink.
+    /// </summary>
+    static CarShape DiningRoom(GeometryTuning g, bool hasCarBehind)
+    {
+        if (g.Interior is not { } i)
+            return SolidCar(g, hasCarBehind);
+        var car = Shell(g, i, hasCarBehind, cargo: false);
+        var room = car.Interior!.Value;
+        double floor = i.FloorHeight;
+        var solids = car.Solids.ToList();
+        var table = new Box(new Double3(0.05, floor, room.Min.Z + 2.6), new Double3(0.85, floor + 0.76, room.Max.Z - 4.6));
+        var counter = new Box(new Double3(0.15, floor, room.Max.Z - 2.2), new Double3(room.Max.X, floor + 1.08, room.Max.Z - 1.6));
+        solids.Add(new Solid(table, SurfaceKind.Deck, PartKind.Furniture));
+        solids.Add(new Solid(counter, SurfaceKind.Deck, PartKind.Furniture));
+        var bar = new Double3((counter.Min.X + counter.Max.X) / 2, floor, counter.Min.Z - 0.35);
+        var interactables = car.Interactables.Append(new Interactable(InteractableKind.Bar, bar, 0.9)).ToList();
+        return car with { Solids = solids, Interactables = interactables, Dining = new DiningLayout(table, counter, bar) };
+    }
+
+    /// <summary>
     /// The roof's brake wheel stands inboard of the end ladder's top: a reaching hand works it from the ladder (T29), and
     /// standing on the ladder you're just out of reach of it.
     /// </summary>
@@ -286,10 +401,121 @@ public sealed record CarShape(Box Bounds, IReadOnlyList<Solid> Solids, IReadOnly
     /// A car whose coupling behind is a Knotter (note 365): its plate gone, its body across the wider gap instead: a rope's
     /// width (<see cref="KnotWidth"/>) on the plate's line, from the car's end to the next car's, the same height.
     /// </summary>
-    public static CarShape Knotted(CarShape shape, GeometryTuning g, double knot)
+    public static CarShape Knotted(CarShape shape, GeometryTuning g, double knot) => KnottedShape(shape, g, knot);
+
+    /// <summary>
+    /// The engine with the BBQ deck on its front (ARCHITECTURE §8 note 698; the director, 13 Oct 2026: "an extended front car
+    /// cow catcher that has a deck, a couple muskoka chairs that can be sat in, a plastic cooler with beers, and a BBQ mounted
+    /// on a stand on the deck"): a plank deck <see cref="BbqTuning.DeckLength"/> m long ahead of the pilot, as wide as the
+    /// running boards and at their height, railed round its front and sides; the running boards run on forward along the
+    /// cab's sides onto it, the way out to it from the cab doorways, outside, at speed. The cooler and the grill are solid
+    /// (a walk round them); the chairs aren't (sat in, you're set in one). It lies beyond the engine's bounds, as the guard
+    /// van's rear platform does: the train's length is the train's (spec B.4).
+    /// </summary>
+    public static CarShape WithBbqDeck(CarShape shape, GeometryTuning g, BbqTuning bbq)
+    {
+        var e = g.Engine;
+        double w = g.RoofWidth / 2, l = shape.HalfLength, deck = e.DeckHeight, hw = w + e.RunningBoardWidth, front = -l - bbq.DeckLength;
+        double rail = bbq.RailHeight, post = 0.06;
+        var plan = EnginePlan.Of(g);
+        double boardFront = plan.DoorFront - e.RunningBoardAhead;
+        var solids = shape.Solids.ToList();
+        // (The landings outside the cab's side doors, note 856, are under the boards run on forward: one board, not two.)
+        solids.RemoveAll(s => s.Part == PartKind.RunningBoard && s.Box.Min.Z >= -l && s.Box.Max.Z <= boardFront + 1e-6);
+        // The deck on its cowcatcher, and the running boards run on to it past the cab's front.
+        solids.Add(new(new Box(new Double3(-hw, deck - 0.15, front), new Double3(hw, deck, -l)), SurfaceKind.Deck, PartKind.BbqDeck));
+        foreach (int side in new[] { -1, 1 })
+        {
+            var (x0, x1) = side < 0 ? (-hw, -w) : (w, hw);
+            solids.Add(new(new Box(new Double3(x0, deck - 0.1, -l), new Double3(x1, deck, boardFront)), SurfaceKind.Deck, PartKind.RunningBoard));
+            // Its side rail, from the front back to a step short of the running board's way on.
+            solids.Add(new(new Box(new Double3(side < 0 ? -hw : hw - post, deck, front), new Double3(side < 0 ? -hw + post : hw, deck + rail, -l - 0.6)), SurfaceKind.Deck, PartKind.Rail));
+        }
+        solids.Add(new(new Box(new Double3(-hw, deck, front), new Double3(hw, deck + rail, front + post)), SurfaceKind.Deck, PartKind.Rail));
+        // The two chairs out front, facing down the line; the cooler between them; the grill on its stand back by the cab, on
+        // the left, clear of the right-hand board's way on and of the chairs.
+        double seatZ = front + 1.0;
+        Double3[] chairs = [new(-0.95, deck, seatZ), new(0.95, deck, seatZ)];
+        var cooler = new Double3(0, deck, seatZ - 0.05);
+        var grill = new Double3(-1.15, deck, -l - 1.2);
+        solids.Add(new(Box.FromCentre(cooler + new Double3(0, 0.22, 0), new Double3(0.3, 0.22, 0.2)), SurfaceKind.Deck, PartKind.Cooler));
+        solids.Add(new(Box.FromCentre(grill + new Double3(0, 0.5, 0), new Double3(0.35, 0.5, 0.28)), SurfaceKind.Deck, PartKind.Grill));
+        var interactables = shape.Interactables.ToList();
+        for (int i = 0; i < chairs.Length; i++)
+            interactables.Add(new(InteractableKind.Chair, chairs[i], 0.75, i, Aim: 0.45));
+        // The cooler's lid from behind it, and the grill from behind it, facing down the line.
+        interactables.Add(new(InteractableKind.Cooler, cooler + new Double3(0, 0, 0.55), 0.7, Aim: 0.45));
+        interactables.Add(new(InteractableKind.Grill, grill + new Double3(0, 0, 0.6), 0.75, Aim: 1.0));
+        return shape with { Solids = solids, Interactables = interactables, Bbq = new BbqLayout(chairs, cooler, grill, front) };
+    }
+
+    /// <summary>
+    /// The guard van with the gramophone (note 715): its little table against the left wall (<see cref="Whimsy.Gramophone"/>),
+    /// solid, and wound from the aisle beside it.
+    /// </summary>
+    public static CarShape WithGramophone(CarShape shape)
+    {
+        if (shape.Interior is null)
+            return shape;
+        var at = Whimsy.Gramophone(shape);
+        var solids = shape.Solids.Append(new Solid(Box.FromCentre(at + new Double3(0, Whimsy.Table / 2, 0), new Double3(0.22, Whimsy.Table / 2, 0.22)),
+            SurfaceKind.Deck, PartKind.Furniture)).ToList();
+        var interactables = shape.Interactables.Append(new Interactable(InteractableKind.Gramophone, at + new Double3(0.6, 0, 0), 0.8, Aim: Whimsy.Table + 0.15)).ToList();
+        return shape with { Solids = solids, Interactables = interactables };
+    }
+
+    /// <summary>
+    /// The guard van with the hammock (note 744; docs/design/upgrades.md §7.4, "strung across a car end: lie in it, swinging"):
+    /// slung across the van's rear end inside, its middle a body's width off the floor, lain in across the car.
+    /// </summary>
+    public static CarShape WithHammock(CarShape shape)
+    {
+        if (shape.Interior is not { } room)
+            return shape;
+        var at = new Double3(0, room.Min.Y + 0.1, room.Max.Z - 0.85);
+        var lounges = shape.Lounges.Append(new Lounge(LoungeKind.Hammock, at, Math.PI / 2)).ToList();
+        var interactables = shape.Interactables.Append(new Interactable(InteractableKind.Hammock, at + new Double3(0, 0, -0.75), 0.9, lounges.Count - 1, Aim: 0.7)).ToList();
+        return shape with { Lounges = lounges, Interactables = interactables };
+    }
+
+    /// <summary>
+    /// The engine with the hot tub (note 744; "a tub fed off the boiler ... on the roof at line speed, in the open"): a tub on
+    /// the hood's roof behind the cab, <see cref="TubHalf"/> across, two seats in it facing each other across the train.
+    /// </summary>
+    public static CarShape WithHotTub(CarShape shape)
+    {
+        double roof = shape.RoofHeight, z = TubZ;
+        Double3[] seats = [new(-0.42, roof, z), new(0.42, roof, z)];
+        var lounges = shape.Lounges.ToList();
+        var interactables = shape.Interactables.ToList();
+        foreach (var (seat, yaw) in new[] { (seats[0], -Math.PI / 2), (seats[1], Math.PI / 2) })
+        {
+            lounges.Add(new Lounge(LoungeKind.HotTub, seat, yaw));
+            interactables.Add(new Interactable(InteractableKind.HotTub, seat, 0.9, lounges.Count - 1, Aim: 0.5));
+        }
+        return shape with { Lounges = lounges, Interactables = interactables };
+    }
+
+    /// <summary>
+    /// The guard van with the tennis-ball launcher (note 745) on its rear platform's rail: worked from the platform with a Use
+    /// press, it fires a ball off the back, up the line behind.
+    /// </summary>
+    public static CarShape WithLauncher(CarShape shape) =>
+        shape.Platform is { } p
+            ? shape with { Interactables = [.. shape.Interactables, new Interactable(InteractableKind.Launcher, Launcher(p), 0.9, Aim: 1.0)] }
+            : shape;
+
+    /// <summary>Where a crewmate stands at the launcher: the platform's middle, on its grating.</summary>
+    public static Double3 Launcher(Box platform) => new((platform.Min.X + platform.Max.X) / 2, platform.Max.Y, (platform.Min.Z + platform.Max.Z) / 2);
+
+    /// <summary>Where the hot tub sits on the engine's hood (its middle, m along the engine's frame), and its half-size across and along.</summary>
+    public const double TubZ = 0.8, TubHalf = 0.85;
+
+    static CarShape KnottedShape(CarShape shape, GeometryTuning g, double knot)
     {
         double l = shape.HalfLength;
-        var solids = shape.Solids.Where(s => s.Part != PartKind.Coupler).ToList();
+        // (And the engine's ramp up its plate, note 905: the Knotter's back is what's across the gap now.)
+        var solids = shape.Solids.Where(s => s.Part is not (PartKind.Coupler or PartKind.Ramp)).ToList();
         solids.Add(new Solid(new Box(new Double3(g.PlateX - KnotWidth / 2, g.CouplerHeight - 0.1, l), new Double3(g.PlateX + KnotWidth / 2, g.CouplerHeight, l + g.CouplingGap + knot)),
             SurfaceKind.Coupler, PartKind.Coupler));
         return shape with { Solids = solids };
@@ -492,6 +718,10 @@ public sealed record CarShape(Box Bounds, IReadOnlyList<Solid> Solids, IReadOnly
             new(plan.Bunker, SurfaceKind.Deck, PartKind.Tender),
             new(plan.Firebox, SurfaceKind.Deck, PartKind.Firebox),
         };
+        // The cab's sides a waist over the gallery's floor (note 716: a sill at the gallery's knees would be one to fall out
+        // over), the whole way from the front pillar to the doorway, so a walker along them meets no corner where the
+        // gallery starts; under the footplate's slits, as they always were, so nothing's seen differently from the controls.
+        double waist = plan.Gallery.Max.Z > plan.Gallery.Min.Z ? Math.Max(deck + 1.1, plan.Gallery.Max.Y + e.CrewCar.GalleryWaist) : deck + 1.1;
         // The cab's front: waist-high under its windows, the driver's console behind it; pillars at its corners hold the
         // roof, and the windows between them are the driver's view of the line.
         solids.Add(new(new Box(new Double3(-w, deck, cabFront), new Double3(w, deck + 1.1, cabFront + 0.15)), SurfaceKind.Deck, PartKind.CabWall));
@@ -501,7 +731,14 @@ public sealed record CarShape(Box Bounds, IReadOnlyList<Solid> Solids, IReadOnly
             var (x0, x1) = (Math.Min(inner, outer), Math.Max(inner, outer));
             // Sides waist-high with a doorway at the back of each; corner pillars; the standard lintel over each doorway
             // (train.json doorway: the cab roof is higher, but a door is a door, note 110).
-            solids.Add(new(new Box(new Double3(x0, deck, cabFront), new Double3(x1, deck + 1.1, doorFront)), SurfaceKind.Deck, PartKind.CabWall));
+            // (Broken by the side door at the cab's front on this side, note 856: the door's leaf is the wall there, shut.)
+            double wallFrom = cabFront;
+            foreach (var d in plan.SideDoors.Where(d => d.Side == side))
+            {
+                solids.Add(new(new Box(new Double3(x0, deck, wallFrom), new Double3(x1, waist, d.Z0)), SurfaceKind.Deck, PartKind.CabWall));
+                wallFrom = d.Z1;
+            }
+            solids.Add(new(new Box(new Double3(x0, deck, wallFrom), new Double3(x1, waist, doorFront)), SurfaceKind.Deck, PartKind.CabWall));
             solids.Add(new(new Box(new Double3(x0, deck, cabFront), new Double3(x1, roof, cabFront + 0.15)), SurfaceKind.Deck, PartKind.CabWall));
             solids.Add(new(new Box(new Double3(x0, deck, cabBack - 0.15), new Double3(x1, roof, cabBack)), SurfaceKind.Deck, PartKind.CabWall));
             solids.Add(new(new Box(new Double3(x0, deck + g.Doorway.Height, doorFront), new Double3(x1, roof, cabBack - 0.15)), SurfaceKind.Deck, PartKind.CabWall));
@@ -513,6 +750,20 @@ public sealed record CarShape(Box Bounds, IReadOnlyList<Solid> Solids, IReadOnly
         }
         // ... and across it (note 280: the firebox is at the front now; the boiler's end is plated over).
         solids.Add(new(new Box(new Double3(-e.BoilerHalfWidth, deck, cabBack - 0.15), new Double3(e.BoilerHalfWidth, roof, cabBack)), SurfaceKind.Deck, PartKind.CabWall));
+        // The crew car (note 716; the director, 14 Oct 2026: "the cab itself becomes the crew car ... the captain's quarters,
+        // shared by all"), behind the footplate: the chart table in the middle, the cab map on it; then the gallery, its floor
+        // raised wall to wall with a tread up at each end, the benches down its middle facing forward; the ways down the cab
+        // either side of them all to the back wall, its doors and the corridors along the boiler.
+        solids.Add(new(plan.ChartTable, SurfaceKind.Deck, PartKind.ChartTable));
+        if (plan.Gallery.Max.Z > plan.Gallery.Min.Z)
+        {
+            solids.Add(new(plan.Gallery, SurfaceKind.Deck, PartKind.Gallery));
+            foreach (var tread in new[] { plan.FrontTread, plan.BackTread })
+                if (tread.Max.Z > tread.Min.Z)
+                    solids.Add(new(tread, SurfaceKind.Deck, PartKind.Gallery));
+            foreach (var bench in plan.Benches)
+                solids.Add(new(bench, SurfaceKind.Deck, PartKind.Bench));
+        }
         // The hood (note 338; the director's silhouette, 7 Oct 2026: "This is a bulky survival train not a dainty city tram"):
         // armour the engine's whole length behind the cab, its sides flush with the cab's and a roof at the cab roof's
         // height, walked on as one with it. The walkway either side of the boiler runs inside it, a corridor from the deck
@@ -537,8 +788,30 @@ public sealed record CarShape(Box Bounds, IReadOnlyList<Solid> Solids, IReadOnly
             var (x0, x1) = side < 0 ? (-w - board, -w) : (w, w + board);
             solids.Add(new(new Box(new Double3(x0, deck - 0.1, boardFront), new Double3(x1, deck, l - 0.3)), SurfaceKind.Deck, PartKind.RunningBoard));
         }
+        // The side doors at the cab's front (note 856; the director, 16 Oct 2026: "a door near where the coal is, and I guess
+        // on the other side of the front of the cab as well"): each a sliding door in the side, solid shut, worked from inside
+        // or from the landing outside it, a board's width out at the running boards' height; the cab steps hung off its edge
+        // up to it from the ballast, as they hang off the boards at the back.
+        var doors = new List<Door>();
+        var sideDoorways = new List<Interactable>();
+        foreach (var d in plan.SideDoors)
+        {
+            double inner = d.Side * (w - 0.1), outer = d.Side * w;
+            var (x0, x1) = (Math.Min(inner, outer), Math.Max(inner, outer));
+            doors.Add(new Door(new Box(new Double3(x0, deck, d.Z0), new Double3(x1, deck + g.Doorway.Height, d.Z1)), d.Index, d.Slide, DoorOut));
+            sideDoorways.Add(new Interactable(InteractableKind.Door, new Double3(d.Side * (w - 0.05), deck, d.Middle), 0.9, d.Index));
+            var (b0, b1) = d.Side < 0 ? (-w - board, -w) : (w, w + board);
+            solids.Add(new(new Box(new Double3(b0, deck - 0.1, d.Z0 - e.SideDoorLanding), new Double3(b1, deck, d.Z1 + e.SideDoorLanding)), SurfaceKind.Deck, PartKind.RunningBoard));
+        }
         if (CouplerPlate(g, l, hasCarBehind) is { } plate)
+        {
             solids.Add(plate);
+            // Note 905 (the director, 16 Oct 2026: "We still have this step from car one to the locomotive car"): the plate
+            // rises across the gap from car 1's floor to the engine's deck in treads too shallow to feel (each a rise of
+            // RampRise at most), a ramp underfoot; the plate itself, its footing and what's found by it, are as they were.
+            foreach (var tread in RampTreads(plate.Box, deck))
+                solids.Add(new(tread, SurfaceKind.Coupler, PartKind.Ramp));
+        }
         // A footplate off the coupler plate onto the deck beside the boiler (T90): the plate is lower than the deck, so
         // without it the step from one to the other is too tall; from there, the way to the cab is forward along the boiler.
         if (hasCarBehind)
@@ -553,6 +826,9 @@ public sealed record CarShape(Box Bounds, IReadOnlyList<Solid> Solids, IReadOnly
             new(new Double3(w + board + 0.15, 0, doorZ), deck, new Double3(-1, 0, 0), Over: board),
             new(new Double3(-w - board - 0.15, 0, doorZ), deck, new Double3(1, 0, 0), Over: board),
         };
+        // ... and at the side doors (note 856), up onto the landing outside the door: shut, it's opened from there.
+        foreach (var d in plan.SideDoors)
+            ladders.Add(new(new Double3(d.Side * (w + board + 0.15), 0, d.Middle), deck, new Double3(-d.Side, 0, 0)));
         // Up the engine's back onto the hood's roof (note 338: level with the cab's, and its gun, from the top of the train;
         // before the hood it went onto the boiler's top, and another ladder up the cab's back wall from there).
         if (hasCarBehind)
@@ -571,7 +847,9 @@ public sealed record CarShape(Box Bounds, IReadOnlyList<Solid> Solids, IReadOnly
             // The blow-off cock (T97: venting slows the train). T109 playtest: in the cab, so one player works it all from
             // the footplate; note 280, on the right side wall a step behind the console, its pipe up the side window's post
             // and out of the line's view (the front windows stay clear).
-            new(InteractableKind.Vent, new Double3(w - 0.25, deck, cabFront + 0.15 + (doorFront - cabFront - 0.15) / 3), 0.6, Aim: 1.15),
+            // (Where it stood in the 5 m cab, a third of the way back along its side to the doorway: note 716 keeps the footplate
+            // as it was, whatever's behind it.)
+            new(InteractableKind.Vent, new Double3(w - 0.25, deck, cabFront + 0.15 + VentAlong), 0.6, Aim: 1.15),
             // The tool rack on the right side, the driver's (T109): the wrench, a tool to swing.
             new(InteractableKind.ToolRack, new Double3(w - 0.3, deck, cabFront + 2.4), 0.6, Aim: 1.2),
             // The powered switch thrower's lever (spec F.3, note 196), on the driver's side behind the tool rack: clear of the
@@ -586,6 +864,14 @@ public sealed record CarShape(Box Bounds, IReadOnlyList<Solid> Solids, IReadOnly
             new(InteractableKind.Sandbox, new Double3(w + board / 2, deck, cabBack + e.SandboxBehind), 0.8),
             new(InteractableKind.Sandbox, new Double3(-w - board / 2, deck, cabBack + e.SandboxBehind), 0.8),
         };
+        interactables.AddRange(sideDoorways);
+        // The benches' seats (note 905): the Seat press stood in front of one, looking at it, sits you on it.
+        for (int i = 0; i < plan.Seats.Count; i++)
+        {
+            var seat = plan.Seats[i];
+            double rise = seat.At.Y - plan.Gallery.Max.Y;
+            interactables.Add(new Interactable(InteractableKind.Bench, plan.SeatStand(seat), SeatReach, i, Aim: rise));
+        }
         var cab = new Box(new Double3(-w + 0.1, deck - 0.1, cabFront), new Double3(w - 0.1, roof, cabBack));
         var bounds = new Box(new Double3(-w, 0, -l), new Double3(w, g.EngineHeight, l));
 
@@ -600,8 +886,48 @@ public sealed record CarShape(Box Bounds, IReadOnlyList<Solid> Solids, IReadOnly
             Regulator: new Double3(0.55, deck + 1.25, cabFront + 0.35),
             Brake: new Double3(w - 0.4, deck + 1.15, cabFront + 0.6),
             Reverser: new Double3(w - 0.35, deck + 0.95, cabFront + 1.1));
-        return new CarShape(bounds, solids, ladders, interactables, cab, new GunMount(mount + new Double3(0, 0.9, 0), new Double3(0, 0, -1)), Levers: levers);
+        return new CarShape(bounds, solids, ladders, interactables, cab, new GunMount(mount + new Double3(0, 0.9, 0), new Double3(0, 0, -1)),
+            Doors: doors.Count > 0 ? doors : null, Levers: levers)
+        {
+            Lounges = plan.Seats
+        };
     }
+
+    /// <summary>How far from where a bench's sitter stands up to a seat is in reach of the Seat press (m): less than the seats are apart.</summary>
+    public const double SeatReach = 0.4;
+
+    /// <summary>
+    /// How far out from the cab's side a side door's leaf stands open (m, note 856): clear of the rolled rail along the cab's
+    /// waist (the shell's, out to 0.09 past the side), where a car's door steps out 0.12.
+    /// </summary>
+    public const double DoorOut = 0.22;
+
+    /// <summary>The vent's handle behind the cab's front wall (m): a step behind the console (note 280), where it's always been.</summary>
+    const double VentAlong = 3.8 / 3;
+
+    /// <summary>
+    /// The ramp up the engine's coupler plate (note 905), from the plate's far end (car 1's floor, its top) to its near end
+    /// (the engine's <paramref name="deck"/>): treads across the plate's width, each a rise no more than <see cref="RampRise"/>,
+    /// the last one level with the deck. The plate's own top is the first step, at car 1's end.
+    /// </summary>
+    public static IEnumerable<Box> RampTreads(Box plate, double deck)
+    {
+        double rise = deck - plate.Max.Y;
+        if (rise <= 1e-6)
+            yield break;
+        int n = (int)Math.Ceiling(rise / RampRise - 1e-9);
+        double length = plate.Max.Z - plate.Min.Z;
+        // The gap's length in n + 1 strips: the first, at the engine, a tread at the deck's height, each behind it rise / n
+        // lower, and the last, at car 1, the plate's own top.
+        for (int k = 0; k < n; k++)
+        {
+            double z0 = plate.Min.Z + length * k / (n + 1), z1 = plate.Min.Z + length * (k + 1) / (n + 1);
+            yield return new Box(new Double3(plate.Min.X, plate.Min.Y, z0), new Double3(plate.Max.X, deck - rise * k / n, z1));
+        }
+    }
+
+    /// <summary>The ramp's treads' rise (m): a pebble's, not a step's (player.json stepUp 0.35).</summary>
+    public const double RampRise = 0.05;
 
     /// <summary>How far short of the engine's rear end the boiler's smokebox stops: the rear deck, stepped onto from car 1.</summary>
     public const double BoilerToEnd = 0.5;
@@ -617,12 +943,67 @@ public sealed record CarShape(Box Bounds, IReadOnlyList<Solid> Solids, IReadOnly
 }
 
 /// <summary>
-/// The cab-forward engine's plan (ARCHITECTURE §8 notes 276, 280) in its frame, from train.json: where the cab's front
-/// windows and back wall are, where its doorways start, the coal bunker and the firebox at its front, and the stack. The
-/// sim, the bots and the art all read it here.
+/// One of the cab's side doors at its front (note 856), in the engine's frame: its side (−1 left, the coal's; +1 right) and
+/// its opening along the cab, <see cref="Z0"/> to <see cref="Z1"/>. Its bit in <see cref="Vehicle.DoorsOpen"/> is a car's
+/// sliding side door's on that side (<see cref="Index"/>: 2 left, 3 right).
+/// </summary>
+public readonly record struct CabSideDoor(int Side, double Z0, double Z1)
+{
+    public int Index => Side < 0 ? 2 : 3;
+    public double Middle => (Z0 + Z1) / 2;
+    /// <summary>Which way its leaf slides open (<see cref="Door.Slide"/>): the left one back, the right one forward, each over plate, not glass.</summary>
+    public int Slide => Side < 0 ? 1 : -1;
+}
+
+/// <summary>
+/// The cab-forward engine's plan (ARCHITECTURE §8 notes 276, 280, 716) in its frame, from train.json: where the cab's front
+/// windows and back wall are, where its doorways start, the coal bunker and the firebox at its front, and the stack; and the
+/// crew car behind the footplate (note 716): the chart table, the gallery's raised floor and its benches. The sim, the bots
+/// and the art all read it here.
 /// </summary>
 public readonly record struct EnginePlan(double Half, double CabFront, double CabBack, double DoorFront, Box Bunker, double StackZ, Box Firebox)
 {
+    /// <summary>The chart table (note 716): in the middle of the cab behind the footplate, its top the map's.</summary>
+    public Box ChartTable { get; init; }
+    /// <summary>The gallery's raised floor (note 716), wall to wall, its top the floor stood on.</summary>
+    public Box Gallery { get; init; }
+    /// <summary>The treads half way up to the gallery, at its front and its back, wall to wall.</summary>
+    public Box FrontTread { get; init; }
+    public Box BackTread { get; init; }
+    /// <summary>The benches on the gallery (note 905), one along each side wall facing across the cab, left then right.</summary>
+    public IReadOnlyList<Box> Benches { get; init; } = [];
+    /// <summary>
+    /// The places to sit on them (note 905), left bench's then right's, each from the bench's back end: where a sitter's feet
+    /// are held (the seat's top, <see cref="SeatBack"/> off the wall) and which way they face, across the cab.
+    /// </summary>
+    public IReadOnlyList<Lounge> Seats { get; init; } = [];
+    /// <summary>How far off the cab's side wall a bench's sitter is held (m): the pelvis's, sat back against it, on the perch.</summary>
+    public const double SeatBack = 0.1;
+
+    /// <summary>
+    /// Where a bench's sitter stands, in front of their seat on the gallery's floor (note 905): got up, they're put there, and
+    /// it's where the seat's in reach from. A body's radius and a little out past the bench's edge.
+    /// </summary>
+    public Double3 SeatStand(Lounge seat)
+    {
+        var bench = Benches.First(b => Math.Sign(b.Centre.X) == Math.Sign(seat.At.X));
+        double edge = seat.At.X < 0 ? bench.Max.X : bench.Min.X;
+        return new Double3(edge - Math.Sign(seat.At.X) * StandOff, bench.Min.Y, seat.At.Z);
+    }
+
+    /// <summary>How far out from a bench's edge its sitter stands up (m): a body's radius and a little (player.json radius 0.3).</summary>
+    public const double StandOff = 0.35;
+    /// <summary>
+    /// The ways down the cab either side of the chart table (m off the centreline): a walker going between the footplate and
+    /// the back wall keeps to one (<see cref="CabWay"/>), clear of the benches along the gallery's sides past it too (note 905).
+    /// </summary>
+    public double Lane { get; init; }
+    /// <summary>
+    /// The cab's side doors at its front (note 856): the left one beside the coal, the right one across the cab behind the
+    /// points lever; each only where it stands clear of the back wall's doorway (none on the right in the old 5 m cab).
+    /// </summary>
+    public IReadOnlyList<CabSideDoor> SideDoors { get; init; } = [];
+
     public static EnginePlan Of(GeometryTuning g)
     {
         var e = g.Engine;
@@ -638,9 +1019,120 @@ public readonly record struct EnginePlan(double Half, double CabFront, double Ca
         var firebox = new Box(new Double3(fx, e.DeckHeight, wall), new Double3(fx + e.FireboxWidth, e.DeckHeight + e.FireboxHeight, wall + e.FireboxDepth));
         // The stack over the smokebox, near the boiler's rear end.
         double stackZ = l - CarShape.BoilerToEnd - 1.25;
-        return new(l, cabFront, cabBack, doorFront, bunker, stackZ, firebox);
+        // Note 716: behind the footplate, down the middle, the chart table and then the gallery's benches; the gallery's floor
+        // and its treads wall to wall. (A shorter cab than the crew car wants has as much of it as fits: none, at the old 5 m,
+        // but the table; the treads and the floor clipped to the cab.)
+        var c = e.CrewCar;
+        double inner = w - 0.1, deck = e.DeckHeight, back = cabBack - 0.15;
+        double z(double behind) => Math.Min(cabFront + behind, back);
+        var table = new Box(new Double3(-c.TableWidth / 2, deck, z(c.TableFrom)), new Double3(c.TableWidth / 2, deck + c.TableHeight, z(c.TableFrom + c.TableLength)));
+        double rise = deck + c.GalleryRise;
+        var gallery = new Box(new Double3(-inner, deck, z(c.GalleryFrom)), new Double3(inner, rise, z(c.GalleryTo)));
+        var frontTread = new Box(new Double3(-inner, deck, z(c.GalleryFrom - c.GalleryStep)), new Double3(inner, deck + c.GalleryRise / 2, z(c.GalleryFrom)));
+        var backTread = new Box(new Double3(-inner, deck, z(c.GalleryTo)), new Double3(inner, deck + c.GalleryRise / 2, z(c.GalleryTo + c.GalleryStep)));
+        // Note 905 (the director, 16 Oct 2026: "move them to like side benches so that we keep the middle clear"): one along
+        // each side wall on the gallery, left then right, facing across the cab; the seats on each from its back end.
+        var benches = new List<Box>();
+        var seats = new List<Lounge>();
+        double b0 = Math.Max(cabFront + c.BenchFrom, gallery.Min.Z), b1 = Math.Min(cabFront + c.BenchTo, gallery.Max.Z);
+        if (c.BenchDepth > 0 && b1 - b0 >= c.SeatEvery)
+            foreach (int side in new[] { -1, 1 })
+            {
+                double edge = side * (inner - c.BenchDepth);
+                benches.Add(new Box(new Double3(Math.Min(edge, side * inner), rise, b0), new Double3(Math.Max(edge, side * inner), rise + c.BenchHeight, b1)));
+                // Sat back against the wall (the motor holds a sitter where they sit, PlayerMotor), facing across the cab
+                // (yaw: 0 faces −Z, π/2 faces −X), the knees over the seat's edge.
+                for (int k = 0; k < c.BenchSeats && b1 - c.SeatEvery * (k + 0.5) >= b0 + c.SeatEvery / 2 - 1e-9; k++)
+                    seats.Add(new Lounge(LoungeKind.Bench, new Double3(side * (inner - SeatBack), rise + c.BenchHeight, b1 - c.SeatEvery * (k + 0.5)), side * Math.PI / 2));
+            }
+        // Half way between the chart table's edge and the cab's side. (The benches' edge is a body's radius past it, note 905.)
+        double lane = (c.TableWidth / 2 + inner) / 2;
+        var sideDoors = new List<CabSideDoor>();
+        foreach (var (side, behind) in new[] { (-1, e.CoalDoorFrom), (1, e.FrontDoorFrom) })
+            if (behind > 0 && cabFront + behind + g.Doorway.Width <= doorFront - 0.5)
+                sideDoors.Add(new CabSideDoor(side, cabFront + behind, cabFront + behind + g.Doorway.Width));
+        return new(l, cabFront, cabBack, doorFront, bunker, stackZ, firebox)
+        {
+            SideDoors = sideDoors,
+            ChartTable = table,
+            Gallery = gallery,
+            FrontTread = frontTread,
+            BackTread = backTread,
+            Benches = benches,
+            Seats = seats,
+            Lane = lane,
+        };
     }
 
     /// <summary>How far behind the engine's front the coal bunker's middle is: where a coaling spout pours (spec D.4).</summary>
     public double CoalFromFront => Half + Bunker.Centre.Z;
+
+    /// <summary>
+    /// The crew car's furniture a walker goes round (note 716): the chart table and the benches along the gallery's sides
+    /// (note 905), in the engine's frame. Not the gallery's floor and treads: those are walked up.
+    /// </summary>
+    public IEnumerable<Box> Furniture => Benches.Prepend(ChartTable).Where(b => b.Max.Z > b.Min.Z);
+
+    /// <summary>
+    /// The next place to make for in the cab from <paramref name="from"/> on the way to <paramref name="to"/> (note 716; both in
+    /// the engine's frame): <paramref name="to"/> itself when nothing of the crew car's furniture stands between, else into
+    /// the way down the cab on <paramref name="to"/>'s side of it (or <paramref name="from"/>'s, going to the middle), short of
+    /// the furniture, and along it. A body <paramref name="radius"/> round is kept clear.
+    /// </summary>
+    public Double3 CabWay(Double3 from, Double3 to, double radius = 0.35)
+    {
+        if (!Furniture.Any(f => Crosses(from, to, f, radius)))
+            return to;
+        double toSide = Math.Abs(to.X) > 0.2 ? Math.Sign(to.X) : Math.Abs(from.X) > 0.05 ? Math.Sign(from.X) : -1;
+        // Its own legs, across into a way and along it, need only miss the furniture itself by a little: a walker already
+        // close by a face slides along it (PlayerMotor's push out) as it goes.
+        double skim = Math.Max(0.05, radius - 0.2);
+        foreach (double side in new[] { toSide, -toSide })
+        {
+            double lane = side * Lane;
+            // Out in the way already: along it to abreast of where it's going, then across.
+            if (Math.Abs(from.X - lane) < 0.15)
+            {
+                var along = to with { X = lane };
+                if (!Furniture.Any(f => Crosses(from, along, f, skim)))
+                    return along;
+                continue;
+            }
+            // Across into it where that's clear: abreast of where it is, or (short of the furniture) just short of it, so a
+            // walker from the footplate doesn't cut the bunker's corner (note 280's, along the left wall) getting there.
+            double front = Furniture.Min(f => f.Min.Z), rear = Furniture.Max(f => f.Max.Z);
+            double clear = radius + 0.05;
+            double ez = from.Z < front - clear ? Math.Max(from.Z, front - clear) : from.Z > rear + clear ? Math.Min(from.Z, rear + clear) : from.Z;
+            var into = new Double3(lane, from.Y, ez);
+            if (!Furniture.Any(f => Crosses(from, into, f, skim)))
+                return into;
+        }
+        // Hemmed in (abreast of the furniture with it between it and both ways: never, the ways being either side): on as it was.
+        return to;
+    }
+
+    /// <summary>Whether the way from <paramref name="a"/> to <paramref name="b"/> (flat) passes within <paramref name="r"/> of the box.</summary>
+    static bool Crosses(Double3 a, Double3 b, Box box, double r)
+    {
+        double x0 = box.Min.X - r, x1 = box.Max.X + r, z0 = box.Min.Z - r, z1 = box.Max.Z + r;
+        // Slab test on the flat segment.
+        double t0 = 0, t1 = 1, dx = b.X - a.X, dz = b.Z - a.Z;
+        foreach (var (p, d, lo, hi) in new[] { (a.X, dx, x0, x1), (a.Z, dz, z0, z1) })
+        {
+            if (Math.Abs(d) < 1e-9)
+            {
+                if (p < lo || p > hi)
+                    return false;
+                continue;
+            }
+            double u = (lo - p) / d, v = (hi - p) / d;
+            if (u > v)
+                (u, v) = (v, u);
+            t0 = Math.Max(t0, u);
+            t1 = Math.Min(t1, v);
+            if (t0 > t1)
+                return false;
+        }
+        return true;
+    }
 }

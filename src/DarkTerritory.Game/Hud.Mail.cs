@@ -8,7 +8,9 @@ namespace DarkTerritory.Game;
 /// The mail cranes on the HUD (note 673; the director, 13 Oct: "I still don't know what the mail is suggesting"). The
 /// board ("MAIL &gt;") was all there was: what it's for was nowhere. In note 285's form, as the cranes come: the board read,
 /// its crane at the top of the screen, which side and how far, as a place is; in its last seconds, the same for anyone in
-/// a car; at the open door on its side, the crosshair says the hook; and a bag caught, what was in it.
+/// a car; at the open door on its side, the crosshair says the hook; and a bag caught, what was in it. Note 901 (the
+/// director, 13 Oct evening: "I went outside looking for it and I did not see it"): until you're at that door, a third
+/// line says where it's caught from, and the mail's pay says where it's paid.
 /// </summary>
 public static partial class Hud
 {
@@ -35,14 +37,28 @@ public static partial class Hud
         return next;
     }
 
-    /// <summary>A crane's two lines at the top of the screen: what it is, on which side (the board's arrow), and how far.</summary>
-    public static (string Head, string Line) MailLines(Drop drop, double metres) =>
-        (drop.Side > 0 ? "MAIL CRANE >" : "< MAIL CRANE", metres >= 1000 ? $"{metres / 1000:0.0} KM" : $"{Math.Round(metres / 10) * 10:0} M");
+    /// <summary>
+    /// A crane's two lines at the top of the screen: what it is, on which side (the board's arrow), and how far; and, as the
+    /// board posts it, the speed the hook holds a bag at (note 727: over it, it tears), the number alone (note 671).
+    /// </summary>
+    public static (string Head, string Line) MailLines(Drop drop, double metres, int limitKmh = 0) =>
+        (drop.Side > 0 ? "MAIL CRANE >" : "< MAIL CRANE",
+            (metres >= 1000 ? $"{metres / 1000:0.0} KM" : $"{Math.Round(metres / 10) * 10:0} M") + (limitKmh > 0 ? $" / {limitKmh}" : ""));
+
+    /// <summary>
+    /// How the bag's taken (note 901), under the crane's two lines until the crosshair says the hook: from the train, at an
+    /// open side door on the crane's side, never off it on foot.
+    /// </summary>
+    public static string MailHow(Drop drop) => drop.Side > 0 ? "CATCH IT FROM AN OPEN RIGHT SIDE DOOR" : "CATCH IT FROM AN OPEN LEFT SIDE DOOR";
+
+    /// <summary>A bag hooked over the crane's speed (note 727): it tore off, and what was in it is gone.</summary>
+    public const string TornLine = "THE BAG TORE: TOO FAST";
 
     /// <summary>A bag caught, at the top of the screen: what was in it, and what it's done.</summary>
     public static string CaughtLine(Drop drop) => drop.Kind switch
     {
-        DropKind.Mail => $"MAIL: {drop.Amount:0} SCRIP",
+        // The mail's scrip is paid with the freight (note 673), so it says so (note 901).
+        DropKind.Mail => $"MAIL: {drop.Amount:0} SCRIP AT THE TERMINUS",
         DropKind.Coal => "COAL: THE TENDER",
         DropKind.Ammo => "ROUNDS: THE GUNS",
         _ => "SPARES: A CAR MENDED",
@@ -63,13 +79,17 @@ public static partial class Hud
         if (ahead == m.MailDrop)
             return;
         // Lineside.Caught is the host's (solo, or hosting): a joiner's copy never hears of a catch, so it says nothing.
-        if (m.MailDrop >= 0 && s.World.Lineside is { } lineside && m.MailDrop < lineside.AllDrops.Count && lineside.Caught(m.MailDrop))
+        if (m.MailDrop >= 0 && s.World.Lineside is { } lineside && m.MailDrop < lineside.AllDrops.Count
+            && (lineside.Caught(m.MailDrop) || lineside.Torn(m.MailDrop)))
             (m.CaughtDrop, m.CaughtTick) = (m.MailDrop, now);
         (m.MailDrop, m.MailTick) = (ahead, now);
     }
 
-    /// <summary>The crane's lines at the top centre, from <paramref name="y"/>; returns where the next line goes.</summary>
-    static float MailTop(Overlay o, IPlaySession s, Memory m, float cx, float y, int line, float k)
+    /// <summary>
+    /// The crane's lines at the top centre, from <paramref name="y"/>; returns where the next line goes, and widens
+    /// <paramref name="half"/> to the widest one's half width (note 764: the top left keeps out of them).
+    /// </summary>
+    static float MailTop(Overlay o, IPlaySession s, Memory m, float cx, float y, int line, float k, ref float half)
     {
         if (MailAhead(s) is { } mail)
         {
@@ -79,18 +99,30 @@ public static partial class Hud
                 a = 1;
             if (a > 0)
             {
-                var (head, distance) = MailLines(mail.Drop, mail.Metres);
+                int limit = s.World.Lineside!.Signs.FirstOrDefault(x => x.Drop?.Id == mail.Drop.Id)?.LimitKmh ?? 0;
+                var (head, distance) = MailLines(mail.Drop, mail.Metres, limit);
                 o.TextCentred(cx, y, head, Ink with { W = a }, 1);
                 y += line;
                 o.TextCentred(cx, y, distance, Dim with { W = a }, k);
                 y += (line + 2) * k;
+                half = Math.Max(half, Math.Max(o.Measure(head), o.Measure(distance, k)) / 2);
+                // At the door the crosshair says the hook; anywhere else, where it's caught from (note 901).
+                if (MailPrompt(s) is null)
+                {
+                    string how = MailHow(mail.Drop);
+                    o.TextCentred(cx, y, how, Dim with { W = a }, k);
+                    y += (line + 2) * k;
+                    half = Math.Max(half, o.Measure(how, k) / 2);
+                }
             }
         }
         if (m.CaughtDrop >= 0 && s.World.Lineside is { } lineside && m.CaughtDrop < lineside.AllDrops.Count
             && Shown(Since(s, m.CaughtTick), Tuning.PlaceSeconds) is > 0 and var c)
         {
-            o.TextCentred(cx, y, CaughtLine(lineside.AllDrops[m.CaughtDrop]), Amber with { W = c }, 1);
+            string caught = lineside.Torn(m.CaughtDrop) ? TornLine : CaughtLine(lineside.AllDrops[m.CaughtDrop]);
+            o.TextCentred(cx, y, caught, Amber with { W = c }, 1);
             y += line + 2;
+            half = Math.Max(half, o.Measure(caught) / 2);
         }
         return y;
     }

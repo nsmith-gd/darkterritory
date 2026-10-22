@@ -62,7 +62,7 @@ public class NewsTests
         n.Train.Vehicles[2].Loose = L.PartAfter - 0.05;
         n.Step(0.5);
         Assert.Equal(2, n.Train.TrainRakes);
-        Assert.Equal("CARS 3-4 LOST · THE PIN WORKED LOOSE", n.Said);
+        Assert.Equal("CARS 3-4 LOST · THE PIN THE HARD BRAKE WORKED LOOSE", n.Said);
         // Up for its few seconds, then gone; the host's log keeps it for the report.
         n.Step(P.News.Seconds);
         Assert.Empty(n.World.News);
@@ -70,6 +70,23 @@ public class NewsTests
         n.World.Derail("test");
         n.Step(0.2);
         Assert.Contains("A hard brake at 50 km/h worked the coupling's pin loose, and it parted. Driving: Dave.", n.Lost().Text);
+    }
+
+    [Fact]
+    public void ABendsDroppedPinIsSaidAsTheBendsAndTheReportGivesItsBoard()
+    {
+        // Note 854: the parting names what loosened it, as the line 90 s before did, and the clerk the board it was taken over.
+        var n = new Night(speed: 12);
+        n.Train.Loose = L;
+        n.Step();
+        n.World.Attribution.Drove(1);
+        n.World.Attribution.Loosened(2, LooseCause.Bend, 62 / 3.6, 50);
+        n.Train.Vehicles[2].Loose = L.PartAfter - 0.05;
+        n.Step(0.5);
+        Assert.Equal("CARS 3-4 LOST · THE PIN THE BEND WORKED LOOSE", n.Said);
+        n.World.Derail("test");
+        n.Step(0.2);
+        Assert.Contains("A bend taken at 62 km/h (its board said 50 km/h) worked the coupling's pin loose, and it parted. Driving: Priya.", n.Lost().Text);
     }
 
     [Fact]

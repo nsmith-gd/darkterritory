@@ -104,9 +104,10 @@ public sealed class TrackDoll(int id) : Enemy(id)
                     if (!train.Line.OnMain(engine.Path, LineDistance))
                         return;
                     double ahead = LineDistance - engine.Distance;
-                    // TELEGRAPH: the porcelain catches the lamp at 200 m; without it, only close in.
+                    // TELEGRAPH: the porcelain catches the lamp at 200 m (further with a brighter lamp, note 506); without it,
+                    // only close in.
                     if (Phase == SpinePhase.Dormant && ahead > 0
-                        && (ctx.World.LampShining && ahead <= t.LampRevealDistance || ahead <= t.DarkRevealDistance))
+                        && (ctx.World.LampShining && ahead <= t.LampRevealDistance * engine.Tuning.HeadlampReach || ahead <= t.DarkRevealDistance))
                         Enter(ctx, SpinePhase.Telegraph);
                     // Stopped short: gone, no threat for the rest of the run.
                     if (Phase == SpinePhase.Telegraph && ahead > 0 && engine.Speed < t.StoppedBelow)
@@ -238,7 +239,7 @@ public sealed class TrackDoll(int id) : Enemy(id)
         if (cabEmpty && _level >= 2 && train.Frames[0].Shape.Cab is { } cab)
         {
             Attached = 0;
-            Local = cab.Centre with { Y = cab.Min.Y };
+            Local = train.Frames[0].Shape.FootplateMiddle with { Y = cab.Min.Y }; // (at the controls: note 716)
             Extra = 0;
             Extra2 = _level;
             return;

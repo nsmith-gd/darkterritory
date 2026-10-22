@@ -54,7 +54,8 @@ public sealed class ChoirGhost(int id) : Enemy(id)
                     // v1.4 App. A.7: "whoever put the most into the meter during the build"), then the nearest.
                     var here = Local;
                     var exposed = ctx.LivingCrew().Where(c => PlayerMotor.Space(c.Player.State, train) == PlayerMotor.Outside && !c.Player.State.Has(PlayerFlags.Held))
-                        .OrderByDescending(c => ctx.World.ChoirShare(c.Player.Id)).ThenBy(c => (c.World - here).Length).ThenBy(c => c.Player.Id).ToList();
+                        .OrderByDescending(c => ctx.World.ChoirShare(c.Player.Id)).ThenByDescending(c => ctx.World.TargetBias(c.Player.Id))
+                        .ThenBy(c => (c.World - here).Length).ThenBy(c => c.Player.Id).ToList();
                     // One seize at a time: it takes one crew member a run (A.7 LIMIT), so while one of the swarm has someone
                     // the rest wheel overhead. (Two ghosts each holding someone was two dead when the first let go.)
                     if (exposed.Count == 0 || ctx.World.ActiveEnemies.Any(e => e is ChoirGhost && e != this && e.Phase == SpinePhase.Grab))

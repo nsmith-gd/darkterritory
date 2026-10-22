@@ -1,0 +1,20 @@
+// Jackpots: lifted between two, set down, the bell: The church bell knocked or set down: a dull, short bronze ring, the clapper's knock. Written by tools/audio/install.py from the audio checklist (first); edit the cue, not this.
+{
+ "tier": 4,
+ "loop": false,
+ "maxInstances": 12,
+ "minDistance": 3,
+ "maxDistance": 120,
+ "rolloff": 0.9,
+ "gainDb": 2,
+ "flat": false,
+ "layers": [
+  {
+   "source": "sample",
+   "sample": "loot-jackpot/bell",
+   "gain": 1,
+   "pitchJitter": 0.4,
+   "gainJitter": 1.0
+  }
+ ]
+}

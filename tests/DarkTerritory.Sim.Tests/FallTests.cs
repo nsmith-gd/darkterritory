@@ -225,12 +225,21 @@ public class FallTests(ITestOutputHelper output)
         var train = Train(12);
         var geometry = Tuning.Train.Geometry;
         double end = train.Frames[2].Shape.HalfLength;
-        // Off the plate's line, walking at the back end: held at the lip.
+        // Off the plate's line, walking at the back end: held at the lip (without note 717's walkOff).
+        var held = P with { Edge = P.Edge with { WalkOff = false } };
         double side = Math.Abs(geometry.PlateX + 0.8) < Math.Abs(geometry.PlateX - 0.8) ? 0.8 : -0.8;
-        var s = Walk(train, PlayerMotor.SpawnOnRoof(train, 2, end - 2, P, localX: geometry.PlateX + side) with { Yaw = Math.PI }, new PlayerIntent { MoveZ = 1 }, 3);
+        var s = Walk(train, PlayerMotor.SpawnOnRoof(train, 2, end - 2, held, localX: geometry.PlateX + side) with { Yaw = Math.PI }, new PlayerIntent { MoveZ = 1 }, 3, held);
         Assert.Equal(2, s.Parent);
         Assert.Equal(Surface.Roof, s.Surface);
         Assert.InRange(s.Position.Z, end - P.Edge.Lip - 0.1, end - P.Edge.Lip + 0.01);
+        // Note 717 (the director's 14 Oct playtest, line 4: "let people walk off the top of the cars"): with walkOff, the same
+        // walk goes off the end, as off a side; a glance at it doesn't.
+        Assert.True(P.Edge.WalkOff);
+        var off = Walk(train, PlayerMotor.SpawnOnRoof(train, 2, end - 2, P, localX: geometry.PlateX + side) with { Yaw = Math.PI }, new PlayerIntent { MoveZ = 1 }, 3);
+        Assert.NotEqual(2, off.Parent);
+        var glance = Walk(train, PlayerMotor.SpawnOnRoof(train, 2, end - 2, P, localX: geometry.PlateX + side) with { Yaw = Math.PI - 50 * Math.PI / 180 },
+            new PlayerIntent { MoveZ = 1 }, 1.5);
+        Assert.Equal(2, glance.Parent);
         // Squarely over the plate: down onto it, as the bots go in out of the cold.
         var d = PlayerMotor.SpawnOnRoof(train, 2, end - 2, P, localX: geometry.PlateX) with { Yaw = Math.PI };
         for (int i = 0; i < 3 * SimConstants.TickRate && d.Surface is not (Surface.Coupler or Surface.Ground); i++)
@@ -240,5 +249,54 @@ public class FallTests(ITestOutputHelper output)
             PlayerMotor.Step(ref d, new PlayerIntent { MoveZ = d.Surface == Surface.Air ? 0 : 1 }, train, P, Tuning.Train, SimConstants.TickSeconds, applyLook: false);
         }
         Assert.Equal(Surface.Coupler, d.Surface);
+    }
+
+    /// <summary>On the plate behind the engine, its middle, facing <paramref name="degrees"/> off straight at the engine.</summary>
+    static PlayerState OnTheEnginesPlate(TrainOnLine train, double degrees, double along = 0.5)
+    {
+        var g = Tuning.Train.Geometry;
+        return new PlayerState
+        {
+            Parent = 0,
+            Position = new Double3(g.PlateX, g.CouplerHeight, train.Frames[0].Shape.HalfLength + g.CouplingGap * along),
+            Surface = Surface.Coupler,
+            Health = P.Health,
+            Yaw = degrees * Math.PI / 180,
+            LineHint = train.Cars[0].FrontDistance,
+        };
+    }
+
+    [Theory]
+    [InlineData(40)]
+    [InlineData(-40)]
+    [InlineData(0)]
+    public void OffThePlateAtAnAngleYouStepUpOntoTheEnginesDeck(double degrees)
+    {
+        // Note 830 (the director, 15 Oct, at the coupling gap: "the player doesnt automatically step up over this ledge, it
+        // forces me to jump every time"): the engine's deck and the footplate beside the plate are a step up from it. Walked
+        // at them more than stepOffDegrees off straight, the lip took them for a drop and held you short of them.
+        var train = Train(12);
+        double deck = Tuning.Train.Geometry.Engine.DeckHeight;
+        Assert.True(deck - Tuning.Train.Geometry.CouplerHeight <= P.StepUp, "the deck's a step up from the plate");
+        Assert.True(Math.Abs(degrees) == 0 || Math.Abs(degrees) > P.Edge.StepOffDegrees, "walked at it off straight");
+        var s = OnTheEnginesPlate(train, degrees);
+        for (int i = 0; i < 2 * SimConstants.TickRate && s.Surface == Surface.Coupler; i++)
+            s = Walk(train, s, new PlayerIntent { MoveZ = 1 }, 0);
+        Assert.Equal(0, s.Parent);
+        Assert.Equal(Surface.Deck, s.Surface);
+        Assert.Equal(deck, s.Position.Y, 6);
+    }
+
+    [Fact]
+    public void BesideThePlateOverTheBallastItStillHoldsYou()
+    {
+        // Note 830 counts a step up as footing; a drop is judged as before. Walked at the plate's side over the ballast at a
+        // slant, toward the car behind, they're held at its lip.
+        var train = Train(12);
+        var g = Tuning.Train.Geometry;
+        var s = Walk(train, OnTheEnginesPlate(train, 130, along: 0.7), new PlayerIntent { MoveZ = 1 }, 2);
+        Assert.Equal(0, s.Parent);
+        Assert.Equal(Surface.Coupler, s.Surface);
+        Assert.True(s.Position.X >= g.PlateX - g.CouplerWidth / 2 + P.Edge.Lip - 0.01, $"at {s.Position.X:0.00}, over the side");
     }
 }

@@ -1,0 +1,1 @@
+{ "$patch": true, "carHugger": { "lowGround": { "on": true, "biomes": [], "tags": ["cutting", "water_crossing"], "stood": { "on": false } } } }

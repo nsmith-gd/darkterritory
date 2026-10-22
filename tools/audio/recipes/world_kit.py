@@ -380,6 +380,9 @@ def drip(rng, into="water", size=1.0):
     return mix(tick, fit(ring, n) * (0.15 if into == "stone" else 0.5))
 
 
+TIN_PANELS, WATER_PITCHES = 24, 32      # note 941: enough rings that rain on tin or water doesn't sing
+
+
 def rain(n, rng, rate, surface="ground", loop=True):
     """Rain: thousands of drop impacts a second, each tiny, a few big (a power law), Poisson in time (`rate` drops/s).
     On tin each drop rings the roof's panel modes; on the ground each is a soft splat; on water a bubble."""
@@ -391,22 +394,26 @@ def rain(n, rng, rate, surface="ground", loop=True):
     idx = (ts * SR).astype(int) % n
     np.add.at(x, idx, amps.astype(np.float32) * rng.choice([-1, 1], m))
     if surface == "tin":
-        # a few panel responses, chosen per drop: convolve each subset with its own ring
+        # Panel responses chosen per drop, each subset convolved with its own ring. Note 941 (the director, 20 Oct: "the
+        # audio for the rain just sounds horrible ... it sounds squeaky"): four plates of a dozen modes each, struck
+        # thousands of times a second, stood as steady whistles at 0.9-3 kHz over the patter. Now many dense, short sheets
+        # (a drop lands anywhere on any panel), so no one mode is struck often enough to sing.
         out = np.zeros(n, np.float32)
-        for k in range(4):
+        for k in range(TIN_PANELS):
             mask = np.zeros(n, np.float32)
-            sel = idx[k::4]
+            sel = idx[k::TIN_PANELS]
             np.add.at(mask, sel, x[sel])
-            h = body(rng, rng.uniform(1100, 2400), PLATE, decay=0.012, length=0.06, contact=0.00012, count=12)
+            h = sheet(rng, rng.uniform(600, 1100), 8000, decay=0.015, length=0.05, contact=0.00012, density=0.6, tilt=0.25)
             out += _circconv(mask, h)
         return out
     if surface == "water":
+        # Note 941: six bubble pitches rising a third of their pitch chirped; many, rising a little, fizz.
         out = np.zeros(n, np.float32)
-        for k in range(6):
+        for k in range(WATER_PITCHES):
             mask = np.zeros(n, np.float32)
-            sel = idx[k::6]
+            sel = idx[k::WATER_PITCHES]
             np.add.at(mask, sel, x[sel])
-            out += _circconv(mask, synth.bubble(rng.uniform(2500, 9000), rise=0.3))
+            out += _circconv(mask, synth.bubble(np.exp(rng.uniform(np.log(2500), np.log(9000))), rise=0.08))
         return out
     # ground, leaves, ballast: a short soft splat
     h = rng.standard_normal(samples(0.004)).astype(np.float32) * np.exp(-np.linspace(0, 6, samples(0.004))).astype(np.float32)

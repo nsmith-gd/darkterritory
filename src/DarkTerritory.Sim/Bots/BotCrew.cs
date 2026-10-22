@@ -26,6 +26,22 @@ public sealed class BotCrew(CrewCalls? calls) : IDisposable
             _owned.Add(owned);
     }
 
+    /// <summary>Bots that left the crew (note 724): a friend took their seat, or the host put them off.</summary>
+    public int Retired { get; private set; }
+
+    /// <summary>
+    /// Note 724: the bot playing <paramref name="id"/> leaves the crew (a joiner took its seat, or it was put off): it's no
+    /// longer stepped, and the host has already hung up on its link. Its transport goes with the crew, as ever.
+    /// </summary>
+    public void Retire(byte id)
+    {
+        int i = _bots.FindIndex(b => b.Session.PlayerId == id);
+        if (i < 0)
+            return;
+        _bots.RemoveAt(i);
+        Retired++;
+    }
+
     public void Dispose()
     {
         foreach (var o in _owned)
@@ -51,13 +67,13 @@ public sealed class BotCrew(CrewCalls? calls) : IDisposable
             2 => StopJob.Winch1,
             _ => i == 1 && gunner ? StopJob.None : StopJob.Crates,
         };
-        StopHand? hand = calls is null ? null : new StopHand(job, calls, i, player.Cold);
-        return i == 0 ? express is { } fast ? new ConductorBot(calls, i) { CruiseSpeed = fast, Express = true } : new ConductorBot(calls, i) { Cold = player.Cold }
-            : i == 1 && combat is { } c ? new GunnerBot(c.Guns, c.Choir, seed * 1000 + i, player.Cold, hand)
+        StopHand? hand = calls is null ? null : new StopHand(job, calls, i);
+        return i == 0 ? express is { } fast ? new ConductorBot(calls, i) { CruiseSpeed = fast, Express = true } : new ConductorBot(calls, i)
+            : i == 1 && combat is { } c ? new GunnerBot(c.Guns, c.Choir, seed * 1000 + i, hand)
             // The engine's forward gun's (note 414), in a crew big enough: its last place.
             : i == count - 1 && combat is { Guns.ForwardGunnerFrom: > 0 } f && count >= f.Guns.ForwardGunnerFrom
-                ? new GunnerBot(f.Guns, f.Choir, seed * 1000 + i, player.Cold, hand) { Forward = true }
-            : new RoofWalkerBot(seed * 1000 + i, player.Cold, hand);
+                ? new GunnerBot(f.Guns, f.Choir, seed * 1000 + i, hand) { Forward = true }
+            : new RoofWalkerBot(seed * 1000 + i, hand);
     }
 
     /// <summary>Every bot's tick: decide and send (its client steps with it).</summary>
@@ -90,6 +106,17 @@ public sealed class BotCrew(CrewCalls? calls) : IDisposable
         // Note 258: it says it's a bot, so the driver can tell the crew playing from the bots.
         if (session.PlayerId is { } bid)
             calls?.Bot(bid);
+        // Note 740 (GDD §17): the horn pulled by someone playing with the train standing calls the crew aboard; it holds
+        // till the train moves off. The Whistler's (nobody's hand) calls nobody.
+        if (calls is not null)
+        {
+            var heard = session.World;
+            bool standing = session.Train.Dynamics.Speed < Net.CabControls.StandingBelow;
+            if (standing && heard.WhistleSeconds > 0 && heard.WhistleBy >= 0 && !calls.IsBot(heard.WhistleBy))
+                calls.CallAboard(true);
+            else if (!standing && calls.CalledAboard)
+                calls.CallAboard(false);
+        }
         // Who else is aboard, and where (T96: the driver stops for a crewmate left behind); and which of them are people playing
         // (note 259: one in the cab minds it while the driver's out breaching a Holdout).
         if (bot is ConductorBot cb)
@@ -111,13 +138,22 @@ public sealed class BotCrew(CrewCalls? calls) : IDisposable
             else
                 ((GunnerBot)bot).Crew = crew;
         }
+        // Note 739 (GDD §12): the crew's pings, shared out a bot each as orders; this bot takes one it's nearest to and can do.
+        if (calls is not null && session.PlayerId is { } pid && bot is RoofWalkerBot or GunnerBot or ConductorBot)
+        {
+            calls.Role(pid, bot is ConductorBot ? BotRole.Driver : bot is GunnerBot ? BotRole.Gunner : BotRole.Walker);
+            IReadOnlyList<(int Id, PlayerState State)> pingCrew = (bot as RoofWalkerBot)?.Crew ?? (bot as GunnerBot)?.Crew ?? (bot as ConductorBot)?.Crew ?? [];
+            calls.Pings(session.World, pid, session.Predicted, pingCrew);
+        }
         var intent = bot is IWorldBot wb ? wb.Decide(session.Predicted, session.World, t, out _) : bot.Decide(session.Predicted, session.Train, t);
         int me = session.PlayerId ?? 0;
         // Note 551: too hurt for a hound pack that's about, it's in cover (the cab, or a car shut up): no errands out of it, to a
         // Holdout's door, a creature to club or a crewmate held. On frontier:7 seed 3 two hands on 4 and 11 in the cab were taken
         // down out of it at a stand by a stop's errand, and up car 1's ladder into the pack on its roof.
         bool hunted = (bot as RoofWalkerBot)?.Hunted ?? (bot as GunnerBot)?.Hunted ?? false;
-        if (!hunted)
+        // Note 740: called aboard by the horn, no errand off the train: back aboard (a rescue, after, still beats it).
+        bool called = calls?.CalledAboard == true;
+        if (!hunted && !called)
             intent = Heed.Holdouts(intent, session.Predicted, session.World, me, calls, (bot as RoofWalkerBot)?.Job ?? (bot as GunnerBot)?.Job);
         intent = Heed.HotBox(intent, session.Predicted, session.World);
         intent = Heed.Coupling(intent, session.Predicted, session.World);
@@ -126,7 +162,7 @@ public sealed class BotCrew(CrewCalls? calls) : IDisposable
         // slack, a Hotbox prised out and its axle freed, the Brakeman cornered and his brakes unwound. A rescue (after) beats them.
         var others = (bot as RoofWalkerBot)?.Crew ?? (bot as GunnerBot)?.Crew ?? [];
         // And the driver that's handed someone playing the controls (the director, 9 Oct 2026): out working the train as a walker.
-        if (bot is RoofWalkerBot { Relieving: false } or GunnerBot or ConductorBot { HandedOver: true } && !hunted)
+        if (bot is RoofWalkerBot { Relieving: false } or GunnerBot or ConductorBot { HandedOver: true } && !hunted && !called)
         {
             var hand = (bot as RoofWalkerBot)?.Job ?? (bot as GunnerBot)?.Job;
             // Note 627: not the guttering lamp's hand: the ground's errands are the rest of the crew's while it's in at the lamp
@@ -136,6 +172,7 @@ public sealed class BotCrew(CrewCalls? calls) : IDisposable
             {
                 intent = Heed.Mourners(intent, session.Predicted, session.World, me, hand);
                 intent = Heed.Beetle(intent, session.Predicted, session.World, me);
+                intent = Heed.MouseMoose(intent, session.Predicted, session.World);
                 intent = Heed.TowerJaw(intent, session.Predicted, session.World, me, hand);
                 intent = Heed.Knotter(intent, session.Predicted, session.World, me, hand);
             }
@@ -149,9 +186,12 @@ public sealed class BotCrew(CrewCalls? calls) : IDisposable
         // engine's roof (out of reach from inside it), the driver never came back, and the fire went out under it.
         if (!hunted && !(bot is ConductorBot { Driving: true } && session.Train.Dynamics.Speed > Net.CabControls.StandingBelow))
             intent = Heed.Rescue(intent, session.Predicted, session.World, me, others);
+        // Note 723: a crewmate playing, running beside the moving car within a hand-up's reach: hauled up.
+        if (!hunted && bot is not ConductorBot)
+            intent = Heed.HandUp(intent, session.Predicted, session.World, me, others, calls, session.PlayerTuning.Rescue);
         // Note 658: the Ribbits near, clubbed by whoever's on the ground (a rescue alone only evens the count).
         if (!hunted)
-            intent = Heed.Ribbits(intent, session.Predicted, session.World, me);
+            intent = Heed.Ribbits(intent, session.Predicted, session.World, me, others);
         intent = Heed.Hounds(intent, session.Predicted, session.World, me);
         intent = Heed.Backs(intent, session.Predicted, session.World, me, t);
         intent = Heed.Voice(intent, session.Predicted, session.World, me, t);
@@ -163,8 +203,32 @@ public sealed class BotCrew(CrewCalls? calls) : IDisposable
         intent = Heed.Drift(intent, session.Predicted, session.World, me);
         intent = Heed.Gannet(intent, session.Predicted, session.World, me);
         intent = Heed.Heal(intent, session.Predicted, session.World, me);
+        // Note 729: the other end of the handcar's handle, for a crewmate playing at one.
+        intent = Heed.Handcar(intent, session.Predicted, session.World, me, others, calls);
+        // The band (note 711): a bot with nothing else to do joins in, once every other heed's had its say (never the driver: its intent's the controls).
+        if (bot is RoofWalkerBot or GunnerBot && !hunted)
+            intent = Heed.Band(intent, session.Predicted, session.World, me);
         // Note 659: round what's lying in a car, last, whatever it was going there for.
         intent = Heed.Lying(intent, session.Predicted, session.World, session.PlayerTuning);
+        // Note 740 (GDD §17): aboard after the horn, "Aboard!", once: the crew see who's called back.
+        if (called && calls is not null && session.Predicted is { Alive: true, Parent: >= 0 } && !calls.HasCalledAboard(me))
+        {
+            intent.Emote = Emote.Aboard;
+            calls.CallBack(me);
+        }
+        // Note 722: a high five or fist bump held up to it, answered (not by the driver of a moving train).
+        if (!(bot is ConductorBot { Driving: true } && session.Train.Dynamics.Speed > Net.CabControls.StandingBelow))
+            intent = Heed.HighFive(intent, session.Predicted, session.World, me,
+                (bot as RoofWalkerBot)?.Crew ?? (bot as GunnerBot)?.Crew ?? (bot as ConductorBot)?.Crew ?? []);
+        // Note 716: and round the big cab's chart table and benches, down the ways either side of them.
+        intent = Heed.CabFurniture(intent, session.Predicted, session.World, session.PlayerTuning);
+        // Note 936 (the director, 20 Oct: "oh, the spur? Yeah, of course"): a ping it's taken, answered while it's at it, so the
+        // crew are told who's on it ("DUNMORE: ON THE SPUR").
+        if (calls?.Answering(me) is { } answering && session.Predicted.Alive)
+        {
+            intent.Moves |= PlayerMoves.Answer;
+            intent.Answer = answering;
+        }
         return Vote(intent, session, me);
     }
 

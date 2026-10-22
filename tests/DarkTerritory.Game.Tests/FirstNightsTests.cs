@@ -83,17 +83,29 @@ public sealed class FirstNightsTests : IDisposable
     [Fact]
     public void TheCardSaysThePlayersOwnKeys()
     {
-        var keys = new Settings().Bind(Control.Talk, "B");
+        var keys = (new Settings() with { PushToTalk = true }).Bind(Control.Talk, "B");
         var card = Onboarding.Card(keys);
         Assert.Contains(card, r => r.Contains("TALK : HOLD [B]", StringComparison.Ordinal));
         Assert.DoesNotContain(card, r => r.Contains("TALK : HOLD [V]", StringComparison.Ordinal));
     }
 
     [Fact]
+    public void WithTheMicOpenTheCardSaysJustTalk()
+    {
+        // Note 985: the mic's open by default, and no key needs holding to be heard.
+        var open = Onboarding.Card(new Settings());
+        Assert.Contains(open, r => r.Contains("TALK : JUST TALK", StringComparison.Ordinal));
+        Assert.DoesNotContain(open, r => r.Contains("TALK : HOLD", StringComparison.Ordinal));
+        Assert.Contains(Onboarding.Card(new Settings { PushToTalk = true }), r => r.Contains("TALK : HOLD [V]", StringComparison.Ordinal));
+    }
+
+    [Fact]
     public void TheCardSaysHowToCloseItAndNoControlCanTakeThatKey()
     {
         // The director, 9 Oct (note 527): "we need a way to close the 'first time controls' overlay".
-        Assert.Contains(Onboarding.Card(new Settings()), r => r.Contains($"HIDE THIS CARD : [{Onboarding.HideKey}]", StringComparison.Ordinal));
+        // Said on its own line at the top, not as the last of the rows (the director, 18 Oct: players never read that far).
+        Assert.Equal($"PRESS [{Onboarding.HideKey}] TO HIDE THIS CARD", Onboarding.HideRow);
+        Assert.DoesNotContain(Onboarding.Card(new Settings()), r => r.Contains("HIDE", StringComparison.Ordinal));
         Assert.Contains(Onboarding.HideKey, Controls.Reserved);
     }
 

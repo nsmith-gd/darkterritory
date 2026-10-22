@@ -1,0 +1,32 @@
+// The spawn director overhaul's balance bands (ARCHITECTURE §8 note 930; the director's brief,
+// docs/design/spawn-director-overhaul.md §7 "Initial balance targets"): what `dt director report` scores a `dt director sweep`
+// against, each group green inside its band and red outside. Benchmarks for simulation and playtesting, never spawn quotas
+// (§7: "Do not hardcode these counts as spawn quotas"); nothing in the game reads this file.
+//
+// From the brief, as written (BalanceBandsTests pins them):
+//   encounters: distinct meaningful encounters in a 20-minute night (the sweep's encountersPer20Min), by session. A group is
+//     judged by the first session whose crew it has and whose cars range holds its train; a group no session holds isn't.
+//   firstThreatSeconds: "First noticeable threat generally occurs within 90-150 seconds after leaving the safe departure
+//     area" (the sweep's firstThreat, counted from the night's grace).
+//   lateAtLeastEarly: "Encounters become measurably more frequent toward the latter half of the night".
+//
+// Ours, where the brief says what to watch but gives no number (the director's to change; note 930):
+//   droughtsOver90: "Investigate ordinary mid-run stretches exceeding 90 seconds without a meaningful threat": at most this
+//     many a night, on the mean.
+//   deliveredAtLeast: "Do not force these targets at the expense of basic playability, travel time, or the ability to
+//     finish runs": the share of a group's nights that get home.
+{
+  "encounters": [
+    { "crew": 1, "cars": [2, 3], "per20Min": [5, 8] },
+    { "crew": 2, "cars": [4, 6], "per20Min": [7, 11] },
+    { "crew": 4, "cars": [8, 8], "per20Min": [10, 15] },
+    { "crew": 8, "cars": [12, 99], "per20Min": [14, 20] }
+  ],
+  "firstThreatSeconds": [90, 150],
+  "lateAtLeastEarly": true,
+  // Ours (note 930; n1-C2): the late half judged per minute open to spawning, the terminus approach (§1 A: the final
+  // stretch, terminus_safe) and the grace taken out; the raw count shown beside it. false: the raw count judged.
+  "latePerOpenMinute": true,
+  "droughtsOver90": 2,
+  "deliveredAtLeast": 0.75
+}

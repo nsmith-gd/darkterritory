@@ -50,6 +50,13 @@ public static class ReliefDriver
         return null;
     }
 
+    /// <summary>
+    /// Where it waits for a Climber in the cab to go (note 955): on the roof of the car behind the engine, or the engine's own
+    /// roof, both well out of its reach in the cab; not on the hatch ladder down into it.
+    /// </summary>
+    public static bool HoldShort(in PlayerState self, TrainOnLine train) =>
+        self.Surface == Surface.Roof && (self.Parent == 0 || self.Parent > 0 && train.VehicleAhead(self.Parent) == 0);
+
     /// <summary>m: to the side of the centreline, round the engine's stack.</summary>
     internal const double Beside = 0.7;
 
@@ -71,7 +78,7 @@ public static class ReliefDriver
         };
         if (self.Position.Z < -l + 0.45 && aligned)
         {
-            if (WarmUp.CanJumpGap(self, train, null, 0))
+            if (WarmUp.CanJumpGap(self, train, 0))
                 intent.Buttons |= PlayerButtons.Jump;
             else
                 intent.MoveZ = 0;
@@ -105,7 +112,7 @@ public static class ReliefDriver
         };
         if (self.Position.Z > edge - 0.45 && aligned)
         {
-            if (WarmUp.CanJumpGap(self, train, null, behind))
+            if (WarmUp.CanJumpGap(self, train, behind))
                 intent.Buttons |= PlayerButtons.Jump;
             else
                 intent.MoveZ = 0;

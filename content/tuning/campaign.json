@@ -25,7 +25,11 @@
   "stores": {
     "powder": { "cost": 120, "most": 3, "each": 4 },
     "lamps": { "cost": 60, "most": 2 },
-    "extinguishers": { "cost": 90, "most": 2 }
+    "extinguishers": { "cost": 90, "most": 2 },
+    // Note 871 (docs/design/upgrades.md §4, the director: "fantastic"): a flare pistol loaded with `each` flares, stocked from
+    // the Frontier tier as a tool is (fromTier). Priced between a spare lamp and an extinguisher: a flare pistol is three
+    // nights' answer to the Fire Flies at one stop each.
+    "flares": { "cost": 80, "most": 2, "each": 3, "fromTier": "frontier" }
   },
   // GDD §9 "add or remove railcars": a car taken off the consist brings back this share of what that car cost (spec F.2),
   // and a consist keeps the starting three at least. A shorter train works a lower tier when it drops below one (F.4).
@@ -37,8 +41,8 @@
   // Spec E: 3 save slots per host.
   "saveSlots": 3,
   // Spec F.3. Cost is a share of what the next car costs now. "effect" multiplies tuning: tender (tender capacity),
-  // ammo (rounds per gun), lamp (how far the headlamp finds Sleepers), brakes (braking), burn (coal per unit of steam),
-  // insulation (how fast the cold comes on in an unheated car: player.json cold.indoorsRate), contactSafe (the closing
+  // ammo (rounds per gun), lamp (how far the headlamp reaches: train.json headlampReach, note 506), brakes (braking), burn (coal per unit of steam),
+  // contactSafe (the closing
   // speed a coupling takes before the ends are damaged: train.json couplings.safeContactSpeed), underLoad (how long cutting
   // a working train's coupling takes: couplings.uncoupleUnderLoadSeconds), unhook (how long the Passenger takes to unhook
   // the caboose: enemies.json passenger.uncoupleSeconds).
@@ -50,43 +54,312 @@
   // boiler.json repairSeconds), radioReach (metres added to how far into a tunnel or a mine spur the radio still carries:
   // train.json kit.radioReach) and switchThrower (fitted to the cab: train.json composition.thrower says what it does).
   // Every upgrade here does something; an effect name nothing models would change nothing, so give each one an effect.
+  // The catalogue (ARCHITECTURE §8 note 678; docs/design/upgrades.md, the director, 13 Oct: "Some upgrades need to be simply
+  // for fun, some purchases need to be silly, some purchases need to have comedic whimsy, and some purchases need to be
+  // legitimate tools that will push runs further"): "kind" is tool (the default), fun, silly or whimsy, and the shop shelves
+  // them by it. "fromTier" holds a tool back until the consist works that tier (spec F.4: the cars set it), so a tool comes
+  // to the crew with the trouble it answers and not before. "excludes" names upgrades it won't go with. "line" is its card
+  // in the shop; "tally", what the yard clerk reads into every night's tally while the crew owns it (GDD §9: the clerk isn't
+  // impressed either). An upgrade with a tally and no effect does something: the clerk says so, every night.
+  // Note 972 (upgrades.md §8.5: "the tally reads 'Bar: eight drinks'"): a tally reads the night's counts of what it did
+  // (World.UpgradeCounts: barDrinks, beers, grilled, geraldTaken, gnomesTaken, canaryDead, volunteers, ballsThrown):
+  // "{name}" is the count, "{name?counted|not}" the first reading with one or more ("#" in it the count) and the second with none.
+  // Every reading is said from the clerk's bank of words (tools/audio/clerk.py; ClerkVoiceTests), built again with the
+  // catalogue's (note 982): "Bar: drinks, 8." for upgrades.md's "Bar: eight drinks", "Canary: deceased.".
+  // The note's effects: overspeedLead (train.json overspeed.leadSeconds: the cab's bell before a bend, and how long it rings
+  // before a bend can take the train), brakeFade (brakeFade.fadePerSecond), fragile (fragile.shockShare and
+  // brakeShockPerSecond: what knocks spoil of medicine), boardUp (breach.boardSeconds), radios (kit.radios, added), accel
+  // (each performance row's accel), reload (combat.json
+  // guns.reloadStepSeconds), whistle (choir.whistleLoudness), hotboxKnock (enemies.json hotbox.knockSeconds and
+  // glowSeconds: how long a Hotbox's axle knocks and glows before it seizes), hotboxMend (hotbox.repairSeconds) and
+  // extinguisher (carFire.chargeSeconds times it, rechargeSeconds over it).
+  // Heard working (queue #505, note 775; upgrades.md §8.1 "When it works"): a tool whose moment has a sound of its own marks
+  // itself with "dress:<id>" so every machine knows it's fitted (the recorder's bell, the pre-cut boards, the rammer, the
+  // booster's beat, the composition shoes, the oilers). horseshoe multiplies foul as foul does, and the guns keep the
+  // factor (GunTuning.HorseshoeFoul): a shot that would have fouled without it, and didn't, glints.
   "upgrades": [
-    { "id": "lampBrightness", "name": "Lamp brightness", "size": "small", "costShare": 0.15, "effect": { "lamp": 1.25 } },
+    { "id": "lampBrightness", "name": "Lamp brightness", "size": "small", "costShare": 0.15, "effect": { "lamp": 1.25 }, "line": "A brighter headlamp, seen further down the line." },
     // F.3 "lamp armour": the Climbers still smash the forward lamp coming into the cab (§23 "lights fail"), but the guard
     // takes the worst of it and it's lit again in half the time (22.5 s, not 45).
-    { "id": "lampArmour", "name": "Lamp armour", "size": "small", "costShare": 0.2, "effect": { "lampOut": 0.5 } },
+    { "id": "lampArmour", "name": "Lamp armour", "size": "small", "costShare": 0.2, "effect": { "lampOut": 0.5 }, "line": "A cage on the headlamp. Smashed, it's lit again in half the time." },
     // F.3 "gun cooling" (GDD §23 "gun jams", note 183): a cooler bore fouls half as often (2% a shot, 5% in the wet).
-    { "id": "gunCooling", "name": "Gun cooling", "size": "small", "costShare": 0.2, "effect": { "foul": 0.5 } },
-    { "id": "ammunitionCapacity", "name": "Ammunition capacity", "size": "small", "costShare": 0.2, "effect": { "ammo": 1.5 } },
+    { "id": "gunCooling", "name": "Gun cooling", "size": "small", "costShare": 0.2, "effect": { "foul": 0.5 }, "line": "A water jacket on every bore. The guns foul half as often." },
+    { "id": "ammunitionCapacity", "name": "Ammunition capacity", "size": "small", "costShare": 0.2, "effect": { "ammo": 1.5 }, "line": "Bigger magazines: half again the powder and shot at every gun." },
     // F.3 "repair kit charges". A kit is never used up (it mends the boiler and opens a lock and is still in hand), so a
     // charge has nothing to count; read as better tools that work faster: a ruptured boiler is mended in 15 s, not 25
     // (note 196). Note 301: the wrench is the repair tool now, so it's the crew's wrenches that are better (the id is kept,
     // so saves that bought it still have it).
-    { "id": "repairKit", "name": "Fitter's wrenches", "size": "small", "costShare": 0.15, "effect": { "repair": 0.6 } },
-    { "id": "tenderCapacity", "name": "Tender capacity", "size": "small", "costShare": 0.25, "effect": { "tender": 1.25 } },
+    { "id": "repairKit", "name": "Fitter's wrenches", "size": "small", "costShare": 0.15, "effect": { "repair": 0.6 }, "line": "Better wrenches for everyone. A burst boiler mended in 15 seconds, not 25." },
+    { "id": "tenderCapacity", "name": "Tender capacity", "size": "small", "costShare": 0.25, "effect": { "tender": 1.25 }, "line": "A bigger tender: a quarter more coal." },
     // A coupling-up knock at 1.5 m/s (the most that couples, couplings.coupleMaxSpeed) does no damage; and the Passenger
     // takes half again as long unhooking the caboose: 6 s, two more to kill it in.
-    { "id": "couplingReinforcement", "name": "Coupling reinforcement", "size": "small", "costShare": 0.2, "effect": { "contactSafe": 1.5, "unhook": 1.5 } },
+    { "id": "couplingReinforcement", "name": "Coupling reinforcement", "size": "small", "costShare": 0.2, "effect": { "contactSafe": 1.5, "unhook": 1.5 }, "line": "Heavier couplings. A hard coupling-up does no harm, and the Passenger takes longer unhooking the caboose." },
     // F.3 "Dragger resistance": on every roof (train.json composition.rails says what holding them does).
-    { "id": "roofHandrails", "name": "Roof handrails", "size": "small", "costShare": 0.2, "effect": { "handrails": 1 } },
+    { "id": "roofHandrails", "name": "Roof handrails", "size": "small", "costShare": 0.2, "effect": { "handrails": 1 }, "line": "Rails along every roof, to hold onto when something pulls, or the wind does." },
     // F.3 "radio range" (spec A.5's radio already covers the whole run, and "dies in tunnels and mine spurs"): it carries
     // 150 m into one before it dies, from a tunnel's mouth or a mine spur's points.
-    { "id": "radioRange", "name": "Radio range", "size": "small", "costShare": 0.15, "effect": { "radioReach": 150 } },
-    // F.3 "car insulation (cold)": in a car without heat (a door open, or the steam gone), the cold comes on half as fast.
-    { "id": "carInsulation", "name": "Car insulation", "size": "small", "costShare": 0.2, "effect": { "insulation": 0.5 } },
+    { "id": "radioRange", "name": "Radio range", "size": "small", "costShare": 0.15, "effect": { "radioReach": 150 }, "line": "A stronger set. The radio carries 150 m into a tunnel or down a mine spur." },
+    // F.3 "car insulation (cold)": retired with the cold (note 852, the director, 16 Oct 2026): nothing for it to slow now.
     // GDD §26 "reinforced plating, heavier mass": one car, the guard van (composition.armourTonnes, armourDamage).
-    { "id": "armouredCar", "name": "Armoured car conversion", "size": "major", "costShare": 1.2, "effect": { "armouredCars": 1 } },
+    { "id": "armouredCar", "name": "Armoured car conversion", "size": "major", "costShare": 1.2, "effect": { "armouredCars": 1 }, "line": "Plate on the guard van. Heavier, and it takes the knocks." },
     // F.3 "a third gun, but it costs a cargo slot": a cargo car in the middle becomes a guard car.
-    { "id": "secondGuardCar", "name": "Second guard car", "size": "major", "costShare": 1.5, "effect": { "guardCars": 1 } },
+    { "id": "secondGuardCar", "name": "Second guard car", "size": "major", "costShare": 1.5, "effect": { "guardCars": 1 }, "line": "A third gun, in a guard car in the middle of the train. It costs a cargo slot." },
     // GDD §10 "utility cars" (note 184: not in F.3's list; priced as its cheapest major, since it costs a cargo slot and
     // carries no gun): the first car behind the engine becomes a crew car, its stove warm with the steam gone.
-    { "id": "crewCar", "name": "Crew car", "size": "major", "costShare": 1.0, "effect": { "utilityCars": 1 } },
-    { "id": "improvedBrakes", "name": "Improved brakes", "size": "major", "costShare": 1.0, "effect": { "brakes": 1.2 } },
-    { "id": "boilerUpgrade", "name": "Boiler upgrade", "size": "major", "costShare": 1.4, "effect": { "burn": 0.85 } },
+    { "id": "crewCar", "name": "Crew car", "size": "major", "costShare": 1.0, "effect": { "utilityCars": 1 }, "line": "Behind the engine: bunks and a stove that stays warm with the steam gone. It costs a cargo slot." },
+    { "id": "improvedBrakes", "name": "Improved brakes", "size": "major", "costShare": 1.0, "effect": { "brakes": 1.2 }, "line": "Better brakes: a fifth harder stopping." },
+    { "id": "boilerUpgrade", "name": "Boiler upgrade", "size": "major", "costShare": 1.4, "effect": { "burn": 0.85 }, "line": "A better boiler: 15% less coal for the same steam." },
     // F.3 "removes the ground excursion at junctions": points thrown from the cab (train.json composition.thrower).
-    { "id": "poweredSwitchThrower", "name": "Powered switch thrower", "size": "major", "costShare": 1.6, "effect": { "switchThrower": 1 } },
+    { "id": "poweredSwitchThrower", "name": "Powered switch thrower", "size": "major", "costShare": 1.6, "effect": { "switchThrower": 1 }, "line": "Throw the points from the cab. Nobody has to get down at a junction." },
     // F.3 "uncouple under load": cutting a working train's coupling takes no longer than a slack one (6 s to 3 s).
-    { "id": "reinforcedCouplings", "name": "Reinforced couplings", "size": "major", "costShare": 1.8, "effect": { "underLoad": 0.5 } }
+    { "id": "reinforcedCouplings", "name": "Reinforced couplings", "size": "major", "costShare": 1.8, "effect": { "underLoad": 0.5 }, "line": "Cut a working train's coupling in half the time." },
+    // The handcar (GDD §24.1; the director, 14 Oct 2026, App. F.6; note 729): a pump trolley hung on the back of the guard van
+    // (train.json handcar), for a friend left behind, a branch scouted or a race. Not in F.3; priced as its small upgrades are.
+    { "id": "handcar", "name": "The handcar", "size": "small", "costShare": 0.25, "effect": { "handcar": 1 } },
+
+    // Tools that keep pace with the tiers (note 678). Each answers a trouble that grows past the tier it's stocked from, and
+    // takes a share of it, never all of it: a warning sooner, a job done faster, a window held open longer.
+    // The deeper lines' bends (GDD §11: "harder grades and bends"): the bell rings 6 s out, not 4, and a bend has to have
+    // been rung that long before it can take the train (note 266).
+    { "id": "speedRecorder", "name": "Speed recorder", "size": "small", "costShare": 0.15, "fromTier": "frontier", "effect": { "overspeedLead": 1.5, "dress:speedRecorder": 1 },
+      "line": "A bell in the cab that rings before the bend does. Six seconds' warning, not four." },
+    // The grades (spec B.5's fade, on a descent): half as fast.
+    { "id": "compositionShoes", "name": "Composition brake shoes", "size": "small", "costShare": 0.2, "fromTier": "frontier", "effect": { "brakeFade": 0.5, "dress:compositionShoes": 1 },
+      "line": "Shoes that fade half as fast on a long descent." },
+    // Medicine (GDD §19 "fragile, high value"): knocks and hard braking spoil 40% of what they did.
+    { "id": "sprungCradles", "name": "Sprung cradles", "size": "small", "costShare": 0.15, "effect": { "fragile": 0.4 },
+      "line": "Racks on springs for the medicine. A hard stop spoils less of it." },
+    // Breaches (spec B.9; the Car Hugger and the Climbers, more of both on every tier down): boarded up in 4 s, not 8.
+    { "id": "precutBoards", "name": "Pre-cut boards", "size": "small", "costShare": 0.15, "fromTier": "frontier", "effect": { "boardUp": 0.5, "dress:precutBoards": 1 },
+      "line": "Planks cut to a breach's size, stacked in every car. Boarded up in half the time." },
+    // The Hotbox (App. A.3; weighted up each tier, enemies.json hotbox.tierWeights): its axle knocks and glows half again
+    // as long before it seizes, and is mended in half the time.
+    { "id": "axleOilers", "name": "Axle oilers", "size": "small", "costShare": 0.2, "fromTier": "deadLines", "effect": { "hotboxKnock": 1.5, "hotboxMend": 0.5, "dress:axleOilers": 1 },
+      "line": "Oil cups on every axle. A hot box knocks longer before it seizes, and cools quicker under the wrench." },
+    // Car fires (App. C.5; powder, chemicals and fuel grow them, and the deeper yards load them): half again the spray, and
+    // back to full on the bracket in half the time.
+    { "id": "bigExtinguishers", "name": "Big extinguishers", "size": "small", "costShare": 0.2, "fromTier": "frontier", "effect": { "extinguisher": 1.5 },
+      "line": "Bigger bottles: half again the spray, and full again on the bracket in half the time." },
+    // Debris on the line (enemies.json sleepers; off by default since note 265, a mod can bring it back): the cowcatcher takes
+    // half the front car's damage from striking it, heavy or minor. It's the plough on the front of the engine (upgrades.md §8.2).
+    { "id": "cowcatcher", "name": "Cowcatcher", "size": "small", "costShare": 0.15, "fromTier": "frontier", "effect": { "debrisDamage": 0.5 },
+      "line": "A plough on the engine's front. Debris struck on the line costs half." },
+    // The ladders (player.json ladder.grabMaxRelativeSpeed, 3.5 m/s): caught from the ground at a third more speed, so a
+    // crewmate left behind has a longer chase to make. Extra irons on every ladder's foot.
+    { "id": "grabIrons", "name": "Grab irons", "size": "small", "costShare": 0.15, "fromTier": "frontier", "effect": { "grabIrons": 1.3333333333 },
+      "line": "Extra irons at every ladder's foot. A ladder caught from the ground at a third more speed." },
+    // The rear searchlight (note 899; the director's inbox answer of 20 Oct, `nathaniel1-tbm-rear-searchlight`: "look"): a lamp
+    // on the guard van's roof lighting the track behind. Look only, by the director's choice: no creature sees it and the
+    // guns aim no better by it (a purchase that does nothing but light), so the clerk reads it into every tally.
+    { "id": "rearSearchlight", "name": "Rear searchlight", "size": "small", "costShare": 0.15, "fromTier": "frontier", "effect": { "dress:rearSearchlight": 1 },
+      "line": "A searchlight on the guard van's roof, pointed back down the line. Whatever's following you, you'll see it following you.",
+      "tally": "Caboose: lamp parts, bolted on. Still up." },
+    // The speaking tubes (note 978; upgrades.md §6, the director: "funny"): a brass horn in every car with a room, joined to the
+    // next car's either way along the train as well as the cab's pipe to the guard van (note 720). Said into one, heard out of
+    // the neighbours' horns, tinny (player.json voices.tube).
+    { "id": "speakingTubes", "name": "Speaking tubes", "size": "small", "costShare": 0.15, "fromTier": "deadLines", "effect": { "speakingTubes": 1 },
+      "line": "A brass horn in every car, piped to the cars either side. Shout down the train without a radio." },
+    // The feedwater heater (upgrades.md): retired with the cold (note 852): the cold took nothing off the boiler to give back.
+    // More creatures at the rear and flanks each tier down: a reload step in 1.2 s, not 1.5.
+    { "id": "gunRammers", "name": "Gun rammers", "size": "small", "costShare": 0.25, "fromTier": "deadLines", "effect": { "reload": 0.8, "dress:gunRammers": 1 },
+      "line": "Sprung rammers and a powder measure at every gun. Each step of a reload a fifth quicker." },
+    // The longest trains (spec B.5: 0.18 m/s² at 20 cars) get going again after a stop a fifth harder.
+    { "id": "boosterEngine", "name": "Trailing-truck booster", "size": "major", "costShare": 1.5, "fromTier": "deadLines", "effect": { "accel": 1.2, "dress:boosterEngine": 1 },
+      "line": "A second engine under the tender's trucks. A long train pulls away a fifth harder." },
+
+    // The armoured cab (upgrades.md §8.8, the director: "You still want full visibility of the track"): thick glass in heavy
+    // riveted frames and a grille outside, never slits. A Climber over the tender is held at the glass (enemies.json
+    // climbers.cabGlassSeconds) before it's through into the cab.
+    { "id": "armouredCab", "name": "Armoured cab", "size": "major", "costShare": 1.5, "fromTier": "deepTerritory", "effect": { "cabArmour": 1 },
+      "line": "Armour glass and a grille at the cab windows. Full sight of the line; a Climber is held at the glass before it's through." },
+    // Armour II and III (upgrades.md §8.2; "the conversion repeatable"): one more car plated each, a rank at a time, from the
+    // tier whose Climbers and Draggers they answer. "requires" names the rank before.
+    { "id": "armouredCar2", "name": "Armour rank 2", "size": "major", "costShare": 1.4, "fromTier": "deadLines", "requires": [ "armouredCar" ], "effect": { "armouredCars": 1 },
+      "line": "Plate on the next car back. Needs the first conversion." },
+    { "id": "armouredCar3", "name": "Armour rank 3", "size": "major", "costShare": 1.6, "fromTier": "deepTerritory", "requires": [ "armouredCar2" ], "effect": { "armouredCars": 1 },
+      "line": "Plate on a third car. Needs armour rank 2." },
+
+    // Whimsy (note 678): it works, and it's funny. A real use and a joke in the same purchase.
+    // The whistle swapped for a clown's bulb horn: a third as loud to the Choir (combat.json choir.whistleLoudness; it still
+    // draws the night's first threat as a whistle does, note 287). Its honk is the audio chat's (asked on the PR). Not with
+    // the gold one.
+    { "id": "theHonk", "name": "The honk", "kind": "whimsy", "size": "small", "costShare": 0.05, "effect": { "whistle": 0.35, "dress:theHonk": 1 }, "excludes": [ "goldWhistle", "cucarachaHorn", "calliope" ],
+      "line": "A bulb horn off a clown's bicycle where the whistle was. The Territory doesn't take it seriously.",
+      "tally": "Horn: comedic." },
+    // The dining car (upgrades.md §4 silly, §8.5; approved by the director, 13 Oct: "If we have a dining car, we should be able to
+    // order drinks at the bar"; note 959): a cargo car converted behind the crew cars, its table laid for eight under a
+    // chandelier, and its bar, which pours train.json composition.dining.drinks a night. It carries nothing and weighs a car.
+    { "id": "diningCar", "name": "The dining car", "kind": "silly", "size": "major", "costShare": 1.2, "effect": { "diningCar": 1 },
+      "line": "A cargo car converted: a chandelier, a table laid for eight, and a bar at the far end. It carries nothing. Dining car: laid.",
+      "tally": "{barDrinks?Bar: drinks, #.|Bar: dry.}" },
+    // The BBQ deck (note 698; the director, 13 Oct: "its the BBQ Dads at the end of the world"): train.json composition.bbq.
+    // A whimsy that's also a tool (a heal off the grill, a warm spot, the best seat on the train), and it costs like one: the
+    // grill's heat and smell bring the Cinder Hounds as a hot boiler does, and the chairs are out front in the cold.
+    { "id": "bbqDeck", "name": "The BBQ deck", "kind": "whimsy", "size": "major", "costShare": 0.6, "effect": { "bbqDeck": 1 },
+      "line": "A deck on a cowcatcher out front: two Muskoka chairs, a cooler of beers and a BBQ on a stand. For the BBQ Dads at the end of the world.",
+      "tally": "Deck: beers, {beers}. Grill: {grilled}." },
+    // The band (note 700; the director, 13 Oct: "they are like Celtic folk style songs ... the East Coast folk aesthetic"):
+    // band.json's instruments, one each, in the guard van. Carried, Use held plays it, in time with whoever started first;
+    // as loud to the Choir as a noisy toy, so a kitchen party in the dark has its price.
+    { "id": "fiddle", "name": "A fiddle", "kind": "whimsy", "size": "small", "costShare": 0.06, "effect": { "instrument:fiddle": 1 },
+      "line": "Somebody's grandfather's, with a new string. Carry it and hold [E] to play: the rest of the band comes in on you.",
+      "tally": "Fiddle: in tune, mostly." },
+    { "id": "tinWhistle", "name": "A tin whistle", "kind": "whimsy", "size": "small", "costShare": 0.03, "effect": { "instrument:whistle": 1 },
+      "line": "A penny whistle in D, an octave over the fiddle. Hold [E] to play it.",
+      "tally": "Tin whistle: shrill." },
+    { "id": "accordion", "name": "A button accordion", "kind": "whimsy", "size": "small", "costShare": 0.08, "effect": { "instrument:accordion": 1 },
+      "line": "Two rows of buttons and a bellows with one patch. Hold [E] to play; nobody has to dance.",
+      "tally": "Accordion: wheezing." },
+    { "id": "tenorBanjo", "name": "A tenor banjo", "kind": "whimsy", "size": "small", "costShare": 0.06, "effect": { "instrument:banjo": 1 },
+      "line": "Four strings and a skin head, picked fast with the tune. Hold [E] to play.",
+      "tally": "Banjo: plunky." },
+    { "id": "guitar", "name": "A guitar", "kind": "whimsy", "size": "small", "costShare": 0.05, "effect": { "instrument:guitar": 1 },
+      "line": "Boom-chuck under the tune: the bass on the beat, the chords between. Hold [E] to play.",
+      "tally": "Guitar: three chords." },
+    { "id": "bodhran", "name": "A bodhrán", "kind": "whimsy", "size": "small", "costShare": 0.04, "effect": { "instrument:bodhran": 1 },
+      "line": "A goatskin frame drum and its tipper. Hold [E] to keep the beat for the band.",
+      "tally": "Bodhrán: thumping." },
+    { "id": "spoons", "name": "The spoons", "kind": "whimsy", "size": "small", "costShare": 0.01, "effect": { "instrument:spoons": 1 },
+      "line": "Two soup spoons from the canteen, back to back. Hold [E] and clack them on your knee.",
+      "tally": "Spoons: borrowed." },
+    { "id": "uglyStick", "name": "An ugly stick", "kind": "whimsy", "size": "small", "costShare": 0.03, "effect": { "instrument:uglyStick": 1 },
+      "line": "A mop handle, a rubber boot, bottle caps and a tin can. Hold [E] to thump it: the Newfoundland way.",
+      "tally": "Ugly stick: ugly." },
+    // Nailed points up over the cab door: the guns foul a little less (with gun cooling too: they multiply).
+    { "id": "luckyHorseshoe", "name": "Lucky horseshoe", "kind": "whimsy", "size": "small", "costShare": 0.1, "effect": { "horseshoe": 0.85 },
+      "line": "Nailed over the cab door, points up. The guns foul a little less. Nobody can say why.",
+      "tally": "Horseshoe: still up." },
+
+    // Silly (note 678): bought because it's silly. The price is the joke, and the clerk reads it out every night.
+    // Costs more than a major and is still a whistle: louder, which isn't better (the Choir hears it a quarter further).
+    { "id": "goldWhistle", "name": "Gold-plated whistle", "kind": "silly", "size": "major", "costShare": 2.5, "effect": { "whistle": 1.25, "dress:goldWhistle": 1 }, "excludes": [ "theHonk", "cucarachaHorn", "calliope" ],
+      "line": "Costs more than a car. It's a whistle. It's louder, and that isn't better.",
+      "tally": "Whistle: gold." },
+    // The rest of the silly (note 701; the director, 13 Oct: approved, "hilarious", "super funny"): things on the train, the
+    // effect "dress:<id>" for the art. Nothing they do but be seen, except the moose head (the Moose takes it personally) and
+    // the horn (it's still the whistle, and the Choir hears it as the whistle).
+    { "id": "fuzzyDice", "name": "Fuzzy dice", "kind": "silly", "size": "small", "costShare": 0.02, "effect": { "dress:fuzzyDice": 1 },
+      "line": "A pair, hung from the cab roof by the front glass. They swing on the bends.",
+      "tally": "Dice: fuzzy." },
+    { "id": "bumperStickers", "name": "Bumper stickers", "kind": "silly", "size": "small", "costShare": 0.03, "effect": { "dress:bumperStickers": 1 },
+      "line": "Three on the guard van's back end, a new three from the blacksmith's drawer every night. All puns.",
+      "tally": "Stickers: three." },
+    { "id": "flames", "name": "Flames", "kind": "silly", "size": "small", "costShare": 0.15, "effect": { "dress:flames": 1 },
+      "line": "Painted down both sides of the boiler. It goes faster. (It doesn't.)",
+      "tally": "Flames: painted." },
+    { "id": "spinnerHubcaps", "name": "Spinner hubcaps", "kind": "silly", "size": "small", "costShare": 0.2, "effect": { "dress:spinnerHubcaps": 1 },
+      "line": "Chrome spinners on the driving wheels. Still spinning at a stand.",
+      "tally": "Hubcaps: spinning." },
+    { "id": "tinyCaboose", "name": "The tiny caboose", "kind": "silly", "size": "small", "costShare": 0.1, "effect": { "dress:tinyCaboose": 1 },
+      "line": "A toy caboose on a string off the back of the guard van. It comes off at every bend and is dragged.",
+      "tally": "Caboose: small." },
+    { "id": "cucarachaHorn", "name": "La Cucaracha horn", "kind": "silly", "size": "small", "costShare": 0.12, "effect": { "dress:cucarachaHorn": 1 },
+      "excludes": [ "theHonk", "goldWhistle", "calliope" ],
+      "line": "The whistle plays La Cucaracha. Every pull, all of it. The Choir hears it as the whistle.",
+      "tally": "Horn: musical." },
+    { "id": "airFreshener", "name": "Pine-tree air freshener", "kind": "silly", "size": "small", "costShare": 0.005, "effect": { "dress:airFreshener": 1 },
+      "line": "Hung in the cab. The Territory already smells of pine.",
+      "tally": "Air freshener: pine." },
+    { "id": "participationRibbon", "name": "A participation ribbon", "kind": "silly", "size": "small", "costShare": 0.4, "effect": { "dress:participationRibbon": 1 },
+      "line": "From the town, for the guard van's door. It costs a lot. You took part.",
+      "tally": "Ribbon: participation." },
+    { "id": "monogrammedTowels", "name": "Monogrammed towels", "kind": "silly", "size": "small", "costShare": 0.05, "effect": { "dress:monogrammedTowels": 1 },
+      "line": "Good towels on a rail in the guard van, each embroidered. Some of them about you.",
+      "tally": "Towels: monogrammed." },
+    { "id": "mooseHead", "name": "Stuffed moose head", "kind": "silly", "size": "small", "costShare": 0.25, "effect": { "dress:mooseHead": 1, "mooseTemper": 2 },
+      "line": "Mounted on the engine's front, over the lamp. A Moose takes it personally: its temper rises twice as fast as the train goes by.",
+      "tally": "Moose head: mounted." },
+    // The fun one of the batch (the director: "classic").
+    { "id": "discoBall", "name": "The disco ball", "kind": "fun", "size": "small", "costShare": 0.08, "effect": { "dress:discoBall": 1, "fireFlies": 1.5 },
+      "line": "Hung in the guard van, turning, throwing the lamp round the walls. The Fire Flies come to dance: half again as often at a stop.",
+      "tally": "Disco ball: turning." },
+    // The fun (note 714; the director, 13 Oct: approved). The liveries: each bought once, and picked in the yard by choosing
+    // an owned one again at the blacksmith; the last picked is on the train (effect "livery": which paint).
+    { "id": "liveryCrimson", "name": "Livery: crimson, lined gold", "kind": "fun", "size": "small", "costShare": 0.05, "effect": { "livery": 1 },
+      "line": "The whole train repainted crimson, lined out in gold leaf. Bought once; choose it again here to paint her in it.",
+      "tally": "Livery: crimson." },
+    { "id": "liveryForest", "name": "Livery: forest green and brass", "kind": "fun", "size": "small", "costShare": 0.05, "effect": { "livery": 2 },
+      "line": "Forest green, brass lining down every side. Bought once; choose it again here to paint her in it.",
+      "tally": "Livery: forest green." },
+    { "id": "liveryMidnight", "name": "Livery: black, white stripe", "kind": "fun", "size": "small", "costShare": 0.05, "effect": { "livery": 3 },
+      "line": "Black from end to end and a white stripe down her. Bought once; choose it again here to paint her in it.",
+      "tally": "Livery: black." },
+    // The engine's name, on brass plates either side of the cab; typed at the fortress (CREW: ENGINE NAME), read in the tally.
+    { "id": "nameplate", "name": "Engine nameplate", "kind": "fun", "size": "small", "costShare": 0.04, "effect": { "dress:nameplate": 1 },
+      "line": "Brass plates for the cab's sides with the engine's name cast in them. Name her at the fortress.",
+      "tally": "Engine: {engine}." },
+    // The hat rack (note 714): look.json crewHats on OUTFIT's HAT row, tried on in the yard, for every crewmate.
+    { "id": "hatRack", "name": "The hat rack", "kind": "fun", "size": "small", "costShare": 0.06, "effect": { "dress:hatRack": 1 },
+      "line": "A rack of hats in the guard van: a stovepipe, a fez, a straw boater and a deerstalker. HAT on the menu in the yard.",
+      "tally": "Hats: on." },
+    // More emotes (note 714): the bow, the salute and the conga on the emote wheel (everyone who joins follows the leader).
+    { "id": "moreEmotes", "name": "More emotes", "kind": "fun", "size": "small", "costShare": 0.05, "effect": { "dress:moreEmotes": 1 },
+      "line": "The bow, the salute and the conga on the emote wheel. The conga: whoever joins it follows whoever started it.",
+      "tally": "Conga: danced." },
+    // The yard photographer (note 714): stands in the yard ahead of the engine with a camera on a tripod, and as she pulls
+    // out, flash: the crew's picture, shown on every machine and kept in the night's bookmarks folder.
+    { "id": "yardPhotographer", "name": "The yard photographer", "kind": "fun", "size": "small", "costShare": 0.03, "effect": { "dress:yardPhotographer": 1 },
+      "line": "A fellow with a tripod who takes the crew's picture as she leaves the yard, every night. Kept in your bookmarks folder.",
+      "tally": "Photograph: taken." },
+    // The whimsies (note 715; docs/design/upgrades.md §8.2), train.json composition.whimsy. Gerald: a straw dummy in a crew
+    // coat sat on the guard van's roof; the Gannet takes him for a walker now and then (enemies.json gannet.decoyPull) and
+    // carries him off, and the clerk reads it out. Sold on every tier, as every whimsy is (UpgradeTests): the Gannet comes when it comes.
+    { "id": "gerald", "name": "Gerald", "kind": "whimsy", "size": "small", "costShare": 0.1, "effect": { "dress:gerald": 1 },
+      "line": "A straw dummy in a crew coat, bolted to the guard van's roof. The Gannet can't tell him from you. Every crew names him Gerald.",
+      "tally": "{geraldTaken?Gerald. Body not recovered. Fee 0.|Gerald: aboard.}" },
+    // Garden gnomes along the roofs: the Gannet dives on one now and then, as on Gerald.
+    { "id": "gardenGnomes", "name": "Garden gnomes", "kind": "whimsy", "size": "small", "costShare": 0.06, "effect": { "dress:gardenGnomes": 1 },
+      "line": "Five gnomes bolted along the roofs, fishing rods and all. Now and then the Gannet takes one instead of you.",
+      "tally": "{gnomesTaken?Gnomes: # taken.|Gnomes: bolted.}" },
+    // The canary in car one: it sings while all's well, stops while an interior creature's aboard near it, and dies in fumes.
+    { "id": "canary", "name": "The canary", "kind": "whimsy", "size": "small", "costShare": 0.08, "effect": { "dress:canary": 1 },
+      "line": "A canary in a brass cage in car one. It sings while all's well and stops when something's aboard. Keep it out of the fumes.",
+      "tally": "{canaryDead?Canary: deceased.|Canary: singing.}" },
+    // The steam calliope: the whistle's each pull the next note of a tune; louder to the Choir, and a Moose stops to listen.
+    { "id": "calliope", "name": "Steam calliope", "kind": "whimsy", "size": "small", "costShare": 0.1, "effect": { "whistle": 1.6, "dress:calliope": 1 },
+      "excludes": [ "theHonk", "goldWhistle", "cucarachaHorn" ],
+      "line": "Brass pipes on the boiler where the whistle was: each pull of the cord the tune's next note. Louder. A Moose stops to listen.",
+      "tally": "Whistle: a calliope." },
+    // The gramophone in the guard van, wound with Use: the Gaunt hears it as talk, a Moose stops for it, the Choir hears a music box.
+    { "id": "gramophone", "name": "The gramophone", "kind": "whimsy", "size": "small", "costShare": 0.08, "effect": { "dress:gramophone": 1 },
+      "line": "A wind-up gramophone in the guard van and a stack of jigs and reels. The Gaunt hears it as talk. So does the Choir, a little.",
+      "tally": "Gramophone: wound." },
+    // The second whimsies (note 744), train.json composition.whimsy. The hammock across the guard van's rear end: lain in,
+    // the cold comes on slower (hammockCold); lying still is standing still to Tippy Toesie.
+    { "id": "hammock", "name": "The hammock", "kind": "whimsy", "size": "small", "costShare": 0.04, "effect": { "dress:hammock": 1 },
+      "line": "A canvas hammock slung across the guard van's back end. Warm-ish. Lying still is standing still, to some.",
+      "tally": "Hammock: slung." },
+    // The hot tub on the engine's hood, fed off the boiler: warm while there's steam (each bather draws tubSteam of it), and
+    // out on the roof at line speed.
+    { "id": "hotTub", "name": "The hot tub", "kind": "whimsy", "size": "small", "costShare": 0.15, "effect": { "dress:hotTub": 1 },
+      "line": "A cedar tub on the engine's hood, piped off the boiler. Two seats. It eats steam. You are on the roof at 70.",
+      "tally": "Hot tub: steaming." },
+    // The fishing rod in the guard van: at the water's edge, a line in, and a fish; grilled on the BBQ deck, it heals more.
+    { "id": "fishingRod", "name": "The fishing rod", "kind": "whimsy", "size": "small", "costShare": 0.05, "effect": { "dress:fishingRod": 1 },
+      "line": "A rod in the guard van. Stand at the water's edge, hold Use, wait. Grilled on the deck it's better than a sausage.",
+      "tally": "Rod: aboard." },
+    // The yard cat, in the cab: it wanders the car it's in, sleeps on the warm backhead, and hisses at what's aboard near it
+    // (note 745).
+    { "id": "yardCat", "name": "The yard cat", "kind": "whimsy", "size": "small", "costShare": 0.06, "effect": { "dress:yardCat": 1 },
+      "line": "A ginger tom who came with the yard. Sleeps on the backhead. Hisses at things you can't see yet.",
+      "tally": "Cat: aboard." },
+    // The dog, in the guard van: it barks at what's aboard or coming up behind, and fetches a toy to whoever's near (note 745).
+    { "id": "dog", "name": "The dog", "kind": "whimsy", "size": "small", "costShare": 0.08, "effect": { "dress:dog": 1 },
+      "line": "A sheepdog for the guard van. Barks at what's behind the train. Brings you things.",
+      "tally": "Dog: good." },
+    // The tennis-ball launcher on the guard van's platform: a ball off the back, and the Cinder Hounds go for it (note 745).
+    { "id": "tennisBalls", "name": "The tennis-ball launcher", "kind": "whimsy", "size": "small", "costShare": 0.07, "effect": { "dress:tennisBalls": 1 },
+      "line": "A sprung launcher on the van's back rail and a bucket of balls. The hounds are hounds.",
+      "tally": "Balls: thrown, {ballsThrown}." },
+    // The human cannonball (note 746): the guard van's gun takes a crewmate for its last load, climbed in at the muzzle; fired,
+    // they land where it's aimed, unhurt, on dry ground, and anything in the way takes the ball's hit.
+    { "id": "humanCannonball", "name": "The human cannonball", "kind": "whimsy", "size": "small", "costShare": 0.12, "effect": { "dress:humanCannonball": 1 },
+      "line": "A wider bore and a padded helmet for the van's gun. Powder, pack, and a volunteer. They land. They always land.",
+      "tally": "{volunteers?Cannon: volunteers, #.|Cannon: one volunteer.}" },
+    // Does nothing at all, and the clerk says so, every night, for good.
+    { "id": "commendation", "name": "Framed commendation", "kind": "silly", "size": "small", "costShare": 0.5, "effect": { },
+      "line": "\"For Services to the Railway\", signed by a council nobody's met, framed, for the cab. Read into every tally.",
+      "tally": "Commendation: framed." }
   ],
   // GDD v1.4 App. E.12 question 4 had the fortress sell spare repair kits ("spareKit": { "cost": 325, "most": 3 }: each
   // started the night in a crew locker, and losing every kit stranded a ruptured night, §23.2). Note 301 (queue #39, the

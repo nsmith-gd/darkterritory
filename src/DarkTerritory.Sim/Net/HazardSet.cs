@@ -9,13 +9,12 @@ namespace DarkTerritory.Sim.Net;
 /// whatever line the night runs. Mirror of an entry in content/tuning/balance.json <c>combinations.hazardSets</c>.
 /// </summary>
 /// <param name="Adhesion">Wet rail (§22): the rail's adhesion everywhere is at most this (1 dry). Also fouls the guns faster (note 183).</param>
-/// <param name="ColdStep">Deep cold (§22): added to the line's cold step everywhere (note 183).</param>
 /// <param name="Wind">Wind (§22): the night's wind is at least this (gunfire carries further, note 183).</param>
 /// <param name="LampsOut">Lights fail (§23): the forward lamp smashed and every car's lamp out from the start.</param>
-public sealed record HazardSet(string Name, double Adhesion = 1, int ColdStep = 0, double Wind = 0, bool LampsOut = false)
+public sealed record HazardSet(string Name, double Adhesion = 1, double Wind = 0, bool LampsOut = false)
 {
     public static readonly HazardSet Clear = new("clear");
-    public bool Any => Adhesion < 1 || ColdStep > 0 || Wind > 0 || LampsOut;
+    public bool Any => Adhesion < 1 || Wind > 0 || LampsOut;
 }
 
 /// <summary>A line's own conditions with a <see cref="HazardSet"/> over them: the rail model asks this instead.</summary>
@@ -36,7 +35,6 @@ public sealed class HazardConditions(RailLine line, ITrackConditions? inner, Haz
     }
     public double Adhesion(int path, double distance) => Math.Min(Inner?.Adhesion(path, distance) ?? 1, Set.Adhesion);
     public double Drag(int path, double distance, double speed) => Inner?.Drag(path, distance, speed) ?? 0;
-    public int ColdStep(int path, double distance) => (Inner?.ColdStep(path, distance) ?? 0) + Set.ColdStep;
     public double Wind(int path, double distance) => Math.Max(Inner?.Wind(path, distance) ?? 0, Set.Wind);
     public Double3 Confine(Double3 world, double radius) => Inner?.Confine(world, radius) ?? world;
     public double LateralRoom(int path, double distance) => Inner?.LateralRoom(path, distance) ?? double.PositiveInfinity;

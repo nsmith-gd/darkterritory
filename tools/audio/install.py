@@ -216,11 +216,18 @@ def candidates(line, cue, stored):
         u = assets.url_for(e["preview"])
         if u:
             by_url[u] = e
+    # Rebuilt elsewhere (the audio-build workflow, note 667), a preview's encoding can come out a byte different from the
+    # copy that went up, though the takes are its recipe's own (seeded): the page's candidate is the one recorded for it.
+    recorded = assets.load()
+    for e in man.values():
+        if (a := recorded.get(e["preview"])) and a["url"] not in by_url:
+            by_url[a["url"]] = e
     out = []
     for k in stored.get("cands") or []:
         k = dict(k)
-        if k["src"] in by_url:
-            e = by_url[k["src"]]
+        if k["src"] in by_url or k["src"].startswith("built:") and k["src"][6:] in man:
+            # A candidate on the page, or one just built for a line the page doesn't have yet (ci_build.py's fresh).
+            e = by_url.get(k["src"]) or man[k["src"][6:]]
             k.update(built=True, line=e["line"], cue=e["cue"], key=e["key"], mat=e["mat"])
         elif k.get("old") or k["src"].startswith("audio/"):
             k["old"] = True
@@ -232,13 +239,24 @@ def candidates(line, cue, stored):
     return out
 
 
+# A cue whose takes are two sounds the game fires by turns: each part its own folder of the takes it names (by index) and
+# its own definition, <line>.<cue>.<part>, beside the whole cue's. The Brakeman's steps limp only if the good leg's takes
+# and the bad leg's alternate on his long-short beat (note 388; recipes/g1_train.py LAME), so GameAudio fires them so.
+TAKE_SPLITS = {"tell-brakeman.step": {"good": (0, 2), "bad": (1, 3)}}
+
 # Which candidate plays while nothing's kept, where the director's brief already says which (rather than the first): the
 # tunnel's hit is to be a bonk, not a thock (3 Oct), and the clean bonk is the one that says so. The bend's stress is to be
 # heard building (build 1121, note 265): the squeal that holds and the shriek that climbs were made for that, where the
 # first squeal dropped out most of its loop (`dt audio render --scenario bend`: -42 dB in the cab at the bend's board).
 # Gameplay foley is the real thing where there's a choice: the wind-up drummer from real tin over the modelled one; the
 # lamp guttering from its flame over cloth whooshes.
-FIRST_CHOICE = {"place-town.fire": "drum", "place-town.murmur": "masks",  # note 415: the square's barrels; the folk about
+FIRST_CHOICE = {**{f"voice-bot.{c}": "radio" for c in ("fire", "controls", "loot", "crane", "town", "spur", "points", "cargo")},
+                "place-town.fire": "drum", "place-town.murmur": "masks",  # note 415: the square's barrels; the folk about
+                # Note 826: the Hope Tower's Flame by its coal bed and its weight, the roar a town hears.
+                "place-town.flame": "basket",
+                # Note 827: the night market, its boiler, its counter of clocks, steel needles, a stallholder's cry.
+                "place-town.stall-tea": "boiler", "place-town.stall-clocks": "tables", "place-town.stall-knitting": "steel",
+                "place-town.stall-call": "cry",
                 "crew-mishaps.tunnel-bonk": "coconut", "bed-wheel-rail.flange": "sing", "state-derail.flange-scream": "shriek",
                 "crew-noisy-toys.drummer": "tin", "ui-stranded-outro.lamp-out": "gutter",
                 # Note 322: the chuff already beats, so the starved engine's struggle under it is the beatless one.
@@ -256,7 +274,95 @@ FIRST_CHOICE = {"place-town.fire": "drum", "place-town.murmur": "masks",  # note
                 # Note 431: the joint's crack, short and hard under 2 kHz; the old clack and the battered joint candidates.
                 "bed-wheel-rail.joint": "crack",
                 # Note 444: the truss Dragger's whole weight on the roof (limbs, lighter, a candidate).
-                "cs-draggers.drop": "slam"}
+                "cs-draggers.drop": "slam",
+                # Note 388: the Brakeman's iron heel and hobnails from real recordings, the modelled plank a candidate.
+                "tell-brakeman.step": "hob",
+                # Note 767: the house creatures from the packs' real things where the first by name is the model; the
+                # strands' hum the model, a wire's wake (the struck metal frozen into a whine a candidate).
+                "tell-lodger-breathing.breathing": "lungs", "tell-lodger-shriek.shriek": "wail", "cs-lodger.lunge": "soles",
+                "tell-householder-rise.rise": "scrape", "cs-householder.breath": "rasp", "tell-hollow-house.rumble": "ground",
+                "cs-hollow-house.slam": "thrown", "cs-hollow-house.sink": "timber", "tell-hanger-strands.hum": "wire",
+                # Note 771: the Pickers' grating and their squeals from the packs' real things, the models candidates.
+                "tell-pickers.emerge": "grate", "cs-pickers.scatter": "squeals",
+                # Note 772: the Wakers from the packs' real things (thunder, rock, iron) first, the models candidates.
+                "tell-wakers.thud": "ground", "tell-wakers.stride": "ground", "tell-wakers.roar": "throat",
+                "cs-wakers.grab": "seized", "cs-wakers.drag": "skid", "cs-wakers.lift": "torn",
+                # Note 773: Dave's hum modelled (the real one is cut from a roar, and may read as a growl); Jacob's line and
+                # his blessing from the packs' real reel and glass.
+                "figures.dave-paint": "easel", "figures.jacob-fish": "reel", "figures.jacob-bless": "glass",
+                # Note 774: the mail bag's real sack; the comet's real glass (the model's even beat may read as a tremolo).
+                "crew-mail.catch": "sack", "world-comet.hum": "glass",
+                # Note 772: the town's guns the gun car's own shot and the cannon's own impact, put at their distance.
+                "town-guns.fire": "tower", "town-guns.hit": "meat",
+                # Note 776: the crew car's and the logbook's real things first (the glass's ring, the powder, the leather,
+                # the sheet, the clap), the models candidates.
+                "crew-car.kettle": "spout", "crew-memory.flash": "powder", "crew-memory.open": "leather",
+                "crew-memory.page": "sheet", "crew-memory.shut": "clap",
+                # Notes 781 and 784: the real things first (the packs' iron ring, glass and tin, a real crackle, the train's own
+                # rumble pitched up for small wheels); the hound's steam leading its yelp, so the spray's heard working; the
+                # handcar's modelled shoe, whose squeal keeps more of itself under the tells' band than the real scrape's grind.
+                "world-rail-knock.knock": "clank", "crew-lamp-broken.smash": "shatter", "crew-lamp-broken.burn": "crackle",
+                "cs-hounds-doused.doused": "steam", "crew-handcar.creak": "pivot", "crew-handcar.joint": "tick",
+                "crew-handcar.roll": "rumble", "crew-handcar.brake": "shoe", "crew-handcar.set": "iron",
+                "crew-handcar.hang": "chains",
+                # Notes 782 and 783: the kitbashed ones first (the packs' real boards, leather, iron, oak, glass and bell
+                # round the crew's modelled voices), the models candidates.
+                "crew-rescue.haul": "boards", "crew-rescue.lift": "coats", "crew-rescue.set": "boards", "crew-rescue.throw": "swing",
+                "loot-jackpot.lift-iron": "boards", "loot-jackpot.lift-bell": "boards", "loot-jackpot.lift-wood": "boards",
+                "loot-jackpot.set-iron": "boards", "loot-jackpot.set-wood": "oak", "loot-jackpot.bell": "bronze",
+                "loot-fragile.glass": "crate", "loot-fragile.decanter": "cut", "loot-fragile.clock": "mantel",
+                # Note 785: the packs' real slams, iron, creaks and chair first; the far bell's proper minor-third partials
+                # (the packs' real bell is a small gong-like one) and the modelled farm dog (the roar sped up may read as
+                # something not quite a dog: never a creature).
+                "state-coupling-loose.jump-brake": "slack", "state-coupling-loose.jump-coupled": "clash",
+                "state-coupling-loose.jump-bend": "groan", "tell-house.creak": "board", "tell-householder.shift": "chair",
+                "world-bell.far": "partials", "world-dog.bark": "collie",
+                # Note 786: the real things where the packs have them (the coins, the pillar box, the frame, the rail's blades, the
+                # gloves, the coat), the models where the packs' stand-ins are thin (the well's water, the pour, the can, the
+                # bell's ring, which the packs' small bell leaves dark); the too-deep throat for what answers the can.
+                "place-town.bell": "cast", "world-odd.well-splash": "plunk", "world-odd.coin": "clink",
+                "world-odd.wash": "stream", "world-odd.can-kick": "tin", "world-odd.bark": "throat",
+                "world-odd.scarecrow": "post", "world-odd.letter": "pillar", "world-odd.painting": "frame",
+                "world-odd.sooted": "dust", "world-odd.lurch": "rail", "crew-emotes.high-five": "leather",
+                "crew-emotes.fist-bump": "gloves", "crew-emotes.sit": "coat", "crew-emotes.lean": "frame",
+                # Note 798: the packs' real creaks pitched down to the hook's iron and rope (the model's stick-slip is
+                # thinner), and the crew's throat through the real gasp, its coat flapping.
+                "crew-hoist.creak": "swivel", "crew-hoist.yelp": "whoa",
+                # Note 802's gag: the modelled flop, whose thump lands plainly before its oof (the real drop's onset is soft).
+                "crew-hoist.land": "flop",
+                # Note 828: the human cannonball, the barrel's iron, the 'wheee!', the air past them, the roll.
+                "crew-cannonball.climb": "barrel", "crew-cannonball.whoop": "whee", "crew-cannonball.flight": "rush",
+                "crew-cannonball.land": "roll",
+                # Note 809: the Mouse Moose from the packs' real things (gravel, a hinge's squeal, a rat's iron tink, earth),
+                # the models candidates; the casting's thud the real one, which has the weight.
+                "tell-mouse-moose.creep": "cinders", "tell-mouse-moose.squeak": "hinge", "cs-mouse-moose.bite": "iron",
+                "cs-mouse-moose.drag": "gravel", "cs-mouse-moose.bolt": "squeal", "cs-mouse-moose.dig": "earth",
+                "cs-mouse-moose.lost": "thud",
+                # Note 810: a Holdout's banging heard at its door, each blow's crack carrying ('walls' cuts the top at 1.6 kHz).
+                "voice-callout.bang": "door",
+                # Note 806: U1's whimsies, pets and new emotes from the packs' real things where there's one (the steam, the
+                # crank's ratchet, a real throat for the cat and the dog, the coat, the heels, the boots), the models
+                # candidates; the canary is modelled both ways (the packs have no birds), its tours first.
+                "up-whimsy.song": "tours", "up-whimsy.calliope": "steam", "up-whimsy.wind": "ratchet",
+                "up-pets.hiss": "gasp", "up-pets.meow": "throat", "up-pets.bark": "throat",
+                "crew-emotes.bow": "coat", "crew-emotes.salute": "heels", "crew-emotes.conga": "boots",
+                # Note 775: U1's upgrades from the packs' real things where there's one (the reed, the steam, the coals, the
+                # anvil's ring, the leather, the hiss, the whump, the sizzle, the tongs, the lid, the can, the clink, the creak).
+                "up-horns.honk": "horn", "up-horns.gold-start": "steam", "up-horns.gold": "steam", "up-horns.gold-stop": "steam",
+                "up-forge.hearth": "coals", "up-forge.anvil": "ring", "up-forge.bellows": "leather", "up-forge.quench": "hiss",
+                "up-bbq.light": "whump", "up-bbq.grill": "sausages", "up-bbq.turn": "tongs", "up-bbq.cooler": "lid",
+                "up-bbq.can": "crack", "up-bbq.cheers": "clink", "up-bbq.chair": "creak", "up-bbq.eat": "bite",
+                "up-lounge.hammock": "ropes", "up-lounge.sway": "creak", "up-lounge.tub-in": "splash", "up-lounge.tub": "seethe", "up-lounge.bench": "plank",
+                "up-fishing.cast": "reel", "up-fishing.line": "lap", "up-fishing.catch": "trout",
+                # The modelled one: the real fizz and cloth crackle carry clicks past the car-fire tell's band (note 833).
+                "crew-scorch.sizzle": "singe",
+                # Note 975: the flare pistol from the packs' real things (the soft heavy blow and the book's snap through the
+                # barrel, the air release, the metal click).
+                "up-flare.shot": "pop", "up-flare.burn": "fizz", "up-flare.click": "hammer",
+                # Note 980: a pin working loose, from the packs' real slams and rings (the casting modelled beside it).
+                "state-coupling-loose.warn": "clang",
+                # Note 983: the dining car's bar from the packs' real bell, water and glass (and the beer's real swig).
+                "up-dining.pour": "bell", "up-dining.sip": "glass", "up-dining.clink": "tumblers"}
 
 
 # A first choice for one surface of a cue (note 419): the car roof's tin rebuilt, the old boots kept beside it. Note 667: the
@@ -368,18 +474,25 @@ SWAP_GAIN_DB = {"boiler-tick": -4, "cannon-impact": -1, "cannon-splash": -4, "do
 # Lines whose candidates are alternatives the game uses all of, one per instance (a prisoner's whole voice).
 SETS_LINES = {"voice-prisoner-sets"}
 # Folders a full install leaves alone: the clerk's word bank (clerk.py), which the checklist doesn't pick.
-KEEP_SAMPLES = {"voice-clerk"}
-# Voices read by Piper's LibriTTS model (recipes/voices.py, children.py; clerk.py): not CC0, they carry its credit.
-TTS_CUES = {("voice-prisoner-sets", "call"), ("voice-prisoner-sets", "shout"), ("tell-soot-children", "call")}
+KEEP_SAMPLES = {"voice-clerk", "band"}
+# Voices read by Piper's LibriTTS model (recipes/voices.py, children.py, bot_voice.py; clerk.py): not CC0, they carry its credit.
+TTS_CUES = {("voice-prisoner-sets", "call"), ("voice-prisoner-sets", "shout"), ("tell-soot-children", "call"),
+            # A bot's answer to a ping (recipes/bot_voice.py, note 987).
+            *{("voice-bot", c) for c in ("fire", "controls", "loot", "crane", "town", "spur", "points", "cargo")}}
 TTS_LICENCE = "CC BY 4.0: LibriTTS, Zen et al. 2019"
 # A prisoner calling from a Holdout (D.7): heard to 60 m with normal falloff and occlusion, on the voice tier.
-VOICE_LINES = {"voice-prisoner-sets", "voice-callout"}
+VOICE_LINES = {"voice-prisoner-sets", "voice-callout", "voice-bot"}
 
 
 # Cue -> layer extras: a curve on a param the game drives (GameAudio sets it on the playing instance).
 # ui-prompts.hold: the hold-to-interact loop hurries as the held action gets there (GameAudio.Ui.cs sets "progress", 0-1).
 LAYER_EXTRAS = {
+    # A bot's answer (note 987): its takes are the bots' voices in order, picked by the bot (GameAudio.Pings); a voice as said.
+    **{f"voice-bot.{c}": {"pitchJitter": 0, "gainJitter": 0} for c in ("fire", "controls", "loot", "crane", "town", "spur", "points", "cargo")},
     "ui-prompts.hold": {"rate": {"param": "progress", "points": [[0, 1], [1, 1.4]]}},
+    # The calliope's one pipe (note 806), recorded at C5, played at the tune's note an octave down: GameAudio.Calliope sets
+    # "pitch" (the rate); no jitter, a tune's notes stay in tune (the takes waver a little of their own).
+    "up-whimsy.calliope": {"rate": {"param": "pitch", "points": [[0.25, 0.25], [4, 4]]}, "pitchJitter": 0},
     # A derelict's flat wheels thump once a turn, built at 1.2 s a turn (a 0.9 m wheel at 2.4 m/s): faster or slower with
     # the car (GameAudio.BedWheels sets "speed"; note 322).
     "place-derelict.roll": {"rate": {"param": "speed", "points": [[0.6, 0.6], [2.4, 1.0], [4.0, 1.35]]}},
@@ -395,6 +508,8 @@ LAYER_EXTRAS = {
     # The scream climbs as the bend pulls harder (note 265: the stress telegraph; GameAudio.BedWheels sets "stress", the
     # scream's share of the stress's last half): two semitones from where it starts to where the train comes off.
     "state-derail.flange-scream": {"rate": {"param": "stress", "points": [[0, 0.94], [1, 1.06]]}},
+    # The handcar's roll, built at a moderate run (about 6 m/s), up and down with its speed (GameAudio.Handcar sets "speed").
+    "crew-handcar.roll": {"rate": {"param": "speed", "points": [[1, 0.8], [6, 1.0], [12, 1.2]]}},
 }
 
 
@@ -402,6 +517,9 @@ LAYER_EXTRAS = {
 # heard as far, as the Whistler's tell is: spec A.4); the livestock are the world's, out along the train; the casting's bong
 # carries across a yard.
 CUE_DEF = {
+    # A bot's answer over the radio (note 987): the set in every hand, flat as the radio's own voices are, tier 2 with them;
+    # one at a time a bot.
+    **{f"voice-bot.{c}": {"flat": True, "maxInstances": 4} for c in ("fire", "controls", "loot", "crane", "town", "spur", "points", "cargo")},
     # Note 409: a house door shut is heard across the village street, from inside the house and out (the Choir's rule).
     "crew-house-door.shut": {"maxDistance": 60, "gainDb": 3},
     "crew-mishaps.whistle-wheeze": {"tier": 1, "minDistance": 20, "maxDistance": 1500, "rolloff": 0.45, "gainDb": 2},
@@ -425,6 +543,14 @@ CUE_DEF = {
     "place-town.gear-rebreather": {"minDistance": 0.5, "maxDistance": 6, "rolloff": 1.0},
     "place-town.gear-wrap": {"minDistance": 0.5, "maxDistance": 6, "rolloff": 1.0},
     "place-town.lantern": {"minDistance": 1, "maxDistance": 25, "rolloff": 1.0},
+    # The Hope Tower's Flame (note 826): a fire as big as a cart, 85 m up: a few dB down at the tower's foot, still there across
+    # the town and out along the line (falling off slower than a near thing does, as a big source's sound does).
+    "place-town.flame": {"minDistance": 20, "maxDistance": 800, "rolloff": 0.7},
+    # The night market (note 827): a stall's trade heard at its counter, its keeper's call across the square.
+    "place-town.stall-tea": {"minDistance": 1, "maxDistance": 14, "rolloff": 1.0},
+    "place-town.stall-clocks": {"minDistance": 0.8, "maxDistance": 10, "rolloff": 1.0},
+    "place-town.stall-knitting": {"minDistance": 0.8, "maxDistance": 8, "rolloff": 1.0},
+    "place-town.stall-call": {"minDistance": 2, "maxDistance": 45, "rolloff": 1.0},
     # The water (note 429): a river heard from its bank or the span over it, a lake's lap only near its shore, the sea's
     # surf a long way inland, the tide's flats across their width.
     "world-water.river": {"minDistance": 6, "maxDistance": 120, "rolloff": 0.9},
@@ -462,6 +588,118 @@ CUE_DEF = {
     "place-tipple.derail": {"tier": 3, "minDistance": 4, "maxDistance": 250, "rolloff": 0.8},
     "place-tipple.rerail": {"minDistance": 1, "maxDistance": 40, "rolloff": 1.0},
     "place-tipple.rerailed": {"minDistance": 2, "maxDistance": 80, "rolloff": 1.0},
+    # The Wakers (note 772): hill-sized, heard from where they rise, 1.2 km behind and more (the stir placed 700 m out). A
+    # rise there about -10 dB, a footfall about -19 dB and full by 50 m; the catch at the train itself.
+    **{f"tell-wakers.{c}": {"minDistance": m, "maxDistance": 4000, "rolloff": r}
+       for c, m, r in (("thud", 200, 0.6), ("call", 200, 0.6), ("rise", 200, 0.6), ("stride", 50, 0.7), ("roar", 100, 0.6))},
+    **{f"cs-wakers.{c}": {"minDistance": 20, "maxDistance": 1500, "rolloff": 0.8}
+       for c in ("grab", "lift", "eat", "take", "swallow")},
+    "cs-wakers.drag": {"minDistance": 10, "maxDistance": 600, "rolloff": 0.8},
+    # The town's guns at the walls (note 772): on its towers, 20-200 m from a crew in the yard; the ball landing on a Waker's
+    # back 300 m out and forty up, heard across the yard.
+    "town-guns.fire": {"minDistance": 30, "maxDistance": 1500, "rolloff": 0.8},
+    "town-guns.hit": {"minDistance": 60, "maxDistance": 2000, "rolloff": 0.7},
+    # K1's crew car (note 776): the kettle and the cuckoo on the big cab's back wall, heard about the cab; the photo's flash
+    # at the gate, out in the open; the logbook's pages this machine's own, flat as the panels are.
+    "crew-car.kettle": {"minDistance": 1, "maxDistance": 12, "rolloff": 1.0},
+    "crew-car.cuckoo": {"minDistance": 1, "maxDistance": 18, "rolloff": 1.0},
+    "crew-memory.flash": {"minDistance": 3, "maxDistance": 80, "rolloff": 1.0},
+    **{f"crew-memory.{c}": {"flat": True, "tier": 4} for c in ("open", "page", "shut")},
+    # The sense table (note 781): a knock on the rails rings down them, heard along the line; a lamp's glass and oil carry
+    # across a yard, its small fire about it.
+    "world-rail-knock.knock": {"tier": 4, "minDistance": 4, "maxDistance": 200, "rolloff": 0.8},
+    "crew-lamp-broken.smash": {"minDistance": 2, "maxDistance": 80, "rolloff": 1.0},
+    "crew-lamp-broken.burn": {"minDistance": 1, "maxDistance": 30, "rolloff": 1.0},
+    # Big finds (note 783): the bell's ring carries; glass breaking across a house and its street.
+    "loot-jackpot.bell": {"minDistance": 3, "maxDistance": 120, "rolloff": 0.9},
+    **{f"loot-fragile.{c}": {"minDistance": 2, "maxDistance": 50, "rolloff": 1.0} for c in ("glass", "decanter", "clock")},
+    # The handcar (note 784): out on the open line, heard from the train up the line behind it.
+    **{f"crew-handcar.{c}": {"minDistance": 2, "maxDistance": 120, "rolloff": 0.9} for c in ("roll", "brake", "creak", "set", "hang")},
+    # Its joints under the riders' feet, each axle's: built at -21 LUFS, kept nearer the train's own clack (-27 to -29).
+    "crew-handcar.joint": {"minDistance": 2, "maxDistance": 120, "rolloff": 0.9, "gainDb": -3},
+    # Sound cues in the world (note 785): a house's boards from its door and its street; what's lost far off, a bell from
+    # where it was lost; a dog at the lamps' edge and beyond it.
+    "tell-house.creak": {"minDistance": 1, "maxDistance": 30, "rolloff": 1.0},
+    # The Moose grazing (queue #562, note 834; the director's 16 Oct playtest, line 19: "The munching is a bit loud ... We
+    # do need to be able to hear it, but ... we want to allow players to get a little bit closer"): about 7 dB under the
+    # tells' default from 12 m out (where it's quick to anger) to the line, so it reads as further off than it is, still
+    # heard from the train going by at 25 m; and a shorter reach, so its tier-1 duck doesn't hold the world down from 250 m.
+    **{f"tell-moose-grazing.{c}": {"minDistance": 4, "maxDistance": 150, "rolloff": 0.9, "gainDb": 2}
+       for c in ("chew", "browse", "creak", "grunt")},
+    "world-bell.far": {"tier": 4, "minDistance": 60, "maxDistance": 2000, "rolloff": 0.5},
+    "world-dog.bark": {"tier": 4, "minDistance": 20, "maxDistance": 600, "rolloff": 0.7},
+    # Odd outcomes (note 786): the council bell across the town; the well, the coin, the letter, the painting and the soot
+    # where they are, close; the can down the road; what answers it 90 m out in the dark; the scarecrow barely.
+    "place-town.bell": {"tier": 4, "minDistance": 10, "maxDistance": 400, "rolloff": 0.7},
+    **{f"world-odd.{c}": {"tier": 4, "minDistance": lo, "maxDistance": hi, "rolloff": 1.0}
+       for c, lo, hi in (("well-splash", 2, 40), ("coin", 1, 25), ("wash", 1, 25), ("can-kick", 2, 80), ("scarecrow", 1, 15),
+                         ("letter", 1, 15), ("painting", 1, 20), ("sooted", 1, 30), ("lurch", 2, 40))},
+    "world-odd.bark": {"tier": 4, "minDistance": 20, "maxDistance": 600, "rolloff": 0.7},
+    # A friend on the crane's hook (note 798): the cable's creak about the gantry; the cry off it across the yard.
+    "crew-hoist.creak": {"minDistance": 2, "maxDistance": 60, "rolloff": 1.0},
+    "crew-hoist.yelp": {"minDistance": 2, "maxDistance": 90, "rolloff": 1.0},
+    "crew-hoist.land": {"minDistance": 2, "maxDistance": 60, "rolloff": 1.0},
+    # The human cannonball (note 828): into the barrel heard round the gun; the whoop as far as a yell carries; the flight's air
+    # close to the flier; the landing as the hook's.
+    "crew-cannonball.climb": {"minDistance": 1.5, "maxDistance": 30, "rolloff": 1.0},
+    "crew-cannonball.whoop": {"minDistance": 2, "maxDistance": 90, "rolloff": 1.0},
+    "crew-cannonball.flight": {"minDistance": 1, "maxDistance": 30, "rolloff": 1.0},
+    "crew-cannonball.land": {"minDistance": 2, "maxDistance": 60, "rolloff": 1.0},
+    # Note 806: U1's whimsies and pets at the tier and reach #967 gave its own made sounds (GameAudio.Whimsy); the calliope's
+    # note is the whistle (a tell: the Choir hears it), so it has the whistle's tier, reach and level (-20 LUFS +5 dB there,
+    # -16 LUFS +1 dB here).
+    "up-whimsy.calliope": {"tier": 1, "minDistance": 20, "maxDistance": 1500, "rolloff": 0.45, "gainDb": 1},
+    "up-whimsy.song": {"tier": 4, "minDistance": 1, "maxDistance": 18, "rolloff": 1.0},
+    "up-whimsy.wind": {"tier": 4, "minDistance": 2, "maxDistance": 30, "rolloff": 1.0},
+    "up-pets.hiss": {"tier": 3, "minDistance": 1.5, "maxDistance": 22, "rolloff": 1.0},
+    "up-pets.meow": {"tier": 3, "minDistance": 1.5, "maxDistance": 22, "rolloff": 1.0},
+    "up-pets.bark": {"tier": 3, "minDistance": 1.5, "maxDistance": 60, "rolloff": 1.0},
+    # Note 775: the horns are the whistle (the crew's signal; the Choir hears them), at its tier. The gold-plated one at its
+    # reach, a quarter louder (its takes -13 LUFS, +1 dB here: 3 dB over the plain whistle's -20 +5); the honk a bulb horn,
+    # shorter-reaching and a little under the whistle.
+    "up-horns.honk": {"tier": 1, "minDistance": 5, "maxDistance": 400, "rolloff": 0.8, "gainDb": -2},
+    "up-horns.gold-start": {"tier": 1, "minDistance": 20, "maxDistance": 1500, "rolloff": 0.45, "gainDb": 1},
+    "up-horns.gold": {"tier": 1, "minDistance": 20, "maxDistance": 1500, "rolloff": 0.45, "gainDb": 1,
+                      # A looping tell wanders (spec A.4 rule 4); a whistle's a little, as steam does.
+                      "drift": {"semitones": 0.2, "db": 1.0, "seconds": 2.5}},
+    "up-horns.gold-stop": {"tier": 1, "minDistance": 20, "maxDistance": 1500, "rolloff": 0.45, "gainDb": 1},
+    # The forge heard from the cab beside it, the anvil's ring further; the deck's party close to.
+    "up-forge.hearth": {"minDistance": 3, "maxDistance": 60, "rolloff": 1.0},
+    "up-forge.anvil": {"minDistance": 3, "maxDistance": 120, "rolloff": 0.9},
+    "up-forge.bellows": {"minDistance": 2, "maxDistance": 40, "rolloff": 1.0},
+    "up-forge.quench": {"minDistance": 2, "maxDistance": 40, "rolloff": 1.0},
+    "up-bbq.light": {"minDistance": 2, "maxDistance": 30, "rolloff": 1.0},
+    "up-bbq.grill": {"minDistance": 1.5, "maxDistance": 25, "rolloff": 1.0},
+    "up-bbq.turn": {"minDistance": 1, "maxDistance": 15, "rolloff": 1.0},
+    "up-bbq.cooler": {"minDistance": 1, "maxDistance": 15, "rolloff": 1.0},
+    "up-bbq.can": {"minDistance": 1, "maxDistance": 12, "rolloff": 1.0},
+    "up-bbq.cheers": {"minDistance": 1, "maxDistance": 15, "rolloff": 1.0},
+    "up-bbq.chair": {"minDistance": 1, "maxDistance": 15, "rolloff": 1.0},
+    "up-bbq.eat": {"minDistance": 0.8, "maxDistance": 8, "rolloff": 1.0},
+    # Burned at a fire's edge (queue #561, note 833): a warning on yourself, so over the crew's own actions (tier 3, with the
+    # alarms) and under the tells; heard on whoever it's burning and by the friends beside them.
+    "crew-scorch.sizzle": {"tier": 3, "minDistance": 0.6, "maxDistance": 15, "rolloff": 1.0},
+    # The second whimsies (queue #559, note 831): close things, a body's own, heard by whoever's by them.
+    "up-lounge.hammock": {"minDistance": 1, "maxDistance": 14, "rolloff": 1.0},
+    "up-lounge.sway": {"tier": 6, "minDistance": 1, "maxDistance": 10, "rolloff": 1.0},
+    "up-lounge.tub-in": {"minDistance": 1.5, "maxDistance": 25, "rolloff": 1.0},
+    "up-lounge.tub": {"tier": 6, "minDistance": 1, "maxDistance": 12, "rolloff": 1.0},
+    "up-lounge.bench": {"minDistance": 1, "maxDistance": 12, "rolloff": 1.0},
+    "up-fishing.cast": {"minDistance": 1, "maxDistance": 25, "rolloff": 1.0},
+    "up-fishing.line": {"minDistance": 1, "maxDistance": 10, "rolloff": 1.0},
+    "up-fishing.catch": {"minDistance": 1.5, "maxDistance": 35, "rolloff": 1.0},
+    # The flare pistol (note 975): its pop carries as a shot does; the flare burning is heard across a village, as its light
+    # is seen across one (the Fire Flies leave the train for it); the empty click is in the hand.
+    "up-flare.shot": {"minDistance": 3, "maxDistance": 500, "rolloff": 0.8},
+    "up-flare.burn": {"minDistance": 4, "maxDistance": 300, "rolloff": 0.8},
+    "up-flare.click": {"minDistance": 0.5, "maxDistance": 8, "rolloff": 1.0},
+    # The dining car's bar (note 983): inside the car, heard down its length and a little past its doors.
+    "up-dining.pour": {"minDistance": 1.5, "maxDistance": 25, "rolloff": 1.0},
+    "up-dining.sip": {"minDistance": 0.8, "maxDistance": 12, "rolloff": 1.0},
+    "up-dining.clink": {"minDistance": 1, "maxDistance": 18, "rolloff": 1.0},
+    # A pin working loose (note 980; note 865, the director: "hella telegraphing"): an alarm, as the train's are (tier 3), heard
+    # the length of the train (a twenty-car rake is 300 m) over its wind and wheels.
+    "state-coupling-loose.warn": {"tier": 3, "minDistance": 10, "maxDistance": 400, "rolloff": 0.45},
 }
 
 
@@ -583,6 +821,12 @@ def tell_sounds(chosen):
                 print(f"{name}: now the takes of {', '.join(fo for fo, _ in folders)}")
 
 
+def _sha(folder):
+    """A folder's takes (its files, not its parts' folders) as one short hash."""
+    files = sorted(f for f in os.listdir(folder) if os.path.isfile(os.path.join(folder, f)))
+    return hashlib.sha256(b"".join(open(os.path.join(folder, f), "rb").read() for f in files)).hexdigest()[:16]
+
+
 def main():
     args = [a for a in sys.argv[1:] if not a.startswith("--")]
     store = sys.argv[sys.argv.index("--from") + 1]
@@ -657,14 +901,25 @@ def main():
                            f"// {item['name']}: {cue['event']}" + (f" ({C.MATERIALS.get(mat, mat)})" if mat else "") +
                            f". Written by tools/audio/install.py from the audio checklist ({why}); edit the cue, not this.\n",
                            sound_def(item, cue, rel, line))
-                index[rel] = {"cue": f"{line}.{cue['id']}", "surface": mat, "picked": why,
-                              "candidates": [{"label": k.get("label"), "key": k.get("key") or k.get("libkey") or k["src"],
-                                              "sources": k.get("sources") or ([k["libkey"]] if k.get("libkey") else []),
-                                              "licence": "Sonniss GDC" if k.get("restricted")
-                                              else TTS_LICENCE if (line, cue["id"]) in TTS_CUES else "CC0"} for k in chosen],
-                              "takes": len(takes),
-                              "sha": hashlib.sha256(b"".join(open(os.path.join(folder, f), "rb").read()
-                                                             for f in sorted(os.listdir(folder)))).hexdigest()[:16]}
+                provenance = [{"label": k.get("label"), "key": k.get("key") or k.get("libkey") or k["src"],
+                               "sources": k.get("sources") or ([k["libkey"]] if k.get("libkey") else []),
+                               "licence": "Sonniss GDC" if k.get("restricted")
+                               else TTS_LICENCE if (line, cue["id"]) in TTS_CUES else "CC0"} for k in chosen]
+                index[rel] = {"cue": f"{line}.{cue['id']}", "surface": mat, "picked": why, "candidates": provenance,
+                              "takes": len(takes), "sha": _sha(folder)}
+                for part, which in TAKE_SPLITS.get(f"{line}.{cue['id']}", {}).items():
+                    sub = [takes[i] for i in which if i < len(takes)]
+                    if not sub:
+                        continue
+                    for i, x in enumerate(sub):
+                        encode(x, os.path.join(folder, part, f"{i:02d}.opus"))
+                    _write_def(os.path.join(SOUNDS, f"{name}.{part}.json"),
+                               f"// {item['name']}: {cue['event']} ({part}: takes {', '.join(map(str, which))}). Written by "
+                               f"tools/audio/install.py from the audio checklist ({why}, TAKE_SPLITS); edit the cue, not this.\n",
+                               sound_def(item, cue, f"{rel}/{part}", line))
+                    index[f"{rel}/{part}"] = {"cue": f"{line}.{cue['id']}", "surface": mat, "part": part, "picked": why,
+                                              "candidates": provenance, "takes": len(sub),
+                                              "sha": _sha(os.path.join(folder, part))}
     if not dry:
         os.makedirs(SAMPLES, exist_ok=True)
         json.dump(dict(sorted(index.items())), open(index_path, "w"), indent=1)

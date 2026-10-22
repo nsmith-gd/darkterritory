@@ -18,6 +18,13 @@ namespace DarkTerritory.Sim.Enemies;
 /// then): the lift and the eating are read from it, on clients too (<see cref="Lifted"/>, <see cref="EatenCars"/>).
 /// <see cref="Enemy.Extra2"/> is which it is (0 the one on the line, which decides the catch; ±1 the ones off to the sides).
 /// Its place is a function of the seconds since dawn and where the train's rear was then: no randomness, no pathing.
+/// <para>
+/// The ones that take whoever ran (note 710; the director, 14 Oct 2026: "It should capture players who escape the train and eat
+/// them too"): while one holds the train, another rises out of the land beside each crewmate off it (<see cref="Beside"/>,
+/// <see cref="Enemy.Extra2"/> <see cref="PickerMark"/>), loose (<see cref="Enemy.Local"/> its feet, <see cref="Enemy.Lateral"/>
+/// its heading), its quarry's id its <see cref="Enemy.Extra"/> (−1 with none). Up (the telegraph), it strides to them, takes
+/// them in its hand (the spine's grab), lifts them to its mouth and eats them; then the next, if anyone else ran.
+/// </para>
 /// </remarks>
 public sealed class Waker(int id) : Enemy(id)
 {
@@ -29,10 +36,35 @@ public sealed class Waker(int id) : Enemy(id)
     public override bool Far => true;
     public override string Called => "a Waker";
 
+    /// <summary>
+    /// Note 940 (the director, 20 Oct 2026: "if I shoot it, will it... And nothing happens when I shoot it"): up out of the land,
+    /// his body's in the open (enemies.json <c>bodies.waker</c>), so a ball finds him and every client hears and sees it land
+    /// (the flinch, the hit's sound, his roar). Nothing hurts him: he's the dawn, and the only answer to him is the walls.
+    /// </summary>
+    public override bool Exposed => !Gone && Phase != SpinePhase.Dormant;
+
+    /// <summary>Struck: it lands, and it costs him nothing (see <see cref="Exposed"/>).</summary>
+    public override void Struck(EnemyContext ctx, int by, double damage) { }
+
+    /// <summary>His body's height now: getting up out of the land, stood, and down on his knees holding something.</summary>
+    public override double Stoop(EnemyTuning t) => Phase switch
+    {
+        SpinePhase.Telegraph => Math.Clamp(PhaseSeconds / Math.Max(0.1, Picker ? t.Wakers.PickRiseSeconds : t.Wakers.RiseSeconds), 0.1, 1),
+        SpinePhase.Grab or SpinePhase.Punish => t.Wakers.KneelStoop,
+        _ => 1,
+    };
+
     /// <summary>The one on the line: its catch is the train's.</summary>
     public bool Lead => Extra2 == 0;
     /// <summary>It has the train (the lift and the eating, <see cref="Enemy.Extra"/> seconds in).</summary>
-    public bool Holds => Phase == SpinePhase.Punish;
+    public bool Holds => Phase == SpinePhase.Punish && !Picker;
+
+    /// <summary>Its <see cref="Enemy.Extra2"/> as one risen beside a crewmate off the train (note 710).</summary>
+    public const double PickerMark = 2;
+    /// <summary>One risen beside a crewmate who ran (note 710): it takes them, not the train.</summary>
+    public bool Picker => Extra2 == PickerMark;
+    /// <summary>The crewmate a <see cref="Picker"/> is after (its <see cref="Enemy.Extra"/>), or −1.</summary>
+    public int Quarry => Picker ? (int)Math.Round(Extra) : -1;
 
     /// <summary>
     /// The night's creatures are going to ground (<see cref="WakersTuning.NightFleesSeconds"/> or less to dawn, or past it),
@@ -65,6 +97,41 @@ public sealed class Waker(int id) : Enemy(id)
         _start = rearAlong - t.RiseBehind - Math.Abs(side) * t.AsideBack,
     };
 
+    /// <summary>
+    /// One rising out of the land <c>pickAside</c> m beyond <paramref name="quarry"/> (out from the line from where they stand at
+    /// <paramref name="at"/>), facing them (note 710).
+    /// </summary>
+    public static Waker Beside(int id, int quarry, Double3 at, Train.TrainOnLine train, WakersTuning t)
+    {
+        double hint = train.Dynamics.Distance;
+        var (path, d) = train.Line.Nearest(at, ref hint);
+        var near = train.Line.Sample(path, d);
+        var out_ = (at - near.Position) with { Y = 0 };
+        if (out_.Length < 1e-3)
+            out_ = Double3.Cross(near.Tangent, Double3.Up) with { Y = 0 };
+        var feet = at + out_.Normalized * t.PickAside;
+        feet = feet with { Y = PlayerMotor.GroundAt(feet, train.Line, ref hint) };
+        return new Waker(id)
+        {
+            Attached = Loose,
+            Local = feet,
+            LineDistance = hint,
+            Lateral = Heading(at - feet),
+            Extra = quarry,
+            Extra2 = PickerMark,
+        };
+    }
+
+    /// <summary>A heading toward <paramref name="way"/>, as a player's yaw (−Z forward).</summary>
+    static double Heading(Double3 way) => DMath.Atan2(-way.X, -way.Z);
+
+    /// <summary>
+    /// Where a <see cref="Picker"/> holds what it took, up at its mouth (note 710): <c>pickMouthOut</c> m in front of its feet
+    /// and <c>pickMouthHeight</c> m up. The art bows his mouth onto it (CreatureArt.WakerReach), as it does onto a car.
+    /// </summary>
+    public static Double3 Mouth(Double3 feet, double heading, WakersTuning t) =>
+        feet + new Double3(-DMath.Sin(heading), 0, -DMath.Cos(heading)) * t.PickMouthOut + Double3.Up * t.PickMouthHeight;
+
     /// <summary>How far it's come in <paramref name="seconds"/> since it rose: <c>startSpeed</c> up to <c>topSpeed</c> over <c>rampSeconds</c>.</summary>
     public static double Covered(double seconds, WakersTuning t)
     {
@@ -73,15 +140,72 @@ public sealed class Waker(int id) : Enemy(id)
         return t.StartSpeed * up + 0.5 * gain * up * up + t.TopSpeed * Math.Max(0, seconds - ramp);
     }
 
-    /// <summary>The cars lifted off the rails so far, from the rear (the presentation tilts and raises them).</summary>
-    public int Lifted(WakersTuning t, int cars) => !Holds ? 0 : Math.Min(cars, 1 + (int)Math.Floor(Extra / Math.Max(1e-6, t.LiftSeconds)));
+    /// <summary>The cars off the rails so far, from the rear: those eaten, and the one in his hands once it's up (note 902).</summary>
+    public int Lifted(WakersTuning t, int cars) => !Holds ? 0 : LiftedAt(Extra, t, cars);
     /// <summary>The cars eaten so far, from the rear.</summary>
-    public int EatenCars(WakersTuning t, int cars) =>
-        !Holds ? 0 : Math.Min(cars, (int)Math.Floor(Math.Max(0, Extra - t.EatAfter) / Math.Max(1e-6, t.EatSeconds)));
+    public int EatenCars(WakersTuning t, int cars) => !Holds ? 0 : EatenAt(Extra, t, cars);
+
+    /// <summary><see cref="Lifted"/>, <paramref name="extra"/> seconds into the hold.</summary>
+    public static int LiftedAt(double extra, WakersTuning t, int cars)
+    {
+        int eaten = EatenAt(extra, t, cars);
+        return eaten < cars && Raised(extra, eaten, t) > 0 ? eaten + 1 : eaten;
+    }
+
+    /// <summary><see cref="EatenCars"/>, <paramref name="extra"/> seconds into the hold.</summary>
+    public static int EatenAt(double extra, WakersTuning t, int cars) =>
+        Math.Min(cars, (int)Math.Floor(Math.Max(0, extra - t.EatAfter) / Math.Max(1e-6, t.EatSeconds)));
+
+    // Note 902 (the director's playtest of 16 Oct 2026, line 29: "stop behind the train and like scoop it up with its hands
+    // and pick it up like it's like a two-handed hot dog and just start eating the cars ... three bites per car"): he takes
+    // the train a car at a time, from the rear. Each car's turn is its wakers.eatSeconds, from eatAfter on (the first's
+    // scoop comes before, in his grab); in it his hands go down to it where it stands on the rails (reachShare of the
+    // scoop), lift it to his mouth (the rest of scoopShare), and he takes it in three bites (bites, and the last as the
+    // turn ends, when the sim has it eaten). Every machine reads them off the seconds he's held the train.
+
+    /// <summary>Seconds into the hold that car <paramref name="k"/> (from the rear) starts to be eaten: its turn.</summary>
+    public static double TurnStart(int k, WakersTuning t) => t.EatAfter + k * t.EatSeconds;
+
+    /// <summary>
+    /// How far car <paramref name="k"/> (from the rear) is up off the rails toward his mouth, <paramref name="extra"/> seconds
+    /// into the hold (0 on the rails .. 1 in his hands at his mouth). The rear car goes up in his grab; each after it once
+    /// his hands are down to it in its turn.
+    /// </summary>
+    public static double Raised(double extra, int k, WakersTuning t)
+    {
+        double from = k == 0 ? t.ScoopFrom : TurnStart(k, t) + t.ReachShare * t.ScoopShare * t.EatSeconds;
+        double to = k == 0 ? t.EatAfter - t.ScoopHold : TurnStart(k, t) + t.ScoopShare * t.EatSeconds;
+        return Math.Clamp((extra - from) / Math.Max(1e-6, to - from), 0, 1);
+    }
+
+    /// <summary>
+    /// How far his hands are down from the last car's stub at his mouth to car <paramref name="k"/> on the rails, in its turn
+    /// (0..1; the rear car's are on it from the grab).
+    /// </summary>
+    public static double Reached(double extra, int k, WakersTuning t) => k == 0 ? 1
+        : Math.Clamp((extra - TurnStart(k, t)) / Math.Max(1e-6, t.ReachShare * t.ScoopShare * t.EatSeconds), 0, 1);
+
+    /// <summary>How far through car <paramref name="k"/>'s turn he is (0..1; under 0 before it).</summary>
+    public static double Through(double extra, int k, WakersTuning t) => (extra - TurnStart(k, t)) / Math.Max(1e-6, t.EatSeconds);
+
+    /// <summary>The bites he's taken of car <paramref name="k"/> (0 .. the bites before the last, which eats it).</summary>
+    public static int Bitten(double extra, int k, WakersTuning t)
+    {
+        double through = Through(extra, k, t);
+        int n = 0;
+        foreach (double b in t.Bites)
+            if (through >= b)
+                n++;
+        return n;
+    }
+
+    /// <summary>How many bites a car takes him: <see cref="WakersTuning.Bites"/>, and the last that eats it.</summary>
+    public static int BitesACar(WakersTuning t) => t.Bites.Length + 1;
 
     /// <summary>
     /// Note 621: seconds after dawn the lead Waker reaches the rear of a train going on at <paramref name="speed"/> (m/s) all the
-    /// while: it rises <c>riseSeconds</c> after dawn <c>riseBehind</c> m behind the rear and runs it down. A stood train's is the
+    /// while: it rises <c>riseSeconds</c> after dawn <c>riseBehind</c> m behind the rear and runs it down (to <c>catchShort</c>
+    /// behind it, note 902). A stood train's is the
     /// soonest (about 72 s on the tuning of 9 Oct); +∞ if the train runs at their top speed or over.
     /// </summary>
     public static double CatchAfterDawn(WakersTuning t, double speed)
@@ -90,12 +214,13 @@ public sealed class Waker(int id) : Enemy(id)
         if (v >= t.TopSpeed)
             return double.PositiveInfinity;
         double lo = 0, hi = 60;
-        while (Covered(hi, t) - t.RiseBehind - v * (t.RiseSeconds + hi) < 0 && hi < 1e6)
+        double behind = t.RiseBehind - t.CatchShort;
+        while (Covered(hi, t) - behind - v * (t.RiseSeconds + hi) < 0 && hi < 1e6)
             hi *= 2;
         for (int i = 0; i < 60; i++)
         {
             double mid = 0.5 * (lo + hi);
-            if (Covered(mid, t) - t.RiseBehind - v * (t.RiseSeconds + mid) < 0)
+            if (Covered(mid, t) - behind - v * (t.RiseSeconds + mid) < 0)
                 lo = mid;
             else
                 hi = mid;
@@ -123,7 +248,7 @@ public sealed class Waker(int id) : Enemy(id)
         var train = world.Train;
         // Seconds it's been coming (negative: still to rise, or still to dawn) and how far behind the rear it is.
         double since = -run.DawnIn - t.RiseSeconds;
-        double gap = lead is not null ? train.RearDistance - lead.LineDistance : t.RiseBehind;
+        double gap = (lead is not null ? train.RearDistance - lead.LineDistance : t.RiseBehind) - t.CatchShort;
         if (gap <= 0)
             return 0;
         double wait = Math.Max(0, -since), s0 = Math.Max(0, since), v = Math.Max(0, speed ?? train.Dynamics.Speed);
@@ -146,23 +271,29 @@ public sealed class Waker(int id) : Enemy(id)
     }
 
     /// <summary>
-    /// Note 607: seconds before the train's rear is past where the Wakers stop short of the terminus's gate (in under the guns),
-    /// at its speed now: 0 once it is, +∞ stood short of it. Under <see cref="SecondsInHand"/>, it's home before they catch it.
+    /// Note 607: seconds before the train's rear is in past the terminus's gate (note 940: the walls the only safety), at its
+    /// speed now: 0 once it is, +∞ stood short of it. Under <see cref="SecondsInHand"/>, it's home before they catch it.
     /// </summary>
     public static double SecondsToShelter(World world)
     {
         if (world.Enemies is not { Wakers: { Enabled: true } t } || world.Run is null)
             return double.PositiveInfinity;
-        double past = Wall(world, t) - world.Train.RearDistance;
+        double past = Gate(world, t) - world.Train.RearDistance;
         if (past <= 0)
             return 0;
         double v = world.Train.Dynamics.Speed;
         return v > 0.05 ? past / v : double.PositiveInfinity;
     }
 
-    /// <summary>How far short of the terminus's gate they stop: in under the guns, the crew's home.</summary>
-    internal static double Wall(World world, WakersTuning t) => world.Run is { } run
-        ? (run.Route.Plan?.Terminus.GateM ?? run.Route.Length - run.Tuning.TerminusZone) - t.StopShort
+    /// <summary>How far short of the terminus's gate they stop with the train home: in under the guns.</summary>
+    internal static double Wall(World world, WakersTuning t) => Gate(world, t) - t.StopShort;
+
+    /// <summary>
+    /// The terminus's gate (note 940): a train whose last car is in past it is home, and no Waker takes it; short of it, by
+    /// however little, it's theirs to catch.
+    /// </summary>
+    public static double Gate(World world, WakersTuning t) => world.Run is { } run
+        ? run.Route.Plan?.Terminus.GateM ?? run.Route.Length - run.Tuning.TerminusZone
         : double.MaxValue;
 
     /// <summary>The cause card's line: the train caught, and by what (note 190's record of a punish that holds nobody).</summary>
@@ -174,6 +305,17 @@ public sealed class Waker(int id) : Enemy(id)
     }
 
     public override int Drags => Holds && Lead ? _dragged : -1;
+
+    /// <summary>
+    /// Note 940 (the director, 20 Oct 2026: "pick up the train while it's moving"): held, the train's brought to a stand in his
+    /// hands, whichever way it was going, at wakers.holdDecel (m/s²) at the least: as a multiple of the engine's pull, as a
+    /// drag goes (<see cref="Train.TrainOnLine.DragFactor"/>).
+    /// </summary>
+    static double HoldFactor(Train.TrainOnLine train, WakersTuning t)
+    {
+        double pull = train.Dynamics.MaxTractiveForce / Math.Max(1e-6, train.Dynamics.Consist.MassTonnes);
+        return Math.Max(t.DragFactor, pull > 1e-9 ? t.HoldDecel / pull : t.DragFactor);
+    }
     public override double DragFactor => _dragFactor;
     int _dragged = -1;
     double _dragFactor;
@@ -182,6 +324,11 @@ public sealed class Waker(int id) : Enemy(id)
     {
         var t = ctx.Tuning.Wakers;
         var train = ctx.Train;
+        if (Picker)
+        {
+            Pick(ctx, t);
+            return;
+        }
         switch (Phase)
         {
             case SpinePhase.Dormant:
@@ -194,17 +341,25 @@ public sealed class Waker(int id) : Enemy(id)
             case SpinePhase.Commit:
                 {
                     _since += SimConstants.TickSeconds;
-                    double wall = Wall(ctx.World, t);
-                    LineDistance = Math.Min(_start + Covered(_since, t), wall);
+                    // Note 940 (the director, 20 Oct 2026: "unless I'm behind those walls fully, it should really make a good
+                    // effort to try and get me"): only a train in through the gate, its last car and all, is safe. Short of it,
+                    // he comes on to it however near the guns it stands; home, he stops at the walls (stopShort out), or
+                    // stands where he was if he'd come on past them after it.
+                    double wall = Wall(ctx.World, t), gate = Gate(ctx.World, t);
+                    bool home = train.RearDistance >= gate;
+                    double on = _start + Covered(_since, t);
+                    LineDistance = home ? Math.Min(on, Math.Max(wall, LineDistance)) : Math.Min(on, Math.Max(wall, gate - t.CatchShort));
                     // The ones off to the sides close on the line as they come.
                     if (!Lead)
                         Lateral = Extra2 * t.RiseAside * Math.Max(0, 1 - _since / Math.Max(1e-6, t.JoinSeconds));
-                    if (!Lead || LineDistance >= wall)
+                    if (!Lead || home)
                         return;
-                    if (LineDistance >= train.RearDistance)
+                    // He stops catchShort behind the last car, to kneel and scoop it up (note 902), not over it; a train run
+                    // or backed in past that (between his legs, note 940) he has all the same.
+                    if (LineDistance >= train.RearDistance - t.CatchShort)
                     {
                         _dragged = train.Dynamics.Consist.Vehicles[^1].Id;
-                        _dragFactor = t.DragFactor;
+                        _dragFactor = HoldFactor(train, t);
                         Enter(ctx, SpinePhase.Punish);
                     }
                     return;
@@ -213,26 +368,153 @@ public sealed class Waker(int id) : Enemy(id)
                 {
                     Extra += SimConstants.TickSeconds;
                     var cars = train.Dynamics.Consist.Vehicles;
-                    LineDistance = train.RearDistance;
+                    LineDistance = train.RearDistance - t.CatchShort;
                     int eaten = EatenCars(t, cars.Count);
-                    // Whoever's in an eaten car goes with it; whoever's off the train is taken by the rest of them.
+                    // Whoever's in an eaten car goes with it; whoever's off the train is taken by the rest of them, one risen
+                    // beside each (note 710).
                     var gone = new HashSet<int>();
                     for (int i = 0; i < eaten; i++)
                         gone.Add(cars[cars.Count - 1 - i].Id);
                     foreach (var (p, _) in ctx.Crew)
                     {
                         var s = p.State;
-                        if (!s.Alive)
-                            continue;
-                        if (gone.Contains(s.Parent) || s.Parent < 0 && PhaseSeconds >= t.GroundSeconds)
+                        if (s.Alive && gone.Contains(s.Parent))
                             ctx.Harm(p.Id, int.MaxValue / 2, DeathCause.Woken);
                     }
+                    if (eaten < cars.Count)
+                        Fallen(ctx, t, cars[cars.Count - 1 - eaten].Id, eaten);
+                    RaisePickers(ctx, t);
                     if (eaten >= cars.Count)
                         ctx.World.TakenAtDawn = true;
                     return;
                 }
         }
     }
+
+    /// <summary>
+    /// Note 902 (the director, 16 Oct 2026: "If the player falls off the train when it's picked up in the air like this from the
+    /// waker picking it up, then they should die"): the car in his hands is up off the rails as it's drawn, and the sim's
+    /// frames never leave them, so whoever's come off it, down on the ground where it stood (within <c>fallAround</c> m of
+    /// its sides and ends) once it's <c>fallFrom</c> of the way up, fell from it.
+    /// </summary>
+    void Fallen(EnemyContext ctx, WakersTuning t, int car, int k)
+    {
+        if (Raised(Extra, k, t) < t.FallFrom || car < 0 || car >= ctx.Train.Frames.Count)
+            return;
+        var f = ctx.Train.Frames[car];
+        foreach (var (p, _) in ctx.Crew)
+        {
+            if (!CrewSense.OnGround(p.State))
+                continue;
+            var at = f.ToLocal(PlayerMotor.WorldPosition(p.State, ctx.Train));
+            if (Math.Abs(at.X) <= f.Shape.HalfWidth + t.FallAround && Math.Abs(at.Z) <= f.Shape.HalfLength + t.FallAround
+                && !ctx.World.InFort(PlayerMotor.WorldPosition(p.State, ctx.Train)))
+                ctx.Harm(p.Id, int.MaxValue / 2, DeathCause.Fell);
+        }
+    }
+
+    /// <summary>A crewmate a picker may take: alive, off the train, free of any other's grip, and not in under a fort's guns.</summary>
+    static bool Takeable(EnemyContext ctx, in PlayerState s) =>
+        CrewSense.Afoot(s, ctx.Train) && !ctx.World.InFort(PlayerMotor.WorldPosition(s, ctx.Train));
+
+    /// <summary>
+    /// Note 710: a Waker beside each crewmate off the held train who hasn't one after them (up to <c>pickers</c> at once; the
+    /// rest wait for one to finish), in the crew's order.
+    /// </summary>
+    void RaisePickers(EnemyContext ctx, WakersTuning t)
+    {
+        var pickers = ctx.World.ActiveEnemies.OfType<Waker>().Where(w => w.Picker && !w.Gone).ToList();
+        foreach (var (p, _) in ctx.Crew)
+        {
+            if (pickers.Count >= t.Pickers)
+                return;
+            if (!Takeable(ctx, p.State) || pickers.Any(w => w.Quarry == p.Id))
+                continue;
+            var at = PlayerMotor.WorldPosition(p.State, ctx.Train);
+            pickers.Add(ctx.World.AddEnemy(id => Beside(id, p.Id, at, ctx.Train, t)));
+        }
+    }
+
+    /// <summary>
+    /// A picker's step (note 710): up out of the land (the telegraph), across to its quarry, the grab, the lift to its mouth
+    /// (<see cref="Mouth"/>), and the eating; then the next who ran and has no one after them, or it stands.
+    /// </summary>
+    void Pick(EnemyContext ctx, WakersTuning t)
+    {
+        switch (Phase)
+        {
+            case SpinePhase.Dormant:
+                Enter(ctx, SpinePhase.Telegraph);
+                return;
+            case SpinePhase.Telegraph:
+                if (PhaseSeconds >= Math.Max(ctx.Tuning.MinReactionSeconds, t.PickRiseSeconds))
+                    Enter(ctx, SpinePhase.Commit);
+                return;
+            case SpinePhase.Commit:
+                {
+                    int found = Quarry < 0 ? -1 : ctx.Crew.FindIndex(c => c.Player.Id == Quarry);
+                    if (found < 0 || !Takeable(ctx, ctx.Crew[found].Player.State))
+                    {
+                        Extra = Next(ctx);
+                        return;
+                    }
+                    var quarry = ctx.Crew[found].Player;
+                    var at = PlayerMotor.WorldPosition(quarry.State, ctx.Train);
+                    var way = (at - Local) with { Y = 0 };
+                    if (way.Length > 1e-6)
+                        Lateral = Heading(way);
+                    if (way.Length <= t.PickReach + 0.05) // (it strides up to just its reach)
+                    {
+                        _from = at;
+                        Grab(ctx, quarry.Id, t.PickLiftSeconds);
+                        return;
+                    }
+                    double hint = LineDistance;
+                    var next = Local + way.Normalized * Math.Min(way.Length - t.PickReach, t.PickSpeed * SimConstants.TickSeconds);
+                    Local = next with { Y = PlayerMotor.GroundAt(next, ctx.Train.Line, ref hint) };
+                    LineDistance = hint;
+                    return;
+                }
+            case SpinePhase.Grab:
+                {
+                    // In its hand, up off the ground to its mouth.
+                    double k = Math.Clamp(PhaseSeconds / Math.Max(1e-6, GrabWindow), 0, 1);
+                    k = k * k * (3 - 2 * k);
+                    ctx.Lift(Holding, _from + (Mouth(Local, Lateral, t) - _from) * k);
+                    return;
+                }
+            case SpinePhase.Punish:
+                // Eaten; once it's swallowed, after the next who ran.
+                if (PhaseSeconds >= t.PickEatSeconds && Next(ctx) is var next2 && next2 >= 0)
+                {
+                    Extra = next2;
+                    Enter(ctx, SpinePhase.Commit);
+                }
+                return;
+        }
+    }
+
+    Double3 _from;
+
+    /// <summary>The nearest crewmate a picker could take who has no other picker after them, or −1 (by id on a tie).</summary>
+    int Next(EnemyContext ctx)
+    {
+        var taken = ctx.World.ActiveEnemies.OfType<Waker>().Where(w => w != this && w.Picker && !w.Gone).Select(w => w.Quarry).ToHashSet();
+        int best = -1;
+        double bestD = double.MaxValue;
+        foreach (var (p, _) in ctx.Crew)
+        {
+            if (!Takeable(ctx, p.State) || taken.Contains(p.Id))
+                continue;
+            double d = ctx.Weigh(p.Id, ((PlayerMotor.WorldPosition(p.State, ctx.Train) - Local) with { Y = 0 }).Length);
+            if (d < bestD || d == bestD && p.Id < best)
+                (best, bestD) = (p.Id, d);
+        }
+        return best;
+    }
+
+    /// <summary>A picker eats who it took (note 710): the spine's punish, after the lift to its mouth.</summary>
+    protected override void Punish(EnemyContext ctx, int victim) => Kill(ctx, victim, DeathCause.Woken);
 }
 
 /// <summary>enemies.json <c>wakers</c> (note 588): what gets up at dawn. Field docs live there.</summary>
@@ -252,10 +534,30 @@ public sealed record WakersTuning
     public double RampSeconds { get; init; } = 45;
     public double StopShort { get; init; } = 300;
     public double DragFactor { get; init; } = 3;
-    public double LiftSeconds { get; init; } = 2.5;
     public double EatAfter { get; init; } = 6;
     public double EatSeconds { get; init; } = 4;
-    public double GroundSeconds { get; init; } = 8;
+    // The lift and the bites (note 902): see enemies.json.
+    public double CatchShort { get; init; } = 12;
+    public double ScoopFrom { get; init; } = 1.2;
+    public double ScoopHold { get; init; } = 1;
+    public double ScoopShare { get; init; } = 0.45;
+    public double ReachShare { get; init; } = 0.35;
+    public double[] Bites { get; init; } = [0.55, 0.775];
+    public double FallFrom { get; init; } = 0.15;
+    public double FallAround { get; init; } = 3;
+    // Note 940: see enemies.json.
+    public double HoldDecel { get; init; } = 6;
+    public double KneelStoop { get; init; } = 0.5;
+    // Those who ran (note 710): see enemies.json.
+    public int Pickers { get; init; } = 3;
+    public double PickAside { get; init; } = 40;
+    public double PickRiseSeconds { get; init; } = 4;
+    public double PickSpeed { get; init; } = 12;
+    public double PickReach { get; init; } = 18;
+    public double PickLiftSeconds { get; init; } = 4;
+    public double PickMouthOut { get; init; } = 10;
+    public double PickMouthHeight { get; init; } = 22;
+    public double PickEatSeconds { get; init; } = 4;
     /// <summary>
     /// wakers.md §2, the night things run (note 635; the director, the inbox, 12 Oct 2026): this many seconds before dawn the
     /// night's creatures go to ground, and the director sends none of them after. Negative: they stay (v1).

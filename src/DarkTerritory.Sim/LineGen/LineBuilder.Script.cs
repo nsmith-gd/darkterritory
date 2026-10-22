@@ -57,6 +57,7 @@ sealed partial class LineBuilder
     void ScriptMain()
     {
         var rng = Rng("script", "main");
+        _haltRng = Rng("script", "halts");
         _driftL1 = rng.Range(_t.Profile.DriftWavelengthKm) * 1000;
         _driftL2 = rng.Range(_t.Profile.DriftWavelengthKm) * 1000 * 0.45;
         _driftPhase1 = rng.Range(0, 2 * Math.PI);
@@ -489,6 +490,7 @@ sealed partial class LineBuilder
                 if (Settlement(s, end - s - (held ? Owed(queue) : 0), ref rng) is { } town)
                 {
                     Place([town], list, ref s, ref budget);
+                    _settlements++;
                     _nextSettlement = NextSettlement(s, ref rng);
                     continue;
                 }
@@ -529,9 +531,64 @@ sealed partial class LineBuilder
                 list.Add(Connector(tail, st.S1, st, ref rng));
         }
         _budgetSpent += st.Budget - budget;
+        Halt(st, list);
         return list;
     }
 
+    /// <summary>
+    /// Note 868 (the director, 19 Oct 2026: "I'd love more [abandoned villages] but we can't have a longer night, fewer hazards,
+    /// or fewer stops"): the 7 km night's free stretches are short (450 m to 1 km between the threshold, the facilities' fixed
+    /// zones and the windows), and the every-so-often settlement fell due in one with room after its first connector one night
+    /// in twelve. Up to deadSettlement's perNight a night, a filled stretch's first straight recovery long enough (a run of
+    /// its straight recovery connectors one after another) becomes one: a halt, or a dead town where it fits (townChance). Nothing else moves: its hazards, signatures and quotas
+    /// are where they were, and a settlement is straight and level, as a recovery is for. leadM into the stretch (a village
+    /// stands clear of a yard's zone). On dice of its own, so the stretches after draw as they did. But the line's own shape
+    /// moves: a recovery wanders (alignment wanderDeg) and a settlement is straight, so what's laid by the line downstream
+    /// (an alternate's closure, a lake, a road) can fall elsewhere; perNight is 0 until the director decides (note 868).
+    /// </summary>
+    void Halt(Stretch st, List<Item> list)
+    {
+        var dead = Def("deadSettlement");
+        // A stretch that already has its settlement (the every-so-often's) takes no second: frontier:5's two halts stood end to end.
+        if (_settlements >= (int)dead.Param("perNight") || st.Window is not null || st.Spike || list.Any(x => x.Kind == "settlement"))
+            return;
+        double halt = dead.Param("haltM"), clear = dead.Param("leadM");
+        // A run of straight recovery connectors one after another (the deeper tiers' recoveries are short, 150 m and less).
+        static bool Recovery(Item x) => x.Type == "recovery" && x.Kind == "straight";
+        for (int i = 0; i < list.Count; i++)
+        {
+            if (!Recovery(list[i]))
+                continue;
+            int j = i;
+            while (j + 1 < list.Count && Recovery(list[j + 1]))
+                j++;
+            double s0 = list[i].S0, s1 = list[j].S1;
+            // leadM into the stretch: clear of a yard's zone after a facility, and of the threshold's easement (deepTerritory:6's
+            // halt laid at its first metre had a bow PlanStops wouldn't stand a village on).
+            double lead = Math.Max(0, st.S0 + clear - s0);
+            if (s1 - s0 - lead < halt)
+            {
+                i = j;
+                continue;
+            }
+            // Room for a town too, with nothing owed after it (a settlement is its own run-out).
+            if (Settlement(s0 + lead, s1 - s0 - lead + Math.Min(200, RecoveryLength()), ref _haltRng) is not { } town)
+            {
+                i = j;
+                continue;
+            }
+            var into = new List<Item>();
+            if (lead > 0)
+                into.Add(Connector(s0, s0 + lead, st, ref _haltRng));
+            into.Add(town);
+            if (s1 - town.S1 > 1)
+                into.Add(Connector(town.S1, s1, st, ref _haltRng));
+            list.RemoveRange(i, j - i + 1);
+            list.InsertRange(i, into);
+            _settlements++;
+            return;
+        }
+    }
 
     IEnumerable<Item> Split(Item i, double most)
     {
@@ -561,6 +618,10 @@ sealed partial class LineBuilder
     }
 
     double _nextSettlement = double.NaN;
+    /// <summary>Dead settlements laid on the main line so far (note 868: <c>deadSettlement.perNight</c>).</summary>
+    int _settlements;
+    /// <summary>The halts' own dice (note 868, <see cref="Halt"/>).</summary>
+    Pcg32 _haltRng;
 
     /// <summary>The least a must-place unit needs: its pieces' shortest (a long climb's 1.2 km and a bit).</summary>
     double MustLength(string id, string[] chain) => id == "climb_long" ? 1400 : chain.Sum(c => c.Split('+').Max(x => Def(x).LengthM[0])) + 100;

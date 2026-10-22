@@ -7,4 +7,20 @@
     <!-- Managed wrapper only (MIT). Valve's native steam_api64.dll comes from the Steamworks SDK: external/steam/README.md. -->
     <PackageReference Include="Steamworks.NET" Version="2024.8.0" />
   </ItemGroup>
+  <!-- Epic Online Services (note 896): Epic's C# wrapper is source in its SDK, which is fetched by hand or by the Release
+       workflow (EOS_SDK_URL) into external/eos/, never committed. With it there, it's compiled in and EOS_SDK turns the real
+       binding (Eos/EpicSdk.cs) on; without it the game builds and plays the same, with EOS saying the SDK isn't in this build. -->
+  <PropertyGroup Condition="Exists('../../external/eos/SDK/Source')">
+    <DefineConstants>$(DefineConstants);EOS_SDK</DefineConstants>
+    <!-- The wrapper picks its native library's name by these (its Core/Config.cs). -->
+    <DefineConstants Condition="'$(RuntimeIdentifier)' == 'win-x64' Or ('$(RuntimeIdentifier)' == '' And $([MSBuild]::IsOSPlatform('Windows')))">$(DefineConstants);EOS_PLATFORM_WINDOWS_64</DefineConstants>
+    <DefineConstants Condition="'$(RuntimeIdentifier)' == 'linux-x64' Or ('$(RuntimeIdentifier)' == '' And $([MSBuild]::IsOSPlatform('Linux')))">$(DefineConstants);EOS_PLATFORM_LINUX</DefineConstants>
+    <!-- Epic's generated code isn't held to this repository's warnings or style. -->
+    <TreatWarningsAsErrors>false</TreatWarningsAsErrors>
+    <EnforceCodeStyleInBuild>false</EnforceCodeStyleInBuild>
+    <NoWarn>$(NoWarn);CS0618;CS8600;CS8601;CS8602;CS8603;CS8604;CS8618;CS8625;CS1591</NoWarn>
+  </PropertyGroup>
+  <ItemGroup Condition="Exists('../../external/eos/SDK/Source')">
+    <Compile Include="../../external/eos/SDK/Source/**/*.cs" Link="Epic/%(RecursiveDir)%(Filename)%(Extension)" />
+  </ItemGroup>
 </Project>

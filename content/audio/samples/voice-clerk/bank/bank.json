@@ -1,15 +1,55 @@
 // The clerk's vocabulary (tools/audio/clerk.py; note 240): each phrase or word, its take, and how long it runs.
 {
  "entries": {
+  "a calliope": {
+   "file": "a-calliope",
+   "said": "a ka-lie-oh-pee",
+   "seconds": 0.93
+  },
+  "a climber's claw": {
+   "file": "a-climber-s-claw",
+   "said": "a climber's claw",
+   "seconds": 0.921
+  },
+  "a hotbox plate": {
+   "file": "a-hotbox-plate",
+   "said": "a hotbox plate",
+   "seconds": 0.833
+  },
+  "a knotter's claw": {
+   "file": "a-knotter-s-claw",
+   "said": "a knotter's claw",
+   "seconds": 0.719
+  },
+  "a painting signed d": {
+   "file": "a-painting-signed-d",
+   "said": "a painting signed d",
+   "seconds": 0.981
+  },
   "abattoir": {
    "file": "abattoir",
    "said": "abattoir",
    "seconds": 0.575
   },
+  "aboard": {
+   "file": "aboard",
+   "said": "aboard",
+   "seconds": 0.419
+  },
+  "accordion": {
+   "file": "accordion",
+   "said": "accordion",
+   "seconds": 0.569
+  },
   "achebe": {
    "file": "achebe",
    "said": "Ah-chay-bay",
    "seconds": 0.471
+  },
+  "air freshener": {
+   "file": "air-freshener",
+   "said": "air freshener",
+   "seconds": 0.702
   },
   "aldous": {
    "file": "aldous",
@@ -20,6 +60,11 @@
    "file": "ambrose",
    "said": "ambrose",
    "seconds": 0.49
+  },
+  "an old coin": {
+   "file": "an-old-coin",
+   "said": "an old coin",
+   "seconds": 0.746
   },
   "ashby": {
    "file": "ashby",
@@ -36,15 +81,50 @@
    "said": "at",
    "seconds": 0.193
   },
+  "balls": {
+   "file": "balls",
+   "said": "balls",
+   "seconds": 0.389
+  },
+  "bandages": {
+   "file": "bandages",
+   "said": "bandages",
+   "seconds": 0.598
+  },
+  "banjo": {
+   "file": "banjo",
+   "said": "banjo",
+   "seconds": 0.417
+  },
+  "bar": {
+   "file": "bar",
+   "said": "bar",
+   "seconds": 0.297
+  },
+  "beers": {
+   "file": "beers",
+   "said": "beers",
+   "seconds": 0.475
+  },
   "bend": {
    "file": "bend",
    "said": "bend",
    "seconds": 0.35
   },
+  "black": {
+   "file": "black",
+   "said": "black",
+   "seconds": 0.356
+  },
   "blackwell": {
    "file": "blackwell",
    "said": "blackwell",
    "seconds": 0.465
+  },
+  "bodhr\u00e1n": {
+   "file": "bodhr-n",
+   "said": "Bow-rawn",
+   "seconds": 0.713
   },
   "body not recovered": {
    "file": "body-not-recovered",
@@ -55,6 +135,21 @@
    "file": "body-recovered",
    "said": "body recovered",
    "seconds": 0.737
+  },
+  "bolted": {
+   "file": "bolted",
+   "said": "bolted",
+   "seconds": 0.378
+  },
+  "bolted on": {
+   "file": "bolted-on",
+   "said": "bolted on",
+   "seconds": 0.637
+  },
+  "borrowed": {
+   "file": "borrowed",
+   "said": "borrowed",
+   "seconds": 0.357
   },
   "bramwell": {
    "file": "bramwell",
@@ -71,10 +166,45 @@
    "said": "bridge",
    "seconds": 0.397
   },
+  "brigade": {
+   "file": "brigade",
+   "said": "brigade",
+   "seconds": 0.468
+  },
+  "brigade fees": {
+   "file": "brigade-fees",
+   "said": "brigade fees",
+   "seconds": 0.783
+  },
+  "broken": {
+   "file": "broken",
+   "said": "broken",
+   "seconds": 0.46
+  },
   "brook": {
    "file": "brook",
    "said": "brook",
    "seconds": 0.311
+  },
+  "caboose": {
+   "file": "caboose",
+   "said": "caboose",
+   "seconds": 0.507
+  },
+  "canary": {
+   "file": "canary",
+   "said": "canary",
+   "seconds": 0.413
+  },
+  "candles": {
+   "file": "candles",
+   "said": "candles",
+   "seconds": 0.466
+  },
+  "cannon": {
+   "file": "cannon",
+   "said": "cannon",
+   "seconds": 0.415
   },
   "car": {
    "file": "car",
@@ -116,6 +246,11 @@
    "said": "castell",
    "seconds": 0.426
   },
+  "cat": {
+   "file": "cat",
+   "said": "cat",
+   "seconds": 0.305
+  },
   "cause not established": {
    "file": "cause-not-established",
    "said": "cause not established",
@@ -141,6 +276,16 @@
    "said": "child survivors",
    "seconds": 0.966
   },
+  "chipped": {
+   "file": "chipped",
+   "said": "chipped",
+   "seconds": 0.355
+  },
+  "church bell": {
+   "file": "church-bell",
+   "said": "church bell",
+   "seconds": 0.56
+  },
   "coal": {
    "file": "coal",
    "said": "coal",
@@ -161,10 +306,30 @@
    "said": "Coom",
    "seconds": 0.29
   },
+  "comedic": {
+   "file": "comedic",
+   "said": "comedic",
+   "seconds": 0.487
+  },
+  "comet fragment": {
+   "file": "comet-fragment",
+   "said": "comet fragment",
+   "seconds": 0.826
+  },
   "comet-derived material": {
    "file": "comet-derived-material",
    "said": "comet-derived material",
    "seconds": 1.301
+  },
+  "commendation": {
+   "file": "commendation",
+   "said": "commendation",
+   "seconds": 0.689
+  },
+  "conga": {
+   "file": "conga",
+   "said": "conga",
+   "seconds": 0.433
   },
   "consist derailed": {
    "file": "consist-derailed",
@@ -186,15 +351,30 @@
    "said": "cotter",
    "seconds": 0.357
   },
+  "cracked": {
+   "file": "cracked",
+   "said": "cracked",
+   "seconds": 0.369
+  },
   "crane": {
    "file": "crane",
    "said": "crane",
    "seconds": 0.366
   },
+  "crate of glass": {
+   "file": "crate-of-glass",
+   "said": "crate of glass",
+   "seconds": 0.753
+  },
   "crew": {
    "file": "crew",
    "said": "crew",
    "seconds": 0.28
+  },
+  "crimson": {
+   "file": "crimson",
+   "said": "crimson",
+   "seconds": 0.441
   },
   "cross": {
    "file": "cross",
@@ -206,15 +386,65 @@
    "said": "crossing",
    "seconds": 0.462
   },
+  "cut-glass decanter": {
+   "file": "cut-glass-decanter",
+   "said": "cut-glass decanter",
+   "seconds": 0.999
+  },
+  "danced": {
+   "file": "danced",
+   "said": "danced",
+   "seconds": 0.422
+  },
+  "deceased": {
+   "file": "deceased",
+   "said": "deceased",
+   "seconds": 0.575
+  },
+  "deck": {
+   "file": "deck",
+   "said": "deck",
+   "seconds": 0.245
+  },
+  "dented": {
+   "file": "dented",
+   "said": "dented",
+   "seconds": 0.385
+  },
   "depot": {
    "file": "depot",
    "said": "depot",
    "seconds": 0.418
   },
+  "dice": {
+   "file": "dice",
+   "said": "dice",
+   "seconds": 0.415
+  },
+  "disco ball": {
+   "file": "disco-ball",
+   "said": "disco ball",
+   "seconds": 0.626
+  },
+  "dog": {
+   "file": "dog",
+   "said": "dog",
+   "seconds": 0.347
+  },
+  "drinks": {
+   "file": "drinks",
+   "said": "drinks",
+   "seconds": 0.442
+  },
   "drury": {
    "file": "drury",
    "said": "Droo-ree",
    "seconds": 0.447
+  },
+  "dry": {
+   "file": "dry",
+   "said": "dry",
+   "seconds": 0.397
   },
   "dunmore": {
    "file": "dunmore",
@@ -256,6 +486,11 @@
    "said": "emory",
    "seconds": 0.405
   },
+  "engine": {
+   "file": "engine",
+   "said": "engine",
+   "seconds": 0.353
+  },
   "engineering kit reported lost": {
    "file": "engineering-kit-reported-lost",
    "said": "engineering kit reported lost",
@@ -276,6 +511,11 @@
    "said": "fenwick",
    "seconds": 0.422
   },
+  "fiddle": {
+   "file": "fiddle",
+   "said": "fiddle",
+   "seconds": 0.32
+  },
   "fifteen": {
    "file": "fifteen",
    "said": "fifteen",
@@ -291,15 +531,35 @@
    "said": "finch",
    "seconds": 0.398
   },
+  "find": {
+   "file": "find",
+   "said": "find",
+   "seconds": 0.343
+  },
+  "finds": {
+   "file": "finds",
+   "said": "finds",
+   "seconds": 0.43
+  },
   "firebox last tended": {
    "file": "firebox-last-tended",
    "said": "firebox last tended",
    "seconds": 1.076
   },
+  "fired from the rear cannon": {
+   "file": "fired-from-the-rear-cannon",
+   "said": "fired from the rear cannon",
+   "seconds": 1.161
+  },
   "five": {
    "file": "five",
    "said": "five",
    "seconds": 0.377
+  },
+  "flames": {
+   "file": "flames",
+   "said": "flames",
+   "seconds": 0.473
   },
   "food": {
    "file": "food",
@@ -311,6 +571,11 @@
    "said": "ford",
    "seconds": 0.395
   },
+  "forest green": {
+   "file": "forest-green",
+   "said": "forest green",
+   "seconds": 0.663
+  },
   "fort": {
    "file": "fort",
    "said": "fort",
@@ -320,16 +585,6 @@
    "file": "forty",
    "said": "forty",
    "seconds": 0.347
-  },
-  "forward cannon crewed by": {
-   "file": "forward-cannon-crewed-by",
-   "said": "forward cannon crewed by",
-   "seconds": 1.213
-  },
-  "forward cannon not crewed": {
-   "file": "forward-cannon-not-crewed",
-   "said": "forward cannon not crewed",
-   "seconds": 1.462
   },
   "foundry": {
    "file": "foundry",
@@ -346,6 +601,11 @@
    "said": "fourteen",
    "seconds": 0.504
   },
+  "framed": {
+   "file": "framed",
+   "said": "framed",
+   "seconds": 0.395
+  },
   "freight": {
    "file": "freight",
    "said": "freight",
@@ -355,6 +615,11 @@
    "file": "from-the-train",
    "said": "from the train",
    "seconds": 0.641
+  },
+  "fuzzy": {
+   "file": "fuzzy",
+   "said": "fuzzy",
+   "seconds": 0.382
   },
   "galloway": {
    "file": "galloway",
@@ -381,6 +646,11 @@
    "said": "gave way under car",
    "seconds": 0.904
   },
+  "gerald": {
+   "file": "gerald",
+   "said": "gerald",
+   "seconds": 0.376
+  },
   "gill": {
    "file": "gill",
    "said": "gill",
@@ -390,6 +660,21 @@
    "file": "girders",
    "said": "girders",
    "seconds": 0.452
+  },
+  "gnomes": {
+   "file": "gnomes",
+   "said": "gnomes",
+   "seconds": 0.455
+  },
+  "gold": {
+   "file": "gold",
+   "said": "gold",
+   "seconds": 0.35
+  },
+  "good": {
+   "file": "good",
+   "said": "good",
+   "seconds": 0.247
   },
   "goods": {
    "file": "goods",
@@ -401,10 +686,25 @@
    "said": "grain",
    "seconds": 0.393
   },
+  "gramophone": {
+   "file": "gramophone",
+   "said": "gramophone",
+   "seconds": 0.622
+  },
   "grieve": {
    "file": "grieve",
    "said": "grieve",
    "seconds": 0.395
+  },
+  "grill": {
+   "file": "grill",
+   "said": "grill",
+   "seconds": 0.283
+  },
+  "guitar": {
+   "file": "guitar",
+   "said": "guitar",
+   "seconds": 0.494
   },
   "gunpowder and shot": {
    "file": "gunpowder-and-shot",
@@ -426,6 +726,11 @@
    "said": "halt",
    "seconds": 0.361
   },
+  "hammock": {
+   "file": "hammock",
+   "said": "hammock",
+   "seconds": 0.364
+  },
   "harlan": {
    "file": "harlan",
    "said": "harlan",
@@ -435,6 +740,11 @@
    "file": "harrow",
    "said": "harrow",
    "seconds": 0.289
+  },
+  "hats": {
+   "file": "hats",
+   "said": "hats",
+   "seconds": 0.414
   },
   "heath": {
    "file": "heath",
@@ -456,10 +766,35 @@
    "said": "holt",
    "seconds": 0.349
   },
+  "horn": {
+   "file": "horn",
+   "said": "horn",
+   "seconds": 0.336
+  },
+  "horseshoe": {
+   "file": "horseshoe",
+   "said": "horseshoe",
+   "seconds": 0.466
+  },
+  "hot tub": {
+   "file": "hot-tub",
+   "said": "hot tub",
+   "seconds": 0.483
+  },
+  "hubcaps": {
+   "file": "hubcaps",
+   "said": "hubcaps",
+   "seconds": 0.566
+  },
   "hundred": {
    "file": "hundred",
    "said": "hundred",
    "seconds": 0.383
+  },
+  "in tune": {
+   "file": "in-tune",
+   "said": "in tune",
+   "seconds": 0.533
   },
   "ingram": {
    "file": "ingram",
@@ -501,10 +836,30 @@
    "said": "kilometres an hour",
    "seconds": 0.847
   },
+  "lamp oil": {
+   "file": "lamp-oil",
+   "said": "lamp oil",
+   "seconds": 0.606
+  },
+  "lamp parts": {
+   "file": "lamp-parts",
+   "said": "lamp parts",
+   "seconds": 0.664
+  },
+  "light fingers": {
+   "file": "light-fingers",
+   "said": "light fingers",
+   "seconds": 0.702
+  },
   "lindqvist": {
    "file": "lindqvist",
    "said": "lindqvist",
    "seconds": 0.45
+  },
+  "livery": {
+   "file": "livery",
+   "said": "livery",
+   "seconds": 0.401
   },
   "livestock": {
    "file": "livestock",
@@ -540,6 +895,11 @@
    "file": "manifest-follows",
    "said": "manifest follows",
    "seconds": 0.955
+  },
+  "mantel clock": {
+   "file": "mantel-clock",
+   "said": "mantel clock",
+   "seconds": 0.712
   },
   "marrin": {
    "file": "marrin",
@@ -591,10 +951,25 @@
    "said": "minus",
    "seconds": 0.46
   },
+  "monogrammed": {
+   "file": "monogrammed",
+   "said": "monogrammed",
+   "seconds": 0.618
+  },
+  "moose head": {
+   "file": "moose-head",
+   "said": "moose head",
+   "seconds": 0.582
+  },
   "moreau": {
    "file": "moreau",
    "said": "Mor-oh",
    "seconds": 0.496
+  },
+  "morphine": {
+   "file": "morphine",
+   "said": "morphine",
+   "seconds": 0.564
   },
   "morrow": {
    "file": "morrow",
@@ -605,6 +980,26 @@
    "file": "moss",
    "said": "moss",
    "seconds": 0.418
+  },
+  "most of it": {
+   "file": "most-of-it",
+   "said": "most of it",
+   "seconds": 0.468
+  },
+  "mostly": {
+   "file": "mostly",
+   "said": "mostly",
+   "seconds": 0.513
+  },
+  "mounted": {
+   "file": "mounted",
+   "said": "mounted",
+   "seconds": 0.401
+  },
+  "musical": {
+   "file": "musical",
+   "said": "musical",
+   "seconds": 0.43
   },
   "nance": {
    "file": "nance",
@@ -636,11 +1031,6 @@
    "said": "ninety",
    "seconds": 0.459
   },
-  "no forward cannon on the consist": {
-   "file": "no-forward-cannon-on-the-consist",
-   "said": "no forward cannon on the consist",
-   "seconds": 1.626
-  },
   "nobody had tended the firebox": {
    "file": "nobody-had-tended-the-firebox",
    "said": "nobody had tended the firebox",
@@ -666,10 +1056,20 @@
    "said": "oldcastle",
    "seconds": 0.622
   },
+  "on": {
+   "file": "on",
+   "said": "on",
+   "seconds": 0.327
+  },
   "one": {
    "file": "one",
    "said": "one",
    "seconds": 0.332
+  },
+  "one volunteer": {
+   "file": "one-volunteer",
+   "said": "one volunteer",
+   "seconds": 0.821
   },
   "ore": {
    "file": "ore",
@@ -691,6 +1091,16 @@
    "said": "paid",
    "seconds": 0.325
   },
+  "painted": {
+   "file": "painted",
+   "said": "painted",
+   "seconds": 0.346
+  },
+  "participation": {
+   "file": "participation",
+   "said": "participation",
+   "seconds": 0.845
+  },
   "pell": {
    "file": "pell",
    "said": "pell",
@@ -706,10 +1116,35 @@
    "said": "petrov",
    "seconds": 0.584
   },
+  "photograph": {
+   "file": "photograph",
+   "said": "photograph",
+   "seconds": 0.618
+  },
+  "pine": {
+   "file": "pine",
+   "said": "pine",
+   "seconds": 0.342
+  },
+  "plunky": {
+   "file": "plunky",
+   "said": "plunky",
+   "seconds": 0.452
+  },
+  "pocket watch": {
+   "file": "pocket-watch",
+   "said": "pocket watch",
+   "seconds": 0.689
+  },
   "powder and shot": {
    "file": "powder-and-shot",
    "said": "powder and shot",
    "seconds": 0.767
+  },
+  "preserves": {
+   "file": "preserves",
+   "said": "preserves",
+   "seconds": 0.551
   },
   "pritchard": {
    "file": "pritchard",
@@ -740,6 +1175,11 @@
    "file": "ran-onto-the-washout",
    "said": "ran onto the washout",
    "seconds": 1.016
+  },
+  "recovery": {
+   "file": "recovery",
+   "said": "recovery",
+   "seconds": 0.569
   },
   "recovery at first light": {
    "file": "recovery-at-first-light",
@@ -776,15 +1216,35 @@
    "said": "Ray-ez",
    "seconds": 0.429
   },
+  "ribbon": {
+   "file": "ribbon",
+   "said": "ribbon",
+   "seconds": 0.354
+  },
   "ridge": {
    "file": "ridge",
    "said": "ridge",
    "seconds": 0.398
   },
+  "rod": {
+   "file": "rod",
+   "said": "rod",
+   "seconds": 0.281
+  },
   "rooke": {
    "file": "rooke",
    "said": "rooke",
    "seconds": 0.27
+  },
+  "rope": {
+   "file": "rope",
+   "said": "rope",
+   "seconds": 0.268
+  },
+  "safe": {
+   "file": "safe",
+   "said": "safe",
+   "seconds": 0.389
   },
   "sallow": {
    "file": "sallow",
@@ -821,10 +1281,25 @@
    "said": "seventy",
    "seconds": 0.479
   },
+  "ship's figurehead": {
+   "file": "ship-s-figurehead",
+   "said": "ship's figurehead",
+   "seconds": 0.796
+  },
+  "shrill": {
+   "file": "shrill",
+   "said": "shrill",
+   "seconds": 0.359
+  },
   "siding": {
    "file": "siding",
    "said": "siding",
    "seconds": 0.439
+  },
+  "singing": {
+   "file": "singing",
+   "said": "singing",
+   "seconds": 0.425
   },
   "six": {
    "file": "six",
@@ -841,10 +1316,50 @@
    "said": "sixty",
    "seconds": 0.476
   },
+  "slung": {
+   "file": "slung",
+   "said": "slung",
+   "seconds": 0.478
+  },
+  "small": {
+   "file": "small",
+   "said": "small",
+   "seconds": 0.415
+  },
+  "smashed": {
+   "file": "smashed",
+   "said": "smashed",
+   "seconds": 0.54
+  },
+  "spinning": {
+   "file": "spinning",
+   "said": "spinning",
+   "seconds": 0.464
+  },
+  "spoons": {
+   "file": "spoons",
+   "said": "spoons",
+   "seconds": 0.592
+  },
   "stage": {
    "file": "stage",
    "said": "stage",
    "seconds": 0.39
+  },
+  "steaming": {
+   "file": "steaming",
+   "said": "steaming",
+   "seconds": 0.472
+  },
+  "stickers": {
+   "file": "stickers",
+   "said": "stickers",
+   "seconds": 0.525
+  },
+  "still up": {
+   "file": "still-up",
+   "said": "still up",
+   "seconds": 0.464
   },
   "stroud": {
    "file": "stroud",
@@ -855,6 +1370,11 @@
    "file": "sutter",
    "said": "sutter",
    "seconds": 0.403
+  },
+  "taken": {
+   "file": "taken",
+   "said": "taken",
+   "seconds": 0.382
   },
   "talbot": {
    "file": "talbot",
@@ -881,20 +1401,45 @@
    "said": "the",
    "seconds": 0.187
   },
+  "the beetle's shovel": {
+   "file": "the-beetle-s-shovel",
+   "said": "the beetle's shovel",
+   "seconds": 0.79
+  },
+  "the brakeman's wheel": {
+   "file": "the-brakeman-s-wheel",
+   "said": "the brakeman's wheel",
+   "seconds": 0.784
+  },
+  "the crew lost": {
+   "file": "the-crew-lost",
+   "said": "the crew lost",
+   "seconds": 0.682
+  },
+  "the gannet's head": {
+   "file": "the-gannet-s-head",
+   "said": "the gannet's head",
+   "seconds": 0.702
+  },
+  "the gaunt's hand": {
+   "file": "the-gaunt-s-hand",
+   "said": "the gaunt's hand",
+   "seconds": 0.693
+  },
+  "the grumbler's jaw": {
+   "file": "the-grumbler-s-jaw",
+   "said": "the grumbler's jaw",
+   "seconds": 0.876
+  },
+  "the passenger's cap": {
+   "file": "the-passenger-s-cap",
+   "said": "the passenger's cap",
+   "seconds": 0.928
+  },
   "the stoker ran away with it": {
    "file": "the-stoker-ran-away-with-it",
    "said": "the stoker ran away with it",
    "seconds": 1.233
-  },
-  "the switchman threw the points under it": {
-   "file": "the-switchman-threw-the-points-under-it",
-   "said": "the switchman threw the points under it",
-   "seconds": 1.462
-  },
-  "they throw a train off": {
-   "file": "they-throw-a-train-off",
-   "said": "they throw a train off",
-   "seconds": 0.973
   },
   "they'll take": {
    "file": "they-ll-take",
@@ -926,15 +1471,40 @@
    "said": "three",
    "seconds": 0.298
   },
+  "three chords": {
+   "file": "three-chords",
+   "said": "three chords",
+   "seconds": 0.624
+  },
   "throttle": {
    "file": "throttle",
    "said": "throttle",
    "seconds": 0.43
   },
+  "thrown": {
+   "file": "thrown",
+   "said": "thrown",
+   "seconds": 0.406
+  },
+  "thumping": {
+   "file": "thumping",
+   "said": "thumping",
+   "seconds": 0.386
+  },
   "timber": {
    "file": "timber",
    "said": "timber",
    "seconds": 0.401
+  },
+  "tin whistle": {
+   "file": "tin-whistle",
+   "said": "tin whistle",
+   "seconds": 0.535
+  },
+  "tinned food": {
+   "file": "tinned-food",
+   "said": "tinned food",
+   "seconds": 0.552
   },
   "tolley": {
    "file": "tolley",
@@ -951,10 +1521,30 @@
    "said": "took the",
    "seconds": 0.338
   },
+  "tools": {
+   "file": "tools",
+   "said": "tools",
+   "seconds": 0.46
+  },
   "tor": {
    "file": "tor",
    "said": "tor",
    "seconds": 0.31
+  },
+  "towels": {
+   "file": "towels",
+   "said": "towels",
+   "seconds": 0.463
+  },
+  "tower jaw's tooth": {
+   "file": "tower-jaw-s-tooth",
+   "said": "tower jaw's tooth",
+   "seconds": 0.959
+  },
+  "treats": {
+   "file": "treats",
+   "said": "treats",
+   "seconds": 0.434
   },
   "trestle": {
    "file": "trestle",
@@ -965,6 +1555,11 @@
    "file": "tunnel",
    "said": "tunnel",
    "seconds": 0.299
+  },
+  "turning": {
+   "file": "turning",
+   "said": "turning",
+   "seconds": 0.361
   },
   "twelve": {
    "file": "twelve",
@@ -981,6 +1576,16 @@
    "said": "two",
    "seconds": 0.302
   },
+  "ugly": {
+   "file": "ugly",
+   "said": "ugly",
+   "seconds": 0.371
+  },
+  "ugly stick": {
+   "file": "ugly-stick",
+   "said": "ugly stick",
+   "seconds": 0.633
+  },
   "ulland": {
    "file": "ulland",
    "said": "ulland",
@@ -990,6 +1595,16 @@
    "file": "unattended",
    "said": "unattended",
    "seconds": 0.576
+  },
+  "unnamed": {
+   "file": "unnamed",
+   "said": "unnamed",
+   "seconds": 0.5
+  },
+  "valuable tools": {
+   "file": "valuable-tools",
+   "said": "valuable tools",
+   "seconds": 0.864
   },
   "vane": {
    "file": "vane",
@@ -1006,6 +1621,11 @@
    "said": "vickery",
    "seconds": 0.428
   },
+  "volunteers": {
+   "file": "volunteers",
+   "said": "volunteers",
+   "seconds": 0.616
+  },
   "voss": {
    "file": "voss",
    "said": "voss",
@@ -1015,6 +1635,16 @@
    "file": "wexley",
    "said": "wexley",
    "seconds": 0.454
+  },
+  "wheezing": {
+   "file": "wheezing",
+   "said": "wheezing",
+   "seconds": 0.437
+  },
+  "whistle": {
+   "file": "whistle",
+   "said": "whistle",
+   "seconds": 0.381
   },
   "whitlow": {
    "file": "whitlow",
@@ -1035,6 +1665,11 @@
    "file": "works",
    "said": "works",
    "seconds": 0.413
+  },
+  "wound": {
+   "file": "wound",
+   "said": "wownd",
+   "seconds": 0.377
   },
   "wreck": {
    "file": "wreck",

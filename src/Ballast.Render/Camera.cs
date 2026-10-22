@@ -13,6 +13,8 @@ public struct Camera
     public double Yaw;
     /// <summary>Radians; positive looks up.</summary>
     public double Pitch;
+    /// <summary>Radians about the look, positive tipping the view's top to the left (a drink's lean; not with <see cref="Orientation"/>).</summary>
+    public double Roll;
     public float FovYDegrees;
     public float Near;
     public float Far;
@@ -49,7 +51,8 @@ public struct Camera
     {
         var view = Orientation is { } q
             ? Matrix4x4.CreateTranslation(-EyeOffset) * Matrix4x4.CreateFromQuaternion(Quaternion.Conjugate(q))
-            : Matrix4x4.CreateLookAt(EyeOffset, EyeOffset + Forward, Vector3.UnitY);
+            : Matrix4x4.CreateLookAt(EyeOffset, EyeOffset + Forward, Roll == 0 ? Vector3.UnitY
+                : Vector3.Transform(Vector3.UnitY, Quaternion.CreateFromAxisAngle(Vector3.Normalize(Forward), (float)Roll)));
         return view * Projection(aspect);
     }
 
@@ -121,6 +124,8 @@ public struct FrameLighting
     public float Stir;
     public Vector3 StirDirection;
     public Vector3 StirColour;
+    /// <summary>The far hills toward the stir heaving (degrees; 0, still): something vast moving on the skyline before dawn.</summary>
+    public float Hills;
     /// <summary>The wind (m/s, world axes): the foliage's cards and boughs bend with it (<see cref="Gusts"/> how unevenly).</summary>
     public Vector3 Wind;
     public float Gusts;

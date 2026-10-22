@@ -111,7 +111,7 @@ public sealed partial class LinesideProps
         var (type, text) = SightLettering(sign);
         if (_sightBoards!.TryGetValue((type, (long)Math.Round(sign.Board * 10)), out var site) && site.Text == text)
             return site;
-        return Site("main", _line, sign.Board, 1, type, text);
+        return Site("main", _line, sign.Board, _plan.Rules.Boards.GetValueOrDefault(type)?.SignSide == true && sign.Drop is { } drop ? drop.Side : 1, type, text);
     }
 
     /// <summary>What a sim's board reads (note 560): a posted speed's figure, a tunnel's LOW, the mail crane's MAIL and its side, the terminus's END.</summary>
@@ -119,7 +119,9 @@ public sealed partial class LinesideProps
     {
         SignKind.SpeedLimit => ("speedBoard", sign.LimitKmh.ToString(System.Globalization.CultureInfo.InvariantCulture)),
         SignKind.LowClearance => ("restricted", "LOW"),
-        SignKind.Drop => ("mailDrop", sign.Drop is { Side: < 0 } ? "< MAIL" : "MAIL >"),
+        // The crane's posted speed for the hook under its MAIL (note 727): over it, a bag hooked tears off.
+        SignKind.Drop => ("mailDrop", (sign.Drop is { Side: < 0 } ? "< MAIL" : "MAIL >")
+            + (sign.Limit > 0 ? " " + sign.LimitKmh.ToString(System.Globalization.CultureInfo.InvariantCulture) : "")),
         SignKind.Terminus => ("lineClosed", "END"),
         _ => ("restricted", "?"),
     };
@@ -171,6 +173,26 @@ public sealed partial class LinesideProps
         return false;
     }
 
+    /// <summary>
+    /// Whether a stop (where the train stops for a facility: its spur's points, or the facility on the main line) stands
+    /// between where the plan put a board and where it would be moved to: a board's never moved across one, so a far board
+    /// stood past a stop stays past it (note 702).
+    /// </summary>
+    bool StopBetween(string edge, double from, double to)
+    {
+        if (edge != "main" || Math.Abs(to - from) < 1e-6)
+            return false;
+        double lo = Math.Min(from, to), hi = Math.Max(from, to);
+        foreach (var poi in _plan.Pois)
+        {
+            // (Where the train stops for it: a spur's points, where it leaves the main line; else the facility itself.)
+            double stop = poi.SpurEdge is { } spur && _plan.Edge(spur).Branch is int b && b >= 0 && b < _line.Branches.Count ? _line.Branches[b].Toe : poi.S;
+            if (stop > lo + 1e-6 && stop < hi - 1e-6)
+                return true;
+        }
+        return false;
+    }
+
     /// <summary>Whether a branch is clear of bridges and tunnels at a distance along it (the main line's: <see cref="Clear"/>).</summary>
     bool ClearOn(string edge, double at)
     {
@@ -192,11 +214,11 @@ public sealed partial class LinesideProps
         // The side every board stands on (billboard.side), whatever side the plan gave it; a plate's side is the way it faces.
         if (type != "tunnelPlate" && (def?.Side ?? 0) != 0)
             side = def!.Side;
-        else if (type != "tunnelPlate" && r.Side != 0)
+        else if (type != "tunnelPlate" && r.Side != 0 && def?.SignSide != true)
             side = r.Side;
         // (Clear of the boards already stood, on its side: one standing before another would hide it. And no face of theirs in
         // front of it while it's read, nor it in front of one of theirs: `pt13-signs`.)
-        return Place(def, face, r, edge, line, s, side, type, text, Ground, Footing, Shelter, at => ClearOn(edge, at),
+        return Place(def, face, r, edge, line, s, side, type, text, Ground, Footing, Shelter, at => ClearOn(edge, at) && !StopBetween(edge, s, at),
             // (A km post, fixed, takes only postClearM of ground: it's small and low, and the sight lines keep the boards off it.)
             (at, stand) => _placed.Any(p => p.Edge == edge && p.Side == stand
                 && Math.Abs(p.Along - at) < (_plan.Rules.Boards.GetValueOrDefault(p.Type)?.Fixed == true ? r.PostClearM : r.StackM)),
@@ -361,6 +383,8 @@ public sealed partial class LinesideProps
         {
             VisibleM = boards.Max(b => _plan.Rules.Boards.GetValueOrDefault(b.Type)?.VisibleM ?? 150),
             Warns = boards.Any(b => _plan.Rules.Boards.GetValueOrDefault(b.Type)?.Warns == true),
+            // (Hung with a mail board, they stand on its crane's side: note 702.)
+            SignSide = boards.Any(b => _plan.Rules.Boards.GetValueOrDefault(b.Type)?.SignSide == true),
         };
         var whole = Site(edge, line, boards[0].S, side, boards[0].Type, "", def, new BoardFace([], faces[0].Pixel, width, height, 0));
         var outward = whole.Right * whole.Side;
@@ -423,25 +447,33 @@ public sealed partial class LinesideProps
             }
             // The plan's standing boards and the sim's own (sight.json's, on the main line) stand together: a mail crane's
             // board by a limit's hangs with it, rather than one before the other.
-            int SideOf(PlanSign sign) => rules.Boards.GetValueOrDefault(sign.Type)?.Side is int own && own != 0 ? own
+            int SideOf(PlanSign sign) => rules.Boards.GetValueOrDefault(sign.Type) is { } d && (d.Side != 0 || d.SignSide) ? (d.Side != 0 ? d.Side : sign.Side)
                 : rules.Billboard.Side != 0 ? rules.Billboard.Side : sign.Side;
             bool Warns(string type) => rules.Boards.GetValueOrDefault(type)?.Warns == true;
             bool Fixed(string type) => rules.Boards.GetValueOrDefault(type)?.Fixed == true;
+            // (A mail board, on its crane's side, is hung with the boards beside it as if it were on theirs: the run then stands
+            // on its crane's side, note 702.)
+            bool SignSided(string type) => rules.Boards.GetValueOrDefault(type)?.SignSide == true;
+            int RunSide(string type, int side) => SignSided(type) && rules.Billboard.Side != 0 ? rules.Billboard.Side : side;
             double Tall(string type, string text) => BoardLayout.Of(type, text, rules.Boards.GetValueOrDefault(type), rules.Billboard).Height;
             var requests = standing.Select(x => (Plan: (PlanSign?)x, x.Edge, Side: SideOf(x), x.S, x.Type, x.Text))
                 .Concat(Lineside.Boards(new SightTuning(), _route).Select(x =>
                 {
                     var (type, text) = SightLettering(x);
-                    return (Plan: (PlanSign?)null, Edge: "main", Side: rules.Billboard.Side != 0 ? rules.Billboard.Side : 1, S: x.Board, Type: type, Text: text);
+                    // (A mail board on its crane's side: note 702.)
+                    int side = rules.Boards.GetValueOrDefault(type)?.SignSide == true && x.Drop is { } drop ? drop.Side
+                        : rules.Billboard.Side != 0 ? rules.Billboard.Side : 1;
+                    return (Plan: (PlanSign?)null, Edge: "main", Side: side, S: x.Board, Type: type, Text: text);
                 }))
                 // (The km posts first, where they must stand: the billboards keep clear of them. A warning over what stands
                 // with it at the same spot: it's read first.)
-                .OrderBy(x => Fixed(x.Type) ? 0 : 1).ThenBy(x => x.Edge, StringComparer.Ordinal).ThenBy(x => x.Side).ThenBy(x => x.S).ThenByDescending(x => Warns(x.Type))
+                .OrderBy(x => Fixed(x.Type) ? 0 : 1).ThenBy(x => x.Edge, StringComparer.Ordinal).ThenBy(x => RunSide(x.Type, x.Side)).ThenBy(x => x.S).ThenByDescending(x => Warns(x.Type))
                 .ThenBy(x => x.Type, StringComparer.Ordinal).ThenBy(x => x.Text, StringComparer.Ordinal).ToList();
             var sight = new Dictionary<(string, long), BoardSite>();
             _placed.Clear();
             // Close together on a side (within stackM), they're one board on one set of posts (StandRun); a km post stands alone.
-            var together = Runs(requests, (run, b) => run[^1].Edge == b.Edge && run[^1].Side == b.Side && b.S - run[^1].S <= rules.Billboard.StackM
+            var together = Runs(requests, (run, b) => run[^1].Edge == b.Edge && RunSide(run[^1].Type, run[^1].Side) == RunSide(b.Type, b.Side)
+                && b.S - run[^1].S <= rules.Billboard.StackM
                 && !Fixed(run[^1].Type) && !Fixed(b.Type));
             foreach (var whole in together)
             {
@@ -472,7 +504,8 @@ public sealed partial class LinesideProps
                 var r = rules.Billboard;
                 double Score(BoardSite b) => b.SeenM - b.BoardsInWay * r.SightStepM;
                 bool fits = run.Sum(x => Tall(x.Type, x.Text)) + r.StackGapM * (run.Count - 1) <= r.StackMaxM + 1e-9;
-                var stack = run.Count == 1 || fits ? Stack(run[0].Edge, line, run[0].Side, [.. run.Select(x => (x.Type, x.Text, x.S))]) : null;
+                int side = run.Where(x => SignSided(x.Type)).Select(x => (int?)x.Side).FirstOrDefault() ?? run[0].Side;
+                var stack = run.Count == 1 || fits ? Stack(run[0].Edge, line, side, [.. run.Select(x => (x.Type, x.Text, x.S))]) : null;
                 if (stack is not null && (run.Count == 1 || stack[0].SeenM >= r.SeenShare * stack[0].ApproachM - 1e-9 && stack[0].BoardsInWay == 0))
                     return stack;
                 // Apart: the first stood, then the rest; or the rest, then the first kept out of their way (a board seen
@@ -599,24 +632,38 @@ public sealed partial class LinesideProps
         }
         // And where it's read on neither side by the line (a dead line alongside keeps its posts off one side, a rock wall's
         // curve hides the other: note 693), stood back past what's in the way, billboard.backInnerM from the track.
-        foreach (double innerM in (ReadOnlySpan<double>)[r.InnerM, r.BackInnerM])
+        // (A board on its sign's side, a mail board by its crane, stays on it, by the line or stood back, unless it's read
+        // from nowhere there: note 702.)
+        bool signSide = def?.SignSide == true;
+        (double InnerM, int Stand)[] passes = signSide
+            ? [(r.InnerM, side), (r.BackInnerM, side), (r.InnerM, -side), (r.BackInnerM, -side)]
+            : [(r.InnerM, side), (r.InnerM, -side), (r.BackInnerM, side), (r.BackInnerM, -side)];
+        foreach (var (innerM, stand) in passes)
         {
             if (innerM != r.InnerM && (keep || def?.Side is int own && own != 0))
+                continue;
+            if (signSide && stand != side && best is { SeenM: > 0 })
                 break;
-            foreach (int stand in (ReadOnlySpan<int>)[side, -side])
-                foreach (double offset in offsets)
-                {
-                    double at = s + offset;
-                    if (!Clear(at) || !keep && taken?.Invoke(at, stand) == true
-                        || Stood(line, edge, at, stand, type, text, face, def, r, ground, footing, shelter, inTheWay, sees, innerM) is not { } site
-                        || !keep && hides?.Invoke(site) == true)
-                        continue;
-                    site = site with { S = s };
-                    if (site.SeenM >= r.SeenShare * site.ApproachM - 1e-9 && site.BoardsInWay == 0)
-                        return site;
-                    if (best is null || site.SeenM - site.BoardsInWay * r.SightStepM > best.SeenM - best.BoardsInWay * r.SightStepM)
-                        best = site;
-                }
+            foreach (double offset in offsets)
+            {
+                double at = s + offset;
+                if (!Clear(at) || !keep && taken?.Invoke(at, stand) == true
+                    || Stood(line, edge, at, stand, type, text, face, def, r, ground, footing, shelter, inTheWay, sees, innerM) is not { } site
+                    || !keep && hides?.Invoke(site) == true)
+                    continue;
+                site = site with { S = s };
+                if (site.SeenM >= r.SeenShare * site.ApproachM - 1e-9 && site.BoardsInWay == 0)
+                    return site;
+                // Else the best read of those no board stands in front of, and only failing any such, the best read (seen, less
+                // where one's in front). Note 803: with the mail cut, frontier:7's Maddox Bridge board, no longer hung with a mail
+                // board, was read 150 of its 225 m clear on its far side, or 195 with two boards in front of it on its own, and
+                // the old score (seen less a step for each) took the second: a board in front of another while it's read is
+                // what the director asked never to see (`pt13-signs`), a board read short of seenShare is only read later.
+                bool clearOfThem = site.BoardsInWay == 0, bestClear = best?.BoardsInWay == 0;
+                if (best is null || clearOfThem && !bestClear
+                    || clearOfThem == bestClear && site.SeenM - site.BoardsInWay * r.SightStepM > best.SeenM - best.BoardsInWay * r.SightStepM)
+                    best = site;
+            }
         }
         if (best is not null)
             return best;

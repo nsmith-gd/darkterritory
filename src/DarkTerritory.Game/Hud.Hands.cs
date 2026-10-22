@@ -38,13 +38,13 @@ public static partial class Hud
         public long SlotTick = long.MinValue / 2;
         public (string Name, double At)? Place;
         public long PlaceTick = long.MinValue / 2;
-        public int ColdStep;
-        public long ColdTick = long.MinValue / 2;
         // The mail crane coming up (note 673), from when its board was read; the last bag caught, and when.
         public int MailDrop = -1;
         public long MailTick = long.MinValue / 2;
         public int CaughtDrop = -1;
         public long CaughtTick = long.MinValue / 2;
+        // Note 750: who of the crew is held or gone out of voice reach, as this machine has seen them.
+        public readonly Sim.Run.CrewNews Crew = new();
     }
 
     [ThreadStatic] static Memory? _memory;
@@ -62,10 +62,6 @@ public static partial class Hud
             && next.At - s.Train.Dynamics.Distance <= Tuning.PlaceAheadMetres && m.Place != next)
             (m.Place, m.PlaceTick) = (next, now);
         ObserveMail(s, m, now);
-        int step = s.Player.Alive ? PlayerMotor.ColdStep(s.Player, s.Train) : 0;
-        if (step > m.ColdStep)
-            m.ColdTick = now;
-        m.ColdStep = step;
         return m;
     }
 
@@ -139,7 +135,16 @@ public static partial class Hud
             x += SlotSize + Gap;
         }
         if (radio || broken)
-            Slot(o, x - Gap + RadioGap, y, RadioPicture, Controls.KeyLabel(Keys.KeyFor(Control.Radio)), false, 1, broken ? Red : null);
+        {
+            // Its key in the corner as the others' numbers are; one longer than a keycap's letter (the right mouse button's
+            // RMB, its default since note 749) beside the slot instead, where it doesn't run over the picture, nor into the
+            // tool's name over the bar.
+            string key = Controls.ShortKeyLabel(Keys.KeyFor(Control.Radio));
+            float rx = x - Gap + RadioGap;
+            Slot(o, rx, y, RadioPicture, key.Length > 1 ? "" : key, false, 1, broken ? Red : null);
+            if (key.Length > 1)
+                o.Text(rx + SlotSize + 2, y + 1.5f, key, Dim with { W = 0.9f }, Fine);
+        }
         float named = carrying ? 0 : Shown(Since(s, m.SlotTick), Tuning.ToolNameSeconds);
         if (named > 0)
         {
@@ -197,6 +202,15 @@ public static partial class Hud
         var lines = new List<string>();
         if (!p.Alive || world.Run?.Report is not null)
             return (null, lines);
+        // Note 723: over a friend's shoulder, the way off it; carrying one, the two ways to be rid of them (the throw only with
+        // the crew mischief switch on).
+        if (p.Has(PlayerFlags.Carried))
+            return ("CARRIED", ["WRIGGLE FREE : [SPACE]"]);
+        // Note 726: on the crane's hook, the way off it (the fall is yours).
+        if (p.Has(PlayerFlags.Hoisted))
+            return ("ON THE HOOK", ["LET GO : [SPACE]"]);
+        if (p.Has(PlayerFlags.Carrying))
+            return ("A FRIEND ON YOUR SHOULDER", world.MischiefOn ? ["PUT DOWN : [E]", "THROW : [T]"] : ["PUT DOWN : [E]"]);
         // Carried in both hands (spec D.2, note 264): what it is, and how to be rid of it. What it's for is learned.
         if (world.Bodies.CarriedBy(s.PlayerId) is { } carried)
         {
@@ -210,20 +224,29 @@ public static partial class Hud
             if (carried.Kind == BodyKind.Heavy)
                 lines.Add(carried.Lifted ? "PUT IT DOWN : [E]" : "LET GO : [E]");
             else
-                lines.AddRange(["PUT DOWN : [E]", "THROW : [RMB]"]);
+                lines.AddRange(["PUT DOWN : [E]", "THROW : [T]"]);
+            // Note 720: a hand lamp's signals, its own wheel (what each says is the crew's to learn).
+            if (carried.Kind == BodyKind.Lamp)
+                lines.Add("SIGNAL : HOLD [U]");
+            // Note 871: a loaded flare pistol fires as a gun does (its flares left are in its name).
+            if (carried.Kind == BodyKind.FlarePistol && carried.Charge >= 1)
+                lines.Insert(0, "FIRE : [LMB]");
             return (Called(world, carried), lines);
         }
         // Note 649: at a crew locker with a tool in hand, Throw puts it on a shelf (the prompt's line is the locker's Use).
         if (Kit.Held(p) is var tool && tool != Tool.None && Lockers.Holds(train, BodyKind.Tool) && Lockers.AtHand(p, train, world.Hand) is { } locker
             && Lockers.FreeSlot(world.Bodies, train, locker.Car, locker.Bay.Index) >= 0)
-            return ($"THE {ToolName(tool)}", ["STOW : [RMB]"]);
+            return ($"THE {ToolName(tool)}", ["STOW : [T]"]);
         // T112: sat at the gun, its own controls.
         if (world.Combat is { } combat && p.Has(PlayerFlags.Seated) && Guns.MannedGun(p, train, combat.Guns) is { } manned)
         {
             var gun = train.Vehicles[manned].Gun;
             bool steam = train.BoilerTuning is null || train.Boiler.Pressure >= combat.Guns.MinPressure;
             int ready = Guns.Ready(gun, combat.Guns);
-            if (!gun.Jammed && gun.ReloadNeeded == 0 && ready > 0 && steam)
+            // Note 846: inside a walled town the gun holds its fire, and says why.
+            if (world.GunHeld(manned))
+                lines.Add("NO FIRING IN TOWN");
+            else if (!gun.Jammed && gun.ReloadNeeded == 0 && ready > 0 && steam)
                 lines.Add("FIRE : [LMB]");
             lines.Add("GET UP : [SPACE]");
             // With a rack (note 374): what's at the gun, and what's left down in the locker for every gun.
@@ -236,10 +259,14 @@ public static partial class Hud
         {
             // The hook both ways (Crane.Drive: Jump raises it, the brake key lowers it).
             lines.AddRange(["BRIDGE AND TROLLEY : [WASD]", "HOOK UP : [SPACE]", "HOOK DOWN : [B]"]);
+            // Note 941: a hold, so a stray click lets go of nothing.
             if (crane.Hooked is not null)
-                lines.Add("LET GO : [LMB]");
+                lines.Add("LET GO : HOLD [LMB]");
+            // A friend on the hook (note 726): shaken off only with the crew mischief switch on.
+            else if (crane.Riders > 0 && world.MischiefOn && crane.Tuning.Hoist.ShakeOff)
+                lines.Add("SHAKE THEM OFF : [LMB]");
             lines.Add("STEP DOWN : [E]");
-            return ("THE CRANE", lines);
+            return (crane.Riders > 0 ? crane.Riders == 1 ? "THE CRANE: A FRIEND ON THE HOOK" : "THE CRANE: FRIENDS ON THE HOOK" : "THE CRANE", lines);
         }
         if (CabControls.CanDrive(p, train))
         {

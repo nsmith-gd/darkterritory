@@ -45,6 +45,52 @@ public class VoiceTests
     }
 
     [Fact]
+    public void TheHostsVoiceReachesAJoinerAsLoudAsTheJoinersReachesTheHost()
+    {
+        // Note 855 (the director's playtest of 16 Oct evening, line 1): the host drove (the first aboard takes the cab) on a
+        // Windows mic "way too low for her"; she joined from Linux, outdoors, and was heard. The host's own player is a client
+        // like hers (NetPlaySession: over loopback, the same send), so what differed was the mics. Levelled before they're
+        // sent, a mic 20 dB quieter is heard as loud, each way through the cab's wall.
+        var hostToJoiner = VoiceBench.Run(Content, speakerCar: 0, speakerZ: 0, radio: false, listenerCar: 0, micDb: -20);
+        var joinerToHost = VoiceBench.Run(Content, speakerCar: 0, speakerZ: 0, radio: false, speakerInCab: false, listenerInCab: true);
+        Assert.Equal(hostToJoiner.FramesSent, hostToJoiner.FramesHeard);
+        Assert.Equal(joinerToHost.FramesSent, joinerToHost.FramesHeard);
+        Assert.InRange(hostToJoiner.NearDb - joinerToHost.NearDb, -1.5, 1.5);
+        // Side by side in the cab (where she could hear him), the same: the quiet mic as the hot one.
+        var quiet = VoiceBench.Run(Content, speakerCar: 0, speakerZ: 0, radio: false, listenerInCab: true, micDb: -20);
+        var hot = VoiceBench.Run(Content, speakerCar: 0, speakerZ: 0, radio: false, listenerInCab: true);
+        Assert.InRange(quiet.NearDb - hot.NearDb, -1, 1);
+    }
+
+    [Theory]
+    [InlineData(true)]
+    [InlineData(false)]
+    public void AnOpenCabDoorLetsTheVoiceOutABitButNotCompletely(bool fromTheCab)
+    {
+        // Note 862 (the director, 19 Oct 2026: "open cab door should let voices out a bit more but not completely"): the driver
+        // in the cab and a crewmate on the engine 7.5 m off, at speed, from a quiet mic. Through the shut wall, heard over the
+        // bed; with either side door open (note 856's, 4 by the coal and 8 across the front), louder and brighter; and still
+        // short of the same voice at the same distance with no wall at all.
+        var trainTuning = DataFile.Load<TrainTuning>(Path.Combine(Content, TrainTuning.File));
+        VoiceBenchReport Heard(byte doors) => fromTheCab
+            ? VoiceBench.Run(Content, speakerCar: 0, speakerZ: 0, radio: false, seconds: 3, speed: trainTuning.MaxSpeed, listenerCar: 0, micDb: -20, cabDoors: doors)
+            : VoiceBench.Run(Content, speakerCar: 0, speakerZ: 0, radio: false, seconds: 3, speed: trainTuning.MaxSpeed, speakerInCab: false, listenerInCab: true,
+                micDb: -20, cabDoors: doors);
+        var shut = Heard(0);
+        var left = Heard(4);
+        var right = Heard(8);
+        var outside = VoiceBench.Run(Content, speakerCar: 3, speakerZ: 7.5, radio: false, seconds: 3, speed: trainTuning.MaxSpeed, micDb: -20);
+        Assert.Equal(shut.DistanceM, outside.DistanceM, 0.6);
+        foreach (var open in new[] { left, right })
+        {
+            Assert.True(open.NearDb > shut.NearDb + 4, $"open {open.NearDb} dB, shut {shut.NearDb}");
+            Assert.True(open.NearHighDb > shut.NearHighDb + 6, $"open over 2 kHz {open.NearHighDb} dB, shut {shut.NearHighDb}");
+            Assert.True(outside.NearDb > open.NearDb + 3, $"outside {outside.NearDb} dB, open {open.NearDb}");
+        }
+        Assert.True(shut.OverRestDb >= 2, $"shut, {shut.OverRestDb} dB over the bed");
+    }
+
+    [Fact]
     public void TheRadioCarriesTheLengthOfTheTrainBandLimited()
     {
         var r = VoiceBench.Run(Content, speakerCar: 9, speakerZ: 0, radio: true);
@@ -214,5 +260,22 @@ public class VoiceTests
             Assert.True(r.FramesHeard > 0, "heard before the death");
             Assert.True(r.AfterCutDb < -150, $"{(radio ? "radio" : "near")}: {r.AfterCutDb} dB after the death");
         }
+    }
+
+    [Fact]
+    public void AHeldSpeakerIsMuffledUnderAHandInTheAirAndOnTheRadioNotCut()
+    {
+        // Note 749 (App. C.8; the director, 14 Oct 2026: "A grab should allow players to still use the radio but their voice
+        // should be muffle filtered as if the grab is covering their mouth partially"): held, every frame still arrives and is
+        // still heard, a few dB down, with the top of the voice gone.
+        var free = VoiceBench.Run(Content, speakerCar: 3, speakerZ: 4, radio: true);
+        var held = VoiceBench.Run(Content, speakerCar: 3, speakerZ: 4, radio: true, held: true);
+        Assert.Equal(held.FramesSent, held.FramesHeard);
+        Assert.True(held.NearDb > -30 && held.RadioDb > -30, $"held: near {held.NearDb} dB, radio {held.RadioDb} dB");
+        Assert.InRange(free.NearDb - held.NearDb, 4, 15);
+        Assert.InRange(free.RadioDb - held.RadioDb, 4, 15);
+        // The low-pass: the voice's top falls further than its body (the radio's band already stops at 3 kHz).
+        Assert.True(free.NearHighDb - held.NearHighDb > free.NearDb - held.NearDb + 4, $"air over 2 kHz {free.NearHighDb} -> {held.NearHighDb}");
+        Assert.True(free.RadioHighDb - held.RadioHighDb > free.RadioDb - held.RadioDb + 2, $"radio over 1.8 kHz {free.RadioHighDb} -> {held.RadioHighDb}");
     }
 }

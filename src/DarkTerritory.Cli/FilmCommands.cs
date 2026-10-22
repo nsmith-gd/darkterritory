@@ -120,7 +120,8 @@ static class FilmCommands
             Look = look,
             Route = session.Route,
             Signs = session.World.Lineside?.Signs,
-            SignRange = session.World.Lineside?.Tuning.LampSignRange ?? 350,
+            SignRange = session.World.Lineside?.SignRange(true, session.Train.Dynamics.Tuning.HeadlampReach) ?? 350,
+            LampReach = session.Train.Dynamics.Tuning.HeadlampReach,
             Enemies = session.World.ActiveEnemies,
             Hits = session.World.Hits,
             Swings = session.World.Swings,
@@ -306,7 +307,7 @@ static class FilmCommands
         scene.Time = session.Tick * SimConstants.TickSeconds;
         scene.LampsOut = 0;
         scene.LampRange = 60;
-        scene.FireGlow = train.BoilerTuning is { } bt ? GreyboxScene.FireLook(train.Boiler.Firebox, bt.FireboxCapacity) : 0.7f;
+        scene.FireGlow = train.BoilerTuning is { } bt ? GreyboxScene.FireLook(train.Boiler.Fire, bt.FireboxCapacity) : 0.7f;
         scene.WrenchRacked = !train.Boiler.WrenchOut;
         scene.CordPulled = CrewActs.CrewWhistling(session.World);
         scene.Cut = SceneArt.Cuts(train);
@@ -319,6 +320,7 @@ static class FilmCommands
         scene.LampLit = session.World.LampShining;
         scene.Venting = train.Boiler.Vented;
         scene.SafetyValve = train.Boiler.SafetyValveLifting;
+        scene.Flare = train.BoilerTuning is { } flt ? (float)flt.FlareLook(train.Boiler) : 0;
         scene.Ruptured = train.Boiler.Ruptured;
         scene.DriversLocked = scene.Ruptured && train.BoilerTuning is { } rt && train.Dynamics.Speed > rt.RuptureCoastBelow;
         scene.Controls = session.Controls;
@@ -330,7 +332,7 @@ static class FilmCommands
     static FrameLighting Lighting(NetPlaySession session, Look look, IReadOnlyList<CarFrame> frames)
     {
         var lighting = Views.Lighting(frames[0], look, session.World.Run is { } run ? look.DawnOf(run.DawnIn) : 0,
-            DawnStir.Sky(session.World), DawnStir.SkyFrom(session.World, frames));
+            DawnStir.Sky(session.World), DawnStir.SkyFrom(session.World, frames), session.Train.Dynamics.Tuning.HeadlampReach);
         lighting.Time = session.Tick * SimConstants.TickSeconds;
         if (!session.World.LampShining)
         {

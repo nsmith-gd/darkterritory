@@ -48,8 +48,10 @@ jobs:
       - name: Push what was installed
         if: steps.request.outputs.present
         run: |
-          git status --short content/audio
+          git status --short content/audio tools/audio/build_out
           git add content/audio
+          # A request's "publish" lines: their previews and manifest, for the agent to put on the checklist.
+          if [ -d tools/audio/build_out ]; then git add tools/audio/build_out; fi
           if git diff --cached --quiet; then echo "Nothing new installed."; exit 0; fi
           git config user.name "github-actions[bot]"
           git config user.email "41898282+github-actions[bot]@users.noreply.github.com"

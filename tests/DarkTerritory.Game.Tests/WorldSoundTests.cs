@@ -103,6 +103,8 @@ public class WorldSoundTests
                 ears.Tick(ear, SimConstants.TickRate);
                 var heard = ears.Started.Skip(before).Where(v => v.Name.StartsWith("voice-")).ToList();
                 Assert.NotEmpty(heard);
+                // Note 810: a call's banging is one bout (each take is a whole frantic bout), never bouts piled up.
+                Assert.True(heard.Count(v => v.Name == "voice-callout.bang") <= 1, $"{heard.Count(v => v.Name == "voice-callout.bang")} bouts in one call");
                 Assert.All(heard, v => Assert.True((v.Position - h.Inside).Length < 2, $"{v.Name} away from the Holdout"));
                 foreach (var v in heard.Where(v => v.Name.StartsWith("voice-prisoner-sets.")))
                     (sets.TryGetValue(prisoner, out var s) ? s : sets[prisoner] = []).Add(v.Name[^4..]);
@@ -826,9 +828,116 @@ public class WorldSoundTests
         Assert.True(Sounding("place-town.murmur"));
         Assert.True(ears.Started.Count(v => v.Name == "place-town.cough") > coughs);
 
-        // Away from the town: none of it.
+        // Away from the town: none of it. Two seconds, so a cough that began as you left has finished (these ears render a
+        // part of each tick, so half a second isn't always a stand-in cough's length); a failure names what's left.
+        ears.Tick(world.Train.Line.Sample(gate + 3_000).Position + Double3.Up * 1.6, SimConstants.TickRate * 2);
+        var left = audio.Mixer.Voices.Where(v => v.Name.StartsWith("place-town.") && !v.Finished && !v.Stopped).Select(v => (v.Name, v.Age)).ToList();
+        Assert.True(left.Count == 0, string.Join(", ", left));
+    }
+
+    [Fact]
+    public void AHarbourTownsFlameOfHopeIsHeardAtTheTopOfItsTowerAcrossTheTown()
+    {
+        // Note 826 (queue #554; B2's #1091, note 819): the Hope Tower's coal fire burns in its basket 85 m up, and it's held
+        // there, over the basket's brim, from the tower's foot and across the town; far down the line, not at all.
+        var towns = Sim.Towns.TownContent.Load(Content)!;
+        towns = towns with { Tuning = towns.Tuning with { Population = [140, 140], Forms = towns.Tuning.Forms with { Force = "harbour" } } };
+        var route = Sim.LineGen.Routes.Generate(Content, "frontier:7", 6);
+        double gate = route.GateOr(RouteTuning.Load(Content).YardLength);
+        var world = new World(new TrainOnLine(new TrainDynamics(Consist.Uniform(Trains, 6, 1)), route.Build(), gate - 8, Boilers));
+        world.EnableRun(Runs, route, gate, authority: false);
+        world.EnableTown(towns, route, gate, []);
+        var town = world.Town!;
+        var tower = Assert.Single(town.Plan.Fixtures, f => f.Kind == "lighthouse");
+        var audio = new GameAudio(Content);
+        Held(audio, "place-town.flame");
+        var ears = new Ears(audio, world);
+        SoundInstance? Flame() => audio.Mixer.Voices.SingleOrDefault(v => v.Name == "place-town.flame" && !v.Finished && !v.Stopped);
+        var basket = town.World(tower.S, tower.D, Sim.Towns.TownFixtures.Size("lighthouse").Height);
+
+        // At its door: the fire's up there, not at the door.
+        ears.Tick(town.World(tower.S + tower.FaceS * (tower.SolidS + 2), tower.D + tower.FaceD * (tower.SolidD + 2), 1.6), SimConstants.TickRate / 2);
+        Assert.NotNull(Flame());
+        Assert.InRange(Flame()!.Position.Y - basket.Y, 0, 4);
+        Assert.True(((Flame()!.Position - basket) with { Y = 0 }).Length < 1e-6);
+        // At the train in the yard, a long way from the tower's foot: still there.
+        ears.Tick(world.Train.Line.Sample(gate - 8).Position + Double3.Up * 1.6, SimConstants.TickRate / 2);
+        Assert.NotNull(Flame());
+        // Far down the line: gone.
         ears.Tick(world.Train.Line.Sample(gate + 3_000).Position + Double3.Up * 1.6, SimConstants.TickRate / 2);
-        Assert.DoesNotContain(audio.Mixer.Voices, v => v.Name.StartsWith("place-town.") && !v.Finished && !v.Stopped);
+        Assert.Null(Flame());
+    }
+
+    [Fact]
+    public void TheNightMarketsStallsAreHeardAtTheirCountersAndTheirKeepersCallAcrossTheSquare()
+    {
+        // Note 827 (queue #555; B2's #1111, note 825): the tea stall's boiler, the clock stall's clocks and the knitting
+        // stall's needles held at each one's counter, only close to it; and the stallholders calling now and then where
+        // they stand. A town of 3000, a full market.
+        var towns = Sim.Towns.TownContent.Load(Content)!;
+        towns = towns with { Tuning = towns.Tuning with { Population = [3000, 3000] } };
+        var route = Sim.LineGen.Routes.Generate(Content, "frontier:7", 6);
+        double gate = route.GateOr(RouteTuning.Load(Content).YardLength);
+        var world = new World(new TrainOnLine(new TrainDynamics(Consist.Uniform(Trains, 6, 1)), route.Build(), gate - 8, Boilers));
+        world.EnableRun(Runs, route, gate, authority: false);
+        world.EnableTown(towns, route, gate, []);
+        var town = world.Town!;
+        var trades = new Dictionary<string, string>
+        {
+            ["the tea stall"] = "place-town.stall-tea",
+            ["the clock stall"] = "place-town.stall-clocks",
+            ["the knitting stall"] = "place-town.stall-knitting",
+        };
+        var stalls = town.Plan.Fixtures.Where(f => f.Kind == "marketstall" && trades.ContainsKey(f.Name)).ToList();
+        Assert.NotEmpty(stalls);
+        var audio = new GameAudio(Content);
+        Held(audio, [.. trades.Values]);
+        Stand(audio, "place-town.stall-call");
+        var ears = new Ears(audio, world);
+        foreach (var stall in stalls)
+        {
+            // In front of its counter, on the square's side: its trade, there.
+            var counter = town.World(stall.S, stall.D, 1.0);
+            var front = town.World(stall.S - stall.FaceS * 1.5, stall.D - stall.FaceD * 1.5, 1.6);
+            ears.Tick(front, SimConstants.TickRate / 2);
+            var voice = audio.Mixer.Voices.Where(v => v.Name == trades[stall.Name] && !v.Finished && !v.Stopped).MinBy(v => (v.Position - counter).Length);
+            Assert.NotNull(voice);
+            Assert.True((voice!.Position - counter).Length < 1e-6, $"{stall.Name} at its counter");
+        }
+        // A minute among the stalls: some keeper calls.
+        var first = stalls[0];
+        int calls = ears.Started.Count(v => v.Name == "place-town.stall-call");
+        ears.Tick(town.World(first.S - first.FaceS * 3, first.D - first.FaceD * 3, 1.6), SimConstants.TickRate * 60);
+        Assert.True(ears.Started.Count(v => v.Name == "place-town.stall-call") > calls, "no stallholder called in a minute");
+        // Away down the line: none of it.
+        ears.Tick(world.Train.Line.Sample(gate + 3_000).Position + Double3.Up * 1.6, SimConstants.TickRate / 2);
+        Assert.DoesNotContain(audio.Mixer.Voices, v => v.Name.StartsWith("place-town.stall-") && v.Def.Loop && !v.Finished && !v.Stopped);
+    }
+
+    [Fact]
+    public void NickisPartyIsHeardThroughItsWallsFromTheStreetAndNotAcrossTown()
+    {
+        // Note 773: the one house up late (note 571), its music and laughing held in it, dulled through its walls from the
+        // street out front, and further off than a house's range is; nothing of it beyond its reach.
+        var towns = Sim.Towns.TownContent.Load(Content)!;
+        towns = towns with { Tuning = towns.Tuning with { Population = [3000, 3000], Nicki = 1 } };
+        var route = Sim.LineGen.Routes.Generate(Content, "frontier:7", 6);
+        double gate = route.GateOr(RouteTuning.Load(Content).YardLength);
+        var world = new World(new TrainOnLine(new TrainDynamics(Consist.Uniform(Trains, 6, 1)), route.Build(), gate - 8, Boilers));
+        world.EnableRun(Runs, route, gate, authority: false);
+        world.EnableTown(towns, route, gate, []);
+        var town = world.Town!;
+        var party = town.Plan.Houses.Single(h => h.Party);
+        var audio = new GameAudio(Content);
+        Held(audio, "figures.party");
+        bool Sounding() => audio.Mixer.Voices.Any(v => v.Name == "figures.party" && !v.Finished && !v.Stopped);
+        var ears = new Ears(audio, world);
+        var front = party.Rail(0, -3);
+        ears.Tick(town.World(front.S, front.D, 1.6), SimConstants.TickRate / 2);
+        Assert.True(Sounding());
+        Assert.True(audio.Mixer.Voices.Single(v => v.Name == "figures.party" && !v.Stopped).Occlusion > 0.5f);
+        ears.Tick(world.Train.Line.Sample(gate + 3_000).Position + Double3.Up * 1.6, SimConstants.TickRate / 2);
+        Assert.False(Sounding());
     }
 
     [Fact]
@@ -1074,6 +1183,182 @@ public class WorldSoundTests
         ears.Tick(ear, SimConstants.TickRate / 2);
         Assert.False(Playing(audio, "heap-groan"));
         Assert.Single(ears.Started, v => v.Name == "place-wreck.shift");
+    }
+
+    [Fact]
+    public void AFriendOnTheCranesHookIsHeardOnTheCableAndYellingOffItHighUpAndLandingAsAGag()
+    {
+        // K1's friend on the hook (note 726), heard (queue #525, note 798), off what a client has: the crane's riders (its
+        // record) and the rider's Hoisted flag. The cable creaks where the hook is while anyone rides it, louder while the
+        // crane moves them; coming off it alive high up (shaken off, or let go), a yell where they are, once, and down on the
+        // ground a comic thump and an oof in place of the landing (the director's gag, note 802); let go a step off the
+        // ground, no yell and an ordinary landing.
+        var (world, foundry) = Night(f => f.Facility == FacilityKind.Foundry, from: 20);
+        var audio = new GameAudio(Content) { PlayerTuning = DataFile.Load<PlayerTuning>(Path.Combine(Content, PlayerTuning.File)) };
+        Held(audio, "crew-hoist.creak");
+        Stand(audio, "crew-hoist.yelp", "crew-hoist.land");
+        string[] feet = ["wood", "grate", "plate", "roof", "coal", "ballast", "dirt", "grass", "mud", "cobbles", "concrete", "water", "ground"];
+        Stand(audio, [.. feet.Select(m => $"crew-footsteps.land.{m}")]);
+        var run = world.Run!;
+        run.EnableSites(DataFile.Load<FacilityTuning>(Path.Combine(Content, FacilityTuning.File)), world.Train.Line);
+        var site = run.Sites[run.Route.Of(FeatureKind.Facility).ToList().IndexOf(foundry)]!;
+        var crane = Assert.Single(site.Cranes);
+        var ears = new Ears(audio, world);
+        Double3 Beside() => crane.HookAt + new Double3(4, 0, 4);
+        int Landings() => ears.Started.Count(v => v.Name.StartsWith("crew-footsteps.land."));
+        // The hook this high over what's under it (a car's roof, or the ground), and who rides it.
+        void Hook(double above, int riders)
+        {
+            crane.Mirror(crane.Bridge, crane.Trolley, 0, 0, [], riders);
+            double floor = crane.Under(world.Train).Y, lowest = crane.HookAt.Y;
+            crane.Mirror(crane.Bridge, crane.Trolley, floor + above - lowest, 0, [], riders);
+        }
+        Hook(5, 0);
+        ears.Tick(Beside(), 5);
+        Assert.False(Playing(audio, "crew-hoist.creak"));
+        Hook(5, 1);
+        ears.Tick(Beside(), 5);
+        var creak = audio.Mixer.Voices.Single(v => v.Name == "crew-hoist.creak" && !v.Finished);
+        Assert.True((creak.Position - crane.HookAt).Length < 1e-6);
+        float still = creak.Volume;
+        // The crane running them up: louder while it moves.
+        for (int i = 0; i < 5; i++)
+        {
+            crane.Mirror(crane.Bridge, crane.Trolley, crane.Hook + 0.02, 0, [], 1);
+            ears.Tick(Beside());
+        }
+        Assert.True(creak.Volume > still * 1.5, $"{creak.Volume:0.00} moving, {still:0.00} still");
+        Hook(5, 0);
+        ears.Tick(Beside(), SimConstants.TickRate);
+        Assert.False(Playing(audio, "crew-hoist.creak"));
+
+        // Priya on the hook, then off it: the yell once at her head 5 m up; on it a step off the ground and off, nothing more.
+        PlayerState Rider(double above, bool on, byte placed)
+        {
+            Hook(above, on ? 1 : 0);
+            var feet = crane.RiderFeet(0, 1);
+            return PlayerMotor.SpawnOnGround(feet, world.Train.Line, 0, audio.PlayerTuning!) with
+            {
+                Position = feet,
+                Surface = Surface.Air,
+                Flags = on ? PlayerFlags.Hoisted : PlayerFlags.None,
+                Placed = placed,
+            };
+        }
+        PlayerState Down(byte placed) =>
+            PlayerMotor.SpawnOnGround(crane.RiderFeet(0, 1), world.Train.Line, 0, audio.PlayerTuning!) with { Placed = placed };
+        audio.CrewStates = [(2, Rider(5, true, 1))];
+        ears.Tick(Beside(), 3);
+        var at = crane.RiderFeet(0, 1);
+        audio.CrewStates = [(2, Rider(5, false, 2))];
+        ears.Tick(Beside(), 3);
+        var yelp = Assert.Single(ears.Started, v => v.Name == "crew-hoist.yelp");
+        Assert.True((yelp.Position - at).Length < 2, $"{(yelp.Position - at).Length:0.0} m off her feet");
+        audio.CrewStates = [(2, Down(2))];
+        ears.Tick(Beside(), 3);
+        Assert.Single(ears.Started, v => v.Name == "crew-hoist.land");
+        Assert.Equal(0, Landings());
+        audio.CrewStates = [(2, Rider(1, true, 3))];
+        ears.Tick(Beside(), 3);
+        audio.CrewStates = [(2, Rider(1, false, 4))];
+        ears.Tick(Beside(), 3);
+        audio.CrewStates = [(2, Down(4))];
+        ears.Tick(Beside(), 3);
+        Assert.Single(ears.Started, v => v.Name == "crew-hoist.yelp");
+        Assert.Single(ears.Started, v => v.Name == "crew-hoist.land");
+        Assert.Equal(1, Landings());
+    }
+
+    [Fact]
+    public void TheHumanCannonballIsHeardClimbingInWhoopingThroughTheAirAndLandingAsAGag()
+    {
+        // Note 828 (queue #556; U1's #1106, note 746): off the crewmate's own flags. Into the barrel (InCannon), the bore's
+        // iron; fired (Fired), a whoop once where they are and the air past them held at their head as they fly; down, the
+        // gag's thump, roll and oof in place of the landing's own sound. Climbing back out before the shot is the barrel too.
+        var (world, _) = Night(f => f.Facility == FacilityKind.Foundry, from: 20);
+        var audio = new GameAudio(Content) { PlayerTuning = DataFile.Load<PlayerTuning>(Path.Combine(Content, PlayerTuning.File)) };
+        Held(audio, "crew-cannonball.flight");
+        Stand(audio, "crew-cannonball.climb", "crew-cannonball.whoop", "crew-cannonball.land");
+        string[] feet = ["wood", "grate", "plate", "roof", "coal", "ballast", "dirt", "grass", "mud", "cobbles", "concrete", "water", "ground"];
+        Stand(audio, [.. feet.Select(m => $"crew-footsteps.land.{m}")]);
+        var ears = new Ears(audio, world);
+        var line = world.Train.Line;
+        var start = line.Sample(world.Train.Dynamics.Distance - 30).Position + new Double3(4, 0, 0);
+        PlayerState On(Double3 at, PlayerFlags flags, byte placed, bool air = false) =>
+            PlayerMotor.SpawnOnGround(at, line, 0, audio.PlayerTuning!) with
+            {
+                Position = air ? at : PlayerMotor.SpawnOnGround(at, line, 0, audio.PlayerTuning!).Position,
+                Surface = air ? Surface.Air : Surface.Ground,
+                Flags = flags,
+                Placed = placed,
+            };
+        var ear = start + new Double3(0, 1.6, 6);
+        int Count(string name) => ears.Started.Count(v => v.Name == name);
+
+        audio.CrewStates = [(3, On(start, PlayerFlags.None, 1))];
+        ears.Tick(ear, 3);
+        audio.CrewStates = [(3, On(start, PlayerFlags.InCannon, 1))];
+        ears.Tick(ear, 3);
+        Assert.Equal(1, Count("crew-cannonball.climb"));
+        // Fired: the whoop once, the air held at their head, following them along the flight.
+        var up = start + new Double3(0, 6, -10);
+        audio.CrewStates = [(3, On(up, PlayerFlags.Fired, 1, air: true))];
+        ears.Tick(ear, 3);
+        Assert.Equal(1, Count("crew-cannonball.whoop"));
+        var flight = audio.Mixer.Voices.Single(v => v.Name == "crew-cannonball.flight" && !v.Finished && !v.Stopped);
+        var further = start + new Double3(0, 8, -25);
+        audio.CrewStates = [(3, On(further, PlayerFlags.Fired, 1, air: true))];
+        ears.Tick(ear, 3);
+        Assert.Equal(1, Count("crew-cannonball.whoop"));
+        Assert.True((flight.Position - (further + Double3.Up * 1.6)).Length < 0.5, $"the flight's air {(flight.Position - further).Length:0.0} m off them");
+        // Down: the gag, not a landing; the air let go.
+        var down = start + new Double3(0, 0, -40);
+        audio.CrewStates = [(3, On(down, PlayerFlags.None, 1))];
+        ears.Tick(ear, 3);
+        Assert.Equal(1, Count("crew-cannonball.land"));
+        Assert.Equal(0, ears.Started.Count(v => v.Name.StartsWith("crew-footsteps.land.")));
+        ears.Tick(ear, SimConstants.TickRate / 2);
+        Assert.DoesNotContain(audio.Mixer.Voices, v => v.Name == "crew-cannonball.flight" && !v.Finished && !v.Stopped);
+        // In and back out before the shot: the barrel both ways, nothing else.
+        audio.CrewStates = [(3, On(start, PlayerFlags.InCannon, 1))];
+        ears.Tick(ear, 3);
+        audio.CrewStates = [(3, On(start, PlayerFlags.None, 1))];
+        ears.Tick(ear, 3);
+        Assert.Equal(3, Count("crew-cannonball.climb"));
+        Assert.Equal(1, Count("crew-cannonball.whoop"));
+        Assert.Equal(1, Count("crew-cannonball.land"));
+    }
+
+    [Fact]
+    public void ACastingTheMouseMooseDragsDownItsHoleIsHeardTippingInAndOneSetDownOffTheHookIsNot()
+    {
+        // Note 809: the Mouse Moose's casting dragged to its hole (Stacked or Taken to Lost) tips in where it lies, off the
+        // crane's record, so a client hears it whether or not its creature's record is still about. A casting the hook set
+        // down off the line (Hooked to Lost) is the crane's own set-down, not this.
+        var (world, foundry) = Night(f => f.Facility == FacilityKind.Foundry, from: 20);
+        var audio = new GameAudio(Content);
+        Stand(audio, "cs-mouse-moose.lost", "place-crane.load-set.ground", "place-crane.load-set.wood");
+        var run = world.Run!;
+        run.EnableSites(DataFile.Load<FacilityTuning>(Path.Combine(Content, FacilityTuning.File)), world.Train.Line);
+        var site = run.Sites[run.Route.Of(FeatureKind.Facility).ToList().IndexOf(foundry)]!;
+        var crane = Assert.Single(site.Cranes);
+        var ears = new Ears(audio, world);
+        var hole = crane.Castings[0].At + new Double3(18, 0, 6);
+        var near = crane.HookAt + new Double3(4, -3, 4);
+        void Castings(params (CastingState, int, Double3)[] cs) => crane.Mirror(crane.Bridge, crane.Trolley, crane.Hook, 0, cs);
+        Castings((CastingState.Stacked, -1, crane.Castings[0].At), (CastingState.Stacked, -1, crane.Castings[1].At));
+        ears.Tick(near, 3);
+        Castings((CastingState.Taken, -1, hole), (CastingState.Stacked, -1, crane.Castings[1].At));
+        ears.Tick(near, 3);
+        Assert.DoesNotContain(ears.Started, v => v.Name == "cs-mouse-moose.lost");
+        Castings((CastingState.Lost, -1, hole), (CastingState.Hooked, -1, crane.Castings[1].At));
+        ears.Tick(near, 3);
+        var lost = Assert.Single(ears.Started, v => v.Name == "cs-mouse-moose.lost");
+        Assert.True((lost.Position - hole).Length < 1e-6);
+        Castings((CastingState.Lost, -1, hole), (CastingState.Lost, -1, crane.HookAt));
+        ears.Tick(near, 3);
+        Assert.Single(ears.Started, v => v.Name == "cs-mouse-moose.lost");
+        Assert.Single(ears.Started, v => v.Name.StartsWith("place-crane.load-set"));
     }
 
     [Fact]

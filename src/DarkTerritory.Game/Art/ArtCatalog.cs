@@ -64,6 +64,14 @@ public static class ArtCatalog
             return k.Build("guard-armoured");
         }));
         list.Add(new("roof-handrails", SmallProp, () => TrainKit.RoofHandrails(look, cargo)));
+        // The flare pistol (notes 871, 964): lying in the guard van, as a fist holds it, and a flare fired from it.
+        list.Add(new("flare-pistol", SmallProp, () => PropKit.FlarePistol(look)));
+        list.Add(new("flare-pistol-held", SmallProp, () => PropKit.FlarePistolHeld(look)));
+        list.Add(new("flare", SmallProp, () => PropKit.Flare(look)));
+        // The voice's fittings (note 720): the speaking tube's horn and its pipe down to the floor, and the whistle codes' card.
+        list.Add(new("speaking-tube", SmallProp, () => VoiceKit.TubeEnd(look, (float)SpeakingTube.MouthHeight + 0.1f)));
+        list.Add(new("whistle-card", MediumProp, () => VoiceKit.WhistleCard(look, "WHISTLE CODES",
+            ["ONE LONG - STOPPING", "TWO LONG - GOING", "THREE SHORT - BACKING", "FOUR SHORT - HELP", "TWO SHORT - HEARD YOU"])));
         // A car's damage rides on its body (the car class's budget, what the body leaves of it: the kit's are 9-11k).
         list.Add(new("hatch-lid", SmallProp, () => TrainKit.HatchLid(look, new System.Numerics.Vector3(1.4f, 0.15f, 2.4f))));
         list.Add(new("utility-fit", MediumProp, () => TrainKit.UtilityFit(look, cargo)));
@@ -130,7 +138,32 @@ public static class ArtCatalog
         list.Add(new("portal", LargeProp, () => StructureKit.Portal(look)));
         list.Add(new("wall", StructureBay, () => StructureKit.Wall(look, 1)));
         list.Add(new("tower", LargeProp, () => StructureKit.Tower(look, 1)));
+        // A harbour town's Hope Tower (note 819): one a town, seen from a kilometre off, so a large prop's budget.
+        list.Add(new("hope-tower", LargeProp, () => HopeKit.Tower(look)));
+        // The starting town's pieces the director looked at on 19 Oct (note 870): the bitten van, the night market's stalls
+        // (every form and colouring), the works' heaps.
+        list.Add(new("square-carriage", MediumProp, () => SquareKit.Fixture(look, "carriage")));
+        for (int v = 0; v < SquareKit.StallVariants; v++)
+        {
+            int variant = v;
+            list.Add(new($"square-marketstall-{v}", MediumProp, () => SquareKit.Fixture(look, "marketstall", variant)));
+        }
+        list.Add(new("works-slag", LargeProp, () => WorksKit.Piece(look, "slag")));
+        list.Add(new("works-coal", LargeProp, () => WorksKit.Piece(look, "coal")));
+        // A fortress town begun and stamped flat by a Waker (note 824), out beside the line: a large prop's budget each.
+        for (int v = 0; v < RuinKit.Variants; v++)
+        {
+            int variant = v;
+            list.Add(new($"fortruin-{v}", LargeProp, () => RuinKit.FortRuin(look, variant)));
+        }
         list.Add(new("gatehouse", LargeProp, () => StructureKit.Gatehouse(look)));
+        // Its gates (note 847): the plain one and the one with the wicket in it, each side.
+        foreach (int side in new[] { -1, 1 })
+        {
+            int s = side;
+            list.Add(new($"gateleaf-{s}", SmallProp, () => StructureKit.GateLeaf(look, s, false)));
+            list.Add(new($"gateleaf-wicket-{s}", SmallProp, () => StructureKit.GateLeaf(look, s, true)));
+        }
         list.Add(new("platform", StructureBay, () => StructureKit.PlatformBay(look, 1)));
         list.Add(new("house", LargeProp, () => TownKit.House(look, 1)));
         list.Add(new("lived-house", LargeProp, () => TownKit.LivedHouse(look, 1)));
@@ -144,8 +177,20 @@ public static class ArtCatalog
         list.Add(new("loot", SmallProp, () => PropKit.Loot(look, 0.15f)));
         // The village finds, each its own (FindKit; the director, 8 Oct).
         foreach (var item in new[] { "tinnedFood", "treats", "candles", "medicine", "bandages", "morphine", "preserves", "lampOil",
-                     "tools", "valuableTools", "pocketWatch", "lampParts", "rope", "gannetHead" })
+                     "tools", "valuableTools", "pocketWatch", "lampParts", "rope", "gannetHead",
+                     // Note 718: the comet fragment and the team kills' trophies.
+                     "cometFragment", "grumblerJaw", "gauntHand", "climberClaw", "passengerCap", "brakemanWheel", "knotterClaw",
+                     "hotboxPlate", "beetleShovel", "towerJawTooth" })
             list.Add(new($"find-{item}", SmallProp, () => FindKit.Find(look, item, 0.15f)));
+        // Note 719: the fragile valuables, whole, knocked and smashed; and the two-person jackpots.
+        foreach (var item in new[] { "glassware", "decanter", "mantelClock" })
+            for (int knocks = 0; knocks <= 2; knocks++)
+            {
+                int k = knocks;
+                list.Add(new($"find-{item}-{k}", SmallProp, () => FindKit.Find(look, item, 0.15f, k)));
+            }
+        foreach (var (item, radius) in new[] { ("safe", 0.42f), ("churchBell", 0.45f), ("figurehead", 0.42f) })
+            list.Add(new($"jackpot-{item}", SmallProp, () => FindKit.Jackpot(look, item, radius)));
         // What the railway left beside its line (note 325, WorldArt.Leavings): every variant the leavings deal.
         for (int v = 0; v < 3; v++)
         {

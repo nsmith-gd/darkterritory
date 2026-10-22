@@ -189,11 +189,7 @@ M3 is done but for a test with eight people.
   - slow for it and it comes down the line, boards and kills whoever's driving; hold your speed and it steps aside for good;
   - the driver bot holds its speed past it, even with the lamps down;
   - `dt screenshot --threats` shows one.
-- **The Switchman (T37, App. A.7):**
-  - it throws a junction ahead for its dead line: the lamp reads wrong, and a figure with a lantern stands at the stand;
-  - it flees anyone on the ground, but chasing it off doesn't set the switch back;
-  - crew bots stop short, set it back on the ground, and go on; left alone, the train takes the dead line and backs out, costing the clock, never a life;
-  - `dt screenshot --threats` shows it.
+- ~~**The Switchman (T37, App. A.7)**~~ *cut by the director, 16 Oct 2026 (note 852); the dead lines and the crew's way back off one stay.*
 
 **Loading at facilities (spec D, GDD §17):**
 - Manual crates you carry into the cars (heavy: slow, no climbing).
@@ -240,7 +236,7 @@ M3 is done but for a test with eight people.
 **Pacing (after the 100-night playtest: "a reward or a problem every 30 s at most, ideally 20"):**
 - The world logs each moment (a threat showing itself, a board, a bag), and counts the quiet out on the line. `dt harness` reports it.
 - At 18 s of quiet the director sends something, cooldown or not. It prefers kinds it hasn't sent lately, and its caps count only threats that are engaged.
-- Mail cranes line the route with a board before each. Hook a bag from an open cargo side door as it passes: pay, coal, rounds or spares.
+- Mail cranes line the route with a board before each. Hook a bag from an open cargo side door as it passes: pay, coal, rounds or spares. *Cut for now (the director, 15 Oct 2026; note 803): kept behind sight.json `mailCranes`.*
 - Nights measured in the harness: longest quiet 21–26 s, typical 12–16 s.
 
 **Trouble inside the cars (after the 100-night playtest):**

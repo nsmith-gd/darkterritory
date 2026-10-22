@@ -1,0 +1,9 @@
+// car-hugger-low-ground: the Car Hugger on low ground (#612, #633's counter in)
+{
+  "$patch": true,
+  "carHugger": {
+    "lowGround": {
+      "on": true
+    }
+  }
+}

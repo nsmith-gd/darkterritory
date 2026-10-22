@@ -27,7 +27,7 @@ float heroSlot(float layer) {
     return l >= 0 && l < 512 ? frame.heroOf[l >> 2][l & 3] : -1.0;
 }
 
-// How a layer moves (GreyboxRenderer.Motion): 1 the foliage, 2 water.
+// How a layer moves (GreyboxRenderer.Motion): 1 the foliage, 2 water, 3 drips (scene.vert's alone), 4 a light that breathes.
 float layerMotion(float layer) {
     int l = int(layer + 0.5);
     return l >= 0 && l < 512 ? frame.motionOf[l >> 2][l & 3] : 0.0;
@@ -344,7 +344,7 @@ void main() {
     bool textured = vLayer >= 0.0 && vLayer < frame.params.w;
     bool ps2 = frame.params.y > 0.5;
     bool terrain = textured && vLayer2 >= 0.0 && vLayer2 < frame.params.w;
-    bool water = textured && !terrain && layerMotion(vLayer) > 1.5;
+    bool water = textured && !terrain && abs(layerMotion(vLayer) - 2.0) < 0.5;
     float waterCrest = 0.0;
 
     vec4 tex = vec4(1.0);
@@ -559,6 +559,13 @@ void main() {
         colour += albedo * air * edge * frame.figure.x * 3.0;
     }
     float emissive = max(vEmissive, specMap.b);
+    // A living light (motion 4, a layer ending "_pod": the lantern tree's, note 696) breathes: slow, each pod out of step
+    // with the next (which one it is, in the whole part of its u, as a drip's), never quite out.
+    if (textured && abs(layerMotion(vLayer) - 4.0) < 0.5) {
+        float phase = floor(vUv.x) * 2.39996 + dot(vColor, vec3(17.0, 23.0, 29.0));
+        float t = frame.fogHeight.w;
+        emissive *= 0.55 + 0.45 * (0.5 + 0.5 * sin(t * 0.7 + phase)) * (0.8 + 0.2 * sin(t * 2.3 + phase * 1.3));
+    }
     colour = mix(colour, albedo * 2.0 * vGlow, emissive);
     if (ghostRim >= 0.0)
         colour += vec3(0.32, 0.4, 0.5) * pow(ghostRim, 2.5) * 0.35 * vGlow;

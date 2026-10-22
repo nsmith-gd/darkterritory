@@ -36,6 +36,57 @@ public class CraneTests
     static PlayerIntent Drive(float x = 0, float z = 0, PlayerButtons also = PlayerButtons.None) =>
         new() { MoveX = x, MoveZ = z, Buttons = also };
 
+    /// <summary>The stick that runs the bridge and the trolley this way, as the cab sees it (note 845).</summary>
+    internal static PlayerIntent Move(Crane c, double bridge = 0, double trolley = 0)
+    {
+        var (x, z) = c.StickFor(bridge, trolley);
+        return new() { MoveX = (float)x, MoveZ = (float)z };
+    }
+
+    [Fact]
+    public void TheKeysGoTheWayTheCabSeesThem()
+    {
+        // Note 845 (the director's playtest of 16 Oct, line 14: "when I hit A ... it goes up ... S, and it goes to the right.
+        // I hit D, and it goes down. I hit W, and it goes to the left"): W takes the hook away from the cab, S back toward it,
+        // A and D to the cab's left and right as it looks in across the span.
+        var (stop, crane) = AtTheCrane();
+        Double3 Ground(Double3 v) => v with { Y = 0 };
+        var look = Ground(crane.BridgeEnd(0) - crane.BridgeEnd(1)).Normalized;
+        var right = Double3.Cross(look, Double3.Up);
+        foreach (var (x, z, way) in new[] { (0f, 1f, look), (0f, -1f, look * -1), (1f, 0f, right), (-1f, 0f, right * -1) })
+        {
+            (crane.Bridge, crane.Trolley) = (C.Along, 0.5 * (C.Span[0] + C.Span[1]));
+            var from = crane.HookAt;
+            stop.Step(0.5, [Drive(x, z)]);
+            var moved = Ground(crane.HookAt - from);
+            Assert.True(moved.Length > 0.1 && Double3.Dot(moved.Normalized, way) > 0.99, $"stick ({x}, {z}) moved the hook {moved}");
+        }
+    }
+
+    [Fact]
+    public void TheCabLooksAtTheStackWithNoCarBetween()
+    {
+        // Note 736 (the director, 14 Oct: "my train is blocking the view of the loot ... I'm doing a bit of guesswork here"):
+        // the cab rides the bridge on the stack's side, so wherever the bridge is, every car on the track stands beyond the
+        // castings from it, never between, and it travels with the bridge.
+        var (stop, crane) = AtTheCrane();
+        var train = stop.World.Train;
+        Assert.Contains(train.Frames, f => ((f.Origin - crane.HookAt) with { Y = 0 }).Length < C.Length + 20);
+        foreach (double along in new[] { -1.0, 0, 1 })
+        {
+            stop.Step(2, [Move(crane, bridge: along)]);
+            foreach (var casting in crane.Castings)
+                foreach (var frame in train.Frames.Where(f => ((f.Origin - crane.HookAt) with { Y = 0 }).Length < C.Length + 20))
+                {
+                    double cab = frame.ToLocal(crane.Cab).X, stack = frame.ToLocal(casting.At).X;
+                    Assert.True(Math.Sign(cab) == Math.Sign(stack) && Math.Abs(cab) > Math.Abs(stack) && Math.Abs(stack) > frame.Shape.HalfWidth,
+                        $"car {frame.Index}: the cab at {cab:0.0} m across, the casting at {stack:0.0} m");
+                }
+            double fromBridgeEnd = ((crane.Cab - crane.BridgeEnd(1)) with { Y = 0 }).Length;
+            Assert.Equal(C.CabOut, fromBridgeEnd, 3);
+        }
+    }
+
     [Fact]
     public void TheOperatorDrivesItFromTheControlsAndStaysPut()
     {
@@ -48,12 +99,12 @@ public class CraneTests
         Assert.False(stop.Crew[0].Has(PlayerFlags.Operating));
         stop.Step(SimConstants.TickSeconds, [Press]);
         Assert.True(stop.Crew[0].Has(PlayerFlags.Operating));
-        stop.Step(2, [Drive(z: 1)]);
+        stop.Step(2, [Move(crane, bridge: 1)]);
         Assert.Equal(bridge + 2 * C.BridgeSpeed, crane.Bridge, 1);
         Assert.True(stop.Crew[0].Has(PlayerFlags.Operating));
         // The stick drives the crane, not the operator's feet.
         Assert.True((stop.Crew[0].Position - stand).Length < 0.01);
-        stop.Step(1, [Drive(x: -1)]);
+        stop.Step(1, [Move(crane, trolley: -1)]);
         Assert.Equal(trolley - C.TrolleySpeed, crane.Trolley, 1);
         stop.Step(1, [Drive(also: PlayerButtons.Brake)]);
         Assert.Equal(hook - C.HoistSpeed, crane.Hook, 1);
@@ -104,10 +155,10 @@ public class CraneTests
         (crane.Bridge, crane.Trolley) = (bridgeNow, trolleyNow);
         Assert.True(best.Off < 0.5, $"the gantry doesn't reach car {car.Id} ({best.Off:0.0} m)");
         for (int i = 0; i < 40 * SimConstants.TickRate && (Math.Abs(crane.Bridge - best.Bridge) > 0.05 || Math.Abs(crane.Trolley - best.Trolley) > 0.05); i++)
-            stop.Step(SimConstants.TickSeconds, [Drive((float)Math.Clamp((best.Trolley - crane.Trolley) * 5, -1, 1), (float)Math.Clamp((best.Bridge - crane.Bridge) * 5, -1, 1)), default]);
+            stop.Step(SimConstants.TickSeconds, [Move(crane, Math.Clamp((best.Bridge - crane.Bridge) * 5, -1, 1), Math.Clamp((best.Trolley - crane.Trolley) * 5, -1, 1)), default]);
         Assert.Equal(car.Id, crane.Under(stop.Train).Car);
         stop.Step(C.Height / C.HoistSpeed, [Drive(also: PlayerButtons.Brake), default]);
-        stop.Step(SimConstants.TickSeconds, [Drive(also: PlayerButtons.Fire), default]);
+        stop.Step(C.ReleaseHold, [Drive(also: PlayerButtons.Fire), default]);
         Assert.Equal(CastingState.Loaded, casting.State);
         Assert.Equal(before + C.LoadPerCasting, car.Load, 6);
         Assert.Equal(car.Id, casting.Car);
@@ -144,7 +195,7 @@ public class CraneTests
             }
         (crane.Bridge, crane.Trolley) = (bridgeNow, trolleyNow);
         for (int i = 0; i < 40 * SimConstants.TickRate && (Math.Abs(crane.Bridge - best.Bridge) > 0.05 || Math.Abs(crane.Trolley - best.Trolley) > 0.05); i++)
-            stop.Step(SimConstants.TickSeconds, [Drive((float)Math.Clamp((best.Trolley - crane.Trolley) * 5, -1, 1), (float)Math.Clamp((best.Bridge - crane.Bridge) * 5, -1, 1)), default]);
+            stop.Step(SimConstants.TickSeconds, [Move(crane, Math.Clamp((best.Bridge - crane.Bridge) * 5, -1, 1), Math.Clamp((best.Trolley - crane.Trolley) * 5, -1, 1)), default]);
         stop.Step(C.Height / C.HoistSpeed, [Drive(also: PlayerButtons.Brake), default]);
         Assert.Equal(car.Id, crane.Under(stop.Train).Car);
         Assert.Equal(CastingState.Hooked, casting.State);
@@ -173,6 +224,35 @@ public class CraneTests
         Assert.Equal(0, crane.Rigging);
     }
 
+    [Theory]
+    [InlineData(0.3)]
+    [InlineData(2.5)]
+    public void LetGoInAnEmptyCarsOpenHatchItComesDownOnTheFloor(double aboveRoof)
+    {
+        // Note 708 (the director's evening playtest, 13 Oct: "It did unhook, but it sort of just stays there in the air, doesn't
+        // fall"): an empty cargo car's heap isn't there (nothing poured in), but a casting let go in its open hatch came to
+        // rest on it at its full height, 1.3 m over the floor. It comes down on the floor, and the hook lowers it that far.
+        var (stop, crane) = AtTheCrane();
+        var casting = crane.Castings[0];
+        casting.State = CastingState.Hooked;
+        var car = stop.Train.Vehicles.Where(v => v.Kind == VehicleKind.Cargo && stop.Train.Frames[v.Id].Shape.Hatch is not null)
+            .OrderBy(v => Math.Abs(stop.Train.Frames[v.Id].ToLocal(crane.HookAt).Z)).First();
+        Assert.True(car.Bulk <= Solid.HeapFrom, "an empty car");
+        car.DoorsOpen |= (byte)(1 << CarShape.HatchBit);
+        var frame = stop.Train.Frames[car.Id];
+        var hatch = frame.Shape.Hatch!.Value;
+        (crane.Bridge, crane.Trolley, _) = crane.Over(frame.ToWorld(hatch.Centre));
+        double ground = crane.HookAt.Y - crane.Hook;
+        double floor = frame.Shape.Interior!.Value.Min.Y + 0.1;
+        // The hook goes down until the casting's base is just over the floor (it stopped over the heap's top).
+        Assert.Equal(frame.ToWorld(new Double3(0, floor, 0)).Y, ground + crane.Lowest(stop.Train) - C.CastingSize[1] - 0.05, 1);
+        crane.Hook = frame.ToWorld(new Double3(0, frame.Shape.RoofHeight, 0)).Y - ground + aboveRoof + C.CastingSize[1];
+        Assert.NotNull(crane.Release(stop.Train));
+        Assert.Equal(CastingState.Loaded, casting.State);
+        Assert.Equal(car.Id, casting.Car);
+        Assert.Equal(floor, casting.At.Y, 1);
+    }
+
     [Fact]
     public void LetGoOfHighItFallsKillsWhoeverIsUnderAndLiesWhereItLands()
     {
@@ -186,7 +266,7 @@ public class CraneTests
         stop.Crew.Add(stop.OnTheGround(under));
         stop.Crew.Add(stop.OnTheGround(under + new Double3(C.CrushRadius + 2, 0, 0)));
         stop.Step(SimConstants.TickSeconds, [Drive(), default, default]);
-        stop.Step(SimConstants.TickSeconds, [Drive(also: PlayerButtons.Fire), default, default]);
+        stop.Step(C.ReleaseHold, [Drive(also: PlayerButtons.Fire), default, default]);
         // Note 659 (the director, 13 Oct: "an accidental mouse click means it's essentially lost"): it lies where it landed, to
         // be rigged again, not lost.
         Assert.Equal(CastingState.Stacked, casting.State);
@@ -196,6 +276,34 @@ public class CraneTests
         stop.Step(SimConstants.TickSeconds, [Drive(), default, default]);
         var crushed = Assert.Single(stop.World.Damage);
         Assert.Equal((2, DeathCause.Crushed), (crushed.PlayerId, crushed.Cause));
+    }
+
+    [Fact]
+    public void AStrayClickLetsGoOfNothingAHoldLetsGoOfOne()
+    {
+        // Note 941 (the director, 20 Oct: "Oh, God, I accidentally clicked and just let it go"): Fire clicked, the casting
+        // stays on the hook; held for the hold, it's let go of; held on, the next one hooked isn't.
+        var (stop, crane) = AtTheCrane();
+        var (first, second) = (crane.Castings[0], crane.Castings[1]);
+        first.State = CastingState.Hooked;
+        crane.Bridge = C.Along;
+        crane.Trolley = C.StackLateral;
+        crane.Hook = C.Height;
+        stop.Step(SimConstants.TickSeconds, [Drive()]);
+        int hold = (int)Math.Round(C.ReleaseHold * SimConstants.TickRate);
+        for (int i = 0; i < 3; i++)
+            stop.Step(SimConstants.TickSeconds, [Drive(also: PlayerButtons.Fire)]);
+        stop.Step(SimConstants.TickSeconds, [Drive()]);
+        Assert.Equal(CastingState.Hooked, first.State);
+        for (int i = 0; i < hold - 1; i++)
+            stop.Step(SimConstants.TickSeconds, [Drive(also: PlayerButtons.Fire)]);
+        Assert.Equal(CastingState.Hooked, first.State);
+        stop.Step(SimConstants.TickSeconds, [Drive(also: PlayerButtons.Fire)]);
+        Assert.Equal(CastingState.Stacked, first.State);
+        second.State = CastingState.Hooked;
+        for (int i = 0; i < hold * 2; i++)
+            stop.Step(SimConstants.TickSeconds, [Drive(also: PlayerButtons.Fire)]);
+        Assert.Equal(CastingState.Hooked, second.State);
     }
 
     [Fact]
@@ -220,7 +328,7 @@ public class CraneTests
     public void AClientSeesTheCrane()
     {
         var (stop, crane) = AtTheCrane();
-        stop.Step(1, [Drive(z: 1)]);
+        stop.Step(1, [Move(crane, bridge: 1)]);
         crane.Castings[1].State = CastingState.Hooked;
         var client = new World(new TrainOnLine(new TrainDynamics(Consist.Uniform(Tuning.Train, 6, 0)), stop.Train.Line, 1000, Tuning.Boiler));
         client.EnableRun(Tuning.Run, stop.World.Run!.Route, 600, authority: false, F);
@@ -244,7 +352,6 @@ public class PowerTests
     static readonly FacilityTuning F = FacilityTests.F;
     static readonly PowerTuning W = F.Power;
 
-    static PlayerIntent Drive(float z) => new() { MoveZ = z };
 
     [Theory]
     [InlineData(Stops.PowerState.Low)]
@@ -259,7 +366,7 @@ public class PowerTests
         stop.Step(SimConstants.TickSeconds, [new PlayerIntent { Actions = PlayerActions.Seat }]);
         Assert.True(stop.Crew[0].Has(PlayerFlags.Operating));
         double bridge = crane.Bridge;
-        stop.Step(2, [Drive(1)]);
+        stop.Step(2, [CraneTests.Move(crane, bridge: 1)]);
         double scale = power == Stops.PowerState.Low ? W.LowSpeed : 0;
         Assert.Equal(bridge + 2 * F.Crane.BridgeSpeed * scale, crane.Bridge, 1);
     }

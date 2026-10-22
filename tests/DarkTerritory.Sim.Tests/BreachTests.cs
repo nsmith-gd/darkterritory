@@ -84,13 +84,11 @@ public class BreachTests
         var r = new Rig();
         var s = r.Inside(2, 0);
         Assert.Equal(2, PlayerMotor.Space(s, r.Train));
-        Assert.True(PlayerMotor.NearHeat(s, r.Train));
         Assert.True(r.Train.Vehicles[2].Breach(Breaches.EndWall(r.Train.Frames[2].Shape)!.Value));
-        // Every door shut, and it's the outside: the cold, the sound, voices and the Choir come in through the hole.
+        // Every door shut, and it's the outside: the sound, voices and the Choir come in through the hole.
         Assert.Equal(0, r.Train.Vehicles[2].DoorsOpen);
         Assert.Equal(PlayerMotor.Outside, PlayerMotor.Space(s, r.Train));
-        Assert.False(PlayerMotor.NearHeat(s, r.Train));
-        // Out of the wind's full force still (spec B.2's ¼ rate, as with a door open): it's still a car around you.
+        // Out of the wind's full force still: it's still a car around you.
         Assert.True(PlayerMotor.Indoors(s, r.Train));
         // Breached already, it's the hole there is.
         Assert.False(r.Train.Vehicles[2].Breach(Double3.Zero));
@@ -149,6 +147,37 @@ public class BreachTests
         // Still holding on after: the end door beside the hole isn't opened by the same hold.
         r.Run(1, _ => Use);
         Assert.Equal(0, r.Train.Vehicles[car].DoorsOpen);
+    }
+
+    /// <summary>Seconds <paramref name="hands"/> crewmates at the hole, Use held, take to board it up.</summary>
+    static double Boarding(int hands, TrainTuning? train = null)
+    {
+        var r = new Rig(speed: 0, train: train);
+        const int car = 2;
+        var room = r.Train.Frames[car].Shape.Interior!.Value;
+        r.Train.Vehicles[car].Breach(Breaches.EndWall(r.Train.Frames[car].Shape)!.Value);
+        for (int i = 1; i <= hands; i++)
+            r.Crew[i] = r.Inside(car, room.Max.Z - 0.7 - 0.1 * i);
+        int ticks = 0;
+        while (r.Train.Vehicles[car].Breached && ticks < 30 * SimConstants.TickRate)
+        {
+            r.Run(SimConstants.TickSeconds, _ => Use);
+            ticks++;
+        }
+        return ticks * SimConstants.TickSeconds;
+    }
+
+    [Fact]
+    public void TwoAtTheHoleBoardItUpAtThePairRateAndOneAsEver()
+    {
+        // Note 752 (GDD §12, one can, two do it faster): alone, spec B.9's 8 s; two, each at repair.pairRate (a tick to see
+        // each other); a third adds nothing; pairRate 1 (off), two as one.
+        double board = T.Breach.BoardSeconds, pair = T.Repair.PairRate, tick = SimConstants.TickSeconds;
+        Assert.True(pair > 1);
+        Assert.InRange(Boarding(1), board, board + 2 * tick);
+        Assert.InRange(Boarding(2), board / pair, board / pair + 3 * tick);
+        Assert.Equal(Boarding(2), Boarding(3));
+        Assert.InRange(Boarding(2, T with { Repair = T.Repair with { PairRate = 1 } }), board, board + 2 * tick);
     }
 
     [Fact]
@@ -273,29 +302,30 @@ public class BreachTests
     }
 
     [Fact]
-    public void AWalkerWarmingUpInABreachedCarBoardsItUpFirst()
+    public void AWalkerShelteringInABreachedCarBoardsItUpFirst()
     {
-        // A car only warms you shut, and a breached one isn't, however its doors are: the walker boards the hole up, then
-        // it's warm in there (else a bot-crewed night freezes in a car the Car Hugger's been at).
+        // A car only shelters you shut, and a breached one isn't, however its doors are: the walker boards the hole up, then
+        // it's shut in there (it was warm in there, before note 852 cut the cold).
         var line = RailLine.Load(Path.Combine(DataFile.FindContentRoot(), "lines/test-loop.json"));
         var train = new TrainOnLine(new TrainDynamics(Consist.Uniform(T, 4, 1)), line, 1500);
         var world = new World(train);
+        world.Choir.Build = 1;
         const int car = 2;
         train.Vehicles[car].Breach(Breaches.EndWall(train.Frames[car].Shape)!.Value);
-        var bot = new RoofWalkerBot(7, P.Cold);
+        var bot = new RoofWalkerBot(7);
         var s = new PlayerState
         {
             Parent = car,
             Position = new Double3(T.Geometry.Interior!.DoorX, T.Geometry.Interior.FloorHeight, -2),
             Surface = Surface.Deck,
             Health = P.Health,
-            Cold = P.Cold.OnsetSeconds * 0.8,
             LineHint = train.Cars[car].FrontDistance,
             Kit = P.StartingKit,
         };
         for (uint tick = 0; tick < SimConstants.TickRate * 40 && train.Vehicles[car].Breached; tick++)
         {
             world.BeginTick();
+            world.Choir.Build = 1;
             var intent = bot.Decide(s, world, tick, out _);
             world.CrewAct(ref s, intent, 1);
             world.Step(new TrainControls { Brake = 1, Reverser = 1 });
@@ -303,7 +333,7 @@ public class BreachTests
         }
         Assert.False(train.Vehicles[car].Breached, $"{s.Surface} on {s.Parent} at {s.Position}");
         Assert.Equal(0, train.Vehicles[car].DoorsOpen);
-        Assert.True(PlayerMotor.NearHeat(s, train), $"{s.Surface} on {s.Parent} at {s.Position}");
+        Assert.True(PlayerMotor.Indoors(s, train), $"{s.Surface} on {s.Parent} at {s.Position}");
     }
 
     [Fact]

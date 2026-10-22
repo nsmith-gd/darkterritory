@@ -140,7 +140,7 @@ public sealed class Wreck
     readonly WreckTuning _t;
     readonly Func<double, double, double> _ground;
     readonly List<(int A, int B, bool Intact, double Length)> _links = [];
-    readonly Pcg32 _rng;
+    Pcg32 _rng;
     double _still;
 
     public IReadOnlyList<WreckBody> Bodies { get; }
@@ -202,7 +202,8 @@ public sealed class Wreck
         foreach (var f in train.Frames)
         {
             // A switchyard's cars standing on their siding (note 187) aren't the train: they stay where they stand.
-            if (train.StandingCar(f.Index))
+            // Nor the handcar (note 729): on the rails it's its own, and hung on the van it goes where the van's body goes.
+            if (train.StandingCar(f.Index) || train.Vehicles[f.Index].IsHandcar)
                 continue;
             var v = train.Vehicles[f.Index];
             // Its rake's speed along its own length (the frame's may be a tick stale).

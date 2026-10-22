@@ -29,13 +29,15 @@ public readonly record struct LinesideProp(LinesideKind Kind, double Along, doub
     /// <summary>
     /// Its trunk's radius at the ground, or a rock's across, or a pole's: the art's pieces' own (WorldKit.Boughs 0.015 h for
     /// the pine, NovaKit.Conifer 0.018 h for the spruce, fir and tamarack, NovaKit.Birch 0.13 m at 11 m, NovaKit.GhostSpruce
-    /// 0.16 m; WorldKit.Rock a lump about 1 across and 0.85 deep at size 1; WorldKit.Pole 0.14 m at its foot).
+    /// 0.16 m; a corrupted tree's 0.024 h a metre up, tools/models/recipes/corrupted_trees.py's R; WorldKit.Rock a lump
+    /// about 1 across and 0.85 deep at size 1; WorldKit.Pole 0.14 m at its foot).
     /// </summary>
     public double Radius => Kind switch
     {
         LinesideKind.Pole => LinesideProps.PoleRadius,
         LinesideKind.Rock => Size * 0.9,
         LinesideKind.Piece => 0,
+        _ when Corrupted => Math.Clamp(Height * 0.024, 0.1, 0.55),
         _ when Dead => Math.Clamp(Height * 0.014, 0.1, 0.3),
         _ => Math.Clamp(Height * Species switch { "pine" => 0.015, "birch" => 0.012, _ => 0.018 }, 0.08, 0.45),
     };
@@ -83,7 +85,7 @@ public sealed partial class LinesideProps
         _seed = ulong.TryParse(_plan.Seed.StartsWith("0x", StringComparison.OrdinalIgnoreCase) ? _plan.Seed[2..] : _plan.Seed,
             System.Globalization.NumberStyles.HexNumber, null, out var s) ? s : Streams.Mix(0, _plan.Seed);
         _stopGround = StopGround(route);
-        _clearings = [.. route.Features.Where(f => f.Stop is not null).Select(f => Clearing(f.Start, f.End, f.Stop!))];
+        _clearings = [.. route.Features.Where(f => f.Stop is not null).Select(f => Clearing(f.Start, f.End, f.Stop!)), .. TowerClearings(route)];
         _main = _plan.Alignment.Select((a, i) => (a.Role, i)).First(x => x.Role == EdgeRole.Main).i;
         // Where along the main line water could be within the forest's reach: a river, a tidal reach or a shore on the main
         // line, with room; anything on a branch, the branch's whole stretch. Lakes are asked by their own extent.
@@ -260,13 +262,14 @@ public sealed partial class LinesideProps
     /// Everything beside the line whose slot, cell or block starts in [<paramref name="from"/>, <paramref name="to"/>): so
     /// neighbouring stretches (the art's cells) share nothing and miss nothing. The woods' trees and boulders by their slot,
     /// the telegraph poles; the road's homesteads, poles and cars by its cells, a shore's sheds and rocks by its, the biomes'
-    /// props by the block (note 389). The same for the same night on every machine.
+    /// props by the block (note 389), the railway's leavings by their stretch (note 792). The same for the same night on every machine.
     /// </summary>
     /// <param name="reach">Only what stands within this of the line (m): the rest is dealt and passed over unchecked, so
     /// what's within it is the same either way.</param>
     public IEnumerable<LinesideProp> Props(double from, double to, double reach = double.MaxValue) =>
-        // The boards' sight lines are kept clear (note 560): what would stand in one isn't there.
-        Dealt(from, to, reach).Where(p => !Hidden(p));
+        // The boards' sight lines are kept clear (note 560): what would stand in one isn't there. Nor does a tree grow up
+        // through the railway's leavings (note 794), or through a building (note 800).
+        Dealt(from, to, reach).Where(p => !Hidden(p) && !InALeaving(p) && !InABuilding(p));
 
     IEnumerable<LinesideProp> Dealt(double from, double to, double reach)
     {
@@ -281,6 +284,8 @@ public sealed partial class LinesideProps
         foreach (var p in Shores(from, to, reach))
             yield return p;
         foreach (var p in Blocks(from, to, reach))
+            yield return p;
+        foreach (var p in LineLeavings(from, to))
             yield return p;
     }
 
@@ -307,7 +312,6 @@ public sealed partial class LinesideProps
         int tries = def.TreeDensity <= 0 ? 0 : TreeTries;
         var flora = def.Flora.OrderBy(f => f.Key, StringComparer.Ordinal).ToArray();
         double floraTotal = flora.Sum(f => f.Value);
-        bool corruptible = def.Trees.Contains("corrupted");
         for (int k = 0; k < tries; k++)
         {
             // Every try draws the same, kept or not, so what's within any reach is dealt alike however far it's asked.
@@ -322,7 +326,9 @@ public sealed partial class LinesideProps
             if (Math.Abs(offset) > reach || keep > (Stand(World(along, offset), cover) > 0.5 ? 1 : 0.035))
                 continue;
             bool dead = deadRoll < def.DeadTrees;
-            bool corrupted = dead && corruptible && corruptRoll < 0.35;
+            // The Corruption's had about three in ten of them, living or dead (biomes.json corruptedTrees; note 696). On the
+            // roll every try draws, so which are corrupted moves no tree.
+            bool corrupted = corruptRoll < def.CorruptedTrees;
             string kind = "spruce";
             foreach (var (name, w) in flora)
                 if ((pick -= w) < 0)
@@ -359,9 +365,10 @@ public sealed partial class LinesideProps
     /// <summary>
     /// Everything along the line, stood as walls (notes 371, 389): a trunk as the box round its radius, to its top; a boulder
     /// as its lump's box (footprints.json's), turned as it lies, its top where its sinking leaves it (one sunk to under a step
-    /// is stepped over, as PlayerMotor steps anything that low); a pole round its foot; a kit piece on its footprint's boxes
-    /// (none for a burying ground or a wharf, which are walked through). Owner 0: a facility's module clears what stands on
-    /// its work point (<see cref="StopWalls.Clear"/>).
+    /// is stepped up onto, as PlayerMotor steps onto any wall's top that low, note 817); a pole round its foot; a kit piece on
+    /// its footprint's boxes (a burying ground on each of its stones and its fence's runs, note 797; a wharf its deck, its traps
+    /// and its steps, walked up and out along over the water, note 817).
+    /// Owner 0: a facility's module clears what stands on its work point (<see cref="StopWalls.Clear"/>).
     /// </summary>
     /// <param name="forts">The night's fortresses (<see cref="Fortresses.Of"/>), the departure one's town square on it once there's a town: nothing stands inside.</param>
     /// <param name="reach">How far out from the line they're solid (run.json <c>walls.linesideReachM</c>): where the crew and what hunts them go.</param>
@@ -405,6 +412,20 @@ public sealed partial class LinesideProps
     }
 
     /// <summary>A stop's ground, cleared of the woods: its zone, out on each side past the last thing it built there.</summary>
+    /// <summary>
+    /// A coaling tower's ground (note 758), which has no stop of its own to clear it: the woods stand back from its trestle
+    /// (StopWalls.AddTowers, 7 m off the line on its side, 9 m along and 7 m across) by a few metres all round, so no pine
+    /// grows up through it. The art's woods (PlanArt) clear the same ground.
+    /// </summary>
+    public static IEnumerable<(double S0, double S1, double Left, double Right)> TowerClearings(Route.Route route) =>
+        route.Features.Where(f => f.Kind == Route.FeatureKind.Facility && f.Facility == Route.FacilityKind.CoalingTower && f.Stop is null)
+            .Select(f => ((f.Start + f.End) / 2, f.Side == 0 ? 1 : f.Side) is var (mid, side)
+                ? (mid - TowerClearAlongM, mid + TowerClearAlongM, side < 0 ? TowerClearOutM : 0.0, side > 0 ? TowerClearOutM : 0.0)
+                : default);
+
+    // The tower's trestle (4.5 m either side of its middle, out to 10.5 m) and a few metres round it. Not design numbers: the model's.
+    const double TowerClearAlongM = 10, TowerClearOutM = 15;
+
     static (double S0, double S1, double Left, double Right) Clearing(double s0, double s1, StopLayout stop)
     {
         double left = 12, right = 12;

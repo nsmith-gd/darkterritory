@@ -21,8 +21,12 @@
     { "match": "balance.cargo", "bad": "down", "rel": 0.3, "abs": 0.75, "what": "cargo delivered" },
     { "match": "balance.net", "bad": "down", "rel": 0.3, "abs": 150, "what": "the night's net scrip (income less coal, ammunition, repairs, fees)" },
     { "match": "balance.crewHome", "bad": "down", "abs": 1.0, "what": "crew home at the end" },
-    { "match": "balance.grabs", "bad": "either", "rel": 0.5, "abs": 1.5, "what": "GRABs begun (App. A.1): fewer, the creatures land nothing; more, they land too much" },
+    // Note 986: judged on the grabs nobody broke; every grab begun is tracked (a Car Hugger fought at its mouth re-swallows the
+    // group every few seconds, each one pulled free).
+    { "match": "balance.grabsUnbroken", "bad": "either", "rel": 0.5, "abs": 1.5, "what": "GRABs (App. A.1) no crewmate broke: fewer, the creatures land nothing; more, they land too much" },
+    { "match": "balance.grabs", "bad": "none", "what": "GRABs begun, broken or not" },
     { "match": "balance.rescues", "bad": "none", "what": "GRABs a crewmate broke" },
+    { "match": "balance.punishes", "bad": "up", "rel": 0.5, "abs": 1.0, "what": "GRABs that ran on to their punish (a death, a fall, a carrying off)" },
     { "match": "balance.fairness", "bad": "up", "abs": 0.1, "what": "App. A.1's fairness rule broken by the director: any night of eight is a fall" },
     { "match": "balance.packFires", "bad": "up", "rel": 0.5, "abs": 5, "what": "fires boarded hound packs set (note 437)" },
     { "match": "balance.hotBoxesCaught", "bad": "up", "rel": 0.5, "abs": 1.0, "what": "hot boxes that caught (note 331)" },
@@ -31,6 +35,9 @@
     { "match": "pacing.beatsPerMinute", "bad": "down", "rel": 0.2, "abs": 0.3, "what": "the world's beats a minute" },
     { "match": "pacing.longestQuietSeconds", "bad": "up", "rel": 0.3, "abs": 20, "what": "the longest stretch out on the line with nothing going on" },
     { "match": "pacing.quietOver30", "bad": "up", "rel": 0.4, "abs": 2.0, "what": "stretches quiet over 30 s" },
+    // The driver at the brake (note 820): every application is heard (the shoes, the slack running in).
+    { "match": "driving.brakesPerMinute", "bad": "up", "rel": 0.5, "abs": 5, "what": "the driver's brake applications a minute, the train moving" },
+    { "match": "driving.brakeTaps", "bad": "up", "rel": 0.5, "abs": 5, "what": "brake applications let off inside a second (holding a speed by tapping it)" },
     // The link (the harness's rough link: 90 ms ±20, 3 % loss).
     { "match": "net.downKbps", "bad": "up", "rel": 0.1, "abs": 2.0, "what": "kbit/s down to each client" },
     { "match": "net.upKbps", "bad": "up", "rel": 0.1, "abs": 2.0, "what": "kbit/s up from each client" },

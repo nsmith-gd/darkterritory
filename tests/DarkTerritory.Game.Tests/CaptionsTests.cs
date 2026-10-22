@@ -39,6 +39,85 @@ public class CaptionsTests
     [InlineData("crew-house-door.shut")]
     [InlineData("crew-house-door.open")]
     [InlineData("cs-choir.bang-door.wood")]
+    // Note 388: G1's six, by the sounds a reader would hear first of each.
+    [InlineData("tell-mourners.keening")]
+    [InlineData("tell-tower-jaw.gnaw")]
+    [InlineData("tell-brakeman.step.good")]
+    [InlineData("tell-brakeman.squeal")]
+    [InlineData("tell-knotter.creep")]
+    [InlineData("cs-freight-beetle.push.ground")]
+    [InlineData("tell-hotbox.knock")]
+    // Note 768: horseplay, a reader told what a hearing player is.
+    [InlineData("crew-horseplay.bonk")]
+    [InlineData("crew-horseplay.coal-land.roof")]
+    // Note 767: the house creatures' tells, and the doors they slam and break in.
+    [InlineData("tell-lodger-breathing.breathing")]
+    [InlineData("tell-lodger-shriek.shriek")]
+    [InlineData("cs-lodger.break")]
+    [InlineData("tell-householder.house")]
+    [InlineData("tell-householder-rise.rise")]
+    [InlineData("tell-hollow-house.rumble")]
+    [InlineData("cs-hollow-house.slam")]
+    [InlineData("tell-hanger.rafters")]
+    [InlineData("tell-hanger-strands.hum")]
+    // Note 771: the Pickers coming up out of the drains, and taking a crate.
+    [InlineData("tell-pickers.emerge")]
+    [InlineData("cs-pickers.carry")]
+    // Note 806: the pets' tells, the canary while it sings, the calliope as the whistle.
+    [InlineData("up-pets.hiss")]
+    [InlineData("up-pets.bark")]
+    [InlineData("up-whimsy.song")]
+    [InlineData("up-whimsy.calliope")]
+    // Note 775: the horns as the whistle; the forge from the cab.
+    [InlineData("up-horns.honk")]
+    [InlineData("up-horns.gold")]
+    [InlineData("up-forge.hearth")]
+    // Note 809: the Mouse Moose creeping in, and dragging a casting off.
+    [InlineData("tell-mouse-moose.squeak")]
+    [InlineData("cs-mouse-moose.drag")]
+    // Note 772: dawn coming, and coming for the train; the town's guns on it at the walls.
+    [InlineData("tell-wakers.thud")]
+    [InlineData("tell-wakers.rise")]
+    [InlineData("tell-wakers.stride")]
+    [InlineData("cs-wakers.grab")]
+    [InlineData("town-guns.fire")]
+    // Note 773: the figures, by what a reader would hear of each.
+    [InlineData("figures.dave-paint")]
+    [InlineData("figures.party")]
+    [InlineData("figures.jacob-fish")]
+    // Note 774: the speaking tube's call, the mail bag torn.
+    [InlineData("crew-speaking-tube.call")]
+    [InlineData("crew-mail.tear")]
+    // Note 776: the crew car's kettle and cuckoo, the crew photo's flash.
+    [InlineData("crew-car.kettle")]
+    [InlineData("crew-car.cuckoo")]
+    [InlineData("crew-memory.flash")]
+    // Notes 781-784: a knock on the rails, a lamp breaking, a hound doused, a friend hauled aboard (and, note 798, off the
+    // crane's hook high up), glass breaking, the bell, the handcar set down.
+    [InlineData("world-rail-knock.knock")]
+    [InlineData("crew-lamp-broken.smash")]
+    [InlineData("cs-hounds-doused.doused")]
+    [InlineData("crew-rescue.haul")]
+    [InlineData("crew-hoist.yelp")]
+    [InlineData("crew-hoist.land")]
+    // Note 828: the human cannonball's whoop and landing.
+    [InlineData("crew-cannonball.whoop")]
+    [InlineData("crew-cannonball.land")]
+    [InlineData("up-fishing.catch")]
+    [InlineData("loot-fragile.glass")]
+    [InlineData("loot-jackpot.bell")]
+    [InlineData("crew-handcar.set")]
+    // Note 785: what jumped a pin, a house's boards, a far bell and a far dog.
+    [InlineData("state-coupling-loose.jump-brake")]
+    [InlineData("tell-house.creak")]
+    [InlineData("world-bell.far")]
+    [InlineData("world-dog.bark")]
+    // Note 786: the odd outcomes, the council bell and what answers the can.
+    [InlineData("place-town.bell")]
+    // Note 827: a stallholder calling across the market.
+    [InlineData("place-town.stall-call")]
+    [InlineData("world-odd.well-splash")]
+    [InlineData("world-odd.bark")]
     public void TheTellsAndCallsSinceCaptionsAreCaptioned(string sound)
     {
         // Note 391: the signs as they play since note 342, the Moose's and the Gannet's tells (notes 334, 384), and the jobs

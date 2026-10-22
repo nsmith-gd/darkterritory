@@ -52,16 +52,27 @@ public sealed partial class GameAudio
         EndNightMix();
         EndNightUi();
         EndNightRoofWarning();
+        EndNightWorldCues();
+        EndNightBbq();
+        EndNightLounge();
     }
 
     void Cues(World world)
     {
         _heldNow.Clear();
         CrewSounds(world);
+        ScorchSounds(world);
+        HorseplaySounds(world);
+        // Held, so with the other held loops (not with the one-shot gestures, Actions, which runs before this sweep).
+        Conga(world);
+        BbqSounds(world);
+        LoungeSounds(world);
+        OddSounds(world);
         CreatureSounds(world);
         TrainSounds(world);
         OutsideSounds(world);
         FaultSounds(world);
+        WorldCueSounds(world);
         // A held loop nobody held this tick has stopped (its owner went away, or its state ended).
         foreach (var key in _held.Keys.Where(k => !_heldNow.Contains(k)).ToList())
         {
@@ -115,6 +126,8 @@ public sealed partial class GameAudio
         ["dirt"] = ["ground", "grass", "mud"],
         ["grass"] = ["dirt", "ground"],
         ["mud"] = ["dirt", "ground"],
+        // Waded through (note 799): the bog's squelch nearest, for what has no splash of its own.
+        ["water"] = ["mud", "dirt", "ground"],
         ["cobbles"] = ["concrete", "ground"],
         ["concrete"] = ["cobbles", "ground"],
         ["ground"] = ["dirt", "ballast", "grass"],

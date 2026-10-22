@@ -31,7 +31,7 @@ public sealed partial class CreatureArt
     void ForgetOutside()
     {
         (_mournerMode, _beetleMode, _towerJawMode, _outsideSince, _outsidePace) = (null, null, null, -1, 0);
-        (_pickerMode, _lodgerMode, _householderMode) = (null, null, null);
+        (_pickerMode, _lodgerMode, _householderMode, _mouseMooseMode) = (null, null, null, null);
     }
 
     /// <summary>The live enemy's mode and pace for its draw; the basis it's drawn at (Tower Jaw set back of its jaws).</summary>
@@ -51,6 +51,9 @@ public sealed partial class CreatureArt
                 return model;
             case Picker p:
                 _pickerMode = p.Mode;
+                return model;
+            case MouseMoose mm:
+                _mouseMooseMode = mm.Mode;
                 return model;
             case Lodger l:
                 _lodgerMode = l.Mode;
@@ -150,6 +153,21 @@ public sealed partial class CreatureArt
                 }
             case EnemyKind.Mourners or EnemyKind.FreightBeetle or EnemyKind.TowerJaw or EnemyKind.Pickers or EnemyKind.Lodger or EnemyKind.Householder:
                 return false;
+            case EnemyKind.MouseMoose when _models.ContainsKey("mouse_moose"):
+                {
+                    // THE MOUSE MOOSE (notes 790, 796; tools/blender/mouse_moose.py; CreatureArt.MouseMoose.cs): creeping in low,
+                    // sniffing; its teeth in a casting and tugging it back; bolting flat out; down its hole, its antlers and its
+                    // eyes over the earth.
+                    var mode = _mouseMooseMode ?? MouseMooseModeOf(phase);
+                    var was = ModeWas is { } w ? (MouseMooseMode?)w : null;
+                    var (clip, at, loop) = MouseMooseClip(mode, was, since, _outsidePace);
+                    if (clip is "hide" or "dive" or "emerge")
+                        MouseMooseHole(mesh, model, clip == "emerge" ? (float)(_outsidePace * since) : 0);
+                    return Draw(mesh, "mouse_moose", clip, at, loop, model, seed: 796);
+                }
+            case EnemyKind.MouseMoose:
+                // (Its boxes, where its model isn't there: CreatureArt.MouseMoose.cs.)
+                return MouseMooseStandIn(mesh, model, _mouseMooseMode ?? MouseMooseModeOf(phase), since);
             case EnemyKind.Waker when _models.ContainsKey("waker"):
                 // THE WAKER, the Peat Man (note 679; tools/blender/waker.py; CreatureArt.Waker.cs).
                 return DrawWaker(mesh, model, phase, t, extra);
@@ -433,6 +451,10 @@ public sealed partial class CreatureArt
     /// <summary>The most the Householder's head turns from its shoulders (radians), and tips up or down at you.</summary>
     const float HouseholderTurn = 1.3f, HouseholderTip = 0.4f;
 
+    /// <summary>The step its head follows you in (radians, about 6°): it turns in small ticks, never smoothly (GDD §31: still,
+    /// then too fast).</summary>
+    const float HouseholderTick = 0.1f;
+
     /// <summary>
     /// A posed figure's head and neck turned (<paramref name="look"/> of the way) to the eye (the scene's built about it: the
     /// origin), as far as <see cref="HouseholderTurn"/>, and tipped up or down at it.
@@ -451,6 +473,7 @@ public sealed partial class CreatureArt
         // (The model faces −Z: CreateRotationY(a) takes that to (−sin a, 0, −cos a).)
         float yaw = Math.Clamp(MathF.Atan2(-to.X, -to.Z), -HouseholderTurn, HouseholderTurn) * look;
         float tip = Math.Clamp(MathF.Atan2(to.Y, flat), -HouseholderTip, HouseholderTip) * look;
+        (yaw, tip) = (MathF.Round(yaw / HouseholderTick) * HouseholderTick, MathF.Round(tip / HouseholderTick) * HouseholderTick);
         Bend(m, "neck", Matrix4x4.CreateRotationY(yaw * 0.35f));
         Bend(m, "head", Matrix4x4.CreateRotationY(yaw * 0.65f));
         var right = Vector3.Transform(Vector3.UnitX, Matrix4x4.CreateRotationY(yaw));

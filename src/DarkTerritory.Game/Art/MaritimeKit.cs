@@ -64,9 +64,14 @@ public static class MaritimeKit
         var body = d.Shingle && !d.Painted ? Of(looks.Stains, d.Paint, "#B4B0A6") : Of(looks.Paints, d.Paint, "#D8D6CE");
         // Nobody's painted a house nobody lives in since: it's gone grey and pale under the salt.
         float fade = kind switch { HouseKind.Lived or HouseKind.Open => 0, HouseKind.Empty => 0.55f, _ => 0.4f };
-        Vector3 Faded(Vector3 c) => Vector3.Lerp(c, Vector3.One * (0.3f * c.X + 0.55f * c.Y + 0.15f * c.Z), fade) * (1 - 0.25f * fade);
-        return new Coat(d.Shingle, Faded(body), Faded(Of(looks.Trims, d.Trim, "#ECEAE2")), Faded(Of(looks.Doors, d.Door, "#A82A22")),
-            d.Shutters >= 0 ? Faded(Of(looks.Doors, d.Shutters, "#1F3A6A")) : null, Of(looks.Roofs, d.RoofColour, "#3C3C40"),
+        // A fortress town's (note 692) have gone grey under soot and salt whoever lives in them: greyer and darker by their
+        // grime, the trim most (white paint goes first), the roof a little.
+        float grime = (float)d.Grime;
+        Vector3 Grey(Vector3 c, float by) => Vector3.Lerp(c, Vector3.One * (0.3f * c.X + 0.55f * c.Y + 0.15f * c.Z), by);
+        Vector3 Faded(Vector3 c) => Grey(Grey(c, fade) * (1 - 0.25f * fade), 0.55f * grime) * (1 - 0.4f * grime);
+        Vector3 Trimmed(Vector3 c) => Faded(c) * (1 - 0.25f * grime);
+        return new Coat(d.Shingle, Faded(body), Trimmed(Of(looks.Trims, d.Trim, "#ECEAE2")), Faded(Of(looks.Doors, d.Door, "#A82A22")),
+            d.Shutters >= 0 ? Faded(Of(looks.Doors, d.Shutters, "#1F3A6A")) : null, Grey(Of(looks.Roofs, d.RoofColour, "#3C3C40"), 0.4f * grime) * (1 - 0.2f * grime),
             Faded(Of(looks.Accents, d.Accent, "#D0705E")));
     }
 
@@ -139,6 +144,11 @@ public static class MaritimeKit
                     b.Profile.AddRange([new(s0, b.Eave), new(sr, b.Ridge), new(s1, b.BackEave)]);
                     break;
                 }
+            case HouseRoof.Flat:
+                // Flat behind its parapet, a hand's fall to drain it, its garden on it (Roof).
+                b.Ridge = b.Eave + 0.2f;
+                b.Profile.AddRange([new(s0, b.Eave), new(0, b.Ridge), new(s1, b.Eave)]);
+                break;
             case HouseRoof.Gambrel:
                 {
                     float rise = pitch * half * 1.1f;
@@ -176,6 +186,12 @@ public static class MaritimeKit
             return k.Build($"maritime-burnt-{h.Id}");
         }
         float doorX = X(h, h.Design.DoorU);
+        // A Flooder's houseboat (note 822): its stilts and hull, and the house on the hull's deck.
+        if (h.Design.Hull)
+        {
+            Hull(k, b, doorX);
+            k.Push(Kit.At(0, HullLift, 0));
+        }
         Shell(k, h, b, coat, doorX);
         var panes = Windows(h, b, doorX);
         int n = 0;
@@ -198,6 +214,8 @@ public static class MaritimeKit
             Fancy(k, h, b, coat);
         if (h.Layout is { } l)
             Inside(k, h, l, thing, panes);
+        if (h.Design.Hull)
+            k.Pop();
         k.Pop();
         return k.Build($"maritime-{h.Kind}-{h.Id}-{h.S:0}-{h.D:0}");
     }
@@ -230,8 +248,73 @@ public static class MaritimeKit
     {
         FarYard(k, h);
         k.Push(Turned(h));
-        FarBody(k, h, b, c, lit);
+        if (h.Design.Hull && h.Kind != HouseKind.Burnt)
+        {
+            // A houseboat's hull as a box under it, the house on its deck (note 822).
+            k.Use("tar", Palette.SootBlack, 0.85f, 0.15f, tile: 1);
+            k.Box(new Vector3(b.X0 - HullBeam, Stilts, b.Z0 - HullBow), new Vector3(b.X1 + HullBeam, HullLift, b.Z1 + HullEnds), Kit.Faces.Sides);
+            k.Push(Kit.At(0, HullLift, 0));
+            FarBody(k, h, b, c, lit);
+            k.Pop();
+        }
+        else
+            FarBody(k, h, b, c, lit);
         k.Pop();
+    }
+
+    /// <summary>
+    /// A houseboat's stilts and hull (note 822, the Flooders' houses): how high its stilts lift its bottom, and how deep the
+    /// hull is to its deck, where the house stands (m); how far the hull's sides stand out past the house's walls and its
+    /// ends past its front and back, and how far each end rakes in to the flat bottom.
+    /// </summary>
+    public const float Stilts = 0.9f, HullLift = (float)HouseDesign.HullLift, HullDeep = HullLift - Stilts,
+        HullBeam = (float)HouseDesign.HullBeam, HullEnds = (float)HouseDesign.HullEnds, HullBow = (float)HouseDesign.HullBow,
+        LadderOut = (float)HouseDesign.LadderOut, HullRake = 1.0f;
+
+    /// <summary>
+    /// Under a Flooder's house (note 822): a scow's hull, flat-bottomed, its ends raked, tarred, a rubbing strake along its
+    /// sheer, up on braced stilts over the marsh, against the flood they're waiting for; a ladder up to the deck at its door.
+    /// </summary>
+    static void Hull(Kit k, Block b, float doorX)
+    {
+        // Its bow stands further out than its stern: a foredeck at the door, off the top of its ladder (note 973).
+        float x0 = b.X0 - HullBeam, x1 = b.X1 + HullBeam, z0 = b.Z0 - HullBow, z1 = b.Z1 + HullEnds;
+        float bz0 = z0 + HullRake, bz1 = z1 - HullRake;
+        // The stilts: tarred posts under its bottom, three pairs, each pair braced across.
+        k.Use("wood_sleeper", Palette.DeepBrown, 0.9f, 0.05f, tile: 1);
+        foreach (float z in new[] { bz0 + 0.2f, (bz0 + bz1) / 2, bz1 - 0.2f })
+        {
+            var l = new Vector3(x0 + 0.35f, 0, z);
+            var r = new Vector3(x1 - 0.35f, 0, z);
+            k.BoxAt(l + new Vector3(0, (Stilts - 0.3f) / 2, 0), new Vector3(0.12f, (Stilts + 0.3f) / 2, 0.12f));
+            k.BoxAt(r + new Vector3(0, (Stilts - 0.3f) / 2, 0), new Vector3(0.12f, (Stilts + 0.3f) / 2, 0.12f));
+            k.Rod(l + new Vector3(0, 0.1f, 0), r + new Vector3(0, Stilts - 0.05f, 0), 0.05f);
+        }
+        // The hull: its bottom, its sides (the sheer straight, the chines raked up at either end), its raked ends; planked and
+        // tarred black.
+        k.Use("tar", Palette.SootBlack, 0.85f, 0.15f, tile: 1.2f);
+        k.Quad(new Vector3(x0, Stilts, bz1), new Vector3(x1, Stilts, bz1), new Vector3(x1, Stilts, bz0), new Vector3(x0, Stilts, bz0), twoSided: true);
+        k.Use("clapboard", new Vector3(0.12f, 0.11f, 0.1f), 0.8f, 0.2f, tile: 1.0f);
+        k.Tint = new Vector3(0.22f, 0.2f, 0.19f);
+        k.Quad(new Vector3(x0, HullLift, z0), new Vector3(x0, HullLift, z1), new Vector3(x0, Stilts, bz1), new Vector3(x0, Stilts, bz0), twoSided: true);
+        k.Quad(new Vector3(x1, HullLift, z1), new Vector3(x1, HullLift, z0), new Vector3(x1, Stilts, bz0), new Vector3(x1, Stilts, bz1), twoSided: true);
+        k.Quad(new Vector3(x1, HullLift, z0), new Vector3(x0, HullLift, z0), new Vector3(x0, Stilts, bz0), new Vector3(x1, Stilts, bz0), twoSided: true);
+        k.Quad(new Vector3(x0, HullLift, z1), new Vector3(x1, HullLift, z1), new Vector3(x1, Stilts, bz1), new Vector3(x0, Stilts, bz1), twoSided: true);
+        k.Tint = Vector3.One;
+        // The deck round the house, and the rubbing strake along the sheer.
+        k.Use("wood_grey", Palette.DeepBrown, 0.9f, 0.05f, tile: 1);
+        k.Box(new Vector3(x0, HullLift - 0.08f, z0), new Vector3(x1, HullLift, z1), Kit.Faces.PosY);
+        k.Box(new Vector3(x0 - 0.08f, HullLift - 0.35f, z0), new Vector3(x0, HullLift - 0.15f, z1), Kit.Faces.All);
+        k.Box(new Vector3(x1, HullLift - 0.35f, z0), new Vector3(x1 + 0.08f, HullLift - 0.15f, z1), Kit.Faces.All);
+        // The ladder up to the deck at its door, leant against the bow, where the Sim's is (Town.Ladders, note 973).
+        float lz = z0 - LadderOut;
+        foreach (float side in new[] { -0.28f, 0.28f })
+            k.Rod(new Vector3(doorX + side, 0, lz), new Vector3(doorX + side, HullLift + 0.6f, z0 - 0.05f), 0.035f);
+        for (float y = 0.3f; y < HullLift; y += 0.32f)
+        {
+            float z = lz + (z0 - 0.05f - lz) * (y / (HullLift + 0.6f));
+            k.Rod(new Vector3(doorX - 0.28f, y, z), new Vector3(doorX + 0.28f, y, z), 0.025f);
+        }
     }
 
     static void FarBody(Kit k, TownHouse h, Block b, Coat c, bool lit)
@@ -404,6 +487,41 @@ public static class MaritimeKit
         Roof(k, b, c);
     }
 
+    /// <summary>
+    /// A flat roof's garden (note 692; the gardeners'): tarred felt behind a low brick parapet, raised beds of earth along it
+    /// with their green, a glazed cold frame at one end.
+    /// </summary>
+    static void RoofGarden(Kit k, Block b)
+    {
+        float y = b.Ridge, x0 = b.X0, x1 = b.X1, z0 = b.Z0, z1 = b.Z1;
+        k.Use("tar", Palette.DeepBrown, 0.9f, 0.1f, tile: 2);
+        k.Box(new Vector3(x0 - 0.1f, b.Eave, z0 - 0.1f), new Vector3(x1 + 0.1f, y, z1 + 0.1f), Kit.Faces.PosY | Kit.Faces.Sides);
+        k.Use("brick_soot", Palette.RustRed, 0.9f, 0.05f, tile: 1.2f);
+        foreach (var (lo, hi) in new[] { (new Vector3(x0 - 0.1f, y, z0 - 0.1f), new Vector3(x1 + 0.1f, y + 0.6f, z0 + 0.15f)),
+            (new Vector3(x0 - 0.1f, y, z1 - 0.15f), new Vector3(x1 + 0.1f, y + 0.6f, z1 + 0.1f)),
+            (new Vector3(x0 - 0.1f, y, z0), new Vector3(x0 + 0.15f, y + 0.6f, z1)), (new Vector3(x1 - 0.15f, y, z0), new Vector3(x1 + 0.1f, y + 0.6f, z1)) })
+            k.Box(lo, hi, Kit.Faces.Sides | Kit.Faces.PosY);
+        // The beds, along the roof's long way, a path between; the frame at the end of the last.
+        bool alongX = x1 - x0 >= z1 - z0;
+        float a0 = (alongX ? x0 : z0) + 0.5f, a1 = (alongX ? x1 : z1) - 0.5f, c0 = (alongX ? z0 : x0) + 0.5f, c1 = (alongX ? z1 : x1) - 0.5f;
+        Vector3 P(float a, float h, float c) => alongX ? new Vector3(a, h, c) : new Vector3(c, h, a);
+        int beds = Math.Max(1, (int)((c1 - c0) / 1.6f));
+        float w = (c1 - c0) / beds;
+        for (int i = 0; i < beds; i++)
+        {
+            float bc0 = c0 + i * w + 0.2f, bc1 = c0 + (i + 1) * w - 0.25f;
+            k.Use("wood_grey", Palette.DeepBrown, 0.9f, 0.05f, tile: 1);
+            k.Box(Min(P(a0, y, bc0), P(i == beds - 1 ? a1 - 1.6f : a1, y + 0.4f, bc1)), Max(P(a0, y, bc0), P(i == beds - 1 ? a1 - 1.6f : a1, y + 0.4f, bc1)), Kit.Faces.Sides);
+            k.Use("bog_sphagnum", new Vector3(0.25f, 0.4f, 0.15f), 0.6f, 0.05f, tile: 1.5f);
+            k.Box(Min(P(a0 + 0.1f, y + 0.4f, bc0 + 0.1f), P((i == beds - 1 ? a1 - 1.6f : a1) - 0.1f, y + 0.75f, bc1 - 0.1f)),
+                Max(P(a0 + 0.1f, y + 0.4f, bc0 + 0.1f), P((i == beds - 1 ? a1 - 1.6f : a1) - 0.1f, y + 0.75f, bc1 - 0.1f)), Kit.Faces.Sides | Kit.Faces.PosY);
+        }
+        k.Use("glass_dirty", Palette.IronGrey, 0.3f, 0.6f, tile: 1);
+        k.Box(Min(P(a1 - 1.4f, y, c1 - w + 0.2f), P(a1, y + 0.9f, c1)), Max(P(a1 - 1.4f, y, c1 - w + 0.2f), P(a1, y + 0.9f, c1)), Kit.Faces.Sides | Kit.Faces.PosY);
+        static Vector3 Min(Vector3 a, Vector3 b) => Vector3.Min(a, b);
+        static Vector3 Max(Vector3 a, Vector3 b) => Vector3.Max(a, b);
+    }
+
     /// <summary>A triangle of a wall facing <paramref name="outward"/> (both ways for an open house's), its siding's courses level.</summary>
     static void Face(Kit k, Vector3 a, Vector3 b, Vector3 c, Vector3 outward, bool twoSided)
     {
@@ -419,6 +537,11 @@ public static class MaritimeKit
     /// <summary>The roof: each of its profile's slopes out past the walls at the eaves and the gables, or a hip's four.</summary>
     static void Roof(Kit k, Block b, Coat c)
     {
+        if (b.Roof == HouseRoof.Flat)
+        {
+            RoofGarden(k, b);
+            return;
+        }
         RoofPaint(k, c);
         const float over = 0.35f, rake = 0.28f;
         float a0 = b.A0 - rake, a1 = b.A1 + rake;
@@ -757,7 +880,7 @@ public static class MaritimeKit
             k.Use("iron_smokebox", Palette.SootBlack, 0.6f, 0.3f, tile: 1);
             k.Box(new Vector3(lamp.X - 0.03f, lamp.Y + 0.12f, dz - 0.02f), new Vector3(lamp.X + 0.03f, lamp.Y + 0.17f, lamp.Z));
             k.Box(new Vector3(lamp.X - 0.09f, lamp.Y + 0.12f, lamp.Z - 0.09f), new Vector3(lamp.X + 0.09f, lamp.Y + 0.15f, lamp.Z + 0.09f));
-            k.Use("lamp_lens", Palette.LampAmber, 0, 0, tile: 0.25f);
+            k.Use("lantern_pane", Palette.LampAmber, 0, 0, tile: 0.25f);
             k.Emissive = lit ? 1 : 0.35f;
             k.BoxAt(lamp, new Vector3(0.07f, 0.11f, 0.07f));
             k.Emissive = 0;
@@ -917,7 +1040,8 @@ public static class MaritimeKit
     /// Where a house's chimneys (or its stovepipe) let out, in its own kit frame: where a lived-in house's wood smoke rises
     /// from (<see cref="Effects.Chimney"/>). As <see cref="Chimneys"/> builds them.
     /// </summary>
-    public static IEnumerable<Vector3> ChimneyTops(TownHouse h) => Tops(h).Select(p => Vector3.Transform(p, Turned(h)));
+    public static IEnumerable<Vector3> ChimneyTops(TownHouse h) =>
+        Tops(h).Select(p => Vector3.Transform(p + new Vector3(0, h.Design.Hull ? HullLift : 0, 0), Turned(h)));
 
     static IEnumerable<Vector3> Tops(TownHouse h)
     {
@@ -1136,7 +1260,7 @@ public static class MaritimeKit
                 // An oil lamp in the middle of it: the kitchen's light (WorldArt lights it, Lights).
                 k.Use("brass", Palette.TarnishedBrass, 0.3f, 0.6f);
                 k.Cylinder(new Vector3(cx, ht, cz), new Vector3(cx, ht + 0.1f, cz), 0.07f, 10, radiusB: 0.04f);
-                k.Use("lamp_lens", Palette.LampAmber, 0, 0, tile: 0.25f);
+                k.Use("lantern_pane", Palette.LampAmber, 0, 0, tile: 0.25f);
                 k.Emissive = 1;
                 k.Cylinder(new Vector3(cx, ht + 0.1f, cz), new Vector3(cx, ht + 0.32f, cz), 0.05f, 10, radiusB: 0.035f);
                 k.Emissive = 0;
@@ -1166,7 +1290,7 @@ public static class MaritimeKit
                 k.Box(new Vector3(cx - hx * 0.7f, 0, cz - hz * 0.7f), new Vector3(cx + hx * 0.7f, 0.04f, cz + hz * 0.7f));
                 k.Use("brass", Palette.TarnishedBrass, 0.3f, 0.6f);
                 k.Cylinder(new Vector3(cx, 0.7f, cz), new Vector3(cx, 0.8f, cz), 0.07f, 10, radiusB: 0.04f);
-                k.Use("lamp_lens", Palette.LampAmber, 0, 0, tile: 0.25f);
+                k.Use("lantern_pane", Palette.LampAmber, 0, 0, tile: 0.25f);
                 k.Emissive = 1;
                 k.Cylinder(new Vector3(cx, 0.8f, cz), new Vector3(cx, 1.02f, cz), 0.05f, 10, radiusB: 0.035f);
                 k.Emissive = 0;
@@ -1200,7 +1324,7 @@ public static class MaritimeKit
                 k.Use("wood_floor", Palette.DeepBrown, 0.8f, 0.15f, tile: 1);
                 k.Tint = new Vector3(0.6f, 0.42f, 0.3f);
                 k.Box(new Vector3(cx - hx, 0, cz - hz), new Vector3(cx + hx, ht, cz + hz));
-                k.Use("lamp_lens", Palette.LampAmber, 0, 0, tile: 0.25f);
+                k.Use("lantern_pane", Palette.LampAmber, 0, 0, tile: 0.25f);
                 k.Emissive = 1;
                 k.BoxAt(new Vector3(cx + hx * 0.6f * Math.Sign(cx), ht + 0.14f, cz), new Vector3(0.045f, 0.07f, 0.045f));
                 k.Emissive = 0;
@@ -1485,8 +1609,42 @@ public static class MaritimeKit
         }
     }
 
+    /// <summary>
+    /// A dory afloat (note 692; the director, 14 Oct: a house out on the water needs "a dock and a boat, something that
+    /// shows how the NPC would get to and from that spot"): open, its bow to −Z, the waterline at 0, two thwarts and its
+    /// oars shipped across them, in the yard dories' paints.
+    /// </summary>
+    public static MeshAsset Afloat(Look? look, int variant)
+    {
+        var k = new Kit(look, 9500 + variant);
+        var paint = variant switch { 0 => new Vector3(0.62f, 0.52f, 0.32f), 1 => new Vector3(0.12f, 0.24f, 0.17f), _ => new Vector3(0.42f, 0.1f, 0.08f) };
+        const float half = 0.72f, body = 1.3f, tip = 2.6f, low = -0.22f, top = 0.5f, plank = 0.05f;
+        k.Use("wood_floor", Palette.DeepBrown, 0.8f, 0.1f, tile: 0.8f);
+        k.Tint = paint * 2.2f;
+        foreach (float x in new[] { -half, half - plank })
+            k.Box(new Vector3(x, low, -body), new Vector3(x + plank, top, body), Kit.Faces.Sides | Kit.Faces.PosY);
+        // Its sides drawn in to the stem and the transom's point, both faces (you see in over the gunwale).
+        foreach (float end in new[] { -1f, 1f })
+            foreach (float side in new[] { -1f, 1f })
+            {
+                var a0 = new Vector3(side * half, low, end * body);
+                var a1 = new Vector3(side * half, top, end * body);
+                var t0 = new Vector3(0, low + 0.08f, end * tip);
+                var t1 = new Vector3(0, top + 0.12f, end * tip);
+                k.Quad(a1, t1, t0, a0, twoSided: true);
+            }
+        // The bottom boards, the thwarts and the oars, grey and bare.
+        k.Use("wood_grey", Palette.DeepBrown, 0.9f, 0, tile: 1);
+        k.Box(new Vector3(-half + plank, low, -body), new Vector3(half - plank, low + 0.1f, body), Kit.Faces.PosY);
+        foreach (float z in new[] { -0.55f, 0.6f })
+            k.Box(new Vector3(-half + plank, 0.22f, z - 0.12f), new Vector3(half - plank, 0.28f, z + 0.12f), Kit.Faces.PosY | Kit.Faces.Sides);
+        foreach (float x in new[] { -0.25f, 0.25f })
+            k.Box(new Vector3(x - 0.04f, 0.29f, -1.9f), new Vector3(x + 0.04f, 0.34f, 1.4f), Kit.Faces.PosY | Kit.Faces.Sides);
+        return k.Build($"dory-afloat-{variant}");
+    }
+
     /// <summary>A dory turned over on its blocks: the hull's flat bottom up, its sides drawn in to the bow and stern.</summary>
-    static void Dory(Kit k, float x0, float x1, float z0, float z1, float ht, int variant)
+    internal static void Dory(Kit k, float x0, float x1, float z0, float z1, float ht, int variant)
     {
         // Dory buff, a dark green or an old red (the yard's, not the house's).
         var paint = variant switch { 0 => new Vector3(0.62f, 0.52f, 0.32f), 1 => new Vector3(0.12f, 0.24f, 0.17f), _ => new Vector3(0.42f, 0.1f, 0.08f) };

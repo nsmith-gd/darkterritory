@@ -213,6 +213,8 @@ passes what the connection has shown it can carry. Measure with the harness on a
 
 ### Gap 6. Players off Steam have no relay (the director's decision)
 
+*The director, 20 Oct: EOS. Built as note 896 (n1-N1, queue #274): the third online platform, joined by a code, relayed when NAT blocks the direct path; the real SDK's first compile and first evening are its handoff's next steps.*
+
 The itch.io build has no platform: joiners need the host's address and an open port, which is where most of Lethal
 Company's "can't connect" threads come from on the Steam side too, except that there SDR saves them. The design allows
 a third carrier (EOS P2P, which Epic runs free of charge and which works without an Epic account for the host's
@@ -221,6 +223,8 @@ Lethal Company did, and say so on the itch page (LAN and direct IP work), or tak
 fine; the second is a queue item of a week.
 
 ### Gap 7. Note 450's "not yet" (N1 or an agent; small)
+
+*Done as note 535 (B3, queue #275).*
 
 The host can't change the password or the mood once the lobby's open; a password guesser isn't slowed beyond a
 connection per guess; nothing lists a crew's record distance beside a competitive run. All small, all in N1's area.

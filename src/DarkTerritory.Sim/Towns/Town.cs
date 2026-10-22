@@ -2,6 +2,7 @@ using Ballast;
 using DarkTerritory.Sim.Player;
 using DarkTerritory.Sim.Rail;
 using DarkTerritory.Sim.Run;
+using DarkTerritory.Sim.Train;
 
 namespace DarkTerritory.Sim.Towns;
 
@@ -28,34 +29,37 @@ public sealed class Town
         Tuning = tuning;
         Looks = looks ?? new HouseLooks();
         _line = line;
+        Ground = TownGround.Of(plan);
         Walls = [.. BuildWalls()];
+        Ladders = [.. BuildLadders()];
         Index();
         _behind = new double[plan.People.Count];
         Rounds = TownRounds.Plan(this);
     }
 
     /// <summary>
-    /// The town at the end of <paramref name="route"/> (ARCHITECTURE §8 note 600): <paramref name="arrival"/>, built from the
-    /// site the next night's departure will build it from (its gate <paramref name="gate"/> from its yard's far end, as this
-    /// night's departure gate is from its start; <paramref name="last"/>, this night's departure town's custom, the one it
-    /// won't share), so the same plan. It stands in <paramref name="line"/> turned round from that far end
-    /// (<see cref="RailLine.Turned"/>, <see cref="Turn"/>), its gate toward the train coming in. Null for a silent settlement,
-    /// a hand-laid line, or no town named.
+    /// The town at the end of <paramref name="route"/> (ARCHITECTURE §8 notes 600, 692): <paramref name="arrival"/>, built from
+    /// the site the next night's departure will build it from (its gate <paramref name="gate"/> along its own frame, as this
+    /// night's departure's is; <paramref name="last"/>, this night's departure town's custom, the one it won't share), so the
+    /// same plan. It stands in <paramref name="line"/> the same way round as it will when the next night leaves it
+    /// (<see cref="RailLine.From"/>, <see cref="Origin"/>): its way in from the last night (its rear wall's gate) at the
+    /// terminus's gate, where the train comes in, and its way out to the next at the far end of its yard, so this night's
+    /// line could run on through it into the next night's. Null for a silent settlement, a hand-laid line, or no town named.
     /// </summary>
     public static Town? AtTerminus(TownContent content, Route.Route route, RailLine line, double gate, IReadOnlyList<string> roster, string? last,
         TownAt? arrival)
     {
         if (arrival is null || !content.Tuning.Enabled || route.Plan?.Terminus is not { Silent: false } terminus)
             return null;
-        double turn = Math.Min(terminus.GateM + gate, line.Length);
-        var frame = line.Turned(turn, Math.Min(turn, gate + FrameBeyond));
         var plan = TownGenerator.Generate(content, new TownSite(arrival.Name, arrival.Industry, gate, arrival.Seed, roster, last, arrival.Burnt));
-        return new Town(plan, content.Tuning, frame, content.Looks) { Turn = turn };
+        double origin = terminus.GateM - plan.Frame.Entry;
+        var frame = line.From(origin, gate + FrameBeyond);
+        return new Town(plan, content.Tuning, frame, content.Looks) { Origin = origin };
     }
 
-    /// <summary>How far past its gate a terminus town's frame runs on, out over the approach (m): far enough for anything
+    /// <summary>How far past its way out a terminus town's frame runs on (m), where the line does: far enough for anything
     /// placed off it. Not a design number.</summary>
-    const double FrameBeyond = 600;
+    const double FrameBeyond = 100;
 
     /// <summary>
     /// The night's clock the townspeople's rounds run on (seconds; note 353): <see cref="DarkTerritory.Sim.World"/> sets
@@ -116,15 +120,75 @@ public sealed class Town
     /// The yard's fight (ARCHITECTURE §8 note 608; note 589): where along this town's own frame (its S) a creature brought in
     /// through the gate is being fought, while it is; null, none. The town's guards leave their posts for the yard and stand
     /// round it, firing (<see cref="OnTheYard"/>). Whatever draws the town sets it from what it sees: like who's held to
-    /// talk, it moves nobody in the night.
+    /// talk, it moves nobody in the night. Set from none, the fight's begun at the town's <see cref="Clock"/> then, and the
+    /// guards run out to it from where they were (note 951).
     /// </summary>
-    public double? Fight { get; set; }
+    public double? Fight
+    {
+        get => _fight;
+        set
+        {
+            if (value is not null && _fight is null)
+                _fightFrom = Clock;
+            _fight = value;
+        }
+    }
+
+    double? _fight;
+    double _fightFrom;
 
     /// <summary>Who turns out to the yard's fight (note 608): the gate's keeper and the town's guards.</summary>
     public static bool Guards(Townsperson p) => p.Role is "gatekeeper" or "guard";
 
     // Out on the yard (note 608): this far out from the line either side, and this far apart along it.
     const double YardOut = 5.5, YardApart = 6;
+
+    // Turning out (note 951; GDD v1.6 "Not yet", note 608's "the guards step from their posts to the yard rather than running
+    // there"): the wall guns open at once, and the guards look to it where they stand, then set off this long after (s), each
+    // a beat after the one before, and run (m/s) to their places round it. The fight's run.json broughtIn.fightSeconds (8) and
+    // a big town's guards are posted hundreds of metres off, so one further than RunFrom (m) comes running in from that far
+    // out along their way: in the crew's sight they all run in, and are there for most of it. Not design numbers: how a town
+    // is drawn.
+    const double TurnOut = 0.8, TurnOutEach = 0.15, GuardRun = 6, RunFrom = 20;
+
+    /// <summary>
+    /// Where the <paramref name="k"/>th guard is <paramref name="since"/> seconds into the yard's fight at <paramref name="fight"/>
+    /// (note 951): stood where they were at <paramref name="from"/>, looking to it, till their turn to set off; then running
+    /// for their place round it (<see cref="OnTheYard"/>); there, at it.
+    /// </summary>
+    public TownPose TurningOut(int k, double fight, double since, Double3 from, double up = 0)
+    {
+        var there = OnTheYard(k, fight, up);
+        var way = (there.Feet - from) with { Y = 0 };
+        if (way.Length > RunFrom)
+        {
+            from = there.Feet - way.Normalized * RunFrom;
+            way = (there.Feet - from) with { Y = 0 };
+        }
+        double run = since - TurnOut - k * TurnOutEach, left = way.Length;
+        var look = (World(fight, 0, up) - from) with { Y = 0 };
+        if (run <= 0)
+            return new TownPose(from, look.Length > 1e-6 ? look.Normalized : there.Facing, "idle", false);
+        double gone = run * GuardRun;
+        if (gone >= left)
+            return there;
+        var dir = way.Normalized;
+        var at = from + dir * gone;
+        return new TownPose(at with { Y = from.Y + (there.Feet.Y - from.Y) * (gone / left) }, dir, "run", true);
+    }
+
+    /// <summary>
+    /// A staged yard fight (note 951; <c>dt screenshot --arrival brought --patrol --fight s</c>): it began
+    /// <paramref name="secondsAgo"/> by the town's clock, wherever the scene then has it.
+    /// </summary>
+    public void FightBegan(double secondsAgo)
+    {
+        _fight ??= 0;
+        _fightFrom = Clock - secondsAgo;
+    }
+
+    /// <summary>Seconds since the yard's fight began, by the town's clock (note 951); negative with none.</summary>
+    public double FightSeconds => _fight is null ? -1 : Clock - _fightFrom;
 
     /// <summary>
     /// Where the <paramref name="k"/>th of the town's guards stands to the yard's fight at <paramref name="fight"/> (note 608):
@@ -138,16 +202,76 @@ public sealed class Town
         return new TownPose(World(s, d, up), Direction(s, fight - s, -d), "guard", false);
     }
 
+    // Who's stopped to look at something (note 730: the bell rung, a crewmate's wave), by id: from when to when on the clock,
+    // how far into their round they'd got (it waits for them, as for a talk), where they look and what they do. Kept on every
+    // machine from the host's replicated happenings, alike; like a talk, it moves nobody in the night.
+    readonly Dictionary<int, (double Start, double End, double Own, Double3 Look, string Act)> _reacting = [];
+
+    /// <summary>
+    /// Stops <paramref name="person"/> where they are on their round from <paramref name="start"/> on the clock for
+    /// <paramref name="seconds"/>, looking at <paramref name="look"/> and doing <paramref name="act"/> (note 730: "idle" to
+    /// stand and stare at the bell, "wave" to wave back). Their round waits for them. A second reason while they're stopped
+    /// keeps them there longer, looking at the new one.
+    /// </summary>
+    public void React(int person, double start, double seconds, Double3 look, string act)
+    {
+        if (person < 0 || person >= _behind.Length || seconds <= 0)
+            return;
+        double end = start + seconds;
+        if (_reacting.TryGetValue(person, out var was) && start < was.End)
+        {
+            if (end > was.End)
+                _behind[person] += end - was.End;
+            _reacting[person] = (was.Start, Math.Max(end, was.End), was.Own, look, act);
+            return;
+        }
+        // Where their round had got to at the start (a start already past on this machine counts back to it).
+        double own = Own(person) - Math.Max(0, Clock - start);
+        _behind[person] += seconds;
+        _reacting[person] = (start, end, own, look, act);
+    }
+
+    /// <summary>Whether <paramref name="person"/> is stopped looking at something now (note 730), and what they're doing.</summary>
+    public string? Reacting(int person) =>
+        _reacting.TryGetValue(person, out var r) && Clock >= r.Start && Clock < r.End ? r.Act : null;
+
+    /// <summary>
+    /// The council house's bell rope (note 730), at its foot: beside its door in a walled town, on the far side of the door
+    /// from its lamp, against its front. Null in a town without a council house.
+    /// </summary>
+    public Double3? BellRope => Plan.Buildings.FirstOrDefault(b => b.Style == "council") is { } c
+        ? World(c.S - RopeAlong, c.D - Math.Sign(c.D) * (c.Depth / 2 + RopeOut), 0) : null;
+
+    // Where the rope hangs from the council house's door: along its front, and out from it (m). Not design numbers.
+    const double RopeAlong = 2.1, RopeOut = 0.12;
+
     /// <summary>Where somebody is now on their round, which way they face, and what they're doing.</summary>
     public TownPose Now(Townsperson p)
     {
         if (Fight is { } fight && Guards(p))
-            return OnTheYard(Plan.People.Count(q => q.Id < p.Id && Guards(q)), fight, p.Up);
+        {
+            // From where they were on their round as it began (their round's clock run back to then).
+            double since = Math.Max(0, Clock - _fightFrom);
+            var was = At(p, Own(p.Id) - since).Feet;
+            return TurningOut(Plan.People.Count(q => q.Id < p.Id && Guards(q)), fight, since, was, p.Up);
+        }
+        if (_reacting.TryGetValue(p.Id, out var r) && Clock >= r.Start && Clock < r.End)
+        {
+            var there = At(p, r.Own);
+            var look = (r.Look - there.Feet) with { Y = 0 };
+            return new TownPose(there.Feet, look.Length > 1e-6 ? look.Normalized : there.Facing, r.Act, false);
+        }
+        return At(p, Own(p.Id));
+    }
+
+    /// <summary>Where somebody is <paramref name="own"/> seconds into their round (<see cref="Now"/>, with the clock given).</summary>
+    TownPose At(Townsperson p, double own)
+    {
         var at = World(p.S, p.D, p.Up);
         if (Rounds[p.Id] is not { Stops.Count: > 0 } r)
             return new TownPose(at, Direction(p.S, p.FaceS, p.FaceD), p.Pose, false);
         int n = r.Stops.Count;
-        double t = (Own(p.Id) + r.Offset) % r.Period;
+        double t = (own + r.Offset) % r.Period;
         if (t < 0)
             t += r.Period;
         int k = Math.Min(n - 1, (int)(t / r.Slot));
@@ -260,12 +384,25 @@ public sealed class Town
     /// <summary>The frame it stands in: the line, or for a terminus's town the line turned round (note 600).</summary>
     public RailLine Line => _line;
 
-    /// <summary>For a terminus's town (note 600), the main line's distance its frame turns round from (<see cref="Line"/>'s
-    /// 0); null for one standing in the line's own frame.</summary>
-    public double? Turn { get; init; }
+    /// <summary>For a terminus's town (notes 600, 692), the main line's distance its frame starts at (<see cref="Line"/>'s 0),
+    /// the same way round; null for one standing in the line's own frame.</summary>
+    public double? Origin { get; init; }
 
-    /// <summary>Where a distance along the main line is in this town's own frame (note 600's turn; note 608).</summary>
-    public double Along(double main) => Turn is { } turn ? turn - main : main;
+    /// <summary>Where a distance along the main line is in this town's own frame (note 608; note 692).</summary>
+    public double Along(double main) => Origin is { } o ? main - o : main;
+
+    /// <summary>
+    /// The town's straight frame (note 692): a rail sample at its frame's 0 on the straight through its way in, so a point
+    /// is <c>Position + Tangent·s + Right·d</c>. The yard is straight from its way in on, so this is where
+    /// <see cref="World"/> has things there; behind it (an arrival's approach) the line may bend away from it.
+    /// </summary>
+    public TrackSample Anchor()
+    {
+        double entry = Math.Max(0, Plan.Frame.Entry);
+        var t = _line.Sample(entry);
+        var along = new Double3(t.Tangent.X, 0, t.Tangent.Z).Normalized;
+        return t with { Position = t.Position - along * entry };
+    }
 
     /// <summary>How its houses look (content/world/houses.json's palettes): the art's, carried with the town.</summary>
     public HouseLooks Looks { get; }
@@ -274,11 +411,51 @@ public sealed class Town
     /// <summary>The square's walls, its buildings, the solid things in it and its people, as boxes nobody walks through.</summary>
     public IReadOnlyList<Wall> Walls { get; }
 
-    /// <summary>A point in the town's rail frame, in the world: along the line, out to the side, up off the ground.</summary>
+    /// <summary>
+    /// Its ladders (note 973; the director, 16 Oct: "they have little ladders to go up to them, but the ladders aren't
+    /// climbable. Those should be climbable"): each houseboat's, leant against its bow at the door from
+    /// <see cref="HouseDesign.LadderOut"/> out, up to the deck's edge, the foredeck in past it.
+    /// </summary>
+    public IReadOnlyList<WorldLadder> Ladders { get; }
+
+    IEnumerable<WorldLadder> BuildLadders()
+    {
+        foreach (var h in Plan.Houses)
+        {
+            if (!h.Design.Hull || h.Layout is not null || h.Kind == HouseKind.Burnt)
+                continue;
+            var (fs, fd) = h.Body(h.Design.DoorU, -HouseDesign.HullBow - HouseDesign.LadderOut);
+            var (ts, td) = h.Body(h.Design.DoorU, -HouseDesign.HullBow);
+            // The deck's height is the hull's box's: on the ground at the hull's middle, as Box stands it.
+            var (hs, hd) = h.Body(0, (h.Depth + HouseDesign.HullEnds - HouseDesign.HullBow) / 2);
+            var foot = World(fs, fd);
+            var top = World(ts, td) with { Y = World(hs, hd, HouseDesign.HullLift).Y };
+            var inward = (top - foot) with { Y = 0 };
+            yield return new WorldLadder(foot, top, inward.Normalized, HouseDesign.LadderOnto);
+        }
+    }
+
+    /// <summary>Its ground (note 692): a town type's terraces, benches, decks and water; the yard's level everywhere else.</summary>
+    public TownGround Ground { get; }
+
+    /// <summary>
+    /// Lays its ground over <paramref name="main"/>'s land (note 692), so what's stood on there is its terraces, decks and
+    /// basins' beds: the world does it as it puts the town down, on every machine alike.
+    /// </summary>
+    public void Lay(RailLine main)
+    {
+        if (Ground.Flat || main.Conditions is not { } c || (c is Net.HazardConditions h ? h.Inner : c) is not LineGen.PlanConditions pc)
+            return;
+        var start = Anchor();
+        pc.Terrain.Lay(Ground, start.Position, start.Tangent);
+    }
+
+    /// <summary>A point in the town's rail frame, in the world: along the line, out to the side, up off the ground (a town
+    /// type's terrace or deck there, note 692).</summary>
     public Double3 World(double s, double d, double up = 0)
     {
         var t = _line.Sample(s);
-        return t.Position + Right(t) * d + Double3.Up * up;
+        return t.Position + Right(t) * d + Double3.Up * (up + Ground.Level(s, d));
     }
 
     /// <summary>A direction in the rail frame (along the line, across it), level, in the world.</summary>
@@ -306,7 +483,8 @@ public sealed class Town
     public Double3 Door(TownHouse h)
     {
         var (s, d) = h.Body(h.Design.DoorU, h.DoorV - 0.05);
-        return World(s, d, 1.2);
+        // A houseboat's is up on its deck (note 973), at the top of its ladder.
+        return World(s, d, 1.2 + (h.Design.Hull && h.Layout is null ? HouseDesign.HullLift : 0));
     }
 
     /// <summary>What a crewmate on the ground is looking at within reach, the least angle off the view's centre.</summary>
@@ -375,10 +553,11 @@ public sealed class Town
         return true;
     }
 
+    // (Or stands under it: a heap's lower layers, note 869, hold the point up its side that's looked at.)
     static bool Holds(Wall w, Double3 p, double margin)
     {
         var l = w.ToLocal(p);
-        return Math.Abs(l.X) <= w.HalfLength + margin && Math.Abs(l.Z) <= w.HalfWidth + margin && l.Y >= w.Bottom - margin && l.Y <= w.Top + margin;
+        return Math.Abs(l.X) <= w.HalfLength + margin && Math.Abs(l.Z) <= w.HalfWidth + margin && l.Y >= w.Bottom - margin;
     }
 
     /// <summary>Whether the segment from <paramref name="a"/> to <paramref name="b"/> passes through a wall's box (slabs, in its frame).</summary>
@@ -445,14 +624,40 @@ public sealed class Town
             {
                 // A thing turned to face along the line (a stall against the square's end) is turned a quarter.
                 bool turned = Math.Abs(f.FaceS) > Math.Abs(f.FaceD);
-                yield return Box(f.S, f.D, turned ? f.SolidD : f.SolidS, turned ? f.SolidS : f.SolidD, Math.Max(1, f.Height));
+                // A heap (slag, coal) is a mound walked up, in layers (note 869), not a block stopping you at its foot.
+                if (TownFixtures.Heap(f.Kind))
+                {
+                    // Its back (+Z in the art's frame) is away from where it faces.
+                    double face = Math.Max(1e-9, Math.Sqrt(f.FaceS * f.FaceS + f.FaceD * f.FaceD));
+                    foreach (var (hx, hz, back, bottom, top) in TownFixtures.HeapLayers(f.SolidS, f.SolidD, f.Height, HeapStep))
+                        yield return Box(f.S - f.FaceS / face * back, f.D - f.FaceD / face * back, turned ? hz : hx, turned ? hx : hz, top - bottom, up: bottom);
+                }
+                else
+                    yield return Box(f.S, f.D, turned ? f.SolidD : f.SolidS, turned ? f.SolidS : f.SolidD, Math.Max(1, f.Height));
             }
         // Not the people: they go about their rounds (note 353), so a wall of their own would be in a different place on
         // every machine that's stopped somebody to talk.
         foreach (var h in Plan.Houses)
             foreach (var w in HouseWalls(h))
                 yield return w;
+        // A town type's yard walls (note 692): each half its own ward over the yard.
+        foreach (var (s0, d0, s1, _) in Plan.Wards)
+            yield return Box((s0 + s1) / 2, d0, (s1 - s0) / 2, Run.Fortresses.WardHalf, Run.Fortresses.WardHeight);
+        // A town type's ground (note 692): its terraces' retaining walls, the rails along its deep water's edges.
+        foreach (var (s0, d0, s1, d1, bottom, top) in Ground.Edges())
+        {
+            var t = _line.Sample((s0 + s1) / 2);
+            var at = t.Position + Right(t) * ((d0 + d1) / 2);
+            var along = new Double3(t.Tangent.X, 0, t.Tangent.Z).Normalized;
+            bool acrossLine = Math.Abs(s1 - s0) < 1e-6;
+            var axis = acrossLine ? Right(t) : along;
+            double run = (acrossLine ? Math.Abs(d1 - d0) : Math.Abs(s1 - s0)) / 2;
+            yield return new Wall(at with { Y = 0 }, axis, run + 0.05, EdgeHalf, t.Position.Y + bottom, t.Position.Y + top);
+        }
     }
+
+    /// <summary>A retaining wall's or a rail's half-thickness (m): solid to a ball and a body, thin to the eye.</summary>
+    const double EdgeHalf = 0.2;
 
     /// <summary>
     /// A house's walls: a shut one is a box (a burnt one's knee-high), an open one its own walls with the front door and
@@ -494,6 +699,9 @@ public sealed class Town
                 yield return Part(x.U - x.HalfU, x.U + x.HalfU, x.V - x.HalfV, x.V + x.HalfV, Math.Max(0.5, x.Height));
     }
 
+    /// <summary>How deep a heap's layers are (m): under player.json stepUp (0.35), so a heap is walked up. Not a design number.</summary>
+    const double HeapStep = 0.3;
+
     /// <summary>A box in the rail frame, square to the line (or <paramref name="turn"/> off it, radians: a turned house's
     /// body, note 490): half its length along it and across it, its height.</summary>
     Wall Box(double s, double d, double halfS, double halfD, double height, double up = 0, double turn = 0)
@@ -502,6 +710,7 @@ public sealed class Town
         var at = t.Position + Right(t) * d;
         var along = new Double3(t.Tangent.X, 0, t.Tangent.Z).Normalized;
         var axis = turn == 0 ? along : (along * DMath.Cos(turn) + Right(t) * DMath.Sin(turn)).Normalized;
-        return new Wall(at with { Y = 0 }, axis, halfS, halfD, at.Y + up - 0.5, at.Y + up + height);
+        double level = Ground.Level(s, d);
+        return new Wall(at with { Y = 0 }, axis, halfS, halfD, at.Y + level + up - 0.5, at.Y + level + up + height);
     }
 }

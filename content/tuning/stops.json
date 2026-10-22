@@ -60,6 +60,11 @@
     // so a village measures where D.1's bands were set.
     "secondFindChance": 0.45,
     "thirdFindChance": 0.15,
+    // Note 738 (the director, 14 Oct playtest: "I don't actually ever find loot like on the floor or anything. It's not really
+    // rewarding me for being attentive"; "smaller bits of loot"): small things lying on the floor of a plain open house (a
+    // candle, a tin, a twist of treats), in its corners, seen and taken at once: each such house at `chance`, `count` of
+    // them; a village with an open house has one at least. What they pay is loot.json's looseBudget.
+    "loose": { "chance": 0.5, "count": [1, 1] },
     "outbuildings": [1, 2],
     "wellChance": 0.5,
     // A village set back from the line (arrangement "setback") sits this much further out, within this range.

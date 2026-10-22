@@ -112,7 +112,7 @@ public sealed class Lodger(int id) : Enemy(id)
                     var close = living.Where(c => HouseWays.Flat(c.World - me) <= t.ShriekWithin && !HouseWays.Blocked(walls, me, c.World)).ToList();
                     if (_rest > 0 || (close.Count == 0 && (_noticed < t.NoticeSeconds || inside.Count == 0)))
                         return;
-                    var pick = (close.Count > 0 ? close : inside).OrderBy(c => HouseWays.Flat(c.World - me)).ThenBy(c => c.Player.Id).First();
+                    var pick = (close.Count > 0 ? close : inside).OrderBy(c => ctx.Weigh(c.Player.Id, HouseWays.Flat(c.World - me))).ThenBy(c => c.Player.Id).First();
                     Shriek(ctx, pick.Player.Id);
                     return;
                 }
@@ -222,7 +222,7 @@ public sealed class Lodger(int id) : Enemy(id)
     }
 
     /// <summary>The one-hit kill: its grab's window is all but none (the shriek was the warning).</summary>
-    protected override void Punish(EnemyContext ctx, int victim) => Kill(ctx, victim, DeathCause.Mauled);
+    protected override void Punish(EnemyContext ctx, int victim) => Kill(ctx, victim, DeathCause.Lodger);
 
     /// <summary>
     /// Struck: only blows as it walks back to its corner (from behind, it's not looking) hurt it; one at it in its corner

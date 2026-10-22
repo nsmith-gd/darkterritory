@@ -21,7 +21,7 @@ public class CarFireTests
         var room = n.Train.Frames[car].Shape.Interior!.Value;
         var ext = Assert.Single(n.World.Bodies.All, b => b.Kind == BodyKind.Extinguisher && b.Parent == car);
         Assert.Equal(car, ext.Home);
-        var fire = n.World.AddEnemy(id => CarFire.In(id, n.Train, car, 2, Tuning.Enemies.CarFire));
+        var fire = n.World.AddEnemy(id => CarFire.In(id, n.Train, car, 2, Tuning.Enemies.CarFire, FireCause.Set));
         // Stood by the extinguisher: Use takes it.
         n.Crew[1] = new PlayerState { Parent = car, Position = ext.Centre with { Y = room.Min.Y, Z = ext.Centre.Z + 0.5 }, Surface = Surface.Deck, Health = P.Health, Pitch = -0.6 };
         n.Run(0.2, _ => new PlayerIntent { Buttons = PlayerButtons.Use });
@@ -41,9 +41,9 @@ public class CarFireTests
         // extinguisher off its mount, sprayed from the aisle, before it's taken hold.
         var n = new Night(5, speed: 10);
         n.World.MountExtinguishers();
-        var bot = new Bots.RoofWalkerBot(3, Tuning.Player.Cold) { Me = 1 };
+        var bot = new Bots.RoofWalkerBot(3) { Me = 1 };
         n.Crew[1] = PlayerMotor.SpawnOnRoof(n.Train, 2, 0, P);
-        var fire = n.World.AddEnemy(id => CarFire.In(id, n.Train, 3, 2, Tuning.Enemies.CarFire));
+        var fire = n.World.AddEnemy(id => CarFire.In(id, n.Train, 3, 2, Tuning.Enemies.CarFire, FireCause.Set));
         for (int s = 0; s < 60 && !fire.Gone; s++)
             n.Run(1, id => bot.Decide(n.Crew[id], n.World, n.World.Tick, out _));
         Assert.True(fire.Gone, $"{fire.Phase} at {fire.Extra:0.00}");
@@ -72,7 +72,7 @@ public class CarFireTests
         s.Flags |= PlayerFlags.Seated;
         n.Crew[1] = s;
         gunner.Crew = [(1, s)];
-        var fire = n.World.AddEnemy(id => CarFire.In(id, n.Train, van - 1, 2, Tuning.Enemies.CarFire));
+        var fire = n.World.AddEnemy(id => CarFire.In(id, n.Train, van - 1, 2, Tuning.Enemies.CarFire, FireCause.Set));
         for (int t = 0; t < 90 && !fire.Gone; t++)
             n.Run(1, id => gunner.Decide(n.Crew[id], n.World, n.World.Tick, out _));
         Assert.True(fire.Gone, $"{fire.Phase} at {fire.Extra:0.00}, the gunner at car {n.Crew[1].Parent} {n.Crew[1].Surface}");
@@ -94,7 +94,7 @@ public class CarFireTests
         bot.Calls = calls;
         n.Crew[1] = PlayerMotor.SpawnOnRoof(n.Train, 2, 0, P);
         bot.Crew = [(1, n.Crew[1])];
-        var fire = n.World.AddEnemy(id => CarFire.In(id, n.Train, 3, 2, Tuning.Enemies.CarFire));
+        var fire = n.World.AddEnemy(id => CarFire.In(id, n.Train, 3, 2, Tuning.Enemies.CarFire, FireCause.Set));
         for (int t = 0; t < 60 && !fire.Gone; t++)
             n.Run(1, id => bot.Decide(n.Crew[id], n.World, n.World.Tick, out _));
         Assert.True(fire.Gone, $"{fire.Phase} at {fire.Extra:0.00}, the walker ({bot.Job?.Job}) at car {n.Crew[1].Parent} {n.Crew[1].Surface}");
@@ -124,7 +124,7 @@ public class CarFireTests
         // v1.1 App. A.5: "lamps off when they swarm". Car 3's lamp lit, the flies on it, a walker on car 2's roof. Stopped: they
         // come to nothing else, and go on their own once it's under way (note 269).
         var n = new Night(5, speed: 0);
-        var bot = new Bots.RoofWalkerBot(3, Tuning.Player.Cold) { Me = 1 };
+        var bot = new Bots.RoofWalkerBot(3) { Me = 1 };
         n.Crew[1] = PlayerMotor.SpawnOnRoof(n.Train, 2, 0, P);
         var flies = n.World.AddEnemy(id => FireFlies.OnLamp(id, n.Train, 3));
         n.Run(Tuning.Enemies.FireFlies.IgniteSeconds + 2, id => bot.Decide(n.Crew[id], n.World, n.World.Tick, out _));
@@ -143,7 +143,7 @@ public class CarFireTests
         n.Train.Vehicles[3].DoorsOpen = 0;
         n.Train.Vehicles[3].ToggleDoor(Bots.StopHand.SideDoor(shape, 1)!.Value);
         var tread = shape.Solids.Where(s => s.Part == PartKind.Steps && s.Box.Max.X < 0 && s.Box.Max.Z < -1).MaxBy(s => s.Box.Max.Y).Box;
-        var bot = new Bots.RoofWalkerBot(3, Tuning.Player.Cold) { Me = 1 };
+        var bot = new Bots.RoofWalkerBot(3) { Me = 1 };
         n.Crew[1] = new PlayerState { Parent = 3, Position = tread.Centre with { Y = tread.Max.Y }, Surface = Surface.Deck, Health = P.Health };
         var flies = n.World.AddEnemy(id => FireFlies.OnLamp(id, n.Train, 3));
         n.Run(Tuning.Enemies.FireFlies.IgniteSeconds + 2, id => bot.Decide(n.Crew[id], n.World, n.World.Tick, out _));
@@ -161,9 +161,9 @@ public class CarFireTests
         n.World.MountExtinguishers();
         int car = n.Train.Dynamics.Consist.Vehicles[1].Id;
         Assert.NotEmpty(n.Train.Frames[car].Shape.Lockers);
-        var bot = new Bots.RoofWalkerBot(3, Tuning.Player.Cold) { Me = 1 };
+        var bot = new Bots.RoofWalkerBot(3) { Me = 1 };
         n.Crew[1] = PlayerMotor.SpawnOnRoof(n.Train, car + 1, 0, P);
-        var fire = n.World.AddEnemy(id => CarFire.In(id, n.Train, car, 2, Tuning.Enemies.CarFire));
+        var fire = n.World.AddEnemy(id => CarFire.In(id, n.Train, car, 2, Tuning.Enemies.CarFire, FireCause.Set));
         for (int s = 0; s < 60 && !fire.Gone; s++)
             n.Run(1, id => bot.Decide(n.Crew[id], n.World, n.World.Tick, out _));
         Assert.True(fire.Gone, $"{fire.Phase} at {fire.Extra:0.00}; the walker {bot.TendStep ?? bot.WarmUpStep} on {n.Crew[1].Parent} at {n.Crew[1].Position}");
@@ -184,11 +184,11 @@ public class CarFireTests
         n.Train.Vehicles[car].ToggleDoor(door);
         var (at, _) = Bots.WarmUp.Inside(shape, door);
         var room = shape.Interior!.Value;
-        var fire = n.World.AddEnemy(id => CarFire.In(id, n.Train, car, 2, Tuning.Enemies.CarFire));
+        var fire = n.World.AddEnemy(id => CarFire.In(id, n.Train, car, 2, Tuning.Enemies.CarFire, FireCause.Set));
         var bots = new List<Bots.RoofWalkerBot>();
         for (int i = 1; i <= 3; i++)
         {
-            bots.Add(new Bots.RoofWalkerBot(i, Tuning.Player.Cold) { Me = i });
+            bots.Add(new Bots.RoofWalkerBot(i) { Me = i });
             // Where they stood: out past the wall, at the doorway's forward edge.
             var opening = shape.DoorList.First(d => d.Index == door).Box;
             n.Crew[i] = new PlayerState
@@ -220,9 +220,9 @@ public class CarFireTests
         var room = n.Train.Frames[car].Shape.Interior!.Value;
         var ext = n.World.Bodies.SpawnCrate(n.Train, car, new Double3(Tuning.Train.Geometry.Interior!.DoorX, room.Min.Y + 0.1, -3), BodyKind.Extinguisher);
         ext.Home = car;
-        var bot = new Bots.RoofWalkerBot(3, Tuning.Player.Cold) { Me = 1 };
+        var bot = new Bots.RoofWalkerBot(3) { Me = 1 };
         n.Crew[1] = new PlayerState { Parent = car, Position = new Double3(Tuning.Train.Geometry.Interior.DoorX, room.Min.Y, 5), Surface = Surface.Deck, Health = P.Health };
-        var fire = n.World.AddEnemy(id => CarFire.In(id, n.Train, car, 0, Tuning.Enemies.CarFire));
+        var fire = n.World.AddEnemy(id => CarFire.In(id, n.Train, car, 0, Tuning.Enemies.CarFire, FireCause.Set));
         for (int s = 0; s < 40 && !fire.Gone; s++)
             n.Run(1, id => bot.Decide(n.Crew[id], n.World, n.World.Tick, out _));
         Assert.True(fire.Gone, $"{fire.Phase} at {fire.Extra:0.00}; the walker {bot.TendStep ?? bot.WarmUpStep} at {n.Crew[1].Position}");
@@ -238,9 +238,9 @@ public class CarFireTests
         n.World.MountExtinguishers();
         int van = n.Train.Dynamics.Consist.Vehicles[^1].Id;
         Assert.Equal(VehicleKind.Guard, n.Train.Vehicles[van].Kind);
-        var bot = new Bots.RoofWalkerBot(3, Tuning.Player.Cold) { Me = 1 };
+        var bot = new Bots.RoofWalkerBot(3) { Me = 1 };
         n.Crew[1] = PlayerMotor.SpawnOnRoof(n.Train, van - 1, 0, P);
-        var fire = n.World.AddEnemy(id => CarFire.In(id, n.Train, van, 0, Tuning.Enemies.CarFire));
+        var fire = n.World.AddEnemy(id => CarFire.In(id, n.Train, van, 0, Tuning.Enemies.CarFire, FireCause.Set));
         for (int s = 0; s < 60 && !fire.Gone; s++)
             n.Run(1, id => bot.Decide(n.Crew[id], n.World, n.World.Tick, out _));
         Assert.True(fire.Gone, $"{fire.Phase} at {fire.Extra:0.00}; the walker {n.Crew[1].Surface} on {n.Crew[1].Parent} at {n.Crew[1].Position}");
@@ -296,7 +296,7 @@ public class CarFireTests
         n.Train.Vehicles[car].Cargo = CargoKind.Ammunition;
         var room = n.Train.Frames[car].Shape.Interior!.Value;
         var child = n.World.Bodies.SpawnCrate(n.Train, car, new Double3(room.Centre.X, room.Min.Y + 0.1, room.Max.Z - 1), BodyKind.Child);
-        var fire = n.World.AddEnemy(id => CarFire.In(id, n.Train, car, 2, t));
+        var fire = n.World.AddEnemy(id => CarFire.In(id, n.Train, car, 2, t, FireCause.Set));
         n.Crew[1] = new PlayerState { Parent = car, Position = new Double3(room.Centre.X, room.Min.Y, fire.Local.Z + 1), Surface = Surface.Deck, Health = P.Health };
         n.Crew[2] = PlayerMotor.SpawnOnRoof(n.Train, car + 3 > 6 ? 0 : car + 3, 0, P);
         n.Crew[3] = PlayerMotor.SpawnOnRoof(n.Train, car + 1, -4, P);
@@ -324,7 +324,7 @@ public class CarFireTests
     public void AFireInACarOfGoodsNeverExplodes()
     {
         var n = new Night(6, speed: 8);
-        var fire = n.World.AddEnemy(id => CarFire.In(id, n.Train, 3, 2, Tuning.Enemies.CarFire));
+        var fire = n.World.AddEnemy(id => CarFire.In(id, n.Train, 3, 2, Tuning.Enemies.CarFire, FireCause.Set));
         fire.Ablaze(0.97);
         n.Run(20);
         Assert.True(n.Train.Vehicles[3].Integrity > 0);
@@ -350,7 +350,7 @@ public class CarFireTests
         int car = 2;
         var room = n.Train.Frames[car].Shape.Interior!.Value;
         var ext = Assert.Single(n.World.Bodies.All, b => b.Kind == BodyKind.Extinguisher && b.Parent == car);
-        var fire = n.World.AddEnemy(id => CarFire.In(id, n.Train, car, 2, Tuning.Enemies.CarFire));
+        var fire = n.World.AddEnemy(id => CarFire.In(id, n.Train, car, 2, Tuning.Enemies.CarFire, FireCause.Set));
         n.Crew[1] = new PlayerState { Parent = car, Position = ext.Centre with { Y = room.Min.Y, Z = ext.Centre.Z + 0.5 }, Surface = Surface.Deck, Health = P.Health, Pitch = -0.6 };
         n.Run(0.2, _ => new PlayerIntent { Buttons = PlayerButtons.Use });
         n.Run(0.2);
@@ -377,6 +377,36 @@ public class CarFireTests
     }
 
     [Fact]
+    public void TwoExtinguishersOnOneCellCoolItTwiceAsFast()
+    {
+        // Note 752 (GDD §12, one can, two do it faster): each sprayer cools the cell it's aimed at by its own sprayPerSecond,
+        // so two on one cell already put it out twice as fast; pinned here.
+        double Drop(int sprayers)
+        {
+            var (n, fire, _, room) = Armed();
+            fire.Ablaze(0.97);
+            var grid = FireGrid.Of(n.Train, 2, Tuning.Enemies.CarFire.CellSize)!;
+            int cell = grid.FloorAt(fire.Local);
+            var at = grid.Centre[cell];
+            n.Crew[1] = Aim(n.Crew[1] with { Position = new Double3(room.Centre.X, room.Min.Y, at.Z - 2) }, at);
+            if (sprayers > 1)
+            {
+                var second = n.World.Bodies.SpawnCrate(n.Train, 2, new Double3(room.Centre.X - 0.3, room.Min.Y, at.Z - 2.2), BodyKind.Extinguisher);
+                second.Carrier = 2;
+                second.Claimed = true;
+                n.Crew[2] = Aim(n.Crew[1] with { Position = new Double3(room.Centre.X - 0.3, room.Min.Y, at.Z - 2.2) }, at);
+            }
+            n.Run(SimConstants.TickSeconds);
+            double was = fire.Heat[cell];
+            n.Run(0.25, _ => new PlayerIntent { Buttons = PlayerButtons.Fire });
+            Assert.True(fire.Heat[cell] > 0, "still alight: the drop isn't cut short at nothing");
+            return was - fire.Heat[cell];
+        }
+        double one = Drop(1), two = Drop(2), spray = Tuning.Enemies.CarFire.SprayPerSecond * 0.25;
+        Assert.InRange(two - one, 0.85 * spray, 1.15 * spray);
+    }
+
+    [Fact]
     public void HeldOnTheFloorAheadTheSprayPutsOutTheWholeStretchRoundTheCarThere()
     {
         // Note 662 (the director, 13 Oct: "point at it ... one grid ahead of me ... hold. And it should dissipate within five
@@ -393,6 +423,48 @@ public class CarFireTests
         Assert.All(grid.Slice[cell], c => Assert.Equal(0, fire.Heat[c]));
         Assert.Contains(Enumerable.Range(0, grid.Count).Where(c => Array.IndexOf(grid.Slice[cell], c) < 0), c => fire.Heat[c] > 0.5);
         Assert.False(fire.Gone);
+    }
+
+    [Fact]
+    public void WorkedDownTheCarStretchByStretchEachGoesOutWhereTheSprayLandsAndTheLastEndsIt()
+    {
+        // Note 866 (the director, 19 Oct: "it aims at a flame, puts it out, then I aim at a different flame and put it out,
+        // etc. etc."): the car at full blaze, a crewmate working it from the rear end to the front, a stretch at a time, each
+        // aimed at on its floor from just behind it and held until it's out. Each goes out where it's sprayed while every
+        // stretch ahead burns on, the ones put out stay out while the next is worked, and the fire ends with the last.
+        var (n, fire, ext, room) = Armed();
+        fire.Ablaze(0.97);
+        n.Run(Tuning.Enemies.MinReactionSeconds + 0.2); // alight: past its telegraph
+        Assert.Equal(SpinePhase.Punish, fire.Phase);
+        var grid = FireGrid.Of(n.Train, 2, Tuning.Enemies.CarFire.CellSize)!;
+        int Stretch(int row) => Enumerable.Range(0, grid.Count).First(c => grid.Row(c) == row && grid.Face[c] == FireFace.Floor);
+        Assert.Equal(4, grid.Along);
+        Assert.All(fire.Heat, h => Assert.True(h > 0.5));
+        for (int row = grid.Along - 1; row >= 0; row--)
+        {
+            var at = grid.Centre[Stretch(row)];
+            n.Crew[1] = Aim(n.Crew[1] with { Position = new Double3(room.Centre.X, room.Min.Y, Math.Min(at.Z + 2, room.Max.Z - 0.4)), Health = P.Health }, at);
+            double held = 0;
+            while (grid.Slice[Stretch(row)].Any(c => fire.Heat[c] > 0) && held < 3 && !fire.Gone)
+            {
+                n.Run(SimConstants.TickSeconds, _ => new PlayerIntent { Buttons = PlayerButtons.Fire });
+                held += SimConstants.TickSeconds;
+            }
+            Assert.True(held <= 1.5, $"stretch {row}: {held:0.00} s held");
+            if (row == 0)
+                break;
+            // Out where it landed: this stretch and the ones before it, every cell; the rest of the car still burning.
+            Assert.False(fire.Gone, $"stretch {row} out ended the whole fire");
+            for (int c = 0; c < grid.Count; c++)
+                if (grid.Row(c) >= row)
+                    Assert.True(fire.Heat[c] == 0, $"stretch {grid.Row(c)} cell {c} at {fire.Heat[c]:0.00} after stretch {row}");
+                else if (grid.Row(c) < row - 1)
+                    Assert.True(fire.Heat[c] > 0.5, $"stretch {grid.Row(c)} cell {c} at {fire.Heat[c]:0.00}, ahead of stretch {row}, not burning");
+            Assert.Equal(SpinePhase.Punish, fire.Phase);
+        }
+        n.Run(SimConstants.TickSeconds);
+        Assert.True(fire.Gone, $"{fire.Heat.Count(h => h > 0)} cells alight after the last stretch, charge {ext.Charge:0.00}");
+        Assert.True(ext.Charge > 0, "the car's out before the charge is");
     }
 
     [Fact]
@@ -465,7 +537,7 @@ public class CarFireTests
         // App. F.1: cells on the floor, walls and roof, never mid-air; fire climbs, so the roof's cells catch before the far
         // end of the floor does.
         var n = new Night(5, speed: 8);
-        var fire = n.World.AddEnemy(id => CarFire.In(id, n.Train, 2, 0, Tuning.Enemies.CarFire));
+        var fire = n.World.AddEnemy(id => CarFire.In(id, n.Train, 2, 0, Tuning.Enemies.CarFire, FireCause.Set));
         var grid = FireGrid.Of(n.Train, 2, Tuning.Enemies.CarFire.CellSize)!;
         n.Run(1);
         Assert.Single(fire.Heat, h => h > 0); // one cell, on the floor, where it was set
@@ -488,7 +560,7 @@ public class CarFireTests
     {
         // App. F.1: "burnt cells char the textures". The car keeps its char after the fire, and every client is told.
         var n = new Night(5, speed: 8);
-        var fire = n.World.AddEnemy(id => CarFire.In(id, n.Train, 2, -3, Tuning.Enemies.CarFire).Ablaze(1, 1));
+        var fire = n.World.AddEnemy(id => CarFire.In(id, n.Train, 2, -3, Tuning.Enemies.CarFire, FireCause.Set).Ablaze(1, 1));
         n.Run(10); // short of the far end's cell catching (3.5 m cells, note 634)
         var car = n.Train.Vehicles[2];
         var grid = FireGrid.Of(n.Train, 2, Tuning.Enemies.CarFire.CellSize)!;
@@ -513,7 +585,7 @@ public class CarFireTests
         // Its way out of a car is through its ends (note 267): alight against car 2's rear wall, it takes car 3, at its front.
         var n = new Night(5, speed: 8);
         var t = Tuning.Enemies.CarFire;
-        var fire = n.World.AddEnemy(id => CarFire.In(id, n.Train, 2, 99, t).Ablaze(1, 1.5));
+        var fire = n.World.AddEnemy(id => CarFire.In(id, n.Train, 2, 99, t, FireCause.Set).Ablaze(1, 1.5));
         n.Run(t.SpreadSeconds + 2);
         var next = Assert.Single(n.World.ActiveEnemies.OfType<CarFire>(), e => e.Attached != 2 && !e.Gone);
         Assert.Equal(n.Train.VehicleBehind(2), next.Attached);
@@ -534,7 +606,7 @@ public class CarFireTests
     }
 
     [Theory]
-    [InlineData(3)]
+    [InlineData(2)]
     [InlineData(5)]
     public void AtAStopTheNearestHandPutsTheFireFliesLampOutWhateverItsPart(int seed)
     {
@@ -550,13 +622,23 @@ public class CarFireTests
         // on. On the 7 km nights of note 554 frontier:7 is another line (its first stop a foundry again): seeds 3 and 5 had
         // the Fire Flies come to a car at a stop. With the bots shutting the doors behind them (note 633) no seed of 1 to 16
         // has them come at all, so the swarm is put on: ten seconds into the first stand, on the first lit car in the engine's
-        // rake, its door left open, as the director would have dealt it.
+        // rake, its door left open, as the director would have dealt it. Note 716's big cab reshuffled the nights (the crew's
+        // walks in and out of the cab are other lengths): seed 3 is seed 2 now, its hands all at the winch and the crane
+        // 30 m off when the swarm came to car 1.
         EnemyKind[] six = [EnemyKind.Mourners, EnemyKind.TowerJaw, EnemyKind.Brakeman, EnemyKind.Knotter, EnemyKind.FreightBeetle, EnemyKind.Hotbox,
             // And the yard's and the houses' (notes 583–586, 592): a stop's own, they change what the bots do there.
-            EnemyKind.Pickers, EnemyKind.Lodger, EnemyKind.Householder, EnemyKind.HollowHouse, EnemyKind.Hanger];
+            EnemyKind.Pickers, EnemyKind.Lodger, EnemyKind.Householder, EnemyKind.HollowHouse, EnemyKind.Hanger,
+            // And the Mouse Moose at the crane (note 790).
+            EnemyKind.MouseMoose];
         var enemies = Tuning.Enemies with
         {
-            Director = Tuning.Enemies.Director with { Roster = [.. Enum.GetValues<EnemyKind>().Except(six).Select(Director.Key)] },
+            // Note 849: the night's free spawns and fill off, as the nights were dealt when this was written: seed 2's free Ribbits at
+            // 125 s kept the hands busy until the swarm came; the test is about the hand's answer to the lamp, not the director's deal.
+            Director = Tuning.Enemies.Director with
+            {
+                Roster = [.. Enum.GetValues<EnemyKind>().Except(six).Select(Director.Key)],
+                Curve = Tuning.Enemies.Director.Curve with { Free = false, Fill = false },
+            },
         };
         var flies = new Dictionary<int, int>(); // swarm → its car
         var lit = new HashSet<int>();           // cars alight (a fire past its smoke)

@@ -39,8 +39,12 @@ public sealed partial class WorldArt
             return built;
         if (TownWay(town, s, lateralMain) is { } way)
             return way;
-        if (arrival is { Turn: { } turn } && TownWay(arrival, turn - s, -lateralMain) is { } there)
+        if (arrival is { Origin: { } origin } && TownWay(arrival, s - origin, lateralMain) is { } there)
             return there;
+        // A town type's own ground (note 692; queue #526, note 799), off the track's bed: its decks, ways, terraces, benches
+        // and basins' beds, and the land it shapes past its wall.
+        if (Math.Abs(lateral) >= 2.95f && (FormGround(town, world, line) ?? FormGround(arrival, world, line)) is { } formed)
+            return formed;
         // A bridge's deck (Bridge: a timber trestle where it's weak, a masonry viaduct's ballasted top where it's sound); down
         // off it, the gorge's floor.
         if (Gorge(route, s) > 0.5f && a < 3.7f)
@@ -92,6 +96,75 @@ public sealed partial class WorldArt
                 return "ground_mud";
         return null;
     }
+
+    /// <summary>
+    /// A town type's ground at a world point (note 692) as <see cref="FormGround(Sim.Towns.Town)"/> and <see cref="FormLand"/> draw it,
+    /// in its straight frame (<see cref="Sim.Towns.Town.Anchor"/>): a deck's grey planks; a way's beaten strip (a harbour's
+    /// and a tidewater town's paved); a basin's mud bed under its water; the yard's level mud and the form's own land on
+    /// its terraces and benches; and past its wall, the land it shapes (rock where it's steep, lichened granite on a
+    /// slope, mud under water, heath up high, grass). Null where the town doesn't draw the ground (a street town, or past
+    /// its apron).
+    /// </summary>
+    public static string? FormGround(Sim.Towns.Town? town, Double3 world, RailLine line)
+    {
+        if (town is null || town.Plan.Form.Length == 0 || town.Ground.Flat)
+            return null;
+        var g = town.Ground;
+        var o = town.Anchor();
+        var along = new Double3(o.Tangent.X, 0, o.Tangent.Z).Normalized;
+        var right = Double3.Cross(along, Double3.Up).Normalized;
+        var p = world - o.Position;
+        double s = Double3.Dot(p, along), d = Double3.Dot(p, right);
+        if (!g.Drawn(s, d, FormApron))
+            return null;
+        if (g.Inside(s, d) || g.Margin <= 0)
+        {
+            if (g.Deck(s, d))
+                return "wood_grey";
+            foreach (var w in town.Plan.Ways)
+                for (int i = 1; !w.Deck && i < w.Points.Count; i++)
+                    if (Sim.Towns.TownDistrict.SegDist(s, d, w.Points[i - 1], w.Points[i]) <= w.Width / 2)
+                        return FormWayTexture(town.Plan.Form);
+            if (g.Water(s, d) is not null)
+                return "ground_mud";
+            return g.Bed(s, d) == 0 ? "ground_mud" : FormTopTexture(town.Plan.Form);
+        }
+        // Past the wall, FormLand's grid: the land a cell's corners stand at, the town's easing into the night's.
+        var terrain = (line.Conditions is Sim.Net.HazardConditions h ? h.Inner : line.Conditions) is PlanConditions pc ? pc.Terrain : null;
+        double H(double cs, double cd)
+        {
+            double w = g.Blend(cs, cd), land = g.Inside(cs, cd) ? g.Level(cs, cd) : g.Bed(cs, cd);
+            if (w >= 1 || terrain is null)
+                return land;
+            var at = o.Position + along * cs + right * cd;
+            return w * land + (1 - w) * (terrain.Height(at.X, at.Z) - o.Position.Y);
+        }
+        double s0 = g.S0 + Math.Floor((s - g.S0) / LandGrid) * LandGrid, d0 = g.D0 + Math.Floor((d - g.D0) / LandGrid) * LandGrid;
+        double ha = H(s0, d0), hb = H(s0 + LandGrid, d0), hc = H(s0 + LandGrid, d0 + LandGrid), hd = H(s0, d0 + LandGrid);
+        double steep = Math.Max(Math.Max(Math.Abs(ha - hb), Math.Abs(hc - hd)), Math.Max(Math.Abs(ha - hd), Math.Abs(hb - hc))) / LandGrid;
+        double mean = (ha + hb + hc + hd) / 4;
+        bool wet = g.Water(s0 + LandGrid / 2, d0 + LandGrid / 2) is { } wl && mean < wl;
+        return FormLandTexture(steep, wet, mean);
+    }
+
+    /// <summary>A town type's terraces' and benches' tops (note 692): the quarry's granite, the tidewater's setts, the harbour's
+    /// heath, the dykeland's marsh, mud elsewhere.</summary>
+    static string FormTopTexture(string form) => form switch
+    {
+        "quarry" => "granite_lichen",
+        "tidewater" => "cobbles",
+        "harbour" => "ground_heath",
+        "dykeland" => "marsh",
+        _ => "ground_mud",
+    };
+
+    /// <summary>A town type's ways on the ground (note 692): a harbour's and a tidewater town's paved, the rest beaten strips.</summary>
+    static string FormWayTexture(string form) => form is "tidewater" or "harbour" ? "cobbles" : "ballast";
+
+    /// <summary>The land a town type shapes past its wall (note 692), by a <see cref="LandGrid"/> cell's steepness, whether
+    /// it's under the town's water, and its mean height over the town's yard.</summary>
+    static string FormLandTexture(double steep, bool wet, double mean) =>
+        steep > 0.7 ? "rock_cliff" : wet ? "ground_mud" : steep > 0.35 ? "granite_lichen" : mean > 8 ? "ground_heath" : "ground_grass";
 
     /// <summary>What's been built on the ground at <paramref name="s"/> along the main line, <paramref name="lateral"/> across, if anything.</summary>
     static string? Built(Route route, double s, double lateral)

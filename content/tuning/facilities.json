@@ -82,8 +82,13 @@
     "bridgeSpeed": 1.2,
     "trolleySpeed": 1.0,
     "hoistSpeed": 0.8,
-    // At the controls: within this of the cab's control stand. The cab's at the gantry's near end, up at the top.
+    // At the controls: within this of the control stand, at the foot of the gantry's near leg.
     "controlsReach": 1.2,
+    // The operator's cab rides the bridge, hung under its far end this far out past it, over the stack's side (GDD §18; the
+    // director, 14 Oct: "my train is blocking the view of the loot ... I'm doing a bit of guesswork here"; note 736). On the
+    // near leg, across the track, the cars' roofs hid the ground round the castings. Out past the far legs, so it clears them
+    // at the ends of the bridge's travel.
+    "cabOut": 1.4,
     // Rigging: on the ground, within this of the hook, the hook low enough to reach, for this long.
     "rigReach": 1.5,
     "rigHeight": 2.2,
@@ -92,19 +97,43 @@
     // as if set down there (note 659: it's no longer lost).
     "dropAbove": 0.6,
     "crushRadius": 1.4,
+    // The hook lets go of a casting only with Fire held this long (note 941; the director, 20 Oct: "Oh, God, I accidentally
+    // clicked and just let it go"): a stray click lets go of nothing. Held on, it lets go of one, not the next.
+    "releaseHold": 0.5,
     // Note 581 (the director, 9 Oct 2026: "extremely difficult to get loot into the cars, the game should be more forgiving"):
     // a casting with its base this low over an open hatch's roof that overlaps the opening but doesn't clear it is eased over
     // it, the bridge and trolley drawn there at guideSpeed (m/s, about the bridge's own speed); let go there, it's put through.
     "guideAbove": 2.5,
-    "guideSpeed": 1.0
+    "guideSpeed": 1.0,
+    // The operator's view from the cab (GDD §18; the director's evening playtest, 13 Oct: "widen the camera angle a little
+    // bit, maybe even go a little more top down"; note 707): this wide (degrees, vertical; it was 55), looking along the
+    // gantry at the trolley. As the hook comes down from the top, over "lowerFrom" m the look tips down toward it, "down" of
+    // the way from the trolley to the hook (0 to 1), and the eye leans "lean" m out toward it (to the cab's window, under its
+    // roof), so with the hook low it looks down over the load into the car. Note 736: the cab rides the bridge over the stack
+    // ("cabOut"), and the look is tipped on down "ground" of the way to the ground under the hook, so the castings under the
+    // cab are in view while the hook's still up; the eye is at the cab's window on the track's side, "window" m in from its
+    // middle (past its floor and platform, which would hide the stack under it).
+    "view": { "fov": 72, "lowerFrom": 4, "down": 0.75, "lean": 0.6, "ground": 0.5, "window": 1.1 },
+    // A friend on the hook (GDD §18; the friendslop audit's griefers, approved by the director, 14 Oct 2026: "The griefer ideas
+    // are funny"; ARCHITECTURE §8 note 726). With the hook empty and no casting to rig in reach, a crewmate with empty hands
+    // within "reach" of it across the ground (m), the hook between "height" [low, high] over their feet (m: within arm's
+    // reach), holds Use for "grabSeconds" (HOLD ON : HOLD [E]) and is on it: stood on it, a hand on the cable, "feetAbove" m
+    // over the hook, up to "riders" at once, "spread" m apart across it. The operator lifts, runs and lowers them as a load,
+    // but with someone on it the hook stops "headroom" m short of its top (crane.height), so their head stays under the bridge
+    // and the trolley: on the foundry's 8 m gantry their feet top out at 6.35 m. Jump lets go, and the drop is a gag (note 802,
+    // the director, 15 Oct 2026: "a silly gag not a big grief"): player.json landing.offTheHook, a knock by the height of at
+    // most 10, never a death, from any gantry. A let-go after a lift that hurts is the operator's in the report ("Dropped from
+    // the crane by Dave, 6 m up."). With "shakeOff" and the CREW MISCHIEF switch on (note 724), the operator's Fire with nothing hooked
+    // shakes them off. Bots never take hold. "enabled": false, nobody does.
+    "hoist": { "enabled": true, "reach": 1.2, "height": [-0.4, 1.9], "grabSeconds": 0.6, "riders": 2, "feetAbove": 0.05, "spread": 0.45, "headroom": 1.7, "shakeOff": true }
   },
   // GDD §18's set pieces (WP15, ARCHITECTURE §8 note 185).
   // The grain elevator: "one spout, one car at a time. Endless repositioning and switch calls" (spec D.2's gravity chute,
   // read for grain). The spout hangs over the track this far back from its buffer stop (or as far back as the standing track
   // allows, short of 4 m from its start), this high; the lever stands "leverAlong" on from it, "leverLateral" out on the
   // site's side. Grain comes down while someone holds the lever (within "leverReach"), "pourPerSecond" car-loads a second
-  // out of a bin of "bin" car-loads, into the cargo car whose middle is within "tolerance" of it. No car there, it's on the
-  // ballast; a full one there overflows, and each car-load over strains the car by "overfillDamagePerLoad" (spec D.2:
+  // out of a bin of "bin" car-loads, into the cargo car it hangs over (its open top, "endMargin" in from either end: note
+  // 769). No car there, it's on the ballast; a full one there overflows, and each car-load over strains the car by "overfillDamagePerLoad" (spec D.2:
   // "overfill damages car and spills"). The machinery's loud while it runs (combat.json machineryLoudness).
   "spout": {
     "back": 80,
@@ -112,7 +141,7 @@
     "leverAlong": 2.0,
     "leverLateral": 3.4,
     "leverReach": 1.2,
-    "tolerance": 1.5,
+    "endMargin": 1.0,
     "pourPerSecond": 0.05,
     "bin": 3.0,
     "overfillDamagePerLoad": 0.6
@@ -161,9 +190,9 @@
   // "steamReach" of the chute (the first three cars behind it come under the chute in reach; the rest are the winch's and the
   // crates'). With someone holding the lever, the engine in reach and its vent held open in the cab, the vented steam winds the
   // skip up the shaft instead of into the air: each point of pressure vented (boiler.json ventRate, 12 a second) is
-  // 1/"steamPerSkip" of a wind. Wound, the skip tips "perSkip" of a car-load of ore down the chute, into the cargo car whose middle
-  // is within "tolerance" of it (none there, it's on the ballast; a full one overflows and strains, "overfillDamagePerLoad" a
-  // car-load, as the spout's), out of "ore" car-loads down the shaft. A full boiler winds about four skips (a car); then the fire
+  // 1/"steamPerSkip" of a wind. Wound, the skip tips "perSkip" of a car-load of ore down the chute, into the cargo car it hangs over
+  // (its open top, "endMargin" in from either end: note 769; none there, it's on the ballast; a full one overflows and
+  // strains, "overfillDamagePerLoad" a car-load, as the spout's), out of "ore" car-loads down the shaft. A full boiler winds about four skips (a car); then the fire
   // has to make the steam again (a standing engine's full firebox about 1.8 a second, so a skip in about 11 s), and the engine
   // pulls nothing till it's back over boiler.json powerFloor. The winding engine's loud while it runs (combat.json
   // machineryLoudness), as the other machinery is.
@@ -177,7 +206,7 @@
     "steamReach": 56,
     "steamPerSkip": 20,
     "perSkip": 0.25,
-    "tolerance": 1.5,
+    "endMargin": 1.0,
     "ore": 3.0,
     "overfillDamagePerLoad": 0.6
   },
@@ -190,8 +219,8 @@
   // along the track toward the elevator's bins, out to its tail "tailLateral" out, where its drive
   // house is: the starter "starterAlong" on past the tail and "starterLateral" out, held within "starterReach" for
   // "startSeconds" to start it (loud: "startRounds" a second while it's held, as the powerhouse restart is). Running, it
-  // carries grain into the cargo car whose middle is within "tolerance" of the head at "perSecond" car-loads a second (the
-  // head's gate opens only over a car with room), out of "grain" car-loads; Low power runs it at power.lowSpeed, and a dead
+  // carries grain into the cargo car the head hangs over (its open top, "endMargin" in from either end: note 769) at
+  // "perSecond" car-loads a second (the head's gate opens only over a car with room), out of "grain" car-loads; Low power runs it at power.lowSpeed, and a dead
   // yard's powerhouse has to be restarted before it'll start. Every "jamEvery" seconds of carrying (drawn from the night's
   // seed) the belt jams somewhere along its low run ("jamFrom".."jamTo" of the way from the tail to the knee) and carries
   // nothing; held within "clearReach" of the jam (on the ground beside it) for "clearSeconds", it's free. A jam left
@@ -211,7 +240,7 @@
     "starterReach": 1.4,
     "startSeconds": 4,
     "startRounds": 0.25,
-    "tolerance": 1.5,
+    "endMargin": 1.0,
     "perSecond": 0.04,
     "grain": 3.0,
     "jamEvery": [30, 60],
@@ -346,11 +375,24 @@
     "villageShare": 0.5,
     "villageReach": 150,
     "villageDawnSpare": 900,
+    // Note 934 (found under #609, note 895: the bot driver never stopped at a halt, so no bot night stood at one): a driver
+    // bot stands haltStandSeconds at each halt on the line (an abandoned village's on the main line, the route card's "halt"
+    // rows) with at least haltAllowance (s) of the night in hand past the run home, before going on. 0: it drives past them,
+    // as before.
+    "haltStandSeconds": 0,
+    "haltAllowance": 600,
     // Note 403 (GDD App. F.3's "work the yard together"; since queue #89 every siding has loot beside it): the crates by the
     // site's own stack in, a crate hand fetches the nearest crate lying loose elsewhere in the yard, either side of the
     // train, within yardReach (m) of where it stands, on foot round the sheds and the train, before anyone goes to the village. The same
     // dawn spare. Not in the spec: a crate's carried at 2.8 m/s, so 120 m is a minute and a half there and back.
     "yardReach": 120,
+    // Note 867 (the director, 19 Oct, on note 861's call 3: "Yes"): two-person jackpots (loot.json jackpots, note 719) are a
+    // pair's. A crate hand fetches one lying within jackpotReach (m) of where it stands (or the yard's reach, the further),
+    // and the winch's pair, their sleds in, one within jackpotReach before going aboard (out on it, so the driver waits);
+    // the other end's taken as a heavy crate's is (note 440). And a hand comes to take the other end of one anyone's holding
+    // alone within jackpotReach of it, a person playing too: a solo player with bots has a second pair of hands. 60 m: there
+    // and back at the heavy pace is about a minute. 0: as before (the yard's reach, and help only by the crate stack).
+    "jackpotReach": 60,
     // Note 413 (GDD §21: the Choir takes "anyone ... not behind a closed door"; App. A.7): the Choir gathered this far (0 to 1;
     // the walkers' own 0.5, about 20 s off) or here, a hand on foot at a stop gets behind a door: the nearest open house with a
     // single door, if its door's within shelterReach (m) and no further than shelterOverTrain times the train's nearest car
@@ -359,7 +401,12 @@
     "shelterAt": 0.5,
     "shelterOutAt": 0.25,
     "shelterReach": 60,
-    "shelterOverTrain": 2
+    "shelterOverTrain": 2,
+    // Note 935 (the director's playtest of 20 Oct evening, line 14: "Ashgrove Yard. Whoa there, bot ... Oh, we're a half a
+    // kilometer away still"): a bot driving runs in to a stop's hold no faster than a stop at approachEase m/s² from where it
+    // is, so from the open line's 14 m/s it's seen easing down about 400 m out. It ran in on the brake's own curve (about 0.66
+    // m/s²): at 14 m/s 160 m short and down hard from there. 0: as before. Not in the spec.
+    "approachEase": 0.25
   },
   // Which modules each facility offers (spec D.1: 2–4 per POI once the roster is built; the coaling tower is its chute). The
   // first is the kind's signature, the one every stop of it has; with "draw" on, the rest are drawn per stop (note 449).

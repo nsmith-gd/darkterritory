@@ -14,6 +14,8 @@ namespace DarkTerritory.Game.Art;
 public sealed partial class WorldArt
 {
     readonly Matrix4x4[] _flagPose = new Matrix4x4[FlagKit.Bones];
+    /// <summary>Each town's flag's ripple, run on from frame to frame (<see cref="FlagClock"/>).</summary>
+    readonly Dictionary<string, FlagClock> _flagClocks = [];
 
     /// <summary>
     /// The town's own flag on its pole (queue #405, note 674): its custom's charge on its trade's field (<see cref="FlagBook.For"/>),
@@ -24,7 +26,9 @@ public sealed partial class WorldArt
         var tuning = _look.Tuning.Atmosphere.Flag;
         var cell = _look.Flags.For(town.Plan.Culture, town.Plan.Industry, town.Plan.Name);
         var cloth = Piece($"flag-cloth-{cell?.Cell ?? -1}", () => FlagKit.Cloth(_look, cell, _look.Flags, tuning));
-        FlagKit.Pose(tuning, wind, gusts, time, town.Plan.Name.Length * 0.37f, _flagPose);
+        if (!_flagClocks.TryGetValue(town.Plan.Name, out var clock))
+            _flagClocks[town.Plan.Name] = clock = new FlagClock();
+        FlagKit.Pose(tuning, wind, gusts, time, town.Plan.Name.Length * 0.37f, _flagPose, clock);
         mesh.Skinned(cloth, Matrix4x4.CreateTranslation(hoist), _flagPose);
     }
 
@@ -113,6 +117,80 @@ public sealed partial class WorldArt
     }
 
     /// <summary>
+    /// A walled town's rail yard behind the home platform (queue #239, note 502): its siding down it in pieces, its ground, and
+    /// each piece where the plan stands it: the goods sheds (the facility's model, turned to the siding and centred on its
+    /// fixture's ground footprint, <see cref="YardKit.Shed"/>), the kit's pieces, the stock in the siding, the town's lamp
+    /// posts lit down it; their lights.
+    /// </summary>
+    public void Yard(MeshBuilder mesh, RailLine line, Double3 eye, Town town, double from, double to)
+    {
+        var plan = town.Plan;
+        if (plan.Yard is not { } yard || yard.S1 < from - 60 || yard.S0 > to + 60)
+            return;
+        int side = yard.Side;
+        // The siding, in pieces down it; the yard's worn ground between it and the street.
+        const double chunk = 8;
+        int pieces = (int)Math.Ceiling((yard.Siding1 - yard.Siding0) / chunk);
+        double step = (yard.Siding1 - yard.Siding0) / pieces;
+        var siding = Piece($"yard-siding-{step:0.00}", () => YardKit.Siding(_look, (float)step));
+        double groundD = (yard.SidingD + 1.7 + yard.Far) / 2, groundW = yard.Far - yard.SidingD - 1.7;
+        var ground = Piece($"town-ground-yard-{groundW:0.0}", () => TownGround(_look, (float)chunk, (float)groundW, "ground_mud"));
+        for (int i = 0; i < pieces; i++)
+        {
+            double mid = yard.Siding0 + (i + 0.5) * step;
+            var at = town.World(mid, side * yard.SidingD);
+            if ((at - eye).Length <= 320)
+                mesh.Instances.Add(new MeshInstance(siding, Place(line, eye, at, mid, 1, 0)));
+        }
+        for (double s = yard.S0 + chunk / 2; s < yard.S1; s += chunk)
+        {
+            var at = town.World(s, side * groundD);
+            if ((at - eye).Length <= 320)
+                mesh.Instances.Add(new MeshInstance(ground, Matrix4x4.CreateScale(1, 1, 1.04f) * Place(line, eye, at, s, 1, 0)));
+        }
+        var post = Piece("square-lamppost", () => SquareKit.LampPost(_look));
+        foreach (var f in plan.Fixtures)
+        {
+            if (f.House >= 0 || !YardKit.Draws(f.Kind) || !yard.Holds(f.S, f.D, 1))
+                continue;
+            var at = town.World(f.S, f.D);
+            double far = (at - eye).Length;
+            if (far > 420)
+                continue;
+            var front = Place(line, eye, at, f.S, f.FaceS, f.FaceD);
+            if (f.Kind == "yardlamp")
+            {
+                // The town's lamp post, lit, its arm out toward the siding.
+                if (far > 260)
+                    continue;
+                mesh.Instances.Add(new MeshInstance(post, front));
+                if (far > 160)
+                    continue;
+                var flame = Vector3.Transform(SquareKit.LampTop, front);
+                mesh.PointLights.Add(new PointLight(flame, Palette.LampAmber * 1.6f, 12));
+                mesh.Billboard(flame, 0.8f, 0, new Vector4(Palette.LampAmber * 0.5f, 1), -1, FxBlend.Additive);
+                continue;
+            }
+            if (f.Kind == "goodsshed" && _props.Get(YardKit.Shed) is { } model)
+            {
+                // Built with its dock to +Z: turned a half to face the siding, its ground footprint on its fixture's.
+                var (middle, _) = YardKit.GroundFootprint(model);
+                mesh.Instances.Add(new MeshInstance(model, Matrix4x4.CreateTranslation(-middle) * Matrix4x4.CreateRotationY(MathF.PI)
+                    * Matrix4x4.CreateTranslation(0, -0.3f, 0) * front));
+            }
+            else
+            {
+                int variant = f.Kind is "van" or "flatdory" or "freight" ? f.Id % 3 : 0;
+                mesh.Instances.Add(new MeshInstance(Piece($"yard-{f.Kind}-{variant}-{side}", () => YardKit.Piece(_look, f.Kind, variant, side)), front));
+            }
+            if (far > 200)
+                continue;
+            foreach (var (lamp, colour, range) in YardKit.Lights(f.Kind, side))
+                mesh.PointLights.Add(new PointLight(Vector3.Transform(lamp, front), colour, range));
+        }
+    }
+
+    /// <summary>
     /// The town's lights on the fog over it (note 490; App. D.7's Holdout lamp, seen from its approach board): where a broad
     /// glow hangs (world, its height over the ground), how broad, its colour and how strong. Over its square; over its
     /// first streets every so far along on both sides of the line; over a foundry's casting shed, the furnace's orange. A
@@ -131,6 +209,11 @@ public sealed partial class WorldArt
                         yield return (town.World(s, st.At(s), GlowUp - 6), 105, Palette.LampAmber, 0.55f * lit);
         foreach (var f in plan.Fixtures.Where(f => f.Kind == "casting"))
             yield return (town.World(f.S, f.D, GlowUp - 14), 60, Palette.FurnaceOrange, 0.9f);
+        // A harbour town's Flame of Hope (note 819): over its tower, the brightest thing in the fog for a kilometre round, so a
+        // crew coming in finds it before the town (the director: "for the world to find in the darkness").
+        if (plan.Form.Length > 0)
+            foreach (var f in plan.Fixtures.Where(f => f.Kind == "lighthouse"))
+                yield return (town.World(f.S, f.D, HopeKit.Fire.Y + 5), 95, Vector3.Lerp(Palette.FurnaceOrange, Palette.LampAmber, 0.4f), 1.6f);
     }
 
     /// <summary>How high over the ground a town's glow hangs (m): well over its wall and its roofs.</summary>
@@ -139,6 +222,16 @@ public sealed partial class WorldArt
     /// <summary>Where the works' stacks and chimneys smoke (note 353): the foundry's stack, the winding house's chimney.</summary>
     public IEnumerable<(Vector3 Top, int Seed)> Stacks(RailLine line, Double3 eye, Town town, double reach)
     {
+        // The yard office's stove (note 502), lit all night with the clerk's lamp.
+        if (town.Plan.Yard is { } yard)
+            foreach (var f in town.Plan.Fixtures.Where(f => f.Kind == "yardoffice" && yard.Holds(f.S, f.D)))
+            {
+                var at = town.World(f.S, f.D);
+                // Its smoke seeded by the office itself (note 688, as the chimneys).
+                if ((at - eye).Length <= reach)
+                    yield return (Vector3.Transform(YardKit.OfficePipe((float)f.SolidS, (float)f.SolidD, (float)f.Height),
+                        Place(line, eye, at, f.S, f.FaceS, f.FaceD)), 6521 + f.Id * 89);
+            }
         if (town.Plan.Works is not { } works)
             yield break;
         // Each stack's smoke seeded by the stack itself, not where it is from the eye (note 688, as Chimneys).
@@ -158,6 +251,25 @@ public sealed partial class WorldArt
             yield return (Vector3.Transform(Vector3.Transform(top - middle, Matrix4x4.CreateScale(prop.Scale)) + new Vector3(0, -0.3f, 0), m), 7919 + i * 97);
         }
     }
+
+    /// <summary>
+    /// The board of lost crews' cards (GDD §3.1; note 721): this player's ended campaigns, from their profile, the last ended
+    /// first. The app sets them; every town's board shows the same ones (they're the player's, not the town's).
+    /// </summary>
+    public IReadOnlyList<(string Title, string Text)> LostCrews
+    {
+        get => _lostCrews;
+        set
+        {
+            _lostCrews = value;
+            LostCrewsKey = string.Join("|", value.Take(LostCrewsShown).Select(c => c.Title + c.Text)).GetHashCode(StringComparison.Ordinal).ToString("x8");
+        }
+    }
+    IReadOnlyList<(string Title, string Text)> _lostCrews = [];
+    string LostCrewsKey { get; set; } = "none";
+    /// <summary>As many cards as the board's face holds legibly beside its heading.</summary>
+    const int LostCrewsShown = 3;
+    static readonly (string Title, string Text) LostCrewsHeading = ("Lost crews", "Each card is a crew whose train was taken at dawn. The company regrets the inconvenience.");
 
     /// <summary>Draws a town's square within [<paramref name="from"/>, <paramref name="to"/>] along the line.</summary>
     public void Square(MeshBuilder mesh, RailLine line, Double3 eye, Town town, double from, double to)
@@ -200,27 +312,59 @@ public sealed partial class WorldArt
         }
         // The things in it (those inside the houses are the houses' own: Houses).
         int notices = plan.Papers.Count(p => p.OnBoard);
+        // The night market's stalls dealt their forms (note 870): seven on round the kit's eighteen from a place set by the
+        // town's name, so no two stalls in a row are the same form and no two towns' markets start alike.
+        int stallsDealt = 0, stallFrom = plan.Name.Sum(c => c) % SquareKit.StallVariants;
         foreach (var f in plan.Fixtures)
         {
             if (f.House >= 0)
                 continue;
             // The green's and the walls' pieces are drawn with the green (Civic), wherever they are.
-            if (CivicKit.Draws(f.Kind) || WorksKit.Draws(f.Kind))
+            if (CivicKit.Draws(f.Kind) || WorksKit.Draws(f.Kind) || YardKit.Draws(f.Kind))
+                continue;
+            // And a town type's landmarks with its form (Forms; note 692), or each would stand in a box of its own size too
+            // (the chapel's beside its steeple; note 819 found it round the Hope Tower).
+            if (plan.Form.Length > 0 && Landmark(f.Kind) && !(plan.Works is { } wk && wk.Holds(f.S, f.D, 1)))
                 continue;
             var m = Place(line, eye, town.World(f.S, f.D), f.S, f.FaceS, f.FaceD);
-            int count = f.Kind switch { "board" => notices, "line" => (int)(sq.S1 - sq.S0 - 8), _ => 0 };
+            // (A market stall's form and colours: dealt in turn, note 870.)
+            int count = f.Kind switch
+            {
+                "board" => notices,
+                "line" => (int)(sq.S1 - sq.S0 - 8),
+                "marketstall" => (stallFrom + 7 * stallsDealt++) % SquareKit.StallVariants,
+                _ => 0,
+            };
             // The board carries the town's own notices, written on its sheets (note 669): a piece of its own, per town.
             var piece = f.Kind == "board"
                 ? Piece($"square-board-{plan.Name}-{notices}", () => SquareKit.Board(_look, [.. plan.Papers.Where(p => p.OnBoard).Select(p => (p.Title, p.Text))]))
-                : Piece($"square-{f.Kind}-{count}", () => SquareKit.Fixture(_look, f.Kind, count));
+                // The board of lost crews (note 721): its heading sheet, then this player's lost crews' cards (from their profile).
+                : f.Kind == "lostcrews"
+                    ? Piece($"square-lostcrews-{LostCrewsKey}", () => SquareKit.Board(_look, [LostCrewsHeading, .. LostCrews.Take(LostCrewsShown)]))
+                    : Piece($"square-{f.Kind}-{count}", () => SquareKit.Fixture(_look, f.Kind, count));
             mesh.Instances.Add(new MeshInstance(piece, m));
             // The banked fire glows; the shuttered lamps leak a little round their shutters.
             if (f.Kind == "brazier")
                 mesh.PointLights.Add(new PointLight(Vector3.Transform(new Vector3(0, 1.3f, 0), m), Palette.FurnaceOrange * 1.1f, 7));
             if (f.Kind == "barrel")
                 mesh.PointLights.Add(new PointLight(Vector3.Transform(new Vector3(0, 1.4f, 0), m), Palette.FurnaceOrange * 2.0f, 11));
+            // The blacksmith's forge (note 697): the hearth's glow under the hood, and the lantern on the board out front.
+            if (f.Kind == "forge")
+            {
+                mesh.PointLights.Add(new PointLight(Vector3.Transform(new Vector3(0, 1.3f, (float)f.SolidD - 0.8f), m), Palette.FurnaceOrange * 2.4f, 9));
+                mesh.PointLights.Add(new PointLight(Vector3.Transform(new Vector3(0, 1.9f, -(float)f.SolidD - 0.5f), m), Palette.LampAmber * 1.2f, 6));
+            }
             if (f.Kind == "lamps")
                 mesh.PointLights.Add(new PointLight(Vector3.Transform(new Vector3(0, 1.8f, -0.6f), m), Palette.LampAmber * 0.4f, 4));
+            // The night market's lights (note 825), each lighting its counter and the ground in front: each stall's own, a
+            // lantern, a fire in a drum, candles (note 870).
+            if (f.Kind == "marketstall")
+                foreach (var (at, colour, range) in SquareKit.StallLights(count))
+                {
+                    var lamp = Vector3.Transform(at, m);
+                    mesh.PointLights.Add(new PointLight(lamp, colour, range));
+                    mesh.Billboard(lamp, 0.5f, 0, new Vector4(colour * 0.4f, 1), -1, FxBlend.Additive);
+                }
         }
         // The papers left about: flat on a bench or a crate, or pinned up by the hall's door.
         foreach (var p in plan.Papers)
@@ -351,20 +495,22 @@ public sealed partial class WorldArt
     public IEnumerable<(Vector3 Top, int Seed)> Chimneys(RailLine line, Double3 eye, Town town, double reach)
     {
         var houses = town.Plan.Houses;
-        for (int i = 0; i < houses.Count; i++)
+        // Where each lived-in house stands and where its chimneys are on it never change: found once a town, not every frame (queue #427).
+        var smoking = _chimneys.GetValue(town, t => [.. Enumerable.Range(0, houses.Count)
+            .Where(i => houses[i].Kind is HouseKind.Lived or HouseKind.Open)
+            .Select(i => (i, t.World(houses[i].S, houses[i].D), MaritimeKit.ChimneyTops(houses[i]).ToArray()))]);
+        foreach (var (i, at, tops) in smoking)
         {
-            var h = houses[i];
-            if (h.Kind is not (HouseKind.Lived or HouseKind.Open))
-                continue;
-            var at = town.World(h.S, h.D);
             if ((at - eye).Length > reach)
                 continue;
-            var m = HouseAt(line, eye, town, h);
+            var m = HouseAt(line, eye, town, houses[i]);
             int k = 0;
-            foreach (var top in MaritimeKit.ChimneyTops(h))
+            foreach (var top in tops)
                 yield return (Vector3.Transform(top, m), i * 8 + k++);
         }
     }
+
+    readonly System.Runtime.CompilerServices.ConditionalWeakTable<Town, (int House, Double3 At, Vector3[] Tops)[]> _chimneys = [];
 
     /// <summary>
     /// The watch on a town's wall (App. F.3: the fortresses feel static): a guard with a lantern walking each stretch of
@@ -442,7 +588,7 @@ public sealed partial class WorldArt
         // A lived-in house's lamp by its door, its light on the siding and the ground in front (a custom that keeps the
         // windows dark keeps it low).
         if (h.Kind == HouseKind.Lived)
-            Porch(mesh, m, h, lit);
+            Porch(mesh, h.Design.Hull ? Matrix4x4.CreateTranslation(0, MaritimeKit.HullLift, 0) * m : m, h, lit);
         if (h.Layout is null)
             return;
         // An open house's lamps inside, and the light out of its open door onto the step.
@@ -468,53 +614,84 @@ public sealed partial class WorldArt
     /// the rear wall to the gate, the front wall out from the gatehouse to each corner, the rear wall across the line, a
     /// tower at each corner and down the sides, their lamps lit near you.
     /// </summary>
-    void TownWall(MeshBuilder mesh, RailLine line, Double3 eye, TownBounds town, double from, double to, bool lit, double time)
+    void TownWall(MeshBuilder mesh, RailLine line, Double3 eye, TownBounds town, double from, double to, bool lit, double time, TownGround? ground = null,
+        double rearOpen = 0)
     {
-        var start = line.Sample(0);
+        // Standing on a town type's ground (note 692): a bay on the town's side's level, its stone plinth down to the lower.
+        var (low, high) = Sim.Run.Fortresses.Footing(town, ground);
+        // Its straight frame through its way in (Fortresses.Anchor, note 692), as the Sim stands it.
+        var start = Sim.Run.Fortresses.Anchor(line, 0, town.Rear);
         var tangent = new Double3(start.Tangent.X, 0, start.Tangent.Z).Normalized;
         var right = Double3.Cross(tangent, Double3.Up).Normalized;
         // A point in the rail frame: the yard is straight, behind its start too.
         Double3 P(double s, double d) => start.Position + tangent * s + right * d;
         bool Near(double s, double d) => (P(s, d) - eye).Length < 460;
-        const double bay = Sim.Run.Fortresses.WallBay, every = Sim.Run.Fortresses.TowerEvery, gateOuter = Sim.Run.Fortresses.GateOuter;
-        void Run(int side, double s, double d, double length, float yaw)
+        const double bay = Sim.Run.Fortresses.WallBay;
+        // The wall's runs as the Sim stands them (Fortresses.Runs: round a town type's outline, note 692, open at both
+        // gates), a bay at a time from each run's start along it, the merlons on the side away from the town.
+        double cs = 0, cd = 0;
+        var corners = town.Outline ?? [(town.Rear, -town.Left), (town.Gate, -town.Left), (town.Gate, town.Right), (town.Rear, town.Right)];
+        foreach (var (s0, d0) in corners)
+            (cs, cd) = (cs + s0 / corners.Count, cd + d0 / corners.Count);
+        foreach (var (a, b) in Sim.Run.Fortresses.Runs(town))
         {
-            if (!Near(s, d))
-                return;
-            var wall = Piece($"wall-{side}", () => StructureKit.Wall(_look, side));
-            mesh.Instances.Add(new MeshInstance(wall, Matrix4x4.CreateScale(1, 1, (float)(length / bay)) * Basis(start.Tangent, P(s, d), eye, yaw)));
+            double es = b.S - a.S, ed = b.D - a.D, len = Math.Sqrt(es * es + ed * ed);
+            if (len < 0.05)
+                continue;
+            (es, ed) = (es / len, ed / len);
+            // Its outside: to its right (the piece's +X, variant 1) unless the town's middle is.
+            int outside = (cs - a.S) * -ed + (cd - a.D) * es < 0 ? 1 : -1;
+            float yaw = -(float)Math.Atan2(ed, es);
+            // (A timber town's palisade, note 692.)
+            var wall = town.Timber ? Piece($"palisade-{outside}", () => StructureKit.Palisade(_look, outside)) : Piece($"wall-{outside}", () => StructureKit.Wall(_look, outside));
+            for (double x = 0; x < len - 0.05; x += bay)
+            {
+                double ps = a.S + es * x, pd = a.D + ed * x, run = Math.Min(bay, len - x);
+                if (!Near(ps, pd))
+                    continue;
+                double ms = ps + es * run / 2, md = pd + ed * run / 2, lo = low(ms, md), hi = high(ms, md);
+                mesh.Instances.Add(new MeshInstance(wall, Matrix4x4.CreateScale(1, 1, (float)(run / bay)) * Basis(start.Tangent, P(ps, pd) + Double3.Up * hi, eye, yaw)));
+                // (A wall over a drop past a storey stands on the crag's rock, its stone plinth only the last of it: note 692.)
+                if (hi - lo > 0.3)
+                    mesh.Instances.Add(new MeshInstance(Piece(hi - lo > WallOnRock ? "wall-crag" : "wall-plinth", () => WallPlinth(_look, hi - lo > WallOnRock)),
+                        Matrix4x4.CreateScale(1, (float)(hi - lo + 0.6), (float)run) * Basis(start.Tangent, P(ps, pd) + Double3.Up * (lo - 0.5), eye, yaw)));
+            }
         }
-        foreach (var (d, side) in new[] { (-town.Left, -1), (town.Right, 1) })
+        Turrets(mesh, eye, town, start, low, high, lit);
+        // The gatehouse at the way in from the last night (note 692), facing out of the town as the way out's does.
+        if (Near(town.Rear, 0))
         {
-            for (double s = town.Rear; s < town.Gate - 0.05; s += bay)
-                Run(side, s, d, Math.Min(bay, town.Gate - s), 0);
-            // The front wall from the gatehouse's tower out to the corner, and the rear wall's half on this side.
-            double inner = side * gateOuter;
-            for (double x = 0; x < Math.Abs(d) - gateOuter - 0.05; x += bay)
-                Run(1, town.Gate, inner + side * x, Math.Min(bay, Math.Abs(d) - gateOuter - x), side > 0 ? -MathF.PI / 2 : MathF.PI / 2);
-            for (double x = 0; x < Math.Abs(d) - 0.05; x += bay)
-                Run(-1, town.Rear, side * x, Math.Min(bay, Math.Abs(d) - x), side > 0 ? -MathF.PI / 2 : MathF.PI / 2);
-            var towers = new List<double> { town.Rear, town.Gate };
-            for (double s = town.Rear + every; s < town.Gate - every / 2; s += every)
-                towers.Add(s);
+            var gm = Basis(start.Tangent, P(town.Rear, 0), eye, MathF.PI);
+            mesh.Instances.Add(new MeshInstance(Piece("gatehouse", () => StructureKit.Gatehouse(_look)), gm));
+            // Its gates (note 847), swung in toward the town ahead of it; turned round, the line's left is the piece's +X.
+            GateLeaves(mesh, gm, rearOpen, 1, wicketLeft: false);
+        }
+        {
+            var towers = Sim.Run.Fortresses.Towers(town).ToList();
+            int side = 0;
             for (int i = 0; i < towers.Count; i++)
             {
-                double s = towers[i];
+                var (s, d) = towers[i];
+                side = d < 0 ? -1 : 1;
                 if (!Near(s, d))
                     continue;
-                var tower = Piece($"tower-{side}", () => StructureKit.Tower(_look, side));
-                mesh.Instances.Add(new MeshInstance(tower, Basis(start.Tangent, P(s, d), eye, 0)));
+                var tower = town.Timber ? Piece($"timbertower-{side}", () => StructureKit.TimberTower(_look, side)) : Piece($"tower-{side}", () => StructureKit.Tower(_look, side));
+                double tlo = low(s, d), thi = high(s, d);
+                mesh.Instances.Add(new MeshInstance(tower, Basis(start.Tangent, P(s, d) + Double3.Up * thi, eye, 0)));
+                if (thi - tlo > 0.3)
+                    mesh.Instances.Add(new MeshInstance(Piece("tower-plinth", () => TowerPlinth(_look)),
+                        Matrix4x4.CreateScale(1, (float)(thi - tlo + 0.6), 1) * Basis(start.Tangent, P(s, d) + Double3.Up * (tlo - 0.5), eye, 0)));
                 // Artillery on every other tower down the sides (GDD §3: "watchtowers, artillery"; queue #74, note 335): the
                 // train's own cannon and its shield on the tower's top, laid out over the wall, swinging slowly across the
                 // dark beyond it as if somebody's at it all night.
-                if (i >= 2 && i % 2 == 0 && (P(s, d) - eye).Length < TowerGunReach && TrainKit.Cannon(_look) is { } cannon)
+                if (i % 2 == 1 && (P(s, d) - eye).Length < TowerGunReach && TrainKit.Cannon(_look) is { } cannon)
                 {
                     float sweep = TowerGunSweep * MathF.Sin((float)(time * TowerGunRate + s * 0.013));
-                    var gun = Matrix4x4.CreateScale(TowerGunScale) * Basis(start.Tangent, P(s, d) + Double3.Up * TowerGunUp, eye, -side * MathF.PI / 2);
+                    var gun = Matrix4x4.CreateScale(TowerGunScale) * Basis(start.Tangent, P(s, d) + Double3.Up * (TowerGunUp + thi), eye, -side * MathF.PI / 2);
                     var carriage = Matrix4x4.CreateScale(TowerGunScale) * Matrix4x4.CreateRotationY(sweep)
-                        * Basis(start.Tangent, P(s, d) + Double3.Up * TowerGunUp, eye, -side * MathF.PI / 2);
+                        * Basis(start.Tangent, P(s, d) + Double3.Up * (TowerGunUp + thi), eye, -side * MathF.PI / 2);
                     mesh.Instances.Add(new MeshInstance(Piece("tower-gun-pedestal", () => StructureKit.GunPedestal(_look, TowerGunPedestal)),
-                        Basis(start.Tangent, P(s, d) + Double3.Up * TowerTop, eye, 0)));
+                        Basis(start.Tangent, P(s, d) + Double3.Up * (TowerTop + thi), eye, 0)));
                     mesh.Instances.Add(new MeshInstance(cannon.Mount, gun));
                     mesh.Instances.Add(new MeshInstance(cannon.Carriage, carriage));
                     mesh.Instances.Add(new MeshInstance(Piece("gun-shield", () => TrainKit.GunShield(_look)), carriage, Shadowless: true));
@@ -523,11 +700,67 @@ public sealed partial class WorldArt
                 if (!lit || (P(s, d) - eye).Length > 220)
                     continue;
                 // Its lamp, facing into the town, a lit pool on the street below it.
-                var lamp = (P(s, d) - right * (side * 2.2) + Double3.Up * 14.1).RelativeTo(eye);
+                var lamp = (P(s, d) - right * (side * 2.2) + Double3.Up * (14.1 + thi)).RelativeTo(eye);
                 mesh.PointLights.Add(new PointLight(lamp, Palette.LampAmber * 1.4f, 16));
                 mesh.Billboard(lamp, 2.2f, 0, new Vector4(Palette.LampAmber * 0.6f, 1), -1, FxBlend.Additive);
             }
         }
+    }
+
+    /// <summary>
+    /// A town type's turrets between its gun towers (note 692, Fortresses.Turrets): the tower's piece on its ground, no gun,
+    /// every other one's lamp lit near you.
+    /// </summary>
+    void Turrets(MeshBuilder mesh, Double3 eye, TownBounds town, TrackSample start, Func<double, double, double> low, Func<double, double, double> high, bool lit)
+    {
+        var tangent = new Double3(start.Tangent.X, 0, start.Tangent.Z).Normalized;
+        var right = Double3.Cross(tangent, Double3.Up).Normalized;
+        Double3 P(double s, double d) => start.Position + tangent * s + right * d;
+        int i = 0;
+        foreach (var (s, d) in Sim.Run.Fortresses.Turrets(town))
+        {
+            i++;
+            int side = d < 0 ? -1 : 1;
+            if ((P(s, d) - eye).Length > 460)
+                continue;
+            double tlo = low(s, d), thi = high(s, d);
+            var tower = town.Timber ? Piece($"timbertower-{side}", () => StructureKit.TimberTower(_look, side)) : Piece($"tower-{side}", () => StructureKit.Tower(_look, side));
+            mesh.Instances.Add(new MeshInstance(tower, Basis(start.Tangent, P(s, d) + Double3.Up * thi, eye, 0)));
+            if (thi - tlo > 0.3)
+                mesh.Instances.Add(new MeshInstance(Piece("tower-plinth", () => TowerPlinth(_look)),
+                    Matrix4x4.CreateScale(1, (float)(thi - tlo + 0.6), 1) * Basis(start.Tangent, P(s, d) + Double3.Up * (tlo - 0.5), eye, 0)));
+            if (!lit || i % 2 == 0 || (P(s, d) - eye).Length > 220)
+                continue;
+            var lamp = (P(s, d) - right * (side * 2.2) + Double3.Up * (14.1 + thi)).RelativeTo(eye);
+            mesh.PointLights.Add(new PointLight(lamp, Palette.LampAmber * 1.4f, 16));
+            mesh.Billboard(lamp, 2.2f, 0, new Vector4(Palette.LampAmber * 0.6f, 1), -1, FxBlend.Additive);
+        }
+    }
+
+    /// <summary>
+    /// A unit of a wall's stone plinth (note 692): the wall's thickness across, a metre up, a metre along (−Z), scaled to its
+    /// bay. Over a crag (<paramref name="rock"/>), the rock it's built on, a little wider than the wall, battered out.
+    /// </summary>
+    static MeshAsset WallPlinth(Look? look, bool rock = false)
+    {
+        var k = new Kit(look, rock ? 9403 : 9401);
+        k.Use(rock ? "rock_cliff" : "stone_block", rock ? Palette.DeepBrown : Palette.IronGrey, 0.85f, 0.05f, tile: rock ? 5f : 2.5f);
+        float half = (float)Sim.Run.Fortresses.WallHalf + (rock ? 0.9f : 0.25f);
+        k.Box(new Vector3(-half, 0, -1), new Vector3(half, 1, 0), Kit.Faces.Sides);
+        return k.Build(rock ? "wall-crag" : "wall-plinth");
+    }
+
+    /// <summary>A wall over a drop taller than this (m) stands on rock (note 692).</summary>
+    const double WallOnRock = 4;
+
+    /// <summary>A tower's plinth (note 692): its footprint, a metre up.</summary>
+    static MeshAsset TowerPlinth(Look? look)
+    {
+        var k = new Kit(look, 9402);
+        k.Use("stone_block", Palette.IronGrey, 0.85f, 0.05f, tile: 2.5f);
+        float half = (float)Sim.Run.Fortresses.TowerHalf + 0.4f;
+        k.Box(new Vector3(-half, 0, -half), new Vector3(half, 1, half), Kit.Faces.Sides);
+        return k.Build("tower-plinth");
     }
 
     /// <summary>

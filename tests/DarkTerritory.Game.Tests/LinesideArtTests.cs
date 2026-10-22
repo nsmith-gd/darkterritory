@@ -221,11 +221,11 @@ public class LinesideArtTests
     public void TheLeavingsBesideTheLineAreDealtSoNoKindComesRoundAgainSoon()
     {
         // Note 325 (the director, GDD App. F.3: "the same three things over and over again"): what the railway left beside
-        // its line is dealt from a deck of every kind, so a kind never comes up again within a few stretches, even across
+        // its line is dealt (by the sim since note 792) from a deck of every kind, so a kind never comes up again within a few stretches, even across
         // a join between decks, and a few kilometres show nearly every kind there is.
         foreach (int seed in new[] { 1, 7, 42, 1234 })
         {
-            var dealt = WorldArt.LeavingsAlong(0, 60_000, seed).ToList();
+            var dealt = Sim.Run.Leavings.Along(0, 60_000, (ulong)seed).ToList();
             Assert.True(dealt.Count > 400, $"seed {seed}: {dealt.Count} in 60 km");
             var last = new Dictionary<string, int>();
             foreach (var l in dealt)

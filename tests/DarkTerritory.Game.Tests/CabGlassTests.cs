@@ -45,8 +45,10 @@ public class CabGlassTests
         var shape = Engine().Shape;
         var cab = shape.Cab!.Value;
         var panes = TrainKit.CabPanes(shape).ToList();
-        // Two front windows and each side's slit in three bays.
-        Assert.Equal(8, panes.Count);
+        // Two front windows, and down each side the slit along the footplate and the chart table in three bays and the
+        // gallery's long windows in three more (note 716: the big cab; it was the slit alone, 8 panes).
+        Assert.Equal(14, panes.Count);
+        Assert.Equal(6, panes.Count(p => p.In.X > 0));
         foreach (var pane in panes)
         {
             Assert.True(pane.U.Length() > 0.15f && pane.V.Length() > 0.15f, $"a pane {pane.U.Length():0.00} by {pane.V.Length():0.00} m");

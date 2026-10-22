@@ -48,11 +48,19 @@ public sealed class PrototypeSession : IPlaySession
             DataFile.Load<Sim.Stops.LootTuning>(Path.Combine(contentRoot, Sim.Stops.LootTuning.File)));
         World.EnableLineside(DataFile.Load<SightTuning>(Path.Combine(contentRoot, SightTuning.File)), route);
         // The departure fortress's town (note 281): the customs of the creatures this edition fields.
-        if (Sim.Towns.TownContent.Load(contentRoot) is { } towns)
+        if (Sim.Towns.TownContent.Load(contentRoot) is { } loaded)
+        {
+            // `dt screenshot --form`: every town the one type (towns.json forms.force, note 692).
+            var towns = TownForm is { } form ? loaded with { Tuning = loaded.Tuning with { Forms = loaded.Tuning.Forms with { Force = form } } } : loaded;
             World.EnableTown(towns, route, route.GateOr(routeTuning.YardLength),
                 DataFile.Load<EnemyTuning>(Path.Combine(contentRoot, EnemyTuning.File)).Director.Roster,
                 arrival: Sim.Towns.TownAt.Terminus(route, Sim.LineGen.LineGenContent.Cached(contentRoot).Config.Tiers.Fortress.Identities));
+        }
     }
+
+    /// <summary>The town type every town a session made here is (`dt screenshot --form`, note 692; "street" the street
+    /// town), or null for each its own. A developer's knob for looking at one type: the CLI sets it once per process.</summary>
+    public static string? TownForm { get; set; }
 
     PrototypeSession(string contentRoot, RailLine line, Route? route, int cars, double start)
     {
@@ -69,6 +77,7 @@ public sealed class PrototypeSession : IPlaySession
             start = runTuning.DepartFrom(route.GateOr(DataFile.Load<RouteTuning>(Path.Combine(contentRoot, RouteTuning.File)).YardLength), consist.LengthMetres);
         Train = new TrainOnLine(new TrainDynamics(consist), line, start, _boilerTuning.Value);
         World = new World(Train, _combatTuning.Value);
+        World.EnableBand(DataFile.Load<Sim.Player.BandTuning>(Path.Combine(contentRoot, Sim.Player.BandTuning.File)));
         World.EnableBodies();
         World.Stock();
         // With steam driving (T97), the train stands at the gate on its brake.
@@ -117,6 +126,8 @@ public sealed class PrototypeSession : IPlaySession
             _cues.Add((ElapsedSeconds, Board(sign)));
         foreach (var drop in World.Lineside?.CaughtThisTick ?? [])
             _cues.Add((ElapsedSeconds, Caught(drop)));
+        foreach (var _ in World.Lineside?.TornThisTick ?? [])
+            _cues.Add((ElapsedSeconds, "the bag tore off the hook: too fast for the crane"));
         // Grease's telegraph (App. A.2): "lamp reflection off the slicked rail; a sharp chemical smell in the cab".
         if (World.Lineside?.GreaseAhead(Train, World.LampShining) is { } grease && grease != _greaseCued)
         {
@@ -200,6 +211,7 @@ public sealed class PrototypeSession : IPlaySession
         _lean.Apply(_renderFrames, Train, Route?.Plan?.Rules, (Tick + alpha) * SimConstants.TickSeconds);
         // And a car in the mine head's tipple rolled over toward its bin, or off its rails (note 423): drawn only.
         TippleTilt.Apply(_renderFrames, Train, World.Run);
+        ComeApart.Apply(_renderFrames, Train, World.Run);
         // And the cars a Waker has at dawn, lifted from the rear with whoever's in them (note 588): drawn only.
         WakerLift.Apply(_renderFrames, Train, World);
         return _renderFrames;
@@ -235,7 +247,7 @@ public sealed class PrototypeSession : IPlaySession
     public static string Board(Sign sign) => sign.Kind switch
     {
         SignKind.SpeedLimit => $"board: {sign.LimitKmh} km/h ahead",
-        SignKind.Drop => $"board: a mail crane ahead on the {(sign.Drop!.Side > 0 ? "right" : "left")}: open that side door and hook it (left mouse)",
+        SignKind.Drop => $"board: a mail crane ahead on the {(sign.Drop!.Side > 0 ? "right" : "left")}: open that side door and hook it (left mouse), under {sign.LimitKmh} km/h",
         SignKind.Terminus => "board: the terminus ahead",
         _ => "board: low clearance ahead, off the roofs",
     };
@@ -317,9 +329,6 @@ public sealed class PrototypeSession : IPlaySession
         (EnemyKind.Passenger, SpinePhase.Grab) => "someone's being dragged toward the caboose: hit it and it runs",
         (EnemyKind.Passenger, SpinePhase.Punish) => "the caboose is rolling away with someone",
         (EnemyKind.Passenger, SpinePhase.BreakOff) => "the one who never spoke is found out: it's running for the back",
-        (EnemyKind.Switchman, SpinePhase.Telegraph) => "a figure at the points ahead; the switch lamp reads wrong: shoot it or stop",
-        (EnemyKind.Switchman, SpinePhase.Punish) => "the train takes the wrong line",
-        (EnemyKind.Switchman, SpinePhase.BreakOff) => "the figure at the points is down",
         (EnemyKind.Grumbler, SpinePhase.Telegraph) => "gnawing in the crates: check before every lift",
         (EnemyKind.Grumbler, SpinePhase.Commit) => "it's feral: gang up on it",
         (EnemyKind.Grumbler, SpinePhase.Punish) => "it came aboard with a crate: it's eating the cargo",
@@ -374,9 +383,7 @@ public sealed class PrototypeSession : IPlaySession
             parts.Add($"something's gathering to the noise ({World.Choir.Build:P0})");
         foreach (var e in World.ActiveEnemies)
         {
-            if (e is Switchman { Phase: SpinePhase.Telegraph })
-                parts.Add("a switch ahead set wrong");
-            else if (e is CarHugger { Phase: SpinePhase.Commit or SpinePhase.Grab } && !parts.Contains("the rear car's being eaten"))
+            if (e is CarHugger { Phase: SpinePhase.Commit or SpinePhase.Grab } && !parts.Contains("the rear car's being eaten"))
                 parts.Add("the rear car's being eaten");
             else if (e is TrackDoll { Tampering: true } && !parts.Contains("THE DOLL'S IN THE CAB"))
                 parts.Add("THE DOLL'S IN THE CAB");
@@ -408,13 +415,11 @@ public sealed class PrototypeSession : IPlaySession
     string RouteStatus() => RouteStatus(Route, World, Train);
 
     /// <summary>The night so far: the dawn clock, where you are on the route, what's next, and how it ended.</summary>
-    /// <summary>Cold and being held, for the status line (spec B.2; GDD v1.1 App. C.1).</summary>
+    /// <summary>Being held, for the status line (GDD v1.1 App. C.1).</summary>
     public static string Condition(in PlayerState p, PlayerTuning t)
     {
-        string cold = PlayerMotor.Chilled(p, t) ? $" | COLD: {Math.Max(0, t.Cold.DeathSeconds - p.Cold):0}s — get inside" : "";
         // GDD v1.1 App. C.1: held, a friend has to hit it or pull you free; alone, you struggle (hold Use).
-        string held = p.Has(PlayerFlags.Held) ? " | HELD: shout for help (alone: hold Use to struggle)" : "";
-        return cold + held;
+        return p.Has(PlayerFlags.Held) ? " | HELD: shout for help (alone: hold Use to struggle)" : "";
     }
 
     /// <summary>Holdouts lit along the line (GDD App. D): somebody's waiting to be picked up.</summary>

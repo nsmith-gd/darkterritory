@@ -44,7 +44,7 @@ Strict ducking priority. Higher tiers duck everything below, except voice: nothi
 | Tier | Content | Behaviour |
 |---|---|---|
 | **1** | Enemy telegraphs | Ducks tiers 3–6 −9dB (*changed 2 Oct*: not voice, so a crewmate calling out the tell is heard over it; as the implementation table below has it, "tier 1 bus ducks buses 3–6"). Never masked. Never occluded beyond −6dB. |
-| **2** | Proximity voice | Ducks bed −6dB while active |
+| **2** | Proximity voice | Ducks bed −6dB while active, and the ambient world with it (*changed 18 Oct, note 855*: on a roof at speed the wind is the loudest thing in the voice's band, and a crewmate talking from the cab's door was lost under it). Every microphone is levelled to one speech level before it's sent (note 855), so a quiet mic is heard as a loud one. Through the cab's wall with a side door open, half the wall's occlusion (note 862, A.5) |
 | **3** | Critical train state | Pressure alarm, brake fade, breach |
 | **4** | Player actions | Footsteps, tools, shovel, gun |
 | **5** | Train bed | The floor everything sits on |
@@ -86,7 +86,7 @@ whoever has to hear it.
 | Followers | Silent: a lump on a back, seen by friends | — | — |
 | Soot Children | A child calling for help (tier 2; the eyes are the tell) | voice band | child-call |
 | The Passenger | **Silent by design** (it never speaks) | — | — |
-| The Switchman | Visual: the figure at the lever, the lamp wrong | — | — |
+| ~~The Switchman~~ | *Cut: the director, 16 Oct 2026 ("I think we cut them"; note 852). Its tell was visual: the figure at the lever, the lamp wrong* | — | — |
 | Grumbler | Gnawing on the crates | 1.4–2.2k | grumbler-gnaw |
 | The Moose *(added 7 Oct, note 339; the sounds are the audio chat's to make)* | Warning: a cough-like grunt and teeth clacking; the charge: hooves on ballast; a ram: an iron boom through the car | grunt 150Hz–1.5k, clack 2–4k | tell-moose-* (note 334) |
 | The Gannet *(added 7 Oct, note 340; the sounds are the audio chat's to make)* | The fold: a crack of wings, then a rising whistle of air for 1.6 s; overhead, harsh "arrah" calls that stop when it picks a walker; the bank: a long rising scream | whistle 2–5 kHz rising; calls 1–3 kHz | tell-gannet-* (note 384) |
@@ -113,7 +113,7 @@ Three enemies are silent on purpose, and the Gaunt and the Passenger make silenc
 | Full clarity | 0–8m |
 | Falloff curve | Logarithmic, 8–26m |
 | Cutoff | 26m |
-| Occlusion | Car walls −12dB and lowpass at 900Hz |
+| Occlusion | Car walls −12dB and lowpass at 900Hz. The cab with a side door open (*added 19 Oct, note 862*: "open cab door should let voices out a bit more but not completely"): half the wall, −6dB and lowpass at about 4.2kHz, between the cab and outside |
 | Radio channel | Flat, no falloff, band-limited 300–3kHz, static floor |
 | Radio range | Whole run, dies in tunnels and mine spurs |
 
@@ -179,12 +179,12 @@ The alternative is Unity's built-in AudioMixer with hand-rolled ducking. It's vi
 | Roof run | 3.5 m/s | Wind and balance penalty |
 | Roof walk (safe) | 1.8 m/s | Off the centreline is Dragger range |
 | Ladder climb | 1.6 m/s | |
-| Carrying heavy cargo | 2.8 m/s | No climbing |
+| Carrying heavy cargo | 2.8 m/s | No climbing. Only what takes two hands (freight, a heavy crate's end, the child, a body, a friend): a toy or a find in the hands, or anything in a slot, doesn't slow you (the director, the inbox, 20 Oct 2026: "We shouldn't be slowed carrying anything unless it's a two handed object"; `player.json` `twoHanded`, note 897) |
 | Jump gap | 2.2m max | Coupling gaps are 1.5m — jumpable, but not while it's rattling |
 | Jump height | 1.2m | Playtest (T90): the 0.48 m a flat 2.2 m gap needs felt like no jump at all (0.8 m then); the director, 8 Oct 2026: "our base jump is too weak" (note 473). A roof-run jump now carries ~3.4 m |
 | Health | 100 | Most attacks 35–60. No regeneration. Damage model (GDD App. F.1, note 272): every creature hit is a big one, at least 30 (`enemies.json` `damage.minHit`; a hit 35, a heavy hit 60) and at least 2.5 s apart (`minGapSeconds`), so a creature on you is two or three hits from death. The train's own continuous dangers (fire, gas) and landings are not chip-limited |
 | Healing | Bandages 30, medicine 50, morphine 80 | Rare finds (about one a frontier night), used from the hands: Use held 2 s standing, up to full health, the find gone (`loot.json` `healing`; note 272) |
-| Cold exposure | 600s to onset, 1200s to death | Resets in 20s near heat. Inside a car with a door open it builds at ¼ rate. (Was 200 / 320 / 45: cold was 73% of deaths in the 100-night playtest.) |
+| ~~Cold exposure~~ | ~~600s to onset, 1200s to death~~ | *Struck: the director's decision, 16 Oct 2026 (GDD §6 "The cold is the look, not a system"; ARCHITECTURE §8 note 852). The cold is no longer anything the player has to worry about: no exposure, no onset, no death by it, no deep-cold step on the line (GDD §22's row retired), nothing it takes off the boiler. The frost and the breath stay. (Was 600 / 1200 / 20, and before that 200 / 320 / 45: cold was 73% of deaths in the 100-night playtest.)* |
 
 ## B.3 Speed bands
 
@@ -196,7 +196,7 @@ The bands fall out of the 4:1 ratio, and they define what's possible at each spe
 | **Jump-off survivable** | <16.5 m/s | A knock on landing: 10 just above 1.5 m/s, rising to 80 at the lethal edge (T90 playtest) |
 | **Jump-off lethal** | >16.5 m/s (3× run) | Death. Was 4.0 m/s, which made every step off a moving train fatal. Being *pulled* off (Draggers) still kills above 4.0 m/s |
 | **Fall** | ≥5.5 m down | A knock by the height fallen: 10 at 5.5 m, rising to death at **7.5 m** (off a bridge's deck, 8 m to the river bank). Under 5.5 m (a car's roof and a jump's apex over the ballast) it's the speed rows alone; the worse of the two knocks counts (note 573) |
-| **Off the ground** | — | Off open ground's own footing (over a dip, down a bank) a crewmate's own run is no knock: only what's over the run speed counts (note 573) |
+| **Off the ground** | — | Off open ground's own footing (over a dip, down a bank), or off a train standing still (under 0.5 m/s, `landing.standBelow`; the director's 14 Oct playtest, note 717), a crewmate's own run is no knock: only what's over the run speed counts (note 573) |
 | **Slow** | 6 m/s | Roof work comfortable |
 | **Working** | 10–14 m/s | Standard transit |
 | **Cruise** | 14 m/s | Target efficiency |
@@ -272,6 +272,14 @@ Descending, the same figure adds to your speed and your brakes fade at 8% per 10
 
 There's no regulator. **The pressure sets the speed the engine can make:** none at the power floor (20), the line's top speed (22 m/s) at the safety valve (95), in proportion between; the engine pulls at full effort until it's within 3 m/s of that. Coal raises the pressure (faster), the vent drops it (slower, 12 per second held), and too much pressure just runs you at top speed. The cylinders draw steam with the effort of pulling away or with speed, whichever is more, drawing full demand from 85% of top speed: running flat out is the "full throttle" of the tables below. A standing train with steam stands on its brake, and it stays on it until the driver lets it off. Cruise (14 m/s) is about 68 on the gauge; the working band 60–90 is 12–20 m/s.
 
+**The director's playtest of 16 Oct (line 18, note 843): the gauge moves 17% faster** ("build pressure a bit faster ... 15-20% faster"). The steam a unit of coal makes and the steam the train draws went up together, so the burn table below is unchanged, and a rebuild at a standstill (C.2) is about 15% quicker: 37 s to the working band at three cars, three and a half minutes at twenty. A boiler left unfed also falls 17% faster. **The director, 21 Oct (note 969): a rebuild from nothing is about 8 s at three cars and no more than 30 at twenty** ("It's still a bit too long ... for 3 cars the rebuild for any speed from 0 is about 8s, at a full 20 cars the rebuild should be no longer than 30s"). Raising steam at a stand (under the working band, the vent shut) the blower draws the fire (`standingDraft`, 2.4 of working draft); under way it's the exhaust, and at a stand with steam up or venting the idle draft, as before. So the burn and endurance table below is unchanged, and so is a stand with steam to spare: 8 s at three cars, 9 at ten, 10 at twenty (were 37, 56 and 215).
+
+### A shovelful answers (note 903, the director's playtest of 13 Oct evening, line 19)
+
+"A shovel and one to three seconds later ... some sort of reaction for the locomotive ... we're going for fun." A shovelful used to just join the bed and burn over half a minute: +0.6 a second on the gauge, nothing to feel. Now, under way, **0.35 of each shovelful catches** (0.9 s) **and flares** (1.2 s): its steam lands as a kick that peaks about a second after the stroke and is mostly in by three, **about +6 on the gauge**. While it flares the engine **surges**, 0.15 m/s² per unit of pressure a second the flare makes (about 0.3 m/s² at one shovelful's height, at most 0.5; only running, from 4 m/s and off the brake, so shunting in a yard and braking in to a stop aren't pushed), and the stack and the chuff work as if pulling hard. Measured (8 cars at the speed their steam makes, one shovelful against none): the flare's height at about 1.0 s, under a third of the gain in the first half second, the gauge 4+ up and the train 0.4+ m/s faster at 3 s (`BoilerTests.AShovelfulAnswersOnTheGaugeAndInThePullOneToThreeSecondsLater`).
+
+The same coal makes the same steam, only sooner, so the burn and endurance table below is unchanged. **At a stand**, with no exhaust to draw it, the coal settles into the bed like the rest, which the blower burns (`standingDraft`), and C.2's rebuild at a stop (8 s at three cars, 10 at twenty, note 969) holds exactly. **In the red** the safety valve blows the kicks off as well as its own 0.6 a second: a hot fire still reaches 100, and the time from the valve's first lift to a rupture is what it was (T109). Numbers in `boiler.json` (`catchShare`, `catchSeconds`, `flareSeconds`, `surgePerPressure`, `surgeMax`).
+
 ### Burn rate by consist
 
 | Consist | Burn | Shovel interval | Tender endurance |
@@ -312,7 +320,7 @@ At three cars, the boiler is a periodic chore someone fits around other work. **
 
 The dawn budget assumes an 11 m/s average, below the 14 m/s cruise. **The slack is what you spend on stopping** — every POI, every repair, every revival eats it — and each facility adds its own three minutes on top (note 554: at 7 km the transit's slack alone, 4.2 min, left no time for a stop). A crew that makes all three stops in good time is home with minutes to spare; a slow one isn't.
 
-**At dawn the Wakers get up** (GDD §8; docs/design/creatures/wakers.md; note 588; enemies.json `wakers`), in place of v1's two minutes' grace and a failed night. A train still out has them behind it: 1 on the Local and Frontier tiers, 2 on the Dead Lines, 3 in the Deep Territory. The first rises 1.2 km behind the last car. After 8 s it runs 6 m/s, building to 26 m/s over 45 s (the engine's flat out is 22). A train standing at dawn is caught in about 75 s; one at cruise is caught from about 2.5 km out, so a crew that close races it in. They stop 300 m short of the terminus's gate. The one that reaches the last car drags the train to a stand (3 × the engine's pull) and lifts a car every 2.5 s from the rear. From 6 s in it eats one every 4 s, whoever's in it with it, and anyone off the train goes 8 s in. The engine eaten, the night is lost: "taken at dawn" (`RunEnd.DawnMissed`).
+**At dawn the Wakers get up** (GDD §8; docs/design/creatures/wakers.md; note 588; enemies.json `wakers`), in place of v1's two minutes' grace and a failed night. A train still out has them behind it: 1 on the Local and Frontier tiers, 2 on the Dead Lines, 3 in the Deep Territory. The first rises 1.2 km behind the last car. After 8 s it runs 6 m/s, building to 26 m/s over 45 s (the engine's flat out is 22). A train standing at dawn is caught in about 75 s; one at cruise is caught from about 2.5 km out, so a crew that close races it in. Only a train whose last car is in through the terminus's gate is safe; with it home they stop 150 m short of the gate (note 940; it was 300). The one that reaches 12 m behind the last car, whichever way the train's going, has it: brought to a stand in his hands (6 m/s² at the least, or 3 × the engine's pull), the last car lifted from 1.2 s in. From 6 s in he eats one every 4 s in three bites, whoever's in it with it (note 902), and anyone off the train goes after. Shot, he's hit, and nothing hurts him. The engine eaten, the night is lost: "taken at dawn" (`RunEnd.DawnMissed`).
 
 **One night length** (the director, 6 Oct 2026): "The time a run takes should always be the same. Difficulty scales not by time but by monsters and density of challenges." On 9 Oct 2026 the one length became 7 km ("Sessions are feeling very long ... the average run has 3 full stops it can make", then "let me increase the time of a run up to 17 minutes ... that time is just an average run marker"; and after playing it, "yes make the shorter night final"). The total run's floor is the transit at cruise with no stop made (8.3 min); its ceiling is the dawn. A tier no longer adds kilometres; it packs more into the same 7:
 
@@ -334,12 +342,13 @@ A breach is a car's shell giving way to the outside (decided 1 Oct): a door forc
 | Car Hugger through the end wall | Every 0.1 of the shell eaten (25 s of feeding at 0.004/s), boarded up or not |
 | Climbers forcing their way in | Into a car with every door and its hatch shut, and unlit, through the roof (the hatch, on a cargo car) |
 | Boarding up | 8 s of Use held inside the car within 1.5 m of the hole; let go and that board starts over |
+| Two boarding up | Each works it 1.8× as fast, 4.4 s; a third adds nothing (train.json `repair.pairRate`; GDD §12 Fluidity, note 752) |
 | Needs the repair kit | No: anyone's hands (train.json `breach.needsKit`, true to need the kit carried) |
-| Inside a breached car | No shelter from the cold (as with a door open, it builds at ¼ rate), no muffling, no shelter from the Choir |
+| Inside a breached car | No muffling, no shelter from the Choir (and no shelter from the cold, while there was one: B.2) |
 
 ## B.10 Director pacing
 
-*Design decision, 2026-10* (GDD App. B.1 "Pressure", "Pacing rules"; `director` in `content/tuning/enemies.json`). The budget and its curve, the caps and the gates are GDD App. B.1's; these say when the director spends.
+*Design decision, 2026-10* (GDD App. B.1 "Pressure", "Pacing rules"; `director` in `content/tuning/enemies.json`). *The spawn director overhaul* (the director's brief of 20 Oct 2026, `docs/design/spawn-director-overhaul.md`; GDD App. B.1 "The overhaul"; notes 874, 932) is the rows from "The encounter rate" down to "The home stretch": each says whether it's in the game or not yet driving the director. Since #608 (note 908, `director.encounters.drive.on`) the encounter clock below owes the night's encounters and every channel pays them. The pressure rows above still say when the pressure spends, but its crew and length scaling (`crewScale`, `lengthScale`, `scaleCrew`, `scaleCars`, `scaleFloor`) and the free spawns' crew fade and curve roll are not read; `drive.on: false` reads them, for comparison. #611's caps ("Concurrency and overlap") and most of #612's trials ("Eligibility and diversity trials") are built and off until the director decides; #613's final sweep is done (note 930; `dt director report` scores a sweep against `tools/director/bands.json`, the late half per minute open to spawning, and `BalanceBandsTests` pins the scoring). The budget and its curve, the caps and the gates are GDD App. B.1's; these say when the director spends. The night's curve and the free spawns on it (the director, 16 Oct 2026; note 849) are the rows marked so; `NightCurveTests` pins them. The stops' own (note 860) is its row; `StopsOwnTests` pins it.
 
 | Parameter | Value |
 |---|---|
@@ -350,15 +359,33 @@ A breach is a car's shell giving way to the outside (decided 1 Oct): a door forc
 | Most banked | 18 |
 | **Relief per spawn** | **3 × its cost** |
 | Base | 0.03 /s |
-| **Escalation** (on everything) | × (1 + 3 × progress), progress along the line or toward dawn, whichever is further |
+| **Escalation** (on everything) | × (1 + 3 × the night's curve): the curve is progress along the line or toward dawn, whichever is further, to the power **1** (`director.curve.power`; note 849) |
 | Quiet | + 0.1 /s × (seconds since a threat was engaged or sent ÷ 90, to 1) |
 | Loudness | + 0.1 /s × (Choir meter ÷ its threshold, to 1.5) |
 | Cargo | + 0.01 /s per car-load (× comet 2, livestock 1.5, food and medicine 1.3, ammunition 1.2) |
 | Tier | × 0.8 Local, 1 Frontier, 1.2 Dead Lines, 1.4 Deep Territory |
-| Conditions | × (1 + 0.15 lamp out + 0.1 × cold + 0.05 per deep-cold step + 0.05 rain + 0.05 × wind) |
+| Conditions | × (1 + 0.15 lamp out + 0.05 rain + 0.05 × wind). The cold's terms (0.1 × cold + 0.05 per deep-cold step) went with the cold (B.2, note 852) |
 | **Relief valve** | × (alive ÷ crew)² × (1 − 0.25 × share of the living under 35 health) |
 | Busy | × 1 ÷ (1 + 0.5 × threats engaged × (1 − progress)): engaged is telegraphing, committing, grabbing or punishing; late in the night it stops waiting for the crew |
+| **Free spawns** (GDD App. B.1 "The night's curve"; note 849) | Beside the pressure, outside its budget, cooldown and holds: **3 an hour at the gate rising to 18 at the end** along the curve, rolled a second at a time on their own dice, the whole of it for a crew of **2** or fewer and **0.25** less for each crewmate alive over that, never under **0.35** (`crewFade`, `crewFadeFrom`, `crewFloor`; *not read since #608: a free spawn comes when the encounter clock below has one due*); never within **20 s** of anything the director sent, never before the night's first threat (drawn); nothing off the pressure. Under the hard caps, each kind's `nightChance` and `perNight`, the variety rules, who's next and the votes |
+| Free spawn: the fill (`curve.fill`) | The pressure **pressed** (at 16, `fillPressed`) with **no rule met** spends on the rule-less (the list below) instead of nothing: charged, paced and relieving as any spend |
+| Free spawn: what comes | One draw among the rule-less, sent without their situational rule, by weight: Cinder Hounds 0.5 (the train moving), Climbers 1, Ribbits 1.5, Followers 1, Soot Children 1, the Moose 0.7 (`curve.kinds`); and every kind whose rule is met now at its rule's weight × **1** × the curve (`curve.bound`); a Dragger or Whistler (silent until met) only with nothing else to send |
+| **The stops' own** (GDD App. B.1 "The stops' own"; notes 860, 868) | As the train stands at a yard (a facility with a stop laid) or an abandoned village (a village stop, stood on the main line by it): **byTier** (local **1**, frontier **1.5**, deadLines **2**, deepTerritory **2.5**) + **0.35** a crewmate over one (`perCrew`; the crew in the night now), rounded half up, **1** to **6** (`max`); of them the **0.3** share (`boarding`, rounded half up, never the only one) from **40 s** stood there (`boardingAfterSeconds`) from the boarders (the Whistler, Draggers, Tippy Toesie, the Passenger) whose rule it meets, the rest at once from the kinds whose rule it meets; one a second, for the first **240 s** stood there (`trySeconds`); by rule weight × `weights` × the night's variety, under the roster, `nightChance`, `perNight`, slain and the engaged cap. Once a stop a night. Beside the pressure: outside its budget, threshold, cooldown and the facility lull; the grace, the forts, the final stretch and the spawn bans hold; nothing off the pressure; its own dice |
+| The night's floor (note 868) | After `nightChance`'s roll, kinds rolled out (not at a chance of 0) are brought back, drawn by their chance on the roll's stream, until as many `residents` are about as wait at a stop on the tier for the crew, and **8** of the 22 kinds the director sends (`floorKinds`) |
+| **The encounter rate** (the director's brief §1, §3; note 877; `director.encounters`; driving the director since #608, note 908) | λ opportunities a minute = (**0.12** + (**0.33** + **0.035**·(P−1))·p^**1.2**) × (1 + **0.07**·(P−1)) × (1 + **0.05**·max(0, C−**3**)) × tier (**0.8** Local, **1** Frontier, **1.2** Dead Lines, **1.4** Deep Territory), to at most **3**. p: the clock toward dawn or the train along the line, whichever is further, never going back; P: the crew alive in the night (at least 1); C: the cars. A 20-minute Frontier night holds 5.4 (solo, 2 cars), 6.7 (two, 5), 9.6 (four, 8), 16.5 (eight, 12). `EncounterPacingTests` pins it |
+| **Concurrency and overlap** (the director's brief §1, §6; note 906; `director.encounters.concurrency`; read by the director with its `on`, **off** by default: note 906's sweep) | Engaged cap = the living × (**0.75** + **0.2** a car past **3**, to **2**), rounded half up, **1** to **12** (solo 1 to 6 cars, 2 from 7; four 4 on 4 cars, 7 on 8; eight 12 from 7); on one crewmate at once that share rounded, **1** to **2**; ambient room **1** + **0.1** a car past 3. Conflict pairs a night: pairsPerRun × (1 + **0.25** a living crewmate over one), rounded half up. Ribbits+Moose, Moose+loading, Hounds+Hotbox, Hounds+Knotter, Hounds+Brakeman need **2** living (`pairMinCrew`). Relief: × (alive ÷ crew)^**1** × (1 − **0.25** × share of the living under **35** health), on the encounter rate. A pair refused a crew is left out of every channel's choices while its other half is about. What holds the cap, with `on`: a threat holding nobody with no living crewmate within **30 m** (`farMetres`) for **60 s** (`farHoldSeconds`) comes off it, but the Knotter's (`farWorkers`); a car fire comes off it (`incidentsHoldCap` false); the Knotter's and the Whistler's waits read engaging unless `director.threats.waitsEngage` is false. A lone crewmate's cap is at least `soloCap` (**0**, off; at 2, over 30 solo seeds: **4.16 → 6.04** encounters a 20 minutes, delivered **60% → 47%**; GDD App. B.1 "The overhaul"). `ConcurrencyTests`, `LiveCrewTests`, `ConflictSeedingTests` pin it |
+| **The final surge** (the brief §1 A, §7; note 960; `director.encounters.drive.finalSurge`, **off**) | Over **2,500 m** (`rampMetres`) before the first kept quiet ahead (the final stretch, or the line's `terminus_safe` if it starts sooner), λ and the pressure's build rise linearly to **2** × themselves (`peak`), so the window's encounters come before it, never in it. `crewFull` (unset): above that many alive, the peak's rise over 1 × `crewFull` ÷ the living (at 4: eight crew 1.5). `FinalSurgeTests` pins it |
+| **Eligibility and diversity trials** (the brief §2 issue 5, §7, §9; note 915; each its own flag; GDD App. B.1 "The overhaul") | **On:** `director.nightChanceTrial` stands in for these kinds' `nightChance` on the same stream: Grumbler **0.35**, Passenger **0.3**, Moose **0.4**, Gaunt **0.35**, Track Doll **0.35**. **Off until the director decides:** `gannet.lowArrive` (arrives at **13 m/s** for its 30 s, peels off under **10**); `director.run.fromLastStop` (the hound run's metres counted from the last stop's departure at the tier's line speed − 4: **16 · 14 · 12 · 10**); `climbers.freeNeedsSpeed` (the curve's free Climbers want `minSpeed`); `director.nightCap` (a kind with no `perNight` of its own capped at **3** a night); `director.fresh` (with nothing to send and a kind capped, one kind the roll left out brought in, at most one every **30 s**, **10** a night); `cinderHounds.sated` (a pack leaves once its hounds have lit **3** fires). `packCountsOnce` true. **On (the director, 21 Oct, notes 970, 981):** `carHugger.lowGround` (marsh, dykeland and contaminated-marsh stretches as spots, a share **0.3** of them kept by the line's seed (`stretchChance`), lurking up to **1,500 m** ahead; the plan's `low_ground`, `water_crossing`, `cutting`, `dark_forest` and `blind_curve_exit` tags; a train stood under **0.5 m/s** at its rear car with nobody within **20 m**, on the far side), with `director.perNight` capping the Hugger at **1** a night; `climbers.freeSpeed`, the free Climbers only to a train moving at **0.5 m/s** or more and at most **⅓** of its tier's line speed (**6 m/s** on the Frontier). `EligibilityTrialTests`, `DiversityTrialTests`, `CarHuggerPlacesTests` pin them |
+| **The encounter clock** (the brief §2 issues 1–2, §3; note 908; `director.encounters.drive`) | Each second not held for an intended quiet, **λ ÷ 60** is owed. Intended quiet: the grace, a fort, the final stretch and the line's bans, the aftermath, a facility's lull, the terrain at its ceiling, and an engaged cap full of threats (`Threats.Counts`; a cap full of the dormant or ambient still owes). Every encounter placed, any channel, pays **1** (a pack is one). A free spawn is sent when the owed passes a threshold drawn **1 ± 0.35** (`jitter`) at each payment; owed held to **1.5** (`dueCap`) and **−1** (`dueFloor`), what λ adds past the cap to the debt (`Ineligible`, or `NoPlacement` for a free attempt that found nowhere). `pressureByLambda`: the crew and train scale only λ. `EncounterClockTests` pins it |
+| **Selection and placement** (the brief §3, §4, §5; note 895; `director.encounters.selection`, `.placement`, `.halt`) | A kind weighs **× 0.5** (`zoneRepeatWeight`) for each engaged threat already in its zone (forward, rear, flank, interior, structural, outside), in the pressure's and the curve's choices. A rule's place among those it allows (the Climbers', Draggers', Whistler's, Fire Flies', Hotbox's, Knotter's) weighs down to **× 0.2** (`nearThreatWeight`) right at a threat about, rising to 1 at **40 m** (`threatSpreadM`), and **× 0.3** (`onTopWeight`) within **6 m** of a crewmate (`onTopM`); the rule's own draw, so with nothing about it picks as before. A halt's own (on, `halt.on`; the director, 21 Oct, note 970): **15 s** stood at an abandoned village's halt (`lullSeconds`), one encounter if the stop's own haven't placed one. `EncounterPlacementTests`, `HaltEncounterTests` pin it |
+| **The spawn transaction** (the brief §2 issue 3; note 885; `director.encounters.attempts`) | Choose, place, then commit: the pressure's spend and cooldown, a free spawn's spacing, a stop's slot and the kind's count tonight are taken **only when placed**. A failure (`SpawnFailure`: no rule, gated, no target, no spot, no gap, no site) commits nothing; the kind sits out **10 s** of every channel's choices (`failHoldSeconds`); a free spawn that failed stays owed **20 s** (`freeRetrySeconds`); a stop's own keeps its slot. A pack is one encounter of N members. The dice run the same placed or failed. `SpawnTransactionTests` pins it |
+| **Encounter debt** (the brief §3; note 876; `director.encounters.debt`; in the game since #608) | Of λ's opportunities left unmet, **0.6** of a placement failure and **0.4** of nothing eligible is owed (`share`), to at most **2** (`cap`); it decays with a mean life of **240 s**; it's repaid at most **0.5** a minute (`releasePerMinute`, a store of **1**, `releaseBurst`), never past the caps' headroom. Intended quiet owes nothing, whatever the tuning (safe zone, grace, recovery, terminus, capped), and while the director is held the store empties: no burst after a yard. `EncounterDebtTests` pins it |
+| **Threat states** (the brief §2 issue 4; note 881; `director.threats`) | Each enemy reads dormant, ambient, threatening, engaging or resolved from its own state. Threatening: alert, a living crewmate within **20 m** (`nearMetres`), or working a train system with nobody near (a Hotbox in its truck, a Knotter in a coupling, hounds aboard, a Brakeman at work, a Freight Beetle pushing, Tower Jaw gnawing, a Mouse Moose dragging); a car fire. Engaging: at someone or holding them. What hunts nobody is ambient; so is anything loose **150 m** from every car and crewmate (`leftMetres`). **The engaged cap, App. B.1's zone and tell caps and the census count threatening and engaging only**; the bodies about are held to the cap + **2** (`ambientRoom`). Nothing despawned. `ThreatCapTests` pins it |
+| **Severity and the quiet** (the brief §4, §6; note 893; `director.telemetry`; measured, not yet read by the director: #611) | Level **1** presence: about within **60 m** of the train or a crewmate (`presenceMetres`); **2** harassment: threatening or engaging; **3** compound crisis: two at level 2 at least **15 m** apart (`compoundApartMetres`). Meaningful is level 2 or more. Each second on the run is sustained (level 2+), recovery (held for one of `recoveryHolds`: grace, aftermath, facility lull, a fort, banned, final stretch, terrain at its ceiling, derailed), presence (level 1), or a **true drought**; true droughts of **90 s** or more (`droughtSeconds`) are reported. `EncounterSeverityTests` pins it |
+| **The home stretch** (the brief §1.A; note 912) | One terminus ban: from the line's `terminus_safe` stretch (**1,200 m**, linegen `terminus.spawnBanM`) or route.json's `noSpawnFinalApproach` (**500 m**, carried on the route as generated), whichever starts first. The director's spends, its free and stops' channels, the hound run, the truss drops and, with `dwellings.inHomeStretch` false, a stop's houses read it (true since the director's "yes" of 21 Oct, note 970: a stop there has its houses' own). `ProtectionGapTests` pins it |
 | Post-spawn cooldown | 25–45 s (gives way when pressed) |
+| Facility lull (note 751) | 20 s from the first second stood at a facility: nothing of the director's own |
+| Aftermath (notes 751, 912) | 12 s after a death, cars lost (told), a grab broken with the one held alive, a Holdout freed: nothing of the director's own, pressed or not; the hound run's next pair and a truss Dragger don't wait (`aftermath.specials` false; the director's "keep", 21 Oct, note 970) |
 | **The first threat's draw** (note 287) | Each crewmate's draws on a ledger halving every 30 s: whistle 1.5 /s, raised voice 0.5 /s at full (above 40% of the mic), noisy toy 0.15 /s, firebox 0.25 /s at full (above 4.5 of 6), engine 0.03 /s at 20 m/s; a cannon round 3, a car lamp lit 2, cargo aboard 4 a car-load × its value |
 | Answered | One crewmate's draw of one kind at **3**, after the grace: a call from 60 m ahead, 12 m off the line, eyes there for 7 s; the first threat **5 s** later, pressed for |
 | Listening | No draw that big: past the threshold the first threat waits up to pressure 16, then the biggest draw standing takes it |
@@ -375,13 +402,20 @@ A car fire burns on cells (decided 6 Oct, GDD App. F.1; ARCHITECTURE note 267). 
 | A cell's growth | `growPerSecond` 0.006 + `growWithSize` 0.02 × its heat; the floor's cells × the cargo's growth (powder 1.6, chemicals 1.3, coal and timber 1.4) |
 | Catching | A cell at 0.5 or more heats each cell sharing an edge at 0.04 × its heat a second, ×2 upward (fire climbs) |
 | Burning out | A cell burns 0.01 × its heat of its fuel a second, charring as it goes; burnt out, it dies down at 0.05/s. Embers below 0.05 go out unless a neighbour is heating them |
-| Extinguisher | 3.5 m from the eye along the look; the stretch of the car where it's aimed, its floor, walls and roof there, cools 1/s a cell (`sprayWorksAcross`, `sprayPerSecond`; the director, 13 Oct: "one grid ahead of me ... hold. And it should dissipate within five seconds"; 12 Oct: "extinguish far more of the fire"), the cells round it 40% of that, and it stays wet (won't catch) for 3 s; 15 s of charge |
+| Extinguisher | 4.5 m from the eye along the look (was 3.5; note 939, the director's playtest of 20 Oct evening: "I feel like I have to walk a little too close to them"); the stretch of the car where it's aimed, its floor, walls and roof there, cools 1/s a cell (`sprayWorksAcross`, `sprayPerSecond`; the director, 13 Oct: "one grid ahead of me ... hold. And it should dissipate within five seconds"; 12 Oct: "extinguish far more of the fire"), the cells round it 40% of that, and it stays wet (won't catch) for 3 s; 15 s of charge |
 | Alight | When any cell reaches 0.35 (the commit, after the smoke) |
 | The car's fire | The mean of its cells: the explosion (powder car at 0.6), the cargo and car damage, the sound |
 | Jumping the coupling | A cell against an end wall at 0.8 for 15 s (chemicals ×2, coal and timber ×2 as fast), into the next car's near end |
-| Burns | Within 1.6 m of a burning cell's patch (feet to 1.8 m up), its heat × the falloff; the roof at half |
+| Burns | Within 1.6 m of a burning cell's patch (feet to 1.8 m up), its heat × the falloff; the roof at half. Not in an open doorway: within 0.8 m of a door's opening (`doorwayClear`) the fire doesn't burn you, the edge where the crew board to fight it (note 939, the same playtest: "I get burned when I'm getting into a car") |
 | Left alone (goods) | At 1.5 m cells: alight at 25 s, the roof caught by about 55 s, half the car by 70 s, the next car by 85 s; burnt out by about 6 min. Not yet measured again at 3.5 m (note 634) |
 | One extinguisher | Puts out a car at full blaze in about 8.6 s, nearly three-quarters of its charge left, the one spraying it unburned (the director, 12 Oct: "from full blaze within 20 seconds"; `FireCellsTests`) |
+| Two extinguishers | Two in the car, each spraying the nearest fire in reach, put the same car out in about 6.4 s (three in 5.5 s): each cools the stretch it's aimed at by the whole rate, so they stack (note 752, GDD §12; note 851, the director's playtest of 16 Oct evening: "didn't go out ever despite both of us fighting it"); both unburned, most of their charge left (`FireCellsTests.TwoOnTheExtinguishersPutARearCarFireOutWellWithinTheOnesTime`) |
+| Every fire has a cause | Told to the crew as it starts, where it starts, and in the report: the hot box, the Fire Flies at the car's lamp, Cinder Hounds feeding on it, a thrown lamp (and who threw it), the fire jumping the coupling from the next car, a powder car going up (`FireCause`, `World.FireStarted`; the news line, note 663; note 851). A car alight again tonight is told so ("FIRE IN CAR 1 AGAIN"), and whoever comes to a burning car after the news is told its cause there for as long as it burns ("CAR 1 ALIGHT AGAIN · A CINDER HOUND ON ITS ROOF"); the cause rides on the fire, so every machine shows it where it is: a hot box's fire, the box burning at its wheel and its squeal; a hound on the roof, its heat through the boards over the crew (note 939) |
+| Home | In through the arrival's gates (note 847) or delivered, nothing on the train burns: a fire goes out at once, no hound lights one, no hot box catches, no powder car goes up (`World.HomeSafe`; note 851). Never in the gym (note 676), and not the departure's yard |
+| A hound over the crew | A Cinder Hound on the roof of a car with a crewmate inside it (out of its reach, note 471) is not alone: it doesn't feed and relight the car over their heads; it prowls and waits for them to come out (note 851) |
+| A hound's fires | Once every `igniteEverySeconds` 90 s aboard (was 20), the car it's on: counted the whole time it's aboard, set back to nought by a blow on it or a fire it lights; held while crew are near it (the row above), lit once they're gone; a 2 s wind-up first (`aboard.igniteWindUpSeconds`, the director, the inbox, 20 Oct), broken off by someone near or a blow (the director, 9 Oct: "reignite every minute and a half ... Attacking a cinder hound should reset its ignite burst"; note 891; `HoundAboardTests`, `BoardingRuleTests`) |
+| A hound's bite aboard | Someone it can reach within 4 m: a lunge of 0.5 s to 0.8 m short of them, the bite (35) as it lands if they're within its 4 m reach, back off 3 m at 2.5 m/s, crouch 2 s, again (`cinderHounds.aboard`; on false, note 472's bite every 4 s where it stands) |
+| A blow on a hound aboard | Driven back from the striker 1 s at 3.5 m/s, over the gap onto the car behind, then a 2 s crouch before it comes again; at the back of the rear car with a way off (its roof's end; inside, one of its doors open) it leaves the train, counted as driven off. The spray's backing off (note 728) leaves the same way. Its 2nd blow aboard (`aboard.fleeAfterBlows`; the director, the inbox, 20 Oct: "flee"): it jumps off wherever it is |
 
 ---
 
@@ -428,6 +462,8 @@ A car fire burns on cells (decided 6 Oct, GDD App. F.1; ARCHITECTURE note 267). 
 | Health | **12** blows; under 4 it leaves for the run |
 | Trophy | its head: **1.5** of the tier's car-loads (loot.json `trophies`) |
 | Spawn weight by tier | 1 · 1.5 · 2 · 2.5 (Local to Deep Territory) |
+
+*Built, off (#612, note 915; the director's answer of 20 Oct 2026, "13 m/s"):* at 18 m/s it never comes on an ordinary night, which runs at 14 m/s cruise or under the line speed. `gannet.lowArrive` brings it at **13 m/s** (peeling off under **10**), but the bots' cruise dips under 13 tick by tick, so at 13 it still never came. At **12** it arrived on 3–4 of 8 nights at two, four and eight crew, deaths and deliveries unchanged. The recommendation is 12 (inbox `n1-B3-gannet-12`). This table, its tuning and `SpecTableTests` change together when the flag goes on.
 
 ## B.14 The Mourners
 
@@ -499,6 +535,20 @@ A car fire burns on cells (decided 6 Oct, GDD App. F.1; ARCHITECTURE note 267). 
 | **Seized** | the train held to **7 m/s** while the car's in it; repaired with a wrench, **10 s** |
 | **Exposed** | at a stand for **2 s**: **6** blows kill it, or a crowbar or wrench held **4 s** prises it out; it bites **30** every 3 s |
 
+## B.20 Two on the run: a jumped pin
+
+*The director, 2026-10-19, on Otis's call 5 (note 861): "Yes but not on solo nights"; and, having played it: "I want a pin to jump almost never and when it does it should have hella telegraphing to the players"* (GDD §12 "One can, two do it faster"; `coupling.jump` in `content/tuning/upkeep.json`; ARCHITECTURE §8 note 865). `TwoOnTheRunTests.MatchesB20` pins this table; `ComesAboutOneNightInNine` its rate.
+
+| Parameter | Value |
+|---|---|
+| **Crew** | **2** or more alive; never on a night of one |
+| When | running at **12 m/s** or more, a **0.03** chance each minute, none in the first **180 s**: about **one night in nine** (a frontier night has about 230 s it could come in); at most **1** a night |
+| **Warning** | **10 s** working loose before it jumps: its line, the knock quickening **3** to **10** a second (heard from the cab), the callout beating **3** times as fast, the cars either side shaking; two on it then drive it home, and letting go parts nothing |
+| Hands | one holding the pin in the gap (Use, bare hands) **and** one taking the slack off: a brake wheel over the gap held, or the throttle shut by one in the cab (or the train stood) |
+| **Home** | both on it **4 s** |
+| **Let go** | once it's jumped and both have hold, either off it **0.3 s** parts it there and then |
+| Left | once jumped, parts after **60 s** of running (a pin worked loose: 90 s); holds while the train stands |
+
 # PART C — DEATH AND REVIVAL
 
 > **Superseded by GDD v1.2 Appendix D (Death, Holdouts and Return).** The Vigil is cut. A dead player returns only through a Holdout at a halt, village or yard; bodies are loot (D.9). This part is kept for the record.
@@ -537,11 +587,11 @@ Revival is possible, expensive, and genuinely capable of ending a run.
 - **The vent is deafening.** Choir aggro spikes to maximum instantly, and every noise-triggered spawn weight doubles for the duration.
 - Dawn clock keeps running.
 
-**After the Vigil:** boiler pressure at zero. Rebuilding to working band takes 40s at three cars and **over three minutes at twenty.** Then you still have to accelerate a 890-tonne train from a standing start.
+**After the Vigil:** boiler pressure at zero. Rebuilding to working band takes about 8 s at three cars and no more than 30 at twenty (10 as tuned; the director, 21 Oct, note 969: was 40 s and over three minutes). Then you still have to accelerate a 890-tonne train from a standing start.
 
 ### The revived
 
-They come back **cold**: cold exposure onset halved (300s), carry capacity reduced to light only, and they cannot operate the guns until the next POI.
+They come back weak: carry capacity reduced to light only, and they cannot operate the guns until the next POI. ~~Cold exposure onset halved (300s)~~ *struck with the cold (B.2, note 852)*.
 
 ### The alternative
 
@@ -679,13 +729,24 @@ Leftover scrip grows in absolute terms but stays roughly proportional, so **the 
 
 **Small — 15–25% of current car cost.** One or two per car purchase.
 
-Lamp brightness · lamp armour · gun cooling · ammunition capacity · repair kit charges · tender capacity · coupling reinforcement · roof handrails (Dragger resistance) · radio range · car insulation (cold)
+Lamp brightness · lamp armour · gun cooling · ammunition capacity · repair kit charges · tender capacity · coupling reinforcement · roof handrails (Dragger resistance) · radio range · ~~car insulation (cold)~~ *(retired with the cold, note 852)*
 
 **Major — 100–180% of current car cost.** A run's income, deliberately competing with buying a car.
 
 Armoured car conversion · second guard car (a **third gun**, but it costs a cargo slot) · improved brakes (+20% deceleration) · boiler upgrade (−15% burn) · powered switch thrower (removes the ground excursion at junctions) · reinforced couplings (uncouple under load)
 
 **The core tension:** every upgrade slot competes with a car, and every car makes you richer and more vulnerable. A crew that buys guns and brakes instead of cars stays small, safe and poor.
+
+**The catalogue** *(the director, 13 Oct 2026; note 678, docs/design/upgrades.md)*. Upgrades come in four kinds: **tools**
+(the above, and more priced in the same bands), **whimsy** (works and is funny: 1–15%), **fun** (looks and sounds, no
+gameplay: 2–8%) and **silly** (bought because it's silly; any price, the gold whistle's 250% being its joke, and the yard
+clerk reads it into every tally). A tool is stocked from the tier whose trouble it answers (campaign.json `fromTier`), and
+takes a share of that trouble, never all of it:
+
+Frontier: speed recorder (+50% bend warning) · composition brake shoes (−50% fade) · pre-cut boards (−50% boarding a
+breach) · big extinguishers (+50% spray, −50% recharge). Dead lines: axle oilers (Hotbox +50% before seizing, −50% to
+mend) · ~~feedwater heater (−50% cold off the boiler)~~ *(retired with the cold, note 852)* · gun rammers (−20% reload step) · trailing-truck booster (major, +20%
+pull). From Local: sprung cradles (−60% fragile spoilage) · spare radios (+2).
 
 ## F.4 Progression shape
 

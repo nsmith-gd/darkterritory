@@ -8,7 +8,30 @@ public sealed record CombatTuning(GunTuning Guns, ChoirTuning Choir)
     public HitTuning Hits { get; init; } = new();
     /// <summary>A cannon fired beside a chemicals car (combat.json <c>fumes</c>; GDD App. B.9; note 182). Unset, nothing.</summary>
     public FumesTuning? Fumes { get; init; }
+    /// <summary>The human cannonball on the guard van's gun (combat.json <c>cannonball</c>; note 746).</summary>
+    public CannonballTuning Cannonball { get; init; } = new();
+    /// <summary>The flare pistol (combat.json <c>flarePistol</c>; note 871).</summary>
+    public FlarePistolTuning FlarePistol { get; init; } = new();
 }
+
+/// <summary>
+/// combat.json <c>flarePistol</c> (note 871; docs/design/upgrades.md §4 "A flare lights a village for 60 s, and the Fire Flies
+/// follow it away from the train"): Fire with the pistol in hand sends a flare out along the look at <see cref="Speed"/> m/s
+/// (<see cref="Lift"/> of it upward, so it arcs), no sooner than <see cref="Every"/> s after its last; the flare burns
+/// <see cref="BurnSeconds"/> where it comes down (its light is senses.json's <c>flare</c>).
+/// </summary>
+public sealed record FlarePistolTuning(double Speed = 28, double Lift = 0.35, double Every = 1.0, double BurnSeconds = 60);
+
+/// <summary>
+/// combat.json <c>cannonball</c> (note 746; docs/design/upgrades.md §8.3): a crewmate climbs into the guard van's packed gun
+/// (<c>dress:humanCannonball</c>) holding Use within <see cref="ClimbReach"/> m of its muzzle (<see cref="Muzzle"/> m out along
+/// the barrel from the pivot) for <see cref="ClimbSeconds"/>. Fired, they fly at <see cref="Speed"/> m/s (level) to a point
+/// <see cref="Range"/> m along the gun's aim, stepped back <see cref="Step"/> m at a time to dry ground on the map (within
+/// <see cref="MapHalfWidth"/> of the line and the line's room there); a creature within <see cref="HitRadius"/> of them in the
+/// air takes the ball's hit (<see cref="GunTuning.DamagePerRound"/>) once, and stops them.
+/// </summary>
+public sealed record CannonballTuning(double ClimbReach = 1.0, double ClimbSeconds = 1.5, double Muzzle = 1.5, double Range = 40,
+    double Speed = 22, double Step = 2, double MapHalfWidth = 300, double HitRadius = 1.2);
 
 /// <summary>
 /// combat.json <c>fumes</c> (App. B.9: "firing a cannon near chemical cars is lethal to the crew"): a shot from a gun on a
@@ -19,7 +42,7 @@ public sealed record FumesTuning(int Cars = 1, double GasM = 8, int Damage = 150
 
 /// <summary>
 /// The crude cannons (GDD v1.1 §12, App. C.3): arc-limited, loud, and every shot a timed decision. After each shot a full
-/// manual reload (powder, ball, ram) at the gun before it fires again. Field docs live in combat.json.
+/// manual reload (powder, pack, ball: note 746) at the gun before it fires again. Field docs live in combat.json.
 /// </summary>
 /// <summary>Which way a gun faces at rest: ahead (the engine's forward gun) or back down the train (every car's).</summary>
 public enum GunMountFacing : byte { Ahead, Back }
@@ -28,10 +51,17 @@ public sealed record GunTuning(double RoundsPerSecond, double Range, double Trav
     double MinPitchDegrees, double MaxPitchDegrees, int Ammo, double Reach, double DamagePerRound, double MinPressure)
 {
     public int TicksPerRound => (int)Math.Round(SimConstants.TickRate / RoundsPerSecond);
-    /// <summary>The reload's steps: powder, ball, ram (0: the old magazine gun, no reload).</summary>
+    /// <summary>Note 846: no gun fires from inside a walled town (<see cref="World.InTown"/>).</summary>
+    public bool HoldInTowns { get; init; } = true;
+    /// <summary>The reload's steps: powder, pack, ball (note 746; 0: the old magazine gun, no reload).</summary>
     public int ReloadSteps { get; init; } = 3;
     /// <summary>Seconds of Use held at the gun per step.</summary>
     public double ReloadStepSeconds { get; init; } = 1.5;
+    /// <summary>
+    /// Note 752 (GDD §12, one can, two do it faster): how fast two pairs of hands on the reload work it together, against one's 1
+    /// (a third adds nothing). 1: two as fast as one.
+    /// </summary>
+    public double LoaderRate { get; init; } = 1;
     /// <summary>
     /// A shot takes nothing from the gun's stock or rack (the director, 13 Oct evening, note 689: "let them fire and reload
     /// as much as they want, infinite ammo"): the reload is the cost. False: the night's stock and the rack (note 374).
@@ -89,7 +119,7 @@ public sealed record GunTuning(double RoundsPerSecond, double Range, double Trav
     public double FeedWhileFiring { get; init; } = 20;
     /// <summary>
     /// A bot crew this big or bigger (bots and all) has a second gunner on the engine's forward gun (note 414), for the lane
-    /// ahead (note 405), the Track Doll and the Switchman: its last place. 0: never.
+    /// ahead (note 405) and the Track Doll: its last place. 0: never.
     /// </summary>
     public int ForwardGunnerFrom { get; init; } = 6;
     /// <summary>
@@ -98,6 +128,11 @@ public sealed record GunTuning(double RoundsPerSecond, double Range, double Trav
     /// </summary>
     public double FoulChance { get; init; } = 0.04;
     public double FoulWetFactor { get; init; } = 2.5;
+    /// <summary>
+    /// The lucky horseshoe's share of <see cref="FoulChance"/> (campaign.json's <c>horseshoe</c> effect; 1 without it): a shot
+    /// that would have fouled at the chance over it, and didn't, is one it saved (queue #505, note 775: its glint).
+    /// </summary>
+    public double HorseshoeFoul { get; init; } = 1;
     public double ClearSeconds { get; init; } = 4;
     /// <summary>GDD §22 wind (note 183): "gunfire carries much further": a round's loudness grows this much per unit of wind.</summary>
     public double WindLoudness { get; init; } = 0.6;

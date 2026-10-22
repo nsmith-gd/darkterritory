@@ -45,10 +45,16 @@ public class ClerkVoiceTests
         var world = new World(new TrainOnLine(new TrainDynamics(Consist.Uniform(Trains, 4, 1)), line, 600, Boilers));
         for (int i = 0; i < Players.BotNames.Count; i++)
             world.Names[i] = Players.BotName(i);
-        var report = new RunReport(RunEnd.Delivered, 1000, 12, 3, 1, 2, 2450, 40, 12, 30, -350, 3, 1, Scavenged: 75, Mail: 90)
+        // A night in the red with every line the tally has (note 766: the tow in, the brigade, what cost most).
+        var report = new RunReport(RunEnd.Delivered, 1000, 12, 3, 1, 2, 2450, 40, 12, 30, -350, 3, 1, Scavenged: 75, Mail: 90, Recovery: 600)
         {
             ChildrenHome = 2,
             ChildPay = 400,
+            BroughtInFees = 120,
+            // Note 718's finds and their finder.
+            Prizes = [new Prize("pocketWatch", "pocket watch", 1, 110), new Prize("candles", "candles", 3, 25)],
+            Finder = Players.BotName(2),
+            FinderWorth = 185,
             Lines =
             [
                 new ReportLine(IncidentKind.Death, Players.BotName(0), "", 350, 263),
@@ -58,10 +64,51 @@ public class ClerkVoiceTests
         var lines = Radio.Manifest(world, Enumerable.Range(0, Players.BotNames.Count + 1)).Concat(Radio.Tally(report))
             .Concat(Enum.GetValues<CargoKind>().Where(k => k != CargoKind.None).Select(k => $"Freight: {Cargoes.Name(k)}."))
             .Append("Child survivor: 1. Paid 200.");
+        Assert.Contains(lines, l => l.Contains("Most of it", StringComparison.Ordinal));
+        // Whatever cost a night most, the clerk can name it (Radio.Costliest names a cost as the ledger does).
+        var everyCost = report with { CrewLossFees = 700, BodyRefunds = 263, CoalCost = 40, AmmoCost = 12, RepairCost = 30 };
+        lines = lines.Concat(Radio.Ledger(everyCost).Where(i => i.Amount < 0).Select(i => $"Net: -1. Most of it {i.Name}, {-i.Amount:0}. Next."));
         foreach (var said in lines)
             Assert.DoesNotContain(clerk.Pieces(said), p => p.Kind == ClerkVoice.PieceKind.Breakup);
         // "Crew 8" (a crewmate with no name) is said too.
         Assert.Contains(clerk.Pieces("Crew: Crew 8."), p => p is { Kind: ClerkVoice.PieceKind.Word, Text: "eight" });
+    }
+
+    [Fact]
+    public void EveryUpgradesTallyLineIsSaidWithNothingBreakingUp()
+    {
+        // Note 775 (queue #505): what the crew owns is read into every night's tally (U1's #967, Campaign.TallyLines), "Fiddle:
+        // in tune, mostly.", "Air freshener: pine.". tools/audio/clerk.py reads the lines off campaign.json; a new one fails
+        // here until the bank's built again. The nameplate's slot is a player's typing, or "unnamed" (NetPlaySession).
+        var clerk = Clerk();
+        var campaign = DataFile.Load<Sim.Campaign.CampaignTuning>(Path.Combine(Content, Sim.Campaign.CampaignTuning.File));
+        var lines = Sim.Campaign.Campaign.TallyLines(campaign, campaign.Upgrades.Select(u => u.Id));
+        Assert.True(lines.Count >= 40, $"{lines.Count} tally lines");
+        foreach (string line in lines)
+            // Note 972: every reading of a line with the night's counts in it (Radio.Fill): each count at nought and at some.
+            foreach (string reading in Readings(line))
+            {
+                string said = reading.Replace("{engine}", "unnamed", StringComparison.Ordinal);
+                Assert.True(!clerk.Pieces(said).Any(p => p.Kind == ClerkVoice.PieceKind.Breakup), $"the set breaks up over '{said}'");
+            }
+    }
+
+    /// <summary>A tally line read every way the night's counts can have it (note 972): each count it names at 0 and at 3.</summary>
+    static IEnumerable<string> Readings(string line)
+    {
+        var names = System.Text.RegularExpressions.Regex.Matches(line, @"\{([A-Za-z]+)[?}]").Select(m => m.Groups[1].Value)
+            .Where(n => n != "engine").Distinct().ToList();
+        for (int mask = 0; mask < 1 << names.Count; mask++)
+            yield return Radio.Fill(line, names.Select((n, i) => (n, (mask >> i & 1) * 3)).ToDictionary(x => x.n, x => x.Item2));
+    }
+
+    [Fact]
+    public void TheHumanCannonballsBulletinIsSaidWhole()
+    {
+        // Note 746: "Sam's been fired from the rear cannon", for a bot's name (a typed one is the set breaking up, below).
+        var clerk = Clerk();
+        foreach (string line in Sim.Run.Radio.Fired(Players.BotName(3)))
+            Assert.True(!clerk.Pieces(line).Any(p => p.Kind == ClerkVoice.PieceKind.Breakup), $"the set breaks up over '{line}'");
     }
 
     [Fact]
@@ -120,7 +167,7 @@ public class ClerkVoiceTests
     public void EveryCauseCardTheStrandedLineAndTheKitLostAreSaidWithNothingBreakingUp()
     {
         // Note 242: the cause card (E.5) reads the derail's cause and C.9's blame through IncidentLog.CauseCard, and the
-        // causes are the sim's templates (Lineside's bends, the Sleepers, the Switchman, TrackRules' washouts and bridges, the
+        // causes are the sim's templates (Lineside's bends, the Sleepers, TrackRules' washouts and bridges, the
         // Stoker's runaway); the places are the line generator's own words. A new word in any of them fails here until the
         // bank (tools/audio/clerk.py) has it.
         var clerk = Clerk();
@@ -130,13 +177,12 @@ public class ClerkVoiceTests
             "ran onto the washout",
             "Carrow Trestle gave way under car 4",
             "ran onto the Sleepers at 52 km/h, 12 km/h over the 40 km/h they'll take",
-            "the Switchman threw the points under it at 35 km/h (over 25 km/h they throw a train off)",
             "the Stoker ran away with it: took the 45 km/h bend at 68 km/h, 23 km/h too fast",
         ];
         string[] blames =
         [
-            "Throttle: {actor}.", "Nobody on the throttle.", "Forward cannon crewed by {actor}.", "Forward cannon not crewed.",
-            "No forward cannon on the consist.", "Firebox last tended: {actor}, unattended 40 s.", "Nobody had tended the firebox.",
+            // (Not the forward cannon's three: no card says them any more, and the bank let them go, note 988.)
+            "Throttle: {actor}.", "Nobody on the throttle.", "Firebox last tended: {actor}, unattended 40 s.", "Nobody had tended the firebox.",
         ];
         foreach (string cause in causes)
             foreach (string blame in blames)

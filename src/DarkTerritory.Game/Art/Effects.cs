@@ -14,7 +14,7 @@ namespace DarkTerritory.Game.Art;
 public sealed partial class Effects(Look look)
 {
     readonly int _smoke = look.Layer("fx_smoke"), _steam = look.Layer("fx_steam"), _spark = look.Layer("fx_spark"), _fog = look.Layer("fx_fog"),
-        _flame = look.Layer("fx_flame"), _flash = look.Layer("fx_flash");
+        _flame = look.Layer("fx_flame"), _flash = look.Layer("fx_flash"), _char = look.Layer("fx_char");
 
     /// <summary>Whether the look has the flipbooks the art pass draws its fire with (the greybox draws boxes without).</summary>
     public bool HasFlames => _flame >= 0 && _smoke >= 0;
@@ -37,8 +37,13 @@ public sealed partial class Effects(Look look)
     /// stack gives a last thin grey wisp and nothing else does.</param>
     /// <param name="lamp">The headlamp's lit (World.LampShining): out, no halo and no beam (the tail lamp's its own).</param>
     /// <param name="tailBite">What a Car Hugger's eaten of the last car (Art/BiteKit): its tail lamp goes with its corner.</param>
+    /// <param name="reach">The headlamp's reach (train.json <c>headlampReach</c>, note 506): the beam drawn that much longer.</param>
+    /// <param name="flare">A shovelful flaring (note 903; 1 is one at its height): the stack's answer to the stroke.</param>
+    /// <param name="searchlight">The rear searchlight's fitted on the last car (note 899): its beam back down the line, and the
+    /// track behind lit by it.</param>
     public void Train(MeshBuilder mesh, IReadOnlyList<CarFrame> frames, Double3 eye, double time, TrainControls controls, float fire, bool emergency,
-        bool vent = false, bool safety = false, Bite tailBite = default, bool whistle = false, bool dead = false, bool lamp = true)
+        bool vent = false, bool safety = false, Bite tailBite = default, bool whistle = false, bool dead = false, bool lamp = true, float reach = 1,
+        float flare = 0, bool searchlight = false)
     {
         if (frames.Count == 0 || (frames[0].Origin - eye).Length > 400)
             return;
@@ -55,7 +60,10 @@ public sealed partial class Effects(Look look)
         // Smoke: puffs at a rate the regulator sets, each drifting up and left behind where the stack was. The wind
         // leans it off the line a little. Dark, sooty, lit only by the night (and faintly by the fire underneath).
         float work = dead ? 0 : (float)Math.Clamp(controls.Throttle, 0, 1);
-        float rate = 3.5f + 7f * work;
+        // A shovelful flaring (note 903): she works as if pulling hard while it burns, and the puffs come thick and black.
+        float kick = dead ? 0 : Math.Clamp(flare, 0, 1.5f);
+        work = Math.Max(work, Math.Min(1, kick));
+        float rate = 3.5f + 7f * work + 4f * kick;
         const float life = 5.5f;
         int count = (int)(rate * life);
         double emitted = Math.Floor(time * rate);
@@ -69,8 +77,8 @@ public sealed partial class Effects(Look look)
             float h = Hash((float)(index * 0.618));
             float t = age / life;
             var drift = -velocity * age + wind * age + up * (2.2f * MathF.Pow(age, 0.6f) * (1 + work)) + (right * (h - 0.5f) + back * (Hash((float)index + 3.3f) - 0.5f)) * (0.4f + age * 0.5f);
-            float size = 0.9f + 3.6f * MathF.Sqrt(t) * (0.8f + 0.4f * h);
-            float alpha = 0.6f * MathF.Pow(1 - t, 1.4f) * MathF.Min(1, age * 6) * (0.6f + 0.4f * work) * (dead ? 0.18f : 1);
+            float size = (0.9f + 3.6f * MathF.Sqrt(t) * (0.8f + 0.4f * h)) * (1 + 0.35f * kick);
+            float alpha = MathF.Min(0.9f, 0.6f * MathF.Pow(1 - t, 1.4f) * MathF.Min(1, age * 6) * (0.6f + 0.4f * work) * (1 + 0.4f * kick) * (dead ? 0.18f : 1));
             var soot = dead ? new Vector3(0.2f, 0.2f, 0.21f) : new Vector3(0.05f, 0.046f, 0.044f);
             var colour = new Vector4(soot * (0.9f + 0.3f * h) + FurnaceTint(dead ? 0 : fire) * MathF.Max(0, 0.4f - t), alpha);
             mesh.Billboard(stackTop + drift, size, h * 6.28f + age * 0.3f, colour, _smoke, FxBlend.Alpha, (int)(t * 15.99f), 4);
@@ -179,7 +187,7 @@ public sealed partial class Effects(Look look)
             return;
         // The headlamp: a halo round the lens, and the beam through the fog (the one light that reaches out; §28's
         // "headlamp and lantern cones"). Additive and faint, strongest at the lamp.
-        var head = Views.Lighting(engine, look);
+        var head = Views.Lighting(engine, look, reach: reach);
         var at0 = head.LampPosition.RelativeTo(eye);
         // The halo is glare seen from afar; close to, it would hide the lamp it's round, so it fades in with distance.
         float glare = Math.Clamp((at0.Length() - 4) / 16, 0, 1);
@@ -187,16 +195,51 @@ public sealed partial class Effects(Look look)
         {
             mesh.Billboard(at0 - head.LampDirection * 0.2f, 2.6f, 0, new Vector4(head.LampColour * 0.5f * glare, 1), -1, FxBlend.Additive);
             mesh.Billboard(at0 - head.LampDirection * 0.25f, 0.9f, 0, new Vector4(head.LampColour * (0.3f + 0.7f * glare), 1), -1, FxBlend.Additive);
-            Beam(mesh, at0, head.LampDirection, head.LampConeDegrees * 0.8f, 40, head.LampColour * 0.07f);
+            Beam(mesh, at0, head.LampDirection, head.LampConeDegrees * 0.8f, 40 * reach, head.LampColour * 0.07f);
         }
-        // The tail lamp's glow at the back of the train.
         var last = frames[^1];
+        if (searchlight)
+            Searchlight(mesh, last, eye);
+        // The tail lamp's glow at the back of the train.
         var corner = new Double3(-last.Shape.HalfWidth + 0.25, last.Shape.RoofHeight - 0.3, last.Shape.HalfLength + 0.15);
         if (tailBite.Eats(new Vector3((float)corner.X, (float)corner.Y, (float)corner.Z - 0.2f)))
             return;
         var tail = last.ToWorld(corner).RelativeTo(eye);
         mesh.Billboard(tail, 1.0f, 0, new Vector4(0.6f, 0.08f, 0.05f, 1), -1, FxBlend.Additive);
     }
+
+    /// <summary>
+    /// The rear searchlight (note 899; the director's "look": it lights, nothing more): a halo at its glass, a narrow beam back
+    /// down the line through the fog, and the track behind lit where it lands, a few practical lights stepped along the beam
+    /// (the renderer's one shadowed spot is the headlamp's).
+    /// </summary>
+    void Searchlight(MeshBuilder mesh, in CarFrame van, Double3 eye)
+    {
+        var mount = van.ToWorld(WhimsyKit.SearchlightMount(van.Shape));
+        if ((mount - eye).Length > 400)
+            return;
+        var m = SceneArt.FrameMatrix(van, eye);
+        var glass = Vector3.Transform(Vector3.Transform(WhimsyKit.SearchlightLens, Matrix4x4.CreateTranslation(F(WhimsyKit.SearchlightMount(van.Shape)))), m);
+        var aim = Vector3.Normalize(Vector3.TransformNormal(WhimsyKit.SearchlightAim, m));
+        var white = SearchlightWhite;
+        float glare = Math.Clamp((glass.Length() - 3) / 14, 0, 1);
+        mesh.Billboard(glass + aim * 0.05f, 2.2f, 0, new Vector4(white * 0.45f * glare, 1), -1, FxBlend.Additive);
+        mesh.Billboard(glass + aim * 0.04f, 0.7f, 0, new Vector4(white * (0.35f + 0.65f * glare), 1), -1, FxBlend.Additive);
+        Beam(mesh, glass, aim, SearchlightCone, SearchlightLength, white * 0.06f);
+        // The track lit where the beam comes down to it (about 40 m out), and the air along it: each pool kept a metre over
+        // the rails, so it lights the ballast and what's standing there rather than the inside of the ground.
+        float rail = Vector3.Transform(Vector3.Zero, m).Y + 1.2f;
+        foreach (var (d, range, power) in SearchlightPools)
+        {
+            var at = glass + aim * d;
+            mesh.PointLights.Add(new PointLight(at with { Y = MathF.Max(at.Y, rail) }, white * power, range));
+        }
+    }
+
+    /// <summary>The searchlight's carbon-arc white, its beam's half-angle (°) and length (m), and its pools: along the beam (m), reach (m), power.</summary>
+    static readonly Vector3 SearchlightWhite = new(0.95f, 0.93f, 0.85f);
+    const float SearchlightCone = 7, SearchlightLength = 55;
+    static readonly (float Along, float Range, float Power)[] SearchlightPools = [(8, 8, 1.3f), (18, 11, 2.0f), (30, 14, 2.4f), (44, 16, 2.2f)];
 
     static Vector3 FurnaceTint(float fire) => new Vector3(0.12f, 0.05f, 0.01f) * fire;
 

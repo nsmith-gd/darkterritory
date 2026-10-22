@@ -1,14 +1,17 @@
 using Ballast;
 using DarkTerritory.Game.Art;
 using DarkTerritory.Sim;
+using DarkTerritory.Sim.LineGen;
+using DarkTerritory.Sim.Net;
 using DarkTerritory.Sim.Player;
+using DarkTerritory.Sim.Towns;
 using DarkTerritory.Sim.Train;
 
 namespace DarkTerritory.Game.Sound;
 
 /// <summary>
 /// What's underfoot, as the audio's surface materials (tools/audio/cues.py MATERIALS: wood, grate, plate, roof, coal, and
-/// the ground's ballast, dirt, grass, mud, cobbles, concrete): the crew's footsteps and whatever's dropped. The sim keeps
+/// the ground's ballast, dirt, grass, mud, cobbles, concrete, and water waded through): the crew's footsteps and whatever's dropped. The sim keeps
 /// only <see cref="Surface"/> (a roof, a deck), so this goes back to the solid underfoot and the texture the art gives it
 /// (out/audio/hooks-map.md §1), and off the train to the ground the art draws there (<see cref="WorldArt.GroundTexture"/>).
 /// </summary>
@@ -57,7 +60,7 @@ public static class Footing
             PartKind.Chassis or PartKind.Steps or PartKind.Cargo or PartKind.Locker or PartKind.Wall => "wood",
             // The engine's running boards and the gangway's footplate are chequer plate (steel_grate), as are the coupler
             // plates and the guard van's rear platform.
-            PartKind.RunningBoard or PartKind.Coupler => "grate",
+            PartKind.RunningBoard or PartKind.Coupler or PartKind.Ramp => "grate",
             PartKind.Tender => "coal",
             PartKind.Boiler or PartKind.Stack or PartKind.CabWall or PartKind.GunMount => "plate",
             // Car roofs, the cab roof and the hatch's lid: corrugated iron or plate, the roof walk's tin.
@@ -78,9 +81,37 @@ public static class Footing
         return local.Z > cab.Max.Z ? "grate" : "plate";
     }
 
-    /// <summary>The ground at a world point, as a surface material.</summary>
+    /// <summary>The ground at a world point, as a surface material: under standing water, a wade (note 799).</summary>
     public static string Ground(World world, Double3 at, ref double hint) =>
-        OfTexture(WorldArt.GroundTexture(world.Train.Line, world.Route ?? world.Run?.Route, at, ref hint, world.Town, world.Arrival));
+        WaterOver(world, at) is { } water && water > at.Y + WadeFrom ? "water"
+            : OfTexture(WorldArt.GroundTexture(world.Train.Line, world.Route ?? world.Run?.Route, at, ref hint, world.Town, world.Arrival));
+
+    /// <summary>How far under the water's surface feet are before a step is a wade (note 799), not the water's edge.</summary>
+    const double WadeFrom = 0.06;
+
+    /// <summary>
+    /// The surface of the water standing over a point (note 799), if any: a town type's basins and marsh (its own ground,
+    /// note 692), or the line's lakes, marshes and rivers where the land there is under them (TerrainField.WaterAt).
+    /// </summary>
+    public static double? WaterOver(World world, Double3 at)
+    {
+        if ((TownWater(world.Town, at) ?? TownWater(world.Arrival, at)) is { } town)
+            return town;
+        var c = world.Train.Line.Conditions;
+        return ((c is HazardConditions h ? h.Inner : c) as PlanConditions)?.Terrain.WaterAt(at.X, at.Z);
+    }
+
+    /// <summary>A town type's water at a point (its surface, in the world), in the straight frame its ground is laid in.</summary>
+    static double? TownWater(Town? town, Double3 at)
+    {
+        if (town is null || town.Ground.Flat)
+            return null;
+        var o = town.Anchor();
+        var along = new Double3(o.Tangent.X, 0, o.Tangent.Z).Normalized;
+        var right = Double3.Cross(along, Double3.Up).Normalized;
+        var p = at - o.Position;
+        return town.Ground.Water(Double3.Dot(p, along), Double3.Dot(p, right)) is { } w ? o.Position.Y + w : null;
+    }
 
     /// <summary>
     /// A ground texture as it sounds underfoot (hooks-map §1): loose stone, mud and bog, grass and heath, the forest's floor,

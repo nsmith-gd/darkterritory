@@ -5,7 +5,7 @@ namespace DarkTerritory.Sim.Net;
 
 /// <summary>How one listener hears one speaker's frame. A frame can arrive both ways at once (said into a radio, next to you).</summary>
 [Flags]
-public enum VoicePath : byte
+public enum VoicePath : ushort
 {
     None = 0,
     /// <summary>In the air: positional, falling off to nothing at 26 m (spec A.5).</summary>
@@ -37,6 +37,11 @@ public enum VoicePath : byte
     /// whatever of them is waiting to play, near and on the radio, then and there.
     /// </summary>
     Cut = 128,
+    /// <summary>
+    /// Through the speaking tube (note 720; App. C.8): said into one mouthpiece, out of the other's horn, tinny, from the horn,
+    /// heard near it. Which end it comes out of follows (<see cref="VoiceFrame.Tube"/>, <see cref="SpeakingTube"/>).
+    /// </summary>
+    Tube = 256,
 }
 
 /// <summary>
@@ -80,6 +85,34 @@ public static class VoiceRouting
     /// </summary>
     public static bool HearsLiveMic(in PlayerState listener, Ballast.Double3 holdout, TrainOnLine train) =>
         listener.Alive && (PlayerMotor.WorldPosition(listener, train) - holdout).Length <= ProximityCutoff + ForwardMargin;
+
+    /// <summary>
+    /// Note 720, the speaking tube: whether a listener hears what was said into a mouthpiece out of the far end's horn at
+    /// <paramref name="horn"/> (alive, or dead and following someone who would), within <see cref="TubeTuning.HeardWithin"/> of it.
+    /// </summary>
+    public static bool HearsTube(in PlayerState listener, Ballast.Double3 horn, TrainOnLine train, TubeTuning t) =>
+        listener.Alive && (PlayerMotor.WorldPosition(listener, train) - horn).Length <= t.HeardWithin;
+
+    /// <summary>
+    /// Note 862 (the director, 19 Oct 2026: "open cab door should let voices out a bit more but not completely"): whether a voice
+    /// between these two goes through the cab's wall with one of its side doors open (note 856's doors by the coal and across the
+    /// front): one of them in the cab, the other outside it, and a door of the engine's open. The listener's client hears it
+    /// through <see cref="VoicesTuning.OpenCab"/>'s share of the wall instead of the whole of it. From replicated state only (the
+    /// door bits, the two positions), so every client reaches the same answer.
+    /// </summary>
+    public static bool ThroughOpenCabDoor(in PlayerState a, in PlayerState b, TrainOnLine train)
+    {
+        if (train.Vehicles.Count == 0 || train.Frames.Count == 0)
+            return false;
+        int sa = PlayerMotor.Space(a, train), sb = PlayerMotor.Space(b, train);
+        if (!(sa == 0 && sb == PlayerMotor.Outside || sb == 0 && sa == PlayerMotor.Outside))
+            return false;
+        var engine = train.Vehicles[0];
+        foreach (var door in train.Frames[0].Shape.DoorList)
+            if (engine.DoorOpen(door.Index))
+                return true;
+        return false;
+    }
 
     /// <summary>Radio dies in tunnels (spec A.5): anyone whose nearest point on the line is under one.</summary>
     static bool InTunnel(in PlayerState s, TrainOnLine train, Func<double, bool>? inTunnel)

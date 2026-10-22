@@ -446,7 +446,7 @@ sealed partial class LineBuilder
 
     /// <summary>
     /// §6.2 step 8: the main line's junctions (both ends of each alternate, and each dead line) meet the tier's count,
-    /// topped up with dead lines. The Switchman needs three (GDD B.7).
+    /// topped up with dead lines (three on the Frontier, as the Switchman once needed, note 852: the dead lines stay).
     /// </summary>
     void CheckJunctionCount()
     {

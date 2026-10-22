@@ -107,33 +107,140 @@ public class WakerArtTests
     }
 
     /// <summary>
-    /// The car he's eating is bitten off, not dropped out of sight (the director, 13 Oct 2026): from its rear end a quarter of
-    /// it at a bite, the whole of it (underframe and trucks too), as his jaws shut; the other cars are left alone, and a Car
-    /// Hugger's bite still comes off its car's own eating.
+    /// Note 902 (the director's playtest of 16 Oct 2026, line 29: "stop behind the train and like scoop it up with its hands"):
+    /// holding the train, only the car in his hands leaves the rails, and it's in them: kneeling behind it, both hands on it
+    /// from down at the rails (his hands down to it, then lifting it) to up at his mouth, its bitten end in his jaws once he's
+    /// eating, and on to the next car, as each before it is eaten.
+    /// </summary>
+    [Theory]
+    [InlineData(1.5, false)]
+    [InlineData(5.5, true)]
+    [InlineData(8.6, true)]
+    [InlineData(10.3, false)]
+    [InlineData(11.9, true)]
+    public void OnlyTheCarInHisHandsIsUpAndHisHandsAreOnIt(double extra, bool atMouth)
+    {
+        var t = Art.WakersTuning;
+        var tuning = DataFile.Load<Sim.Train.TrainTuning>(Path.Combine(Content, Sim.Train.TrainTuning.File));
+        var line = new Sim.Rail.RailLine(new Sim.Rail.LineDefinition("t", [new Sim.Rail.TrackSegment(5_000)]));
+        var train = new Sim.Train.TrainOnLine(new Sim.Train.TrainDynamics(Sim.Train.Consist.Uniform(tuning, 4, 1)), line, 1_000);
+        var waker = (Waker)Enemy.Blank(EnemyKind.Waker, 1);
+        waker.Restore(SpinePhase.Punish, extra, 1, -1, default, train.RearDistance - t.CatchShort, 0, 0, extra, 0);
+        var hold = WakerLift.Of(train.Frames, train, waker, t);
+        Assert.NotNull(hold);
+        var h = hold.Value;
+        int eaten = waker.EatenCars(t, 4);
+        Assert.Equal(eaten, h.FromRear);
+        var frames = new List<Sim.Train.CarFrame>(train.Frames);
+        WakerLift.Apply(frames, train, [waker], t);
+        var cars = train.Dynamics.Consist.Vehicles;
+        for (int k = 0; k < cars.Count; k++)
+        {
+            int id = cars[cars.Count - 1 - k].Id;
+            if (k < eaten)
+                Assert.True(frames[id].Origin.Y < train.Frames[id].Origin.Y - 100, $"car {k} from the rear: eaten, out of sight");
+            else if (k > eaten)
+                Assert.Equal(train.Frames[id], frames[id]); // on the rails, left alone
+        }
+        double up = frames[h.Car].Origin.Y - train.Frames[h.Car].Origin.Y;
+        if (atMouth)
+            Assert.True(up > WakerLift.HoldUp - 5, $"{extra} s: the car he has {up:0} m up");
+        // Drawn where the sim has him (the line's place at his distance, facing up it), knelt where the scene says.
+        var at = line.Sample(waker.LineDistance);
+        var right = Ballast.Double3.Cross(at.Tangent, Ballast.Double3.Up).Normalized;
+        var model = CreatureArt.Basis(V(at.Position), V(right), Vector3.UnitY, V(at.Tangent * -1));
+        Art.WakerIn = new WakerScene(Mouth: V(h.Mouth), Hand: V(h.Right), HandLeft: V(h.Left), Stand: V(h.Stand));
+        try
+        {
+            Assert.True(Art.Enemy(new MeshBuilder(), model, EnemyKind.Waker, SpinePhase.Punish, extra, extra));
+        }
+        finally
+        {
+            Art.WakerIn = default;
+        }
+        foreach (var (side, want) in new[] { ("r", h.Right), ("l", h.Left) })
+        {
+            float off = Vector3.Distance(Art.WakerHand(Art.WakerDrawn, side)!.Value, V(want));
+            Assert.True(off < 2.5f, $"{extra} s: his {side} hand {off:0.0} m off the car");
+        }
+        float mouth = Vector3.Distance(Art.WakerMouth(Art.WakerDrawn)!.Value, V(h.Mouth));
+        if (atMouth)
+            Assert.True(mouth < 3f, $"{extra} s: his mouth {mouth:0.0} m off the car's bitten end");
+        // Behind it, not over it: his knees short of the car's end on the rails.
+        var rail = train.Frames[h.Car];
+        Assert.True(rail.ToLocal(h.Stand).Z > rail.Shape.HalfLength + t.CatchShort - 1);
+    }
+
+    static Vector3 V(Ballast.Double3 d) => new((float)d.X, (float)d.Y, (float)d.Z);
+
+    /// <summary>
+    /// Note 710: one risen beside whoever ran, holding them, has his right hand on them wherever his lift has them, from down at
+    /// the ground to up at his mouth, his mouth come down to meet them by the end.
+    /// </summary>
+    [Theory]
+    [InlineData(0.6, 0.15)]
+    [InlineData(2.0, 0.5)]
+    [InlineData(3.6, 0.9)]
+    public void WhoHeTookIsInHisHand(double seconds, double k)
+    {
+        var t = Art.WakersTuning;
+        var at = Matrix4x4.CreateTranslation(5, -2, -30);
+        // Him facing −Z from his feet; who he took lifted from where they stood (his reach in front) toward his mouth.
+        var from = new Vector3(0, 0, -(float)t.PickReach);
+        var mouth = new Vector3(0, (float)t.PickMouthHeight, -(float)t.PickMouthOut);
+        float s = (float)(k * k * (3 - 2 * k));
+        var held = from + (mouth - from) * s + Vector3.UnitY;
+        var mesh = new MeshBuilder();
+        Art.WakerIn = new WakerScene(Mouth: Vector3.Transform(mouth, at), Picker: true, Hand: Vector3.Transform(held, at));
+        try
+        {
+            Assert.True(Art.Enemy(mesh, at, EnemyKind.Waker, SpinePhase.Grab, seconds, 2));
+        }
+        finally
+        {
+            Art.WakerIn = default;
+        }
+        var hand = Art.WakerHand(Art.WakerDrawn);
+        Assert.NotNull(hand);
+        float off = Vector3.Distance(hand.Value, Vector3.Transform(held, at));
+        Assert.True(off < 4f, $"{seconds} s into the lift, who he took {held.Y:0} m up: his hand {off:0.0} m off them");
+    }
+
+    /// <summary>
+    /// The car he's eating is bitten off, not dropped out of sight (the director, 13 Oct 2026), in three bites (16 Oct: "let's
+    /// call it three bites per car", note 902): from its rear end a third of it at a bite, the whole of it (underframe and
+    /// trucks too), as his jaws shut; the other cars are left alone, and a Car Hugger's bite still comes off its car's own
+    /// eating.
     /// </summary>
     [Fact]
-    public void TheCarHesEatingIsBittenOffAQuarterAtABite()
+    public void TheCarHesEatingIsBittenOffAThirdAtABite()
     {
         var shape = Sim.Train.CarShape.Build(DataFile.Load<Sim.Train.TrainTuning>(Path.Combine(Content, Sim.Train.TrainTuning.File)).Geometry,
             Sim.Train.VehicleKind.Cargo, hasCarBehind: true);
         float l = (float)shape.HalfLength, rear = shape.Platform is { } p ? (float)p.Max.Z : l;
-        Assert.False(Bite.Waker(shape, 0, 1).Any);
-        Assert.False(Bite.Waker(shape, 0.24, 1).Any);
+        int bites = Sim.Enemies.Waker.BitesACar(Tuning);
+        Assert.Equal(3, bites);
+        Assert.False(Bite.Waker(shape, 0, bites, 1).Any);
         float last = 0;
-        foreach (double through in new[] { 0.26, 0.51, 0.76 })
+        for (int bitten = 1; bitten < bites; bitten++)
         {
-            var bite = Bite.Waker(shape, through, 1);
-            Assert.True(bite.Centre > last + 1, $"{through}: a bite further in");
+            var bite = Bite.Waker(shape, bitten, bites, 1);
+            Assert.True(bite.Centre > last + 1, $"{bitten}: a bite further in");
             last = bite.Centre;
             // Down to the rails: the trucks and the underframe go with the rest.
             Assert.True(bite.Eats(new Vector3(0, 0.3f, rear - 0.2f)), "the underframe at the end");
             Assert.True(bite.Eats(new Vector3(bite.HalfWidth - 0.05f, 2, rear - 0.2f)), "a side wall at the end");
+            // The front of the car is there till the last bite, which the sim's eating takes.
+            Assert.False(bite.Eats(new Vector3(0, 2, -l + 0.5f)));
         }
-        Assert.Equal((rear + l) * 3 / 4, last, 2);
-        // The front of the car is there till the last bite, which the sim's eating takes.
-        Assert.False(Bite.Waker(shape, 0.99, 1).Eats(new Vector3(0, 2, -l + 0.5f)));
+        Assert.Equal((rear + l) * 2 / 3, last, 2);
+        // The bites come as the sim reckons them, at wakers.bites of each car's turn.
+        double turn = Sim.Enemies.Waker.TurnStart(1, Tuning);
+        Assert.Equal(0, Sim.Enemies.Waker.Bitten(turn + Tuning.Bites[0] * Tuning.EatSeconds - 0.01, 1, Tuning));
+        Assert.Equal(1, Sim.Enemies.Waker.Bitten(turn + Tuning.Bites[0] * Tuning.EatSeconds + 0.01, 1, Tuning));
+        Assert.Equal(2, Sim.Enemies.Waker.Bitten(turn + Tuning.Bites[1] * Tuning.EatSeconds + 0.01, 1, Tuning));
         var art = new SceneArt(Look);
-        art.WakerEating = (5, 0.6);
+        art.WakerEating = (5, 1, bites);
         Assert.True(art.BiteOf(shape, null, 5).Any);
         Assert.False(art.BiteOf(shape, null, 4).Any);
         art.WakerEating = null;
@@ -161,7 +268,11 @@ public class WakerArtTests
                      (SpinePhase.Punish, 13.0, 13.0) })
             Assert.Contains(CreatureArt.WakerClip(phase, s, extra, false, Tuning).Clip, Waker.ClipNames);
         Assert.Equal("lift", CreatureArt.WakerClip(SpinePhase.Punish, 4, 4, false, Tuning).Clip);
-        Assert.Equal("eat", CreatureArt.WakerClip(SpinePhase.Punish, Tuning.EatAfter + 0.5, Tuning.EatAfter + 0.5, false, Tuning).Clip);
+        Assert.Equal("lift", CreatureArt.WakerClip(SpinePhase.Punish, Tuning.EatAfter + 0.5, Tuning.EatAfter + 0.5, false, Tuning).Clip);
+        // (Note 902: his jaws on the car at its first bite, wakers.bites into its turn.)
+        double bite = Tuning.EatAfter + Tuning.Bites[0] * Tuning.EatSeconds;
+        Assert.Equal("eat", CreatureArt.WakerClip(SpinePhase.Punish, bite, bite, false, Tuning).Clip);
+        Assert.Equal(1, CreatureArt.WakerHoldClips(bite, Tuning).EatTime, 2); // the eat clip's first shut after its opening
         Assert.Equal("roar", CreatureArt.WakerClip(SpinePhase.Commit, 61, 0, true, Tuning).Clip);
         Assert.Equal("stand", CreatureArt.WakerClip(SpinePhase.Commit, 66, 0, true, Tuning).Clip);
         Assert.Equal(CreatureArt.WakerRiseClipSeconds, Waker.Clip("rise").Duration, 2);

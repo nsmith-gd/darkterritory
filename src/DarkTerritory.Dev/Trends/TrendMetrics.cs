@@ -42,6 +42,12 @@ public static class TrendMetrics
         {
             Put(m, "balance.grabs", Sum(threats["grabs"]));
             Put(m, "balance.rescues", Sum(threats["rescues"]));
+            // Note 986: a grab a crewmate broke is the creature's fight answered, not landed. The Car Hugger re-swallows at its
+            // mouth every few seconds while a group clubs it (17 grabs, 17 rescues, nobody hurt on seed 7), so the grabs that
+            // count are the ones nobody broke, and those that ran on to their punish.
+            if (Sum(threats["grabs"]) is { } grabs)
+                Put(m, "balance.grabsUnbroken", Math.Max(0, grabs - (Sum(threats["rescues"]) ?? 0)));
+            Put(m, "balance.punishes", Sum(threats["punishes"]));
             Put(m, "balance.fairness", Num(threats["fairnessViolations"]));
             Put(m, "balance.packFires", Num(threats["packFires"]));
         }
@@ -55,6 +61,12 @@ public static class TrendMetrics
             Put(m, "pacing.beatsPerMinute", Num(pacing["beatsPerMinute"]));
             Put(m, "pacing.longestQuietSeconds", Num(pacing["longestQuietSeconds"]));
             Put(m, "pacing.quietOver30", Num(pacing["quietOver30"]));
+        }
+        // The driver at the brake (note 820): each application is heard, and tapping it to hold a speed was a machine-gun.
+        if (report["driving"] is JsonObject driving)
+        {
+            Put(m, "driving.brakesPerMinute", Num(driving["perMinute"]));
+            Put(m, "driving.brakeTaps", Num(driving["taps"]));
         }
         Put(m, "net.downKbps", Num(report["downKbpsPerClient"]));
         Put(m, "net.upKbps", Num(report["upKbpsPerClient"]));

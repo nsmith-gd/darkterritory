@@ -1,0 +1,13 @@
+// The speaking tube (ARCHITECTURE §8 note 720; GDD App. C.8), tier 2 like any voice: a crewmate's voice down a brass pipe the
+// length of the train, out of the horn at the other end. Tinny: band-limited harder than the walkie-talkie (600 Hz-2 kHz to
+// its 300 Hz-3 kHz) and ringing at the pipe's own note, but clean (no static, no crush: it's brass, not a cheap set).
+// Positioned at the horn, heard only near it (player.json voices.tube.heardWithin).
+{
+  "tier": 2, "loop": true, "maxInstances": 16, "minDistance": 1.5, "maxDistance": 10,
+  "layers": [
+    { "source": "stream", "gain": 1.6,
+      "filters": [{ "type": "highPass", "frequency": 600 }, { "type": "highPass", "frequency": 600 },
+                  { "type": "lowPass", "frequency": 2000 }, { "type": "lowPass", "frequency": 2000 },
+                  { "type": "peak", "frequency": 1150, "q": 3, "gainDb": 8 }] }
+  ]
+}

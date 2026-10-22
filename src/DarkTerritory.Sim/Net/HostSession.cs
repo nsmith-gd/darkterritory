@@ -10,7 +10,7 @@ namespace DarkTerritory.Sim.Net;
 /// steps the train and every player, and broadcasts a snapshot to each client with the last input
 /// it applied for them. The host player (when there is one) goes through the same intent path.
 /// </summary>
-public sealed class HostSession
+public sealed partial class HostSession
 {
     /// <summary>Beyond this many queued inputs a client is too far ahead; drop the oldest to bound latency.</summary>
     const int MaxQueuedInputs = 8;
@@ -21,7 +21,13 @@ public sealed class HostSession
         /// <summary>Whose link it is: a player who comes back on a new connection (note 253) moves to it.</summary>
         public PeerId Peer = peer;
         public readonly SortedDictionary<uint, PlayerIntent> Pending = new();
+        /// <summary>Note 717: the snapshot each pending input was predicted against (the crowd it was pushed from), by sequence.</summary>
+        public readonly Dictionary<uint, uint> PendingSeen = new();
+        /// <summary>The snapshot this tick's input was predicted against (0: none; the crowd as it stands).</summary>
+        public uint Seen;
         public uint LastApplied;
+        /// <summary>Note 956: whom this listener can hear, each voice's talk spurt (the tick it began, the tick of its last frame).</summary>
+        public readonly Dictionary<byte, (uint Start, uint Last)> Hearing = new();
         /// <summary>Newest snapshot this client says it has decoded: the baseline for its next delta.</summary>
         public uint AckedSnapshot;
         public PlayerIntent LastIntent;
@@ -79,6 +85,7 @@ public sealed class HostSession
             World.Hand = value.Hand;
             World.Movement = value;
             World.EmoteTuning = value.Emotes;
+            World.PingTuning = value.Pings;
             World.NewsTuning = value.News;
             World.Bodies.FullHealth = value.Health; // a healing find is used only short of it (note 272)
         }
@@ -134,11 +141,12 @@ public sealed class HostSession
 
     /// <summary>
     /// The crew goes on together (note 606): tells everyone aboard and waiting that the host's going on to the next night from
-    /// <paramref name="town"/>, as it leaves a delivered campaign night. Each dials back in for it rather than going to its menu.
+    /// <paramref name="town"/>, as it leaves a delivered campaign night. Each dials back in for it rather than going to its menu,
+    /// with the run's key as it is now (note 535).
     /// </summary>
     public void CarryOn(Towns.TownAt town)
     {
-        Messages.WriteCarryOn(_writer, town);
+        Messages.WriteCarryOn(_writer, town, PasswordKey);
         foreach (var c in _crew)
             _transport.Send(c.Peer, _writer.Written, Delivery.ReliableOrdered);
         foreach (var (_, peer) in _waiting)
@@ -149,16 +157,30 @@ public sealed class HostSession
     {
         Receive();
         Greet();
+        Answer();
         Expire();
         HangUp();
         BoardWaiting();
+        Sessions();
 
+        // Note 717: the crew as they stand at the start of the tick, as the snapshot just sent (this tick's number) has them:
+        // whom a shove or a bonk finds, and the crowd. Each crewmate is pushed out from among the crew as the snapshot they
+        // predicted that input against had them (lag compensation, as for a shot), so a client's prediction agrees on any link.
+        World.Mates = [.. _crew.Select(c => ((int)c.Id, c.State))];
+        var crowd = Horseplay.Crowd(World.Mates);
+        _crowds[Tick] = crowd;
+        _crowds.Remove(Tick - CrowdHistory);
         foreach (var c in _crew)
         {
             c.ThisTick = NextIntent(c);
             // Off the rails, the living are the wreck's till its hit kills them (App. E.2 step 1): only the skip vote counts.
             if (World.Wrecked(c.State))
                 c.ThisTick = World.WreckedIntent(c.ThisTick);
+            // Staggered by a crewmate (note 717): look and talk, nothing else, the cab's controls included.
+            c.ThisTick = Horseplay.Staggered(c.State, c.ThisTick);
+            // Carried over a friend's shoulder (note 723), or riding a crane's hook (note 726): look, talk and wriggle free (let
+            // go), nothing else.
+            c.ThisTick = Rescue.CarriedIntent(c.State, c.ThisTick);
         }
 
         World.BeginTick();
@@ -200,7 +222,12 @@ public sealed class HostSession
         CutTheDead();
         foreach (var c in _crew)
             if (!World.Wrecked(c.State))
-                PlayerMotor.Step(ref c.State, c.ThisTick, Train, PlayerTuning, TrainTuning, SimConstants.TickSeconds, applyLook: false);
+                PlayerMotor.Step(ref c.State, c.ThisTick, Train, PlayerTuning, TrainTuning, SimConstants.TickSeconds, applyLook: false, c.Id,
+                    c.Seen > 0 ? _crowds.GetValueOrDefault(c.Seen, crowd) : crowd);
+        // Note 723: the hand-ups, lifts and throws of the tick, and every carried friend where their carrier now is.
+        World.StepRescue(id => _crew.FirstOrDefault(c => c.Id == id)?.State, (id, s) => _crew.First(c => c.Id == id).State = s);
+        // Note 726: the hooks taken hold of and let go of, and every rider stood on their crane's hook where it is.
+        World.StepHoist(id => _crew.FirstOrDefault(c => c.Id == id)?.State, (id, s) => _crew.First(c => c.Id == id).State = s);
         World.StepBodies([.. _crew.Select(c => ((int)c.Id, c.State))]);
         if (World.Holdouts is { } holdouts)
             holdouts.StartingKit = PlayerTuning.StartingKit;
@@ -228,6 +255,10 @@ public sealed class HostSession
     /// interpolation window (100 ms) spans two of them. And when link.strainCrew or more of the crew report that much loss at
     /// once for link.strainSeconds, the one thing they share is this host's upload: <see cref="UploadStrained"/>.
     /// </summary>
+    /// <summary>Note 717: the crowd at the start of each recent tick, by the snapshot's number (what a client predicted against).</summary>
+    readonly Dictionary<uint, List<Shoulder>> _crowds = new();
+    const uint CrowdHistory = 64;
+
     void StepLinks()
     {
         var t = PlayerTuning.Link;
@@ -251,6 +282,11 @@ public sealed class HostSession
                 (c.Thin, c.ThinHeld) = (true, 0);
         }
         _strainedFor = strained >= t.StrainCrew ? _strainedFor + 1 : 0;
+        // Note 956: the crew being thinned is the upload falling short; the voices are capped while it is, and for the hold after.
+        if (t.StrainedVoices > 0 && (strained >= t.StrainCrew || _crew.Count(c => c.Thin) >= t.StrainCrew))
+            _voicesCappedFor = holdTicks;
+        else if (_voicesCappedFor > 0)
+            _voicesCappedFor--;
         UploadStrained = _strainedFor >= Math.Max(1, t.StrainSeconds * SimConstants.TickRate);
         if (Tick % SimConstants.TickRate == 0)
         {
@@ -259,11 +295,15 @@ public sealed class HostSession
         }
     }
 
-    int _strainedFor;
+    int _strainedFor, _voicesCappedFor;
     long _bytesOut;
+    /// <summary>Note 956: each listener is being sent only link.strainedVoices at once (the upload's strained, or was lately).</summary>
+    public bool VoicesCapped => _voicesCappedFor > 0;
+    /// <summary>Note 956: voice frames not sent a listener because they already had their fill.</summary>
+    public long VoiceFramesHeldBack { get; private set; }
     /// <summary>Note 549: at least link.strainCrew of the crew have been reporting a thin downlink at once for link.strainSeconds.</summary>
     public bool UploadStrained { get; private set; }
-    /// <summary>Note 549: what this host sent in snapshots over the last whole second, kbit/s (the voice rides on top).</summary>
+    /// <summary>Note 549: what this host sent over the last whole second, kbit/s: the snapshots and (note 956) the voices forwarded.</summary>
     public double UpKbps { get; private set; }
     /// <summary>Note 549: snapshots withheld from thin links (every other one), for the harness and tests.</summary>
     public int SnapshotsThinned { get; private set; }
@@ -275,12 +315,16 @@ public sealed class HostSession
     PlayerIntent NextIntent(Crew c)
     {
         while (c.Pending.Count > MaxQueuedInputs)
+        {
+            c.PendingSeen.Remove(c.Pending.Keys.First());
             c.Pending.Remove(c.Pending.Keys.First());
+        }
         if (c.Pending.Count > 0)
         {
             // Take the oldest input we have. A gap means those inputs were lost; skip past them.
             var (seq, intent) = c.Pending.First();
             c.Pending.Remove(seq);
+            c.Seen = c.PendingSeen.Remove(seq, out uint seen) ? seen : 0;
             c.LastApplied = seq;
             c.LastIntent = intent;
             return intent;
@@ -339,6 +383,8 @@ public sealed class HostSession
     {
         _greeting.RemoveAll(g => g.Peer == peer);
         _refused.RemoveAll(r => r.Peer == peer);
+        // A guesser who hangs up on a held refusal (note 535) is still held: its origin waits the delay out all the same.
+        _held.RemoveAll(h => h.Peer == peer);
         // Spec E: "Character remains as an inert body until recovered or the run ends." No bot takes over: the
         // crewmate goes limp where they stood, and their place is held for them (note 253).
         foreach (var gone in _crew.Where(c => c.Peer == peer).ToList())
@@ -395,6 +441,74 @@ public sealed class HostSession
     public Func<PeerId, bool>? Trusted { get; set; }
     /// <summary>Joiners turned away from a private run for the wrong password, or none.</summary>
     public int WrongPasswords { get; private set; }
+    /// <summary>
+    /// Who's behind a link (note 535): its address, or the account on the platform it came in on; null or empty, it can't be
+    /// told (each link is then its own). A private run's wrong guesses are counted by it, so a guesser coming back on a new
+    /// connection is still slowed.
+    /// </summary>
+    public Func<PeerId, string?>? Origin { get; set; }
+    /// <summary>Wrong guesses whose refusal is still held back (note 535).</summary>
+    public int GuessesHeld => _held.Count;
+
+    /// <summary>An origin's wrong guesses (note 535): how many, the last one's tick, and when its held refusal goes.</summary>
+    sealed class Guesser
+    {
+        public int Wrong;
+        public uint Last;
+        public uint Free;
+    }
+
+    readonly Dictionary<string, Guesser> _guessers = new(StringComparer.Ordinal);
+    /// <summary>Wrong guesses' refusals held till their tick (note 535), in the order they were judged.</summary>
+    readonly List<(PeerId Peer, uint At)> _held = [];
+
+    string OriginOf(PeerId peer) => Origin?.Invoke(peer) is { Length: > 0 } o ? o : $"link:{peer.Value}";
+
+    /// <summary>
+    /// Note 535: a new joiner to a private run waits its turn while a wrong guess from where it came from is still held, so a
+    /// guesser's connections are judged one at a time however many it opens at once. A friend the host trusts doesn't wait.
+    /// </summary>
+    bool WaitsItsTurn(Greeting g) =>
+        PasswordKey is not null && Trusted?.Invoke(g.Peer) != true && _guessers.TryGetValue(OriginOf(g.Peer), out var who) && Tick < who.Free;
+
+    /// <summary>
+    /// A wrong guess (note 535): its refusal is held back, crew.guessDelaySeconds the first time, crew.guessGrowth times longer
+    /// for each wrong guess since from the same origin, up to crew.guessDelayMaxSeconds. An origin quiet for
+    /// crew.guessForgetSeconds starts again from the first. The link takes no place while it waits.
+    /// </summary>
+    void Hold(PeerId peer)
+    {
+        var t = PlayerTuning.Crew;
+        uint forget = (uint)TicksOf(t.GuessForgetSeconds);
+        foreach (var gone in _guessers.Where(e => Tick >= e.Value.Free && Tick - e.Value.Last > forget).Select(e => e.Key).ToList())
+            _guessers.Remove(gone);
+        string origin = OriginOf(peer);
+        if (!_guessers.TryGetValue(origin, out var who))
+            _guessers[origin] = who = new Guesser();
+        who.Wrong++;
+        who.Last = Tick;
+        double delay = t.GuessDelaySeconds;
+        for (int i = 1; i < who.Wrong && delay < t.GuessDelayMaxSeconds; i++)
+            delay *= t.GuessGrowth;
+        who.Free = Tick + (uint)TicksOf(Math.Min(delay, t.GuessDelayMaxSeconds));
+        _held.Add((peer, who.Free));
+    }
+
+    /// <summary>Sends the held refusals whose time has come (note 535).</summary>
+    void Answer()
+    {
+        for (int i = 0; i < _held.Count;)
+        {
+            if (Tick < _held[i].At)
+            {
+                i++;
+                continue;
+            }
+            var peer = _held[i].Peer;
+            _held.RemoveAt(i);
+            Refuse(peer, RefusalReason.Password);
+        }
+    }
 
     /// <summary>Links turned away (note 254), kept open till their Refused has had time to get there, then hung up on.</summary>
     readonly List<(PeerId Peer, uint Until)> _refused = [];
@@ -441,6 +555,7 @@ public sealed class HostSession
         Messages.WriteWelcome(_writer, id, Tick, SessionInfo, token);
         _transport.Send(peer, _writer.Written, Delivery.ReliableOrdered);
         _namesChanged |= World.Names.Count > 0;
+        TellSession(peer);
         Admit(id, peer);
         return id;
     }
@@ -470,6 +585,7 @@ public sealed class HostSession
         public string Name = "";
         public ulong Token;
         public byte Outfit = Messages.NoOutfit;
+        public MaskPaint Paint;
         public byte[]? Key;
         public bool Bot;
     }
@@ -547,17 +663,35 @@ public sealed class HostSession
                 i++;
                 continue;
             }
+            // Note 535: a held place's token is always let back in; anyone else to a private run waits while a wrong guess from
+            // where they came from is still held, and is judged when it's gone.
+            if (!(g.Token != 0 && _tokens.ContainsValue(g.Token)) && WaitsItsTurn(g))
+            {
+                i++;
+                continue;
+            }
             _greeting.RemoveAt(i);
             // A held place's token always gets back in: its place is already counted (note 254). A new joiner (or a token
             // whose place ran out) needs room. The greeting line itself takes no place: a connection that never speaks is
             // never counted, so it can't fill the crew or shut the lobby.
             byte? back = g.Token != 0 ? Return(g.Peer, g.Token) : null;
-            // Note 450: a private run asks a new joiner for its password before it takes a place, so a guess fills nothing.
-            if (back is null && !Admitted(g))
+            // Note 724: someone the crew put off doesn't come back to this run, by any door.
+            if (back is null && Banned(g.Peer, g.Name))
             {
-                Refuse(g.Peer, RefusalReason.Password);
+                Refuse(g.Peer, RefusalReason.Kicked);
                 continue;
             }
+            // Note 450: a private run asks a new joiner for its password before it takes a place, so a guess fills nothing.
+            // Note 535: the refusal's held back, and longer for each wrong guess from the same place.
+            if (back is null && !Admitted(g))
+            {
+                Hold(g.Peer);
+                continue;
+            }
+            // Note 724 (GDD §33.1): a friend joining a night the bots crew takes a bot's seat where it stands, rather than
+            // waiting for a stop or the Holdouts' queue, or being turned away from a full crew.
+            if (back is null && !g.Bot && WouldWait && BotSeat() is { } seat)
+                back = TakeSeat(seat, g.Peer);
             if (back is null && Full)
             {
                 Refuse(g.Peer);
@@ -566,6 +700,7 @@ public sealed class HostSession
             byte id = back ?? Join(g.Peer);
             Name(id, g.Name);
             Wear(id, g.Outfit, any: true);
+            PaintMask(id, g.Paint, any: true);
             Botness(id, g.Bot);
         }
     }
@@ -575,10 +710,17 @@ public sealed class HostSession
 
     void Botness(int id, bool bot)
     {
+        // The world knows too (note 717): a bot never shoves, bonks a crewmate or hits one with coal.
         if (bot)
+        {
             _bots.Add(id);
+            World.BotIds.Add(id);
+        }
         else
+        {
             _bots.Remove(id);
+            World.BotIds.Remove(id);
+        }
     }
 
     /// <summary>
@@ -646,6 +788,7 @@ public sealed class HostSession
             var old = live.Peer;
             live.Peer = peer;
             live.Pending.Clear();
+            live.PendingSeen.Clear();
             live.Sent.Clear();
             live.AckedSnapshot = 0;
             if (old != peer)
@@ -679,6 +822,7 @@ public sealed class HostSession
         Messages.WriteWelcome(_writer, id, Tick, SessionInfo, token);
         _transport.Send(peer, _writer.Written, Delivery.ReliableOrdered);
         _namesChanged = true;
+        TellSession(peer);
         _ballotsSent.Remove(id);
         if (World.Commendations.Count > 0)
         {
@@ -711,7 +855,6 @@ public sealed class HostSession
         return up with
         {
             Health = seat.State.Health,
-            Cold = seat.State.Cold,
             Yaw = seat.State.Yaw,
             Kit = body.Tools,
             HeldSlot = seat.State.HeldSlot,
@@ -725,8 +868,10 @@ public sealed class HostSession
         int car = 1 + (_crew.Count - 1) % Math.Max(1, Train.OwnVehicles - 1);
         c.State = BoardAt is { } at && _crew.Count > 0 ? at(_crew.Count)
             : _crew.Count == 0 ? PlayerMotor.SpawnInCab(Train, PlayerTuning) : PlayerMotor.SpawnOnRoof(Train, car, 0, PlayerTuning);
-        // Past the gate, nobody spawns aboard (D.1): they watch, waiting in the queue, until a Holdout frees them.
-        if (Lobbying && _crew.Count > 0)
+        // Past the gate, nobody spawns aboard (D.1): they watch, waiting in the queue, until a Holdout frees them. The night's
+        // own crew isn't joining it (note 937): a resumed night's bots, then its host, board as it brings them (BotSeatsOpen
+        // shut), alive. The host's own player came in as a mid-run joiner, dead with "JOINING", behind its first bot.
+        if (Lobbying && BotSeatsOpen && _crew.Count > 0)
             c.State = c.State with { Health = 0, Death = DeathCause.Waiting };
         _crew.Add(c);
     }
@@ -821,6 +966,9 @@ public sealed class HostSession
             Messages.WriteOutfits(_writer, World.Outfits);
             foreach (var p in peers)
                 _transport.Send(p, _writer.Written, Delivery.ReliableOrdered);
+            Messages.WritePaints(_writer, World.Paints);
+            foreach (var p in peers)
+                _transport.Send(p, _writer.Written, Delivery.ReliableOrdered);
         }
         // D.12: each bookmark as it's made, so every machine takes its still from the world as it is now.
         for (; _bookmarksSent < World.Bookmarks.All.Count; _bookmarksSent++)
@@ -905,12 +1053,13 @@ public sealed class HostSession
             {
                 var hr = new NetReader(payload);
                 hr.U8();
-                var (name, token, outfit, key, bot) = Messages.ReadHello(ref hr);
+                var (name, token, outfit, key, bot, paint) = Messages.ReadHello(ref hr);
                 // Note 253: a joiner's first word, before it's welcomed. It's let in in the order it connected (first aboard
                 // takes the cab), so it waits its turn in the greeting line.
                 if (_greeting.Find(g => g.Peer == peer) is { } greeting)
                 {
                     (greeting.Said, greeting.Name, greeting.Token, greeting.Outfit, greeting.Key, greeting.Bot) = (true, name, token, outfit, key, bot);
+                    greeting.Paint = paint;
                     return;
                 }
                 int id = _crew.Find(x => x.Peer == peer)?.Id ?? _waiting.Where(w => w.Peer == peer).Select(w => (int)w.Id).DefaultIfEmpty(-1).First();
@@ -918,6 +1067,7 @@ public sealed class HostSession
                 {
                     Name(id, name);
                     Wear(id, outfit, any: true);
+                    PaintMask(id, paint, any: true);
                     Botness(id, bot);
                 }
             }
@@ -929,10 +1079,22 @@ public sealed class HostSession
         var c = _crew.Find(x => x.Peer == peer);
         if (c is null)
             return;
+        // Note 724: put a crewmate off (the host's own player), or the public lobby's vote on it.
+        if (payload.Length == 2 && payload[0] == (byte)MessageType.Kick)
+        {
+            CallKick(c, payload[1]);
+            return;
+        }
         // Note 298: trying an outfit on, in the yard.
         if (payload.Length == 2 && payload[0] == (byte)MessageType.Wear)
         {
             Wear(c.Id, payload[1], any: false);
+            return;
+        }
+        // Note 731: painting a mask, in the yard.
+        if (payload.Length == 4 && payload[0] == (byte)MessageType.Paint)
+        {
+            PaintMask(c.Id, new MaskPaint(payload[1], payload[2], payload[3]), any: false);
             return;
         }
         try
@@ -953,8 +1115,8 @@ public sealed class HostSession
             if (_frames.Count > 0)
                 c.InputLoss.Heard(_frames[^1].Sequence);
             foreach (var f in _frames)
-                if (f.Sequence > c.LastApplied)
-                    c.Pending.TryAdd(f.Sequence, Sanitise(f.Intent));
+                if (f.Sequence > c.LastApplied && c.Pending.TryAdd(f.Sequence, Sanitise(f.Intent)))
+                    c.PendingSeen[f.Sequence] = f.Seen;
         }
         catch (Exception e) when (e is EndOfStreamException or InvalidDataException)
         {
@@ -989,6 +1151,15 @@ public sealed class HostSession
                 _namesChanged = true;
             return;
         }
+        // A hat's only from the rack (note 714): without it, the colour alone.
+        if (Player.Outfit.HatOf(outfit) > 0 && !World.Train.Dynamics.Tuning.Composition.Dressed("hatRack"))
+            outfit = Player.Outfit.ColourOf(outfit) is { } colour ? (byte)colour : Messages.NoOutfit;
+        if (outfit == Messages.NoOutfit)
+        {
+            if (had && World.Outfits.Remove(id))
+                _namesChanged = true;
+            return;
+        }
         if (had && was == outfit)
             return;
         World.Outfits[id] = outfit;
@@ -997,6 +1168,29 @@ public sealed class HostSession
 
     /// <summary>The outfits there can be (note 298): the art draws as many as it has looks, round again past them.</summary>
     public const int MaxOutfits = 64;
+
+    /// <summary>
+    /// A player's mask paint (note 731), as <see cref="Wear"/> takes an outfit: the paint they came in (<paramref name="any"/>,
+    /// from their Hello), or one tried on, which only takes in the yard before the gate (GDD §9). Each part past
+    /// <see cref="MaskPaint.Max"/> is none; none at all, the mask's unpainted.
+    /// </summary>
+    void PaintMask(int id, MaskPaint paint, bool any)
+    {
+        if (!any && World.Run is { Phase: not Sim.Run.RunPhase.Yard })
+            return;
+        paint = paint.Clamped();
+        bool had = World.Paints.TryGetValue(id, out var was);
+        if (!paint.Painted)
+        {
+            if (had && World.Paints.Remove(id))
+                _namesChanged = true;
+            return;
+        }
+        if (had && was == paint)
+            return;
+        World.Paints[id] = paint;
+        _namesChanged = true;
+    }
 
     readonly NetWriter _voiceWriter = new();
 
@@ -1030,6 +1224,10 @@ public sealed class HostSession
         // the proximity layer by the living near it (8 m clear, 26 m cutoff), and on the dead channel as ever. It's never said
         // aloud in the world: nothing listening for talk (the meter, the Gaunt, the Soot Children) hears it.
         var liveMic = speaker.State.Alive ? null : World.Holdouts?.LiveMicOf(speaker.Id);
+        // Note 720 (App. C.8): said into the speaking tube's mouthpiece, it comes out of the far end's horn as well, heard near it.
+        var tubeTuning = PlayerTuning.Voices.Tube;
+        // Note 978: with the speaking tubes fitted it comes out of more than one horn; each listener hears the nearest they're near.
+        var tubes = SpeakingTube.HeardAll(speaker.State, Train, tubeTuning);
         foreach (var listener in _crew)
         {
             if (listener == speaker)
@@ -1040,18 +1238,56 @@ public sealed class HostSession
             var path = VoiceRouting.Route(speaker.State, ears.State, radio, Train, tunnel, World.Bodies.HasRadio(ears.Id), underground);
             if (liveMic is not null && VoiceRouting.HearsLiveMic(listener.State, liveMic.Inside, Train))
                 path |= VoicePath.Proximity;
+            (int End, Ballast.Double3 At)? tube = null;
+            double tubeD = double.MaxValue;
+            foreach (var t in tubes)
+                if (VoiceRouting.HearsTube(ears.State, t.At, Train, tubeTuning)
+                    && (PlayerMotor.WorldPosition(ears.State, Train) - t.At).Length is var d && d < tubeD)
+                    (tube, tubeD) = (t, d);
+            if (tube is not null)
+                path |= VoicePath.Tube;
             if (path == VoicePath.None)
                 continue;
+            // Note 956: each voice's talk spurt, as this listener would hear it. The upload strained, a listener is sent only the
+            // voices that began first, link.strainedVoices of them; a grabbed crewmate's radio (keyed open by the GRAB, App. C.8)
+            // always gets through.
+            Spurt(listener, speaker.Id);
+            if (VoicesCapped && !(speaker.State.Alive && speaker.State.Has(PlayerFlags.Held)) && !Heard(listener, speaker.Id))
+            {
+                VoiceFramesHeldBack++;
+                continue;
+            }
             // What's holding the speaker changes how they sound (App. C.8): muffled under a hand, fading as they're drained.
             var (muffled, gain) = World.VoiceEffect(speaker.Id);
             if (muffled)
                 path |= VoicePath.Muffled;
             if (gain < 1)
                 path |= VoicePath.Fading;
-            Messages.WriteVoiceDown(_voiceWriter, speaker.Id, seq, path, opus, gain: gain);
+            Messages.WriteVoiceDown(_voiceWriter, speaker.Id, seq, path, opus, gain: gain, tube: tube?.End ?? 0);
             _transport.Send(listener.Peer, _voiceWriter.Written, Delivery.Unreliable);
+            _bytesOut += _voiceWriter.Length;
             VoiceFramesForwarded++;
         }
+    }
+
+    uint VoiceFloorTicks => (uint)Math.Max(1, PlayerTuning.Link.VoiceFloorSeconds * SimConstants.TickRate);
+
+    /// <summary>Note 956: a frame from this speaker for this listener: their spurt goes on, or (after a gap) a new one begins.</summary>
+    void Spurt(Crew listener, byte speaker) =>
+        listener.Hearing[speaker] = listener.Hearing.TryGetValue(speaker, out var s) && Tick - s.Last <= VoiceFloorTicks ? (s.Start, Tick) : (Tick, Tick);
+
+    /// <summary>
+    /// Note 956: whether this listener is sent this speaker while the voices are capped: fewer than link.strainedVoices of the
+    /// others talking to them began first (a voice is talking while its frames come within voiceFloorSeconds; ties by id).
+    /// </summary>
+    bool Heard(Crew listener, byte speaker)
+    {
+        var mine = listener.Hearing[speaker];
+        int before = 0;
+        foreach (var (who, s) in listener.Hearing)
+            if (who != speaker && Tick - s.Last <= VoiceFloorTicks && (s.Start < mine.Start || s.Start == mine.Start && who < speaker))
+                before++;
+        return before < PlayerTuning.Link.StrainedVoices;
     }
 
     readonly HashSet<byte> _cut = [];
@@ -1099,6 +1335,12 @@ public sealed class HostSession
     /// which keeps it past the farthest audible tell. 0 (no enemies) sends everything.
     /// </summary>
     public double InterestRadius { get; set; }
+
+    /// <summary>
+    /// Note 921: when set, the bytes each kind of record took in the snapshots actually sent (a budgeted one's last write),
+    /// added to as they go; for <c>dt harness --wire</c>. Counting only: nothing sent changes.
+    /// </summary>
+    public Dictionary<RecordKind, long>? WireTally { get; set; }
     public long RecordsSkipped { get; private set; }
 
     void Broadcast(List<WireRecord> records)
@@ -1125,6 +1367,12 @@ public sealed class HostSession
             {
                 mine = Budget(mine, baseline, c, baseTick);
                 SnapshotsBudgeted++;
+            }
+            // The tally counts what goes out: written once more into the scratch writer only when asked for.
+            if (WireTally is { } tally)
+            {
+                _tallyWriter ??= new NetWriter();
+                Messages.WriteSnapshot(_tallyWriter, Tick, c.LastApplied, baseTick, mine, baseline, c.Pending.Count, 0, tally);
             }
             c.Sent[Tick] = mine;
             c.Sent.Remove(Tick - HistoryTicks);
@@ -1190,6 +1438,7 @@ public sealed class HostSession
     }
 
     readonly HashSet<uint> _far = new();
+    NetWriter? _tallyWriter;
 
     /// <summary>
     /// Whose eyes and ears a client has (GDD App. D.10): their own, or, dead or waiting to board, the living crewmate they
@@ -1203,6 +1452,17 @@ public sealed class HostSession
             if (other.Id == c.LastIntent.Watch)
                 return other.State.Alive ? other : c;
         return c;
+    }
+
+    /// <summary>The body of the dead crewmate a dead player's watching (App. D.10, note 743), or null: watching the living.</summary>
+    Physics.Body? WatchedBody(Crew c)
+    {
+        if (c.State.Alive || c.LastIntent.Watch == 0 || c.LastIntent.Watch == c.Id)
+            return null;
+        foreach (var other in _crew)
+            if (other.Id == c.LastIntent.Watch && !other.State.Alive)
+                return World.Bodies.All.FirstOrDefault(b => b.Kind == Physics.BodyKind.Ragdoll && b.Owner == other.Id);
+        return null;
     }
 
     List<WireRecord> Interest(List<WireRecord> records, Crew c)
@@ -1223,13 +1483,15 @@ public sealed class HostSession
             }
         if (InterestRadius <= 0)
             return _far.Count == 0 ? records : records.Where(r => !_far.Contains(r.Key)).ToList();
-        // Watching someone (App. D.10), a dead player is sent what's around them: they see it through their eyes.
-        var at = PlayerMotor.WorldPosition(eyes.State, Train);
+        // Watching someone (App. D.10), a dead player is sent what's around them: they see it through their eyes. Watching a
+        // dead crewmate's body (note 743), what's around it.
+        var at = WatchedBody(c) is { } watched ? Physics.Bodies.WorldCentre(watched, Train) : PlayerMotor.WorldPosition(eyes.State, Train);
         foreach (var e in World.ActiveEnemies)
             if (!e.Far && (e.WorldPosition(Train) - at).Length > InterestRadius)
                 _far.Add(WireRecord.MakeKey(RecordKind.Enemy, e.Id));
+        // The dead are sent every crewmate's body, however far back down the line it lies, to choose from (note 743).
         foreach (var b in World.Bodies.All)
-            if (!b.HeldBy(c.Id) && (Physics.Bodies.WorldCentre(b, Train) - at).Length > InterestRadius)
+            if (!b.HeldBy(c.Id) && !(!c.State.Alive && b.Kind == Physics.BodyKind.Ragdoll) && (Physics.Bodies.WorldCentre(b, Train) - at).Length > InterestRadius)
                 _far.Add(WireRecord.MakeKey(RecordKind.Body, b.Id));
         if (_far.Count == 0)
             return records;

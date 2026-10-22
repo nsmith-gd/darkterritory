@@ -193,6 +193,35 @@ def human(height=1.8, leg=1.0, arm=1.0, torso=1.0, neck=1.0, head=1.0, width=1.0
     return Skeleton("SK_Human", bones)
 
 
+def fingertips(height=1.8, arm=1.0):
+    """The crew's fingers' second joint (the director's playtest of 16 Oct: "bunched up into like a bundle of fingers at
+    the end"): a bone from the middle joints to the tips under each hand's fingers_, for human(extra=...). With it a grip
+    curls into a fist (curl_fingertips) where one knuckle hinge folded the fingers out straight like a paddle."""
+    s = height / 1.8
+    wrist = (0.02 + 0.15 + (0.29 + 0.26) * arm) * s
+    sh = human(height, arm=arm, fingers=False, sockets=False)["hand_r"].head[2]
+    return [Bone(f"fingertips_{side}", f"fingers_{side}", (sx * (wrist + (0.1 + 0.054) * s * arm), 0, sh),
+                 (sx * (wrist + (0.1 + 0.115) * s * arm), 0, sh)) for side, sx in (("l", -1), ("r", 1))]
+
+
+def curl_fingertips(clips, share=1.1, most=100.0):
+    """Each key's fingertips_ from its fingers_ (where the clip doesn't set them itself): the middle joints curl a
+    little more than the knuckles, as a hand's do closing on a grip; fingers bent back keep their tips straight."""
+    for clip in clips:
+        keys = []
+        for frame, pose, interp in clip.keys:
+            pose = dict(pose)
+            for side, k in (("r", 1), ("l", -1)):
+                r = pose.get(f"fingers_{side}")
+                if f"fingertips_{side}" in pose or not isinstance(r, (tuple, list)):
+                    continue
+                c = r[1] * k
+                pose[f"fingertips_{side}"] = (0, k * min(most, c * share) if c > 0 else 0, 0)
+            keys.append((frame, pose, interp))
+        clip.keys = keys
+    return clips
+
+
 # --------------------------------------------------------------------------------------------------------------
 # Materials
 

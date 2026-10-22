@@ -25,8 +25,12 @@ public class StopWallsTests
     }
 
     /// <summary>Within <paramref name="pad"/> of a wall's box (round its corners, as the motor keeps a crewmate off it).</summary>
+    // (A wall no higher than a step over the feet is stepped onto, not walked into, as PlayerMotor.PushOut has it: note 817's
+    // decks and stones, the home platform's deck since note 869.)
     static bool InAnyWall(StopWalls walls, Double3 p, double pad) => walls.Near(p).Any(w =>
     {
+        if (w.Top - p.Y <= P.StepUp)
+            return false;
         var l = w.ToLocal(p);
         double dx = Math.Max(0, Math.Abs(l.X) - w.HalfLength), dz = Math.Max(0, Math.Abs(l.Z) - w.HalfWidth);
         return dx * dx + dz * dz < pad * pad;
@@ -132,8 +136,10 @@ public class StopWallsTests
         Assert.Equal(2 * 5, solids.Count(w => w.HalfWidth == Fortresses.TowerHalf && w.HalfLength == Fortresses.TowerHalf));
         Assert.Single(solids, w => Math.Abs(w.Bottom - rail - Fortresses.ArchBottom) < 1e-9);
         Assert.True(solids.Count(w => w.HalfWidth >= 2.25 && w.HalfWidth <= Fortresses.LivedDepth / 2 && w.HalfLength != Fortresses.TowerHalf) > 20);
-        // Nothing on the ground stands nearer the line than the gatehouse's passage (the arch is overhead).
-        foreach (var w in solids.Where(w => w.Bottom < rail + Fortresses.ArchBottom - 1))
+        // Nothing on the ground stands nearer the line than the gatehouse's passage (the arch is overhead), but for its gate's
+        // two leaves across it (note 847), which stand only while it's shut.
+        Assert.Equal(2, solids.Count(w => w.Gate == Fortresses.GateKey(home.Gate)));
+        foreach (var w in solids.Where(w => w.Bottom < rail + Fortresses.ArchBottom - 1 && w.Gate == 0))
         {
             double near = Math.Abs(Across(train, home.Gate, w.Centre with { Y = rail })) - w.HalfWidth;
             Assert.True(near >= Fortresses.GateInner - 0.05, $"a solid {near:0.00} m off the line");

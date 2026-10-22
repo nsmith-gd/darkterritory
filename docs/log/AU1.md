@@ -136,3 +136,379 @@ launches are AU1.1, AU1.2, …. Entries are UTC; those before 12:55 on 7 Oct wer
 - 2026-10-13 14:32 UTC · AU1 · #398: the audio-build workflow's first run built and installed the planks on the wood floor (3fee20c4); the boards' crack now 15-17 dB over the train inside a car, pinned in CrewAudioTests (the old boots fail it). Request taken out; the Audio Checklist's crew-footsteps line v15. Opened [#914](https://github.com/nsmith-gd/darkterritory/pull/914).
 - 2026-10-13 15:02 UTC · AU1 · #914 green on both platforms (build-test, package, crossplay); main merged in (Program.cs both sides, clean), #398 moved to Done in the PR that lands it.
 - 2026-10-13 16:05 UTC · AU1 · #914 green on both platforms at 77fe4700; main moved again (D1's #917: the audio content's hot reload once a second, and note 666 says the skips were the frame feeding the speaker, #914 the fix, D1's stopgap dropped). Main merged in (docs, D1's GameAudio change, no file of #914's touched); build, Ballast.Audio.Tests 61/61 and the game's audio classes 107/107 locally; merging.
+- 2026-10-14 20:40 UTC · AU1 · Back (main at 45cf3d0a); 137 check-ins read at once. G1's six creatures are all on main (EnemyKind 33-38) and unheard: queue #125 (note 388) on `claude/relaxed-cerf-r4pvh7`. Rows 151 and 167 still read claimed: done ([#432](https://github.com/nsmith-gd/darkterritory/pull/432), [#482](https://github.com/nsmith-gd/darkterritory/pull/482)).
+- 2026-10-14 21:30 UTC · AU1 · #125: `GameAudio.Creatures.Six` hooks the Mourners, Tower Jaw, the Brakeman (his limp from the good leg's takes 0, 2 and the bad leg's 1, 3 on a 0.74/0.46 s beat; `install.py` TAKE_SPLITS), the Knotter, the Freight Beetle and Hotbox, and the cars' wound brakes and seized axles; seven CreatureSoundTests. The nine lines sent to the audio-build workflow (027d56d0).
+- 2026-10-14 22:10 UTC · AU1 · #125's nine lines installed by the audio-build workflow (14140f21: 25 cues, the Brakeman's steps split good/bad as takes 0, 2 and 1, 3), captioned. A survey of main's other features: the house creatures, the Wakers, the Pickers, Dave and Jacob are silent; horseplay's thrown lump is heard as stoking. Claimed queue #497 (note 767, the house creatures heard) and #498 (note 768, horseplay heard) on the claims branch.
+- 2026-10-14 21:44 UTC · AU1 · Merged [#1009](https://github.com/nsmith-gd/darkterritory/pull/1009) (queue #125, G1's six heard, note 388): all three checks green.
+- 2026-10-14 22:40 UTC · AU1 · Queue #498 (note 768): horseplay heard and the thrown lump no longer heard as stoking; the audio-build workflow takes a fresh line in one pass and sends its previews back (the proxy refuses run artifacts here). Four builds: the coal hit and the tin landing were squishy (half under 95 Hz), a helper had slipped under a recipe's decorator, cloth rumble high-passed out. The checklist's new `crew-horseplay` line. Opened [#1012](https://github.com/nsmith-gd/darkterritory/pull/1012).
+
+## 15 Oct, ~01:50 UTC: the house creatures heard (queue #497, note 767)
+
+- **Merged #1012:** horseplay (#498, note 768). Main moved twice under it; merged main in twice (the union on
+  COORDINATION.md is local only: GitHub calls it a conflict).
+- **#497, the Lodger, the Householder, the Hollow House and the Hanger:**
+  - Hooked off their records, with 4 tests.
+  - 40 candidates built here.
+  - The squish taken out of their footfalls and blows (75-83% under 150 Hz at first, now under 45%; the shoes 5-17%).
+  - Fitted to G1's 11 checklist rows, the moved cues rebuilt and re-uploaded.
+  - Installed (real recordings first), captioned (20), the rows at L1.
+- **K1's asks on #1012** (the speaking tube, the comet's hum, the torn mail bag, the cab's kettle and cuckoo, the crew
+  photo, the logbook page) are queued next.
+
+## 15 Oct, ~02:30 UTC: claims #501-#505; the Pickers, the Wakers, the figures, K1's asks
+
+- **The director:** "Continue on tasks ... declare in coordination.md. We need to get through the audio artifact."
+- **The checklist:**
+  - 177 lines at L1 in review, 9 done.
+  - The 9 Redos all have newer candidates waiting on a verdict; `crew-gun-lay` waits on one too.
+  - Still missing: the Pickers (2), `figures`, and U1's six `up-` rows.
+  - K1's merged asks aren't on it yet.
+- **Claimed** (claims branch, then the rows here):
+  - #501 the Pickers (note 771);
+  - #502 the Wakers' dawn (772);
+  - #503 the figures (773);
+  - #504 K1's merged asks (774);
+  - #505 U1's upgrades (775), after #967.
+- **The renumbering:** A1's #1015 took #499, #500, 769 and 770 on main seventy seconds before AU1's claim files. AU1
+  moved to the next free numbers and handed those claim files to A1.
+- **The Pickers:**
+  - Hooked, with a test.
+  - 16 candidates built (a recipe agent), uploaded, installed (the grating and the squeals from real recordings).
+  - G1's two rows to L1.
+- **The Wakers:**
+  - Hooked (the stir's thuds on DawnStir's beat via the app's stir clock; the footfalls on WakerGait; each car lifted and
+    eaten).
+  - A whole-dawn test, captions, and their range (heard from 1.2 km).
+  - Candidates being built.
+- **The figures and K1's asks:** hooked, tested and captioned (Dave, Jacob, Nicki's party; the mail catch and tear, the
+  comet's hum, the speaking tube's whistle-call). Candidates being built.
+
+## 15 Oct, ~03:10 UTC: the Wakers, the figures and K1's asks installed; the next PR
+
+- **The Wakers:**
+  - 20 candidates built (a recipe agent), uploaded.
+  - Installed: the ground's thud and stride, the throat's roar, the seized grab, the skid and the torn lift.
+  - Two new rows, `tell-wakers` and `cs-wakers`, at L1.
+- **The figures:**
+  - 14 candidates built (a recipe agent), uploaded.
+  - Installed: the easel, the reel and the glass blessing.
+  - The `figures` row at L1.
+- **K1's asks:**
+  - 8 candidates built (a recipe agent), uploaded.
+  - Installed: the sack's snatch, the rip, the glass hum and the blown whistle-call.
+  - Three new rows (`crew-mail`, `world-comet`, `crew-speaking-tube`) at L1.
+- **The clerk:** the bank gained 36 words (U1's tally words and the night's prizes), ahead of #967.
+- **U1's upgrades (#505):** the six `up-` lines are in `cues.py`. Two recipe agents are building the forge, BBQ, horns
+  and tells candidates. The hooks wait on #967.
+- **Flagged by a recipe agent:** `g1_train.tones()` builds its phase in float32, which may click at a loop's seam on a
+  long take. The Brakeman's squeal measured clean; worth a look when that file is next touched.
+- **The town's guns at the walls (#502's last piece):**
+  - The scene's gun beat is now shared (`Effects.WallGunBeat`), and each gun is heard firing on it.
+  - Each ball is heard landing on the Waker's back its flight later. Creatures brought in through the gate are heard
+    under the same guns.
+  - 4 candidates built, the first installed, a new `town-guns` row at L1, a test.
+- **U1's upgrades (#505):** the forge and the BBQ deck (22 candidates) and the horns and the tells (22), each pair from a
+  recipe agent, uploaded; their four rows filled at L0, waiting on #967. The clerk's words row to L1. The band is #967's.
+- **The checklist:** a line for S1's covered voice (`voice-held`, note 749's ask), at L1 in review.
+- **Claimed #506 (note 776):** K1's #1016, the crew car's kettle and cuckoo, the crew photo's flash, the logbook's pages.
+  The cue lines are in, and a recipe agent is building the candidates ahead of the merge.
+
+## 15 Oct, ~04:50 UTC: #1020 merged; #1025 open; K1's crew car heard (#506)
+
+- **Merged #1020** (the house creatures, the claims). The next PR, #1025 (#501-#504 and #505's candidates), opened on
+  the new main and merged main once more when K1's #1016 landed under it.
+- **#506, K1's crew car and crew memory:** #1016 merged at 04:20, so it's done in #1025 too:
+  - the kettle and the cuckoo heard off the crew car's own reckoning;
+  - the photo's flash where it goes off;
+  - the logbook's own open, page and shut;
+  - the candidates installed, the two rows at L1, a test, three captions.
+- **The checklist:** every row now has candidates. Only U1's four `up-` rows still sit at L0, waiting on #967 (the band's
+  is #967's own), plus `crew-gun-lay`'s verdict. No new verdicts tonight; the Voice Booth has none either.
+- **The weak-sound check on tonight's installs:** every impact and footfall is under the squish line. The rest of the
+  flags are the far and low ones by design: the Wakers' thuds and calls, the comet's hum, the guns far off.
+
+## 15 Oct, ~06:40 UTC: #1025 merged; #507, a ping heard
+
+- **Merged #1025:** #501-#504 and #506, and #505's candidates.
+- **#507 (note 777), A1's #1024 pings:** they were seen by everyone but made no sound.
+  - Each ping is now heard once, by everyone, as a roger beep on the radio. Pings already standing when an ear joins are
+    not replayed.
+  - 2 candidates built and uploaded; a new `ui-pings` row at L1; a test.
+
+## 15 Oct, ~11:45 UTC: K1's #1026 and #1034 heard (#511-#514, #518)
+
+- **K1's #1026 merged with four features silent:** the sense table, bringing friends home, big finds and the handcar.
+  Claimed #511-#514 (notes 781-784). All four are now heard off what every machine sees:
+  - **The sense table:** the rail's knock; a thrown lamp's glass, oil and small fire; a hound in the extinguisher's jet.
+  - **Bringing friends home:** the haul aboard, the lift onto the shoulder, the put-down and the throw.
+  - **Big finds:** each jackpot's own lift and set-down, the bell's ring, fragile finds breaking at each knock, and the
+    jackpot house's lock (the wrench's own pick).
+  - **The handcar:** set down and hung back, its wheels' roll and joints, the brake shoe, the handle's creak at each end
+    of its swing. The train's wheels and bridges leave it out.
+  - The clerk's bank gained the new finds' names and their damage words.
+- **K1's #1034 merged with seven hooks waiting on AU1:** claimed #518 (note 785). Built and installed:
+  - the three causes of a coupling pin jumping;
+  - a house's boards where something waits, and the Householder's shift in its chair;
+  - a far bell for what's lost, and a far dog at the lamps' edge;
+  - a mask painted in the yard, heard as an outfit tried on.
+- **82 candidates from four recipe agents:**
+  - all uploaded, with the first picks installed;
+  - 12 rows on the checklist, all at L1;
+  - captions for each.
+- **Found on the way:** two loop helpers leave a seam the ear may catch: `world_kit.squeal` sums its phase in single
+  precision, and `world_bed.src_loop`'s last tile isn't faded. They're in loops already installed (the flange, the brake
+  drag, the fast roll). That's the next weak-sounds item.
+
+## 15 Oct, ~13:20 UTC: #1040 green; #519, K1's #1038 heard
+
+- **#1040:** green on Ubuntu. On Windows it was red only on `LobbyBrowserTests`' 4-second wall-clock browse, the same failure #1029 hit and untouched by this PR. I left one comment with a proposed patch for its owner, and the single re-run passed. Merged main once more.
+- **#519 (note 786), K1's #1038:**
+  - **Built ahead of its merge, installed once it landed:**
+    - the odd outcomes: the council bell, the well's splash, coin and wash, the tin can and what answers it, the scarecrow, the letter, Dave's painting, the soot, the lurch;
+    - emotes for two: the high five, the fist bump, the sit, the lean.
+  - **30 candidates from two recipe agents:** uploaded, with the first picks installed. Three rows are on the checklist at L1, with captions and tests.
+- **Checked and not taken:** the two loop-helper seams the handcar agent reported. Measured on the installed flange, brake-drag and roll loops, neither the seam nor the 0.5 s point bursts above each loop's own transients. That's the build's seam crossfade, and the rumble's own variation.
+
+## 15 Oct, ~14:05 UTC: #525, a friend on the crane's hook heard
+
+- **#1048 (#519):** CI running; the whole Game test project passed here (1139, one VR skip).
+- **#525 (note 798), K1's #1046 (note 726's "Sounds (AU1)"):** claimed on `claims`, then built and hooked off what every machine has:
+  - **the cable's creak:** the hook's swivel and loaded rope at each turn of a slow, uneven sway, held where the hook is while the crane's record says anyone rides it, louder with two;
+  - **the yell:** a startled "whoa!" from a crewmate coming off the hook alive with at least 2.5 m under them. The operator's shake-off is the host's alone, so a high let-go and a shake are heard alike, and letting go at the ground is quiet.
+  - Four candidates (real creaks pitched down and a modelled stick-slip; the crew's throat through the real gasp and on its own), uploaded; the real swivel and the "whoa" installed. A new `crew-hoist` row at L1, a caption for the yell, and a test for both.
+
+## 15 Oct, ~14:45 UTC: #526, wading and the town types underfoot
+
+- **#525:** the whole Game test project passed here (1159, one VR skip).
+- **#526 (note 799), off T1's #1003 (the town types, note 692):** claimed on `claims`.
+  - **Wading:** feet under standing water (a town type's marsh and shallows, the line's lakes and marshes) step on "water", a new footstep surface. It has ten candidates: the real wet steps and running water (installed), and a modelled wade.
+  - **Underfoot:** a form's decks, ways, terraces and the land past its wall now sound as the art draws them. The art and the footing share the three texture helpers.
+  - **The town's water:** it laps near the ear as a lake does.
+  - Tests on a fen town and a quarry town.
+- **Found on the way:** my row-filling script didn't carry the director's verdicts over (`cues.carry_verdicts`). None of tonight's refilled rows had any, so nothing was lost, and it carries them now.
+
+## 15 Oct, ~14:35 UTC: #528, the cannon's shot was silent
+
+- **U1's find on #1040:** the cannon's shot sound waited for a round to leave the gun, and since #960 made shot endless (13 Oct) none ever does. No cannon has been heard firing since then. Claimed #528 (note 801): a shot is now heard off the reload it leaves the gun needing (or a round gone, where the stock is on).
+- The test faked a round gone, which is why it didn't catch this. It now fires as the sim does, and fails on the old trigger.
+
+## 15 Oct, ~15:10 UTC: a bot night heard whole; #533, and #532 opened
+
+- **The audit:** 8 minutes of frontier:7 with 4 bots and enemies, on the host's world. `GameAudio` listened from the middle car's roof and every voice's name was counted (a scratch test, not committed).
+  - 105 cues played; nothing that happened was silent. The footsteps, cab controls, slack, doors, ladders, the shovel and firebox, the switch, the foundry's crane and winch, the town and villages, the Draggers, Tippy, weather, the bridge and river all played.
+  - Before the audit, a static pass checked every installed sound's name against the code. All 828 are reached; 24 of them under game names.
+- **Found:**
+  - **#533 (note 805):** every running jump between roofs played the hit of a jump off a moving train (34 of them), and a running jump on open ground would add a tumble and scattered pockets. Fixed: the audio now reckons the knock as the sim does.
+  - **#532 (open, for the bots' owner):** the bot driver holds its speed by pulsing the full brake: 9 ticks on and 13 off on a descent, and every tick or two near the end of the line. That made 1,481 brake applications and 1,314 slack run-ins in 8 minutes. The sounds are faithful; the fix belongs to the driver (or a brake that builds in the sim).
+
+## 15 Oct, ~15:55 UTC: the last of K1's friendslop heard, and the mail parked
+
+The director asked for the last three friendslop features to be heard. Two were already on main: emotes for two and the odd outcomes were merged in #1048 at 15:07, each sound installed and played as its own. The third, the crane:
+- **The creak** is louder while the crane moves them.
+- **The landing** after a drop off the hook is a comic thump and an "oof" (the director's gag, K1's note 802), in place of the landing's own sound. Two candidates; the modelled flop is installed. It's derived from the Hoisted flag, as the yell is, so it needs nothing from note 802's sim flag (not on main yet).
+- These go in #1054 with the rest of #525.
+
+**The mail is cut for now** (K1's #530, note 803). The checklist page gained a **Parked** status: off the board's work like a cut line, but not struck through, with its level kept. `crew-mail` is parked; its sounds stay installed.
+
+**Checks:** the tell audit (`dt audio render --listener all`, chaos at 20 cars and 22 m/s) has every tell at least 6 dB over the bed at its worst listener. The whistle is the tightest at 6.2. The audio test classes pass (213).
+
+## 15 Oct, ~16:45 UTC: the Mouse Moose heard (#537), and U1's whimsies' candidates (#534)
+
+- **#537 (note 809), A1's Mouse Moose (#1042):** the yard's casting thief was silent.
+  - Hooked off its record, as the Pickers are: its claws while it creeps in and a squeak now and then (the tell), the bite, the drag (louder once the hook can't reach the casting and it speeds up), the bolt when it's scared off, the dig into its hole.
+  - A casting dragged all the way is heard tipping in, off the crane's own record, so a client hears it even without the creature.
+  - Fourteen candidates from a recipe agent, two a cue; the packs' real ones installed. Two new checklist rows, captions, two tests.
+- **#534 (note 806), U1's whimsies, pets and new emotes:** their 18 candidates (canary, calliope, gramophone, cat, dog, bow, salute, conga) are on the checklist: new rows `up-whimsy` and `up-pets`, and three cues on `crew-emotes`. Hooked when #967 lands, with #505.
+- **Voice Booth:** still no verdicts.
+
+## 15 Oct, ~17:00 UTC: a weak-sound sweep, and #538 (a Holdout's banging)
+
+- **The sweep:** every installed sample folder (775) checked for clipping, duplicate takes and energy below 150 Hz (raw, then A-weighted, and by centre).
+  - The sets it flags that the director kept (the Ribbits' hop landings, the Passenger's steps, which are the crew's own by design, Tippy's grab) stay as kept.
+  - Most heavy first picks are heavy by nature (the comet's hum, the drone, a strained car's groan, bodies falling).
+- **#538 (note 810):** the worst was a call. A Holdout's banging (one call in three or so) played two to four of its takes 0.3 s apart, but each take is already a whole bout, so a call was up to 32 blows piled up.
+  - Now one bout a call.
+  - A new `door` candidate, installed: each blow's crack carries over the boards' boom, where `walls` was a dull thud (cut at 1.6 kHz).
+  - The prisoner-call test holds it (it failed on the old hook: "3 bouts in one call").
+## 15 Oct, ~18:00 UTC: PREPARE HANDOFF (the Token Budget Manager)
+
+- nathaniel2's weekly limit is at 60%, on pace to run out ~16 Oct 08:00 UTC. AU1 confirmed and is writing its handoffs (COORDINATION rule 11): Handoff blocks for #42 (note 304, the Voice Booth), #505 (note 775, U1's upgrades) and #534 (note 806, U1's whimsies), in the shape COORDINATION's "Accounts and usage limits" gives. #537 and #538 are done in #1064.
+- The Voice Booth's last two fixes (`booth.py`'s preview clip guard, the clerk's kit-lost phrases in `script.json`) had stayed on `au1-booth` since 7 Oct; they land with the handoff.
+
+## 15 Oct, ~18:45 UTC: #1064 merged; #534's hooks ready on #967
+
+- **#1064 merged** (ff01db1): the Mouse Moose (#537), the Holdout banging (#538), U1's candidates (#534), and AU1's handoff blocks for the Token Budget Manager (#42, #505, #534). Main kept moving in the coordination files GitHub can't union-merge, so the last merge of main went in on its tests and a local build without a fresh CI run; main's own CI on it is being watched.
+- **#534's hooks**, written on U1's #967 (nathaniel1 is landing it tonight) and pushed to `claude/relaxed-cerf-r4pvh7` without a PR until #967 is on main:
+  - The pets, the canary, the calliope (at the tune's pitch, through a layer parameter: the mixer resets a voice's own rate every block), the gramophone's wind, the bow, the salute, and the conga as one held voice for the line.
+  - The calliope's candidates rebuilt at C6, the middle of #967's tune, instead of A4 (which the game would have pitched up 10-22 semitones).
+  - Installed, captioned, `WhimsySoundTests` (5).
+
+## 15 Oct, ~19:10 UTC: #505's horns, forge and BBQ deck ready on #967
+
+- Main's CI on #1064's merge (ff01db1) is green: format, build, every test on both systems, VR, the tell audit, crossplay.
+- **#505 (note 775)**, on the same branch as #534's hooks (built on #967, no PR until it lands):
+  - **The horns:** the honk on each pull, the gold-plated whistle sounding, held and let go.
+    - #967's horns only changed what the Choir hears, so no client could tell which was fitted. They now mark the train (`dress:theHonk`, `dress:goldWhistle`), as the La Cucaracha horn does.
+  - **The forge** at a fortress town: its hearth, and the smith hammering, working the bellows, quenching.
+  - **The BBQ deck:** the charcoal catching, the grill, a sausage turned, the cooler, a can cracked as a beer in hand is drunk, cans clinked, a Muskoka chair.
+  - Installed, captioned and tested.
+  - The tools' tells (`up-tells`) are next; their moments are each in a different system.
+- Commented on #967 for whoever lands it: the credits file's merge conflict is generated, and AU1's hooks don't need #967 to change.
+- **The calliope an octave down** (#534): it's the whistle, and the whistle's band is 200-800 Hz (spec A.4). #967's tune is G5-G6, in Tippy's, the Stoker's and the Grumbler's bands. AU1's takes are now C5, played G4-G5; about 70% of each note's energy is in the band.
+- **The tools' tells (`up-tells`) left for a design call** (note 775's handoff): the speed recorder's bell, for one, would need to split the early warning from the normal one, and the base lead is a tuning number the audio shouldn't hard-code.
+
+## 15 Oct, ~20:45 UTC: #967 merged; #534's and #505's hooks in review (#1096)
+
+- U1's #967 is on main (bdc6158be). AU1's hooks, built on it, are rebuilt on main (`claude/relaxed-cerf-r4pvh7`, AU1's changes over #967's last head applied to main) and in review in [#1096](https://github.com/nsmith-gd/darkterritory/pull/1096): the whimsies, pets and new emotes (#534), the horns, forge and BBQ deck (#505). Build, format and the audio and upgrade test classes pass.
+- Rows #534 (in review) and #505 (in progress: the tools' tells still wait on a design call); notes 806 and 775's handoffs say so.
+
+## 15 Oct, ~21:40 UTC: #1096 merged
+
+- [#1096](https://github.com/nsmith-gd/darkterritory/pull/1096) merged (d3c4cf8) on green CI (both systems, packaging, crossplay): #534 done; #505's horns, forge and BBQ deck in. #505 stays open for the tools' tells, which wait on the tools (#967's "still to build"), and the band against the mix.
+- The six checklist rows (`up-whimsy`, `up-pets`, `crew-emotes`, `up-horns`, `up-forge`, `up-bbq`) at L1.
+
+## 15 Oct, ~21:55 UTC: the band against the mix (#505)
+
+- #1098 merged (rows #534 done, #505's handoff). `dt audio render --scenario chaos+band` (new: maximum chaos with all eight of the band's instruments round the listener on the roof): six tells fell under spec A.3's 6 dB over the bed, the Dragger to -4.4 dB. The band now drops a further 18 dB under any tell (`mix.json`, a sound-duck rule on tier 1 and `band-*`), as the music gives way; every tell clears (the Dragger by 6.3 dB). `AudioTests` holds it.
+
+## 15 Oct, ~22:35 UTC: #1104 merged; the clerk's words for every upgrade (#505)
+
+- [#1104](https://github.com/nsmith-gd/darkterritory/pull/1104) merged on green CI: the band gives way to a tell.
+- **The clerk's words:** #967's 42 upgrade tally lines are read into every night's tally, and the bank had only the first ten's words, so the set broke up over "Fiddle: in tune, mostly." and the rest. `tools/audio/clerk.py` reads them off `campaign.json` now; 68 new takes; `ClerkVoiceTests` holds every line. The checklist's `up-clerk-words` says so.
+## 15 Oct, ~22:50 UTC: #554, the Hope Tower's Flame heard
+
+- Main's new features since the last look: B2's Hope Tower (#1091, note 819) puts an 80 m stone tower with a coal fire on top in every harbour town, and it was silent. Claimed queue #554, note 826.
+- `place-town.flame`: two candidates (`basket`, `tongues`), both under 4.5 kHz so the town's light is never a car alight; `basket` installed; held on the tower's top within 800 m (`GameAudio.Town`); `WorldSoundTests`. The `place-town` row on the Audio Checklist has them.
+
+## 16 Oct, ~00:25 UTC: #555, the night market heard
+
+- B2's night market (#1111, note 825) asked for its sounds ("the stallholders' talk, the tea boiler (AU1's, if wanted)"). Claimed queue #555, note 827.
+- `place-town.stall-tea`, `stall-clocks`, `stall-knitting` held at their stalls' counters, `stall-call` from a stallholder now and then (captioned); two candidates each (`recipes/market.py`), the first installed; `WorldSoundTests`. The walled-town test now listens two seconds away from the town (a stand-in cough begun as the ear left could outlast half a second).
+
+## 16 Oct, ~01:35 UTC: #554 merged; #555 in review (#1120); #556, the human cannonball heard
+
+- [#1112](https://github.com/nsmith-gd/darkterritory/pull/1112) merged (the Hope Tower's Flame) after main was merged in twice (the coordination files GitHub can't union), the last time merged at once on local tests.
+- The night market is [#1120](https://github.com/nsmith-gd/darkterritory/pull/1120).
+- U1's human cannonball (#1106, note 746) made only the gun's boom. Claimed queue #556, note 828: climbing in, the whoop, the flight's air, the gag's landing; `crew-cannonball` (a new checklist row), two candidates each, the first installed; captioned; `WorldSoundTests`. The reload's new order needed nothing: U1's hook plays the takes in it.
+
+## 16 Oct, ~01:45 UTC: #557, the Soot Child's telegraph heard
+
+- Main's Soot Child animations (C1, note 823) give it a telegraph: from 2.5 m outside its lunge "the call stops dead and its head snaps round to them". The sound kept calling. Claimed queue #557, note 829.
+- The call now stops dead (faded over one mix block) while the nearest of the crew is in the art's telegraph, and calls again when they back off; a real child goes on calling. No new sound. `CreatureSoundTests` (fails without it). Going up with #556 after #1120.
+
+## 16 Oct, ~02:05 UTC: #1120 merged; #556 and #557 in review
+
+- [#1120](https://github.com/nsmith-gd/darkterritory/pull/1120) merged (the night market) on green CI, main merged in once more first (the union merge kept row #554 twice; main's stale copy dropped). Row #555 done.
+- The human cannonball (#556) and the Soot Child's telegraph (#557) go up together, rebased on main.
+
+## 16 Oct, ~02:30 UTC: #559, U1's second whimsies heard
+
+- #1126 (the cannonball and the Soot Child's telegraph) in review. Main's #1119 wired C1's lounge and eating clips; the things they show (U1's hammock, hot tub, fishing rod and grilled fish, note 744) had no sounds. Claimed queue #559, note 831.
+- `up-lounge` (hammock in/out and its ropes' creak while lain in; the hot tub in/out and its bubbling while there's steam), `up-fishing` (the angler's own cast and line, off their own Use; everyone's catch, captioned) and `up-bbq.eat`; two candidates each (`recipes/lounge_fish.py`), the first installed; two new checklist rows; `WhimsySoundTests`. Goes up after #1126.
+
+## 16 Oct, ~02:40 UTC: #1126 merged; #559 in review
+
+- [#1126](https://github.com/nsmith-gd/darkterritory/pull/1126) merged (the human cannonball, #556; the Soot Child's telegraph, #557) on green CI, main merged in once more first (rows #555 and #558 kept twice by the union merge; the stale copies dropped). Rows #556 and #557 done.
+- U1's second whimsies (#559) rebased on main; `dt credits --write` for its samples (the packs' counts). Up for review.
+
+## 16 Oct, ~02:55 UTC: #561, burned at a fire's edge heard
+
+- #1130 (#559) in review. The director's playtest line 25 ("I wasn't getting any feedback that I was being burned") got a heat glow and smoke from C1 (note 821) and no sound. Claimed queue #561, note 833.
+- `crew-scorch.sizzle`: a coat smouldering, held on whoever a car fire's heat reaches from the first tick, at the glow's own strength, under 5 kHz so it's never the car-fire tell; two candidates (`recipes/scorch.py`), the modelled one installed (the real one's crackle clicks past the tell's band); a new checklist row; `CrewAudioTests`. Joined #1130 while its CI had only just started.
+
+## 16 Oct, ~03:45 UTC: #1130 merged
+
+- [#1130](https://github.com/nsmith-gd/darkterritory/pull/1130) merged (U1's second whimsies, #559; burned at a fire's edge, #561) on green CI, main merged in twice more first (row #560 kept twice by the union merge; the stale copy dropped). Rows #559 and #561 done.
+- Main's newest (#1124 the deck's cheers and the can in the fist, #1128 up out of a turned-round gun, #1125 the cannonball on the radio) need nothing more from AU1: the cheers and the can are heard already (`up-bbq`), the gun's seat is movement, and U1 put the radio line in the clerk's bank.
+
+## 16 Oct, ~05:35 UTC: #447's reload cues closed
+
+- U1's #1135/#1136 left "AU1's recorded reload cues in the new order" open in note 746 and row #447; it was settled for #556 (note 828): `GameAudio.CrewGuns` already plays the takes in the new order and they fit it, nothing to re-record. Said so on #1135; note 746 and the row now say it. Only C1's barrel clip is left of #447.
+- Nothing else new on main for AU1 (U1 stopped for the week); the Voice Booth still has no verdicts.
+
+## 16 Oct, ~12:35 UTC: #562, the director's playtest lines 19 and 27
+
+- The Token Budget Manager passed on the director's playtest of the morning build (docs/playtest/2026-10-16.md, #1139). Claimed queue #562, note 834, for line 19 (the Moose's munching too loud: "we want to allow players to get a little bit closer") and line 27 (the walls' guns "firing once a second. It should be a bit more random"). Line 27's sound comes off the same beat as the guns' flashes (`Effects.WallGunBeat`, note 772), so the fix there is the beat, for both.
+- Line 19: the Moose's grazing sounds were at the tells' default (+8 dB, out to 250 m), barely 3 dB under their own level at 20 m, where its temper starts to rise, and their tier-1 duck held the rest down from 250 m. Now +2 dB, rolloff 0.9, out to 150 m (`install.py`; takes unchanged): about 7 dB quieter from 12 m to the line, still heard from the train going by, louder as you close in.
+- Line 27: each wall gun now fires anywhere in the first 60% of its 4.2 s turn and lets some turns go by, more while the town's fire slackens (a slow swell shared by the guns on one target): ragged bursts and lulls, never a beat. Still from the clock alone, so flashes and sounds agree; a ball is only heard landing if its shot was heard fired. Tests for both; note 834.
+
+## 16 Oct, ~14:20 UTC: #562 merging; EXECUTE HANDOFF
+
+- #1160 (#562) green on Linux and Windows; main had moved (the whistle held, the stilt town), so main merged in once more and it merges on that run's green. Rows #562 and the playtest's lines 19 and 27 done with it.
+- The Token Budget Manager's EXECUTE HANDOFF (nathaniel2 at 92% weekly, LIMITED until Wed 21 Oct 20:00 UTC): nothing new started. AU1's two open items are `open for pick-up`, their handoffs executed: #42, the Voice Booth (note 304; still no Keep/Redo on its 34 versions), and #505, the upgrades' tools' tells (note 775; waiting on #967's tools, still unbuilt). AU1 stops here until the reset.
+
+## 21 Oct, ~20:25 UTC: back after the weekly reset; #675, the flare pistol heard
+
+- The Token Budget Manager's RESUME (nathaniel2 at 0%). #1160 (#562) had merged on 16 Oct; #505 was finished by n1-w3 ([#1288](https://github.com/nsmith-gd/darkterritory/pull/1288)) and #649, the arrival town's sounds, by Ezra ([#1494](https://github.com/nsmith-gd/darkterritory/pull/1494)). The Voice Booth (#42) still has no Keep/Redo on its 34 versions.
+- The Audio Checklist's only line short of L1 that nobody holds is `up-flare`: the flare pistol (#598) is in play and drawn but silent. Claimed queue #675, note 975 (`crew-gun-lay` stays in review, waiting on the director's pick).
+
+## 21 Oct, ~21:15 UTC: #675 in review
+
+- The claim merged ([#1563](https://github.com/nsmith-gd/darkterritory/pull/1563), main merged in twice for the docs' union merge GitHub doesn't do).
+- The flare pistol heard (note 975): `recipes/flare.py` (two candidates a cue, uploaded to the checklist; the real ones installed), `GameAudio.Flare` (the shooter's own shot at once, everyone else's where the flare first flies; the burn held on the flare for its minute; the dry click), captions, `FlareSoundTests`. The `up-flare` line at L1, in review.
+
+## 21 Oct, ~21:20 UTC: #675 merging
+
+- [#1572](https://github.com/nsmith-gd/darkterritory/pull/1572) green on Linux and Windows (and the package and crossplay); main merged in once more, row #675 done in it (the union merge's stale copies of #671, #672 and #675 dropped). Merges on this run's green.
+- Next (one at a time): the coupling's long-carrying `state-coupling-loose.warn` (note 865; hooked in `GameAudio.Faults`, no sound yet), the clerk's word bank with the catalogue's words for Hazel's tally (note 972), the dining car's glass and bell (note 959), the big cab's benches (note 905), Rowan's audit's tidy-ups (note 858).
+
+## 21 Oct, ~22:05 UTC: #675 merged; #680, a pin working loose heard the length of the train
+
+- [#1572](https://github.com/nsmith-gd/darkterritory/pull/1572) merged (the flare pistol heard, #675, note 975). The `up-flare` line's notes say so.
+- Claimed queue #680, note 980: note 865's `state-coupling-loose.warn`, hooked in `GameAudio.Faults` since #592 but with no sound, so the warning borrows the ordinary knock pulled toward the ear.
+
+## 21 Oct, ~22:45 UTC: #680 in review
+
+- The claim merged ([#1582](https://github.com/nsmith-gd/darkterritory/pull/1582)). `state-coupling-loose.warn` (note 980): `recipes/coupling_warn.py` (the packs' real slam and rings, the casting modelled; on the checklist), installed at the pin out to 400 m as an alarm, captioned, two tests (the warn at the pin from the cab, or the stand-in knock pulled to 45 m; the installed reach and level). The line's other cues untouched.
+
+## 21 Oct, ~22:58 UTC: #680 merging
+
+- [#1584](https://github.com/nsmith-gd/darkterritory/pull/1584) green on Linux and Windows (package, crossplay); main merged in once more, row #680 done in it (the union merge's stale copies of #679 and #680 dropped). Merges on this run's green. Next: the clerk's bank rebuilt with the catalogue's words for Hazel's tally (note 972).
+## 21 Oct, ~23:00 UTC: #682, the clerk's words for the silly upgrades' tally
+
+- Claimed queue #682, note 982 (Hazel's ask in note 972): the clerk's radio bank rebuilt with "dining", "bar", "poured", "beers", "grill", "deceased" and "volunteers", so the tally reads as the catalogue has it. #680 (#1584) merges on its last green.
+
+## 21 Oct, ~23:25 UTC: #682 ready
+
+- The claim merged ([#1588](https://github.com/nsmith-gd/darkterritory/pull/1588)). The clerk's bank (note 982): "bar", "drinks", "dry", "beers", "grill", "deceased", "volunteers" and the never-read "bolted on"; the dining car, deck, canary and cannon lines in the catalogue's words; `clerk.py` expands a counted line's readings (its first run stopped on a "#"). The Switchman's two stale phrases and "barbecue" gone from the bank. Goes up when #1584 has merged off the branch.
+
+## 22 Oct, ~00:20 UTC: #680 and #682 merged
+
+- [#1584](https://github.com/nsmith-gd/darkterritory/pull/1584) merged (#680, the pin's warn). [#1592](https://github.com/nsmith-gd/darkterritory/pull/1592) green on Linux and Windows; row #682 done in it and merged (#682, the clerk's words). Next: the dining car's bar heard (note 959: a pour and the counter's bell, a glass of its own).
+
+## 22 Oct, ~00:25 UTC: #683, the dining car's bar heard
+
+- Claimed queue #683, note 983 (Hazel's handoff in note 959: "AU1's glass and the bar's bell"): a drink poured at the counter with its bell, and drunk from a glass, not the beer's can.
+
+## 22 Oct, ~00:30 UTC: #683 ready
+
+- The claim merged ([#1595](https://github.com/nsmith-gd/darkterritory/pull/1595)). `up-dining` (note 983): `recipes/dining.py` (the counter's bell and a pour, a glass's sip, glasses clinked; real and modelled), installed, hooked in `GameAudio.Bbq` (the pour off the car's drinks left at the counter's top, the Drink body's sip and clink in place of the can and cheers), captioned, a test. The checklist row at L1, in review.
+- Up as [#1597](https://github.com/nsmith-gd/darkterritory/pull/1597); row #683 done in it, merging on green. Next: the bench in the big cab heard (note 905).
+
+## 22 Oct, ~01:25 UTC: #683 merged; #684, the cab's benches heard
+
+- [#1597](https://github.com/nsmith-gd/darkterritory/pull/1597) green on Linux and Windows (package, crossplay) and merged (#683, the dining car's bar).
+- Claimed queue #684, note 984 (Tess's note 905 left the big cab's benches silent for AU1): a seat on a bench taken or left heard, the plank on its brackets.
+
+## 22 Oct, ~01:35 UTC: #684 ready
+
+- `up-lounge.bench` (note 984): `recipes/cab_bench.py` (the plank on its brackets, a bolt's tick, the back on the rail; real and modelled), clear of every tell, on the checklist, installed, hooked in `GameAudio.Lounge` (the bench seat sat on and got up from), a test. The claim merged ([#1601](https://github.com/nsmith-gd/darkterritory/pull/1601)); up as [#1602](https://github.com/nsmith-gd/darkterritory/pull/1602), row #684 done in it, merging on green.
+
+## 22 Oct, ~02:25 UTC: #684 merged; #687, a bot's answer spoken
+
+- [#1602](https://github.com/nsmith-gd/darkterritory/pull/1602) green on Linux and Windows (package, crossplay) and merged (#684, the cab's benches), after main merged in once more (the union merge's stale copy of row #684 dropped).
+- Claimed queue #687, note 987 (Finn's note 936 left a bot's spoken answer to a ping to AU1): the bot who takes a ping says it, in a voice of its own.
+
+## 22 Oct, ~03:05 UTC: #687 ready
+
+- The claim merged ([#1606](https://github.com/nsmith-gd/darkterritory/pull/1606)). `voice-bot` (note 987): `recipes/bot_voice.py` (each of the bots' answers said in four LibriTTS voices, through the radio or plain; on the checklist), installed with the TTS credit, `GameAudio.Pings` says a bot's answer over the radio as it takes a ping, in the voice its id picks, once. `PingVoiceTests`.
+- Up as [#1608](https://github.com/nsmith-gd/darkterritory/pull/1608); row #687 done in it, merging on green.
+
+## 22 Oct, ~03:40 UTC: #687 merged; #688, note 858's tidy-ups
+
+- [#1608](https://github.com/nsmith-gd/darkterritory/pull/1608) green on Linux and Windows (package, crossplay) and merged (#687, a bot's answer spoken).
+- Claimed queue #688, note 988: Rowan's note 858 items 2, 3 and 14 (the cut shiver, the Switchman's and the forward cannon's leftovers, note 829's row name).
+
+## 22 Oct, ~04:00 UTC: #688 ready
+
+- Note 988: `crew-cold`'s need reworded and its shiver marked cut (its own need); the Switchman's previews out of `assets.json`, his and the forward cannon's lines out of the Voice Booth (page and script); the forward cannon's three phrases out of `clerk.py` and the clerk's bank (and `ClerkVoiceTests`' list of blames); note 829 names `tell-soot-children`. The claim merged ([#1613](https://github.com/nsmith-gd/darkterritory/pull/1613)); up as [#1614](https://github.com/nsmith-gd/darkterritory/pull/1614), row #688 done in it, merging on green.

@@ -12,6 +12,16 @@ namespace DarkTerritory.Sim.Net;
 public sealed record HarnessOptions
 {
     public int Bots { get; init; } = 8;
+    /// <summary>Note 921: count what each kind of record costs on the wire (<see cref="HarnessReport.Wire"/>).</summary>
+    public bool Wire { get; init; }
+    /// <summary>
+    /// Note 956: the first this many of the crew talking all night, an Opus frame's worth (<see cref="TalkFrameBytes"/>) every
+    /// 20 ms through the real voice path, on the radio with <see cref="TalkRadio"/> (everyone with one hears it), else aloud.
+    /// </summary>
+    public int Talkers { get; init; }
+    public bool TalkRadio { get; init; }
+    /// <summary>One 20 ms Opus frame at the game's 24 kbit/s (ARCHITECTURE §6.3: ~60 bytes).</summary>
+    public const int TalkFrameBytes = 60;
     /// <summary>
     /// Note 650: the last bot dies this many seconds in, 200 m back up the line (as the Holdout tests kill a player), so the
     /// night has a rescue to measure; null, nobody's killed.
@@ -84,6 +94,8 @@ public sealed record HarnessOptions
     public Action<uint, World>? Script { get; init; }
     /// <summary>The night ends early once this holds on the host's world (a cascade recovered, or past saving).</summary>
     public Func<World, bool>? Until { get; init; }
+    /// <summary>What counts as two crewmates in one problem (balance.json <c>shared</c>, note 861).</summary>
+    public SharedTuning Shared { get; init; } = new();
     /// <summary>The combination audit (note 186): only these kinds, insisted on (<see cref="World.Insist"/>). Null: the director's night.</summary>
     public IReadOnlyList<EnemyKind>? Insist { get; init; }
     /// <summary>With <see cref="Insist"/>: seconds after one's gone before it's sent again.</summary>
@@ -169,6 +181,18 @@ public sealed record HarnessReport(int Ticks, double Seconds, string Link, doubl
     /// <summary>Note 549: snapshots the host withheld from thin links, and whether its upload was found wanting.</summary>
     public int SnapshotsThinned { get; init; }
     public bool UploadStrained { get; init; }
+    /// <summary>
+    /// Note 921, with <see cref="HarnessOptions.Wire"/>: kbit/s down per client each kind of record took (its key, header and
+    /// fields), most first; the rest of <see cref="DownKbpsPerClient"/> is the snapshots' own headers, the datagram layer and
+    /// everything that isn't a snapshot.
+    /// </summary>
+    public IReadOnlyDictionary<string, double>? Wire { get; init; }
+    /// <summary>Note 956: kbit/s the host sent in all (every client's down), and with <see cref="HarnessOptions.Talkers"/>, the voice frames forwarded and heard.</summary>
+    public double HostUpKbps { get; init; }
+    public long VoiceFramesForwarded { get; init; }
+    public long VoiceFramesHeard { get; init; }
+    /// <summary>Note 956: voice frames the host didn't send a listener already hearing their fill, its upload strained.</summary>
+    public long VoiceFramesHeldBack { get; init; }
     /// <summary>What got through on the crew's voice, with <see cref="HarnessOptions.Voice"/> (note 186).</summary>
     public VoiceReport? Voice { get; init; }
     /// <summary>The jobs the train made as it ran (orchestrator.md §5.1), and how many got away from the crew; null without them.</summary>
@@ -190,6 +214,14 @@ public sealed record HarnessReport(int Ticks, double Seconds, string Link, doubl
     public DawnReport? Dawn { get; init; }
     /// <summary>The driver's reckonings of the run home through the night (note 621), to score against when it got in.</summary>
     public IReadOnlyList<Reckoning>? Reckonings { get; init; }
+    /// <summary>How the brake was worked (note 820).</summary>
+    public DrivingReport? Driving { get; init; }
+    /// <summary>Note 935: the gauge, the stops' runs in and the crew left behind, under the bot at the controls.</summary>
+    public DriverReport? Driver { get; init; }
+    /// <summary>The problems two crewmates were in together, at each stop and on the run (note 861, <see cref="SharedWatch"/>).</summary>
+    public SharedReport? Shared { get; init; }
+    /// <summary>The night's encounters (the director's brief §8; note 880): attempts, placements, droughts, overlap; null without enemies.</summary>
+    public Enemies.EncounterReport? Encounters { get; init; }
 }
 
 /// <summary>
@@ -221,6 +253,14 @@ public sealed record PacingReport(int Beats, double BeatsPerMinute, double Longe
     /// <summary>Every stretch quiet over 30 s: how long, when it ended and where, by what, and why the director had sent nothing.</summary>
     public IReadOnlyList<string> LongQuiets { get; init; } = [];
 }
+
+/// <summary>
+/// The driver at the brake (queue #532, note 820): the brake's a held button, all or nothing, and each application is heard (the
+/// shoes, the slack running in). <paramref name="Applications"/>: times it went on with the train moving;
+/// <paramref name="PerMinute"/> of the train moving; <paramref name="Taps"/>: those let off again inside a second (holding a
+/// speed by tapping it, the machine-gun AU1's audit heard); <paramref name="MeanSeconds"/>: how long one's held.
+/// </summary>
+public sealed record DrivingReport(int Applications, double PerMinute, int Taps, double MeanSeconds, double MovingSeconds);
 
 /// <summary>What the director and the enemies did (GDD §34 / App. B.9 audit).</summary>
 /// <summary>A crewmate's slack over the night (note 345): the most, and the seconds at or past slackPress.</summary>
@@ -269,6 +309,14 @@ public sealed record ThreatReport(double Budget, double Spent, IReadOnlyDictiona
     public int TrussDraggers { get; init; }
     /// <summary>The fires boarded packs set (note 269), beside the upkeep's hot boxes caught: where the burns come from (note 437).</summary>
     public int PackFires { get; init; }
+    /// <summary>The kinds the night's chances rolled out that came in after all: the floor's (note 868) and the fresh ones (note 863).</summary>
+    public IReadOnlyList<string> Floor { get; init; } = [];
+    public IReadOnlyList<string> Fresh { get; init; } = [];
+    /// <summary>The night's curve (note 849): the director's spawns sent without their rule, by kind; "free" the curve's own, "fill" the pressure's.</summary>
+    public IReadOnlyDictionary<string, int> FreeSpawns { get; init; } = new Dictionary<string, int>();
+    /// <summary>The halts stood at tonight and those whose own encounter came (note 895; <c>director.encounters.halt</c>).</summary>
+    public int HaltsStood { get; init; }
+    public int HaltsSent { get; init; }
     /// <summary>The Gannet's passes (note 454): hung over a walker, folded, stabbed.</summary>
     public GannetReport Gannet { get; init; } = new(0, 0, 0);
     /// <summary>Each Cinder Hound pack that boarded (note 484): how long it was aboard and how its hounds ended.</summary>
@@ -299,6 +347,18 @@ public sealed record UpkeepReport(int HotBoxes, int Caught, int Lamps, int WentO
     public IReadOnlyDictionary<string, int> FilledBy { get; init; } = new Dictionary<string, int>();
     /// <summary>Seconds a gun that's fired stood with its rack dry while there was powder below (note 377), its gunner waiting or gone for it.</summary>
     public double DrySeconds { get; init; }
+    /// <summary>Note 872: the car (0 the engine) each hot box, lamp and loose pin came on, so a night's spread along the train shows.</summary>
+    public IReadOnlyList<int> HotBoxCars { get; init; } = [];
+    public IReadOnlyList<int> LampCars { get; init; } = [];
+    public IReadOnlyList<string> PinCars { get; init; } = [];
+    /// <summary>Note 865: pins a rail joint jumped (two to hold, among <see cref="Couplings"/>), driven home by two, parted as one let go.</summary>
+    public int Jumped { get; init; }
+    public int JumpedHome { get; init; }
+    public int JumpLetGo { get; init; }
+    /// <summary>Note 865: of <see cref="JumpedHome"/>, those caught in the warning before the pin jumped.</summary>
+    public int JumpCaught { get; init; }
+    /// <summary>Note 865: seconds a pin could have jumped (two alive, at speed, the night's clock past its first and the last's spacing).</summary>
+    public double JumpSeconds { get; init; }
 }
 
 /// <summary>
@@ -339,6 +399,8 @@ public static class Harness
             ?? (udpHost is null ? net.CreateClient() : UdpTransport.Connect(new System.Net.IPEndPoint(System.Net.IPAddress.Loopback, udpHost.Port)));
         var hostTransport = new CountingTransport(o.Network?.Host() ?? udpHost ?? net.CreateHost());
         var host = new HostSession(hostTransport, NewTrain(line, trainTuning, o, boiler), trainTuning, playerTuning, o.Combat);
+        if (o.Wire)
+            host.WireTally = new();
         // The crew the host will take (player.json crew.cap, note 254): more bots than that and the last are turned away.
         int crewSize = Math.Min(o.Bots, host.Cap);
         if (o.Hazards is { } hazards)
@@ -389,6 +451,11 @@ public static class Harness
         if (calls is not null && o.Voice is { } voice)
             calls.Voice = new CrewVoice(voice, (ulong)o.Seed);
         var clients = new List<(ClientSession Session, IBot Bot, CountingTransport Transport)>();
+        var talkSequence = new ushort[Math.Max(0, o.Talkers)];
+        var talkFrame = new byte[HarnessOptions.TalkFrameBytes];
+        for (int i = 0; i < talkFrame.Length; i++)
+            talkFrame[i] = (byte)(i * 37 + 11);
+        long voiceHeard = 0;
         for (int i = 0; i < o.Bots; i++)
         {
             var transport = new CountingTransport(ClientTransport(i));
@@ -462,6 +529,10 @@ public static class Harness
         bool freedSince = false;
         var freedBy = new SortedDictionary<string, int>(StringComparer.Ordinal);
         var falls = new FallWatch();
+        var shared = new SharedWatch(o.Shared);
+        var braking = new BrakeWatch();
+        var driverWatch = new DriverWatch();
+        var driverBot = clients.Select(c => c.Bot).OfType<ConductorBot>().FirstOrDefault(b => !b.Fireman);
         // Note 607: the crew at the dawn line, and when the lead Waker took the train.
         double? lineAt = null;
         IReadOnlyList<string>? atLine = null;
@@ -492,6 +563,7 @@ public static class Harness
                 });
             }
             host.Step();
+            braking.Watch(host.Train);
             events.AddRange(host.World.EnemyEvents);
             // Note 640: what worked each pin loose, and what the driver was at.
             while (loosened.Count < host.World.Loosenings.Count)
@@ -505,6 +577,7 @@ public static class Harness
             }
             foreach (var p in host.Players)
                 falls.Watch(t, host.Train, p.Id, p.State, clients.FirstOrDefault(c => c.Session.PlayerId == p.Id).Bot);
+            shared.Watch(t, host.World, [.. host.Players.Select(p => (p.Id, p.State))]);
             if (host.World.Run is { } dawnRun && host.World.Enemies is { Wakers.Enabled: true } dawnTuning)
             {
                 List<string> Crew() => [.. host.Players.Select(p => clients.FirstOrDefault(c => c.Session.PlayerId == p.Id).Bot is { } b ? Describe(b, p.State) : $"player {p.Id}")];
@@ -608,7 +681,8 @@ public static class Harness
                 }
                 outSeconds++;
                 if (what == "at the cap")
-                    foreach (var e in host.World.ActiveEnemies.Where(DarkTerritory.Sim.Enemies.Director.Engaged))
+                    // What holds the cap (note 881: the threats, with director.threats on; what's engaged, off).
+                    foreach (var e in dir.Holding(host.World, host.World.ActiveEnemies))
                         capped[$"{e.Kind}:{e.Phase}"] = capped.GetValueOrDefault($"{e.Kind}:{e.Phase}") + 1;
             }
             // Once everyone's in, the gunner goes to the guard gun (a host-side respawn at their post), unless they walk to it.
@@ -651,6 +725,20 @@ public static class Harness
                 var intent = session.Connected ? BotCrew.Think(session, bot, (uint)t, calls) : default;
                 session.Step(intent);
             }
+            // Note 956: the talkers' frames, 50 a second (5 every 3 ticks at 30), and what everyone's heard drained as a game does.
+            if (o.Talkers > 0)
+            {
+                int frames = (int)((t + 1) * 50 / SimConstants.TickRate) - (int)(t * 50 / SimConstants.TickRate);
+                for (int k = 0; k < Math.Min(o.Talkers, clients.Count); k++)
+                    if (clients[k].Session.Connected)
+                        for (int f = 0; f < frames; f++)
+                            clients[k].Session.SendVoice(talkSequence[k]++, o.TalkRadio, talkFrame);
+                foreach (var (session, _, _) in clients)
+                {
+                    voiceHeard += session.VoiceFrames.Count;
+                    session.VoiceFrames.Clear();
+                }
+            }
             // Who's got to their post, and when (T102).
             foreach (var (session, bot, _) in clients)
                 if (session.PlayerId is { } pid && !posted.ContainsKey(pid) && host.Players.FirstOrDefault(p => p.Id == pid) is { } hp && hp.State.Alive
@@ -666,6 +754,7 @@ public static class Harness
                         p.Hounds.Add(hound);
                     packs[hound.Pack] = (p.First, t, p.Hounds);
                 }
+            driverWatch.Watch(host.World, host.Players.Select(p => ((int)p.Id, p.State)), driverBot);
             if (o.Observe is { } observe)
             {
                 var states = host.Players.ToDictionary(p => p.Id, p => p.State);
@@ -712,7 +801,13 @@ public static class Harness
                 Pressure = new PressureReport(Math.Round(d.Grace, 1), d.Tuning.Pressure.Threshold, PressureEvery, per5Min, pressureTrace),
                 Slack = d.Posts.Stats.ToDictionary(kv => kv.Key, kv => new SlackReport(kv.Value.Max, kv.Value.Over)),
                 PackFires = host.World.PackFires,
+                Floor = [.. d.FloorBrought],
+                Fresh = [.. d.FreshBrought],
+                FreeSpawns = d.Log.Where(l => l.Free).GroupBy(l => l.Kind.ToString()).OrderBy(g => g.Key).ToDictionary(g => g.Key, g => g.Count())
+                    .Concat([new KeyValuePair<string, int>("free", d.Log.Count(l => l.Free && !l.Paced)), new("fill", d.Log.Count(l => l.Free && l.Paced))]).ToDictionary(kv => kv.Key, kv => kv.Value),
                 Packs = [.. packs.OrderBy(kv => kv.Value.First).Select(kv => PackAboard(kv.Key, kv.Value, host.Train))],
+                HaltsStood = d.Halts.Stood,
+                HaltsSent = d.Halts.Sent,
                 HoundRuns = [.. d.HoundRuns.Select(r => new HoundRunReport(Math.Round(r.Tick * SimConstants.TickSeconds, 1), Math.Round(r.Distance / 1000, 2), r.Size,
                     r.Active, r.Hot, d.RunOutcome(r.Pack).Scattered, d.RunOutcome(r.Pack).Killed, d.RunOutcome(r.Pack).Boarded, d.AheadRunners(r.Pack), d.FlankRunners(r.Pack),
                     d.FlankEngineRunners(r.Pack)))],
@@ -745,9 +840,17 @@ public static class Harness
         {
             Rounds = rounds,
             Loosened = loosened,
+            HotBoxCars = [.. host.World.UpkeepCars.HotBoxes],
+            LampCars = [.. host.World.UpkeepCars.Lamps],
+            PinCars = [.. host.World.UpkeepCars.Pins.Select(p => $"{p.Cause} {p.Car}")],
             FilledBy = host.World.RacksFilledBy.GroupBy(f => clients.FirstOrDefault(c => c.Session.PlayerId == f.Key).Bot?.Name ?? $"player {f.Key}")
                 .ToDictionary(g => g.Key, g => g.Sum(f => f.Value)),
             DrySeconds = Math.Round(dryTicks * SimConstants.TickSeconds, 1),
+            Jumped = host.World.JumpCount.Jumped,
+            JumpedHome = host.World.JumpCount.Home,
+            JumpLetGo = host.World.JumpCount.LetGo,
+            JumpCaught = host.World.JumpCaught,
+            JumpSeconds = Math.Round(host.World.JumpSeconds),
         };
         return new HarnessReport(ticks, seconds, link,
             Math.Round(host.Train.Dynamics.Distance, 1), Math.Round(host.Train.Dynamics.Speed, 2),
@@ -760,8 +863,17 @@ public static class Harness
             pacing)
         {
             SnapshotsThinned = host.SnapshotsThinned,
+            // Note 956: what the host sent in all (snapshots, voice and the rest), and the voice frames that got through.
+            HostUpKbps = Math.Round(reports.Sum(r => r.BytesDown) * 8 / 1000.0 / seconds, 1),
+            VoiceFramesHeard = voiceHeard,
+            VoiceFramesForwarded = host.VoiceFramesForwarded,
+            VoiceFramesHeldBack = host.VoiceFramesHeldBack,
+            Wire = host.WireTally is { } tally && reports.Count > 0
+                ? tally.OrderByDescending(t => t.Value).ToDictionary(t => t.Key.ToString(), t => Math.Round(t.Value * 8.0 / 1000 / seconds / reports.Count, 2))
+                : null,
             UploadStrained = host.UploadStrained,
             Upkeep = upkeep,
+            Encounters = host.World.Encounters is { } encounters ? Enemies.EncounterReport.Of(encounters, host.World) : null,
             Voice = calls?.Voice?.Report(),
             Crew = crewCap,
             Rejoin = o.DropRejoin is { } back && back.Bot >= 0 && back.Bot < clients.Count ? Rejoined(host, clients, back.Bot, droppedAs, dropTick, redialTick, backTick) : null,
@@ -773,9 +885,46 @@ public static class Harness
                 host.HoldoutEvents.Count(e => e.Kind == Sim.Run.HoldoutEventKind.Released), toFree, freedBy)
             { StandSeconds = stands },
             Falls = falls.Falls,
+            Shared = shared.Report(host.World),
             Dawn = dawn ?? (lineAt is { } la ? new DawnReport(la, atLine ?? [], -1, -1, -1, [], double.IsFinite(closest) ? Math.Round(closest, 1) : -1) : null),
             Reckonings = clients.Select(c => c.Bot).OfType<ConductorBot>().FirstOrDefault()?.Stops?.Reckonings,
+            Driving = braking.Report(),
+            Driver = driverWatch.Report(),
         };
+    }
+
+    /// <summary>The brake as the host applied it, tick by tick (note 820): each time it went on with the train moving, and for how long.</summary>
+    sealed class BrakeWatch
+    {
+        int _applications, _taps, _movingTicks, _heldTicks, _held = -1;
+
+        public void Watch(TrainOnLine train)
+        {
+            bool on = train.LastControls.Brake > 0, moving = train.Dynamics.Speed >= CabControls.StandingBelow;
+            if (moving)
+                _movingTicks++;
+            if (on && _held < 0 && moving)
+            {
+                _applications++;
+                _held = 0;
+            }
+            else if (on && _held >= 0)
+                _held++;
+            else if (!on && _held >= 0)
+            {
+                if (_held < SimConstants.TickRate)
+                    _taps++;
+                _heldTicks += _held;
+                _held = -1;
+            }
+        }
+
+        public DrivingReport Report()
+        {
+            double moving = _movingTicks * SimConstants.TickSeconds;
+            return new DrivingReport(_applications, moving > 0 ? Math.Round(_applications * 60 / moving, 1) : 0, _taps,
+                _applications > 0 ? Math.Round((_heldTicks + Math.Max(0, _held)) * SimConstants.TickSeconds / _applications, 2) : 0, Math.Round(moving));
+        }
     }
 
     static RejoinReport Rejoined(HostSession host, List<(ClientSession Session, IBot Bot, CountingTransport Transport)> clients, int index, byte? was,

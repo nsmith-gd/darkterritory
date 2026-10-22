@@ -79,8 +79,23 @@ public sealed partial class LinesideProps
         return Piece(name, along, lateral, yaw, scale, sink, variant, boxes.Length > 0 ? boxes.Max(b => b[5]) : 1, ground, seed);
     }
 
-    LinesideProp Rock(string species, double along, double lateral, double yaw, double size, double sink, int variant, double ground) =>
-        new(LinesideKind.Rock, along, lateral, yaw, RockTop(variant, size, species), size, sink, variant, species, false, false, 0, ground);
+    LinesideProp Rock(string species, double along, double lateral, double yaw, double size, double sink, int variant, double ground)
+    {
+        // Never into the train's way (note 778): the woods' boulders lie from 6 m out and grow to 6 across on a steep slope,
+        // and one reached in over the ballast to the rails, where the train ran through it (deadLines:2 at 6.8 km). One that
+        // would reach within RockClearM of the line's middle is smaller, its edge there; its wall is its size, as it's drawn.
+        double unit = Reach(Boxes("rock", variant)) * Math.Max(RockStretch(species).X, RockStretch(species).Z);
+        double fit = Math.Max(0.2, (Math.Abs(lateral) - RockClearM) / unit);
+        if (size > fit)
+        {
+            sink *= fit / size;
+            size = fit;
+        }
+        return new(LinesideKind.Rock, along, lateral, yaw, RockTop(variant, size, species), size, sink, variant, species, false, false, 0, ground);
+    }
+
+    /// <summary>A boulder reaches no nearer the line's middle than this (m): the ballast's foot (2.6) and a little (note 778).</summary>
+    public const double RockClearM = 3;
 
     /// <summary>Whether any of it reaches within <paramref name="reach"/> of the line.</summary>
     public bool Within(LinesideProp p, double reach) => Math.Abs(p.Lateral) - Extent(p) <= reach;
@@ -188,7 +203,11 @@ public sealed partial class LinesideProps
                         if (Free(along, lateral * 0.85))
                             found.Add(PieceOf("fishShed", along, lateral, seaward + (turns[i] - 0.5) * 0.4, 1, 0.9, i % Variants("fishShed"), GroundAt(along, lateral)));
                     }
-                    found.Add(PieceOf("wharf", s + 4, sh.Side * (e + 1), seaward + Math.PI, 1, 0, wharf, GroundAt(s + 4, sh.Side * (e + 1))));
+                    // The wharf a shed's room past the last of them (note 817): run out from among them, a shed stood over its
+                    // land end, where its steps come up from the shore.
+                    double pier = s + (sheds - sheds / 2.0) * 9, foot = sh.Side * (_terrain.ShoreEdge(sh, pier) + 1);
+                    if (Free(pier, foot - sh.Side * 2))
+                        found.Add(PieceOf("wharf", pier, foot, seaward + Math.PI, 1, 0, wharf, GroundAt(pier, foot)));
                 }
                 else if (e < e0 && e <= e1 && sh.Kind == ShoreKind.Sea && headland < 0.18)
                 {
@@ -336,6 +355,8 @@ public sealed partial class LinesideProps
             "buryingGround" => (face + jitter * 0.3, 0.1),
             "fishShed" => (face + jitter * 0.8, 0.2),
             "ruin" => (face + jitter, 0.2),
+            // A fortress begun and stamped flat (note 824): its front wall along the line, near enough.
+            "fortRuin" => (face + jitter * 0.3, 0.3),
             "chimney" => (jitter, 0.3),
             "tank" => (jitter * 6, 0.3),
             "headframe" => (face + jitter * 0.4, 0.3),

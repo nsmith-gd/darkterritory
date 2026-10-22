@@ -232,7 +232,7 @@ public sealed record DykeRules(double FieldsBelowRailM, double HeightM, double C
     double MaxRailRangeM);
 
 /// <summary>§14.</summary>
-public sealed record WeatherRules(double FogLowGround, double FogCrest, double WindExposed, double ColdStepPerM, double ColdExposedStep, double WetAdhesion,
+public sealed record WeatherRules(double FogLowGround, double FogCrest, double WindExposed, double WetAdhesion,
     double WetBiasAdhesion, double FogDensityPerInverseMetre, double CrestLengthM, double FogWater = 1, double FogWaterM = 0, double FogBlendM = 0, bool FogAlongLine = false);
 
 /// <summary>§15.</summary>
@@ -274,10 +274,13 @@ public sealed record BiomesFile(Dictionary<string, BiomeDef> Biomes, Dictionary<
     double TransitionM, Dictionary<string, double> CorruptionNear, ScatterRules Scatter);
 
 /// <summary>A biome (§13.1): what grows, what the ground is, how rough, and which set pieces it favours (§7.5).</summary>
+/// <param name="CorruptedTrees">The share of its trees the Corruption has (note 696; the director, 13 Oct 2026: about three
+/// in ten of all the trees), living or dead.</param>
+/// <param name="CorruptedKinds">Which of the corrupted trees' kinds grow here, by weight (the art's alone: CorruptedTreeArt).</param>
 public sealed record BiomeDef(string Name, string Ground, string[] Materials, double NoiseScale, double TreeDensity, string[] Trees, double DeadTrees,
     double Water, Dictionary<string, double> Pieces, Dictionary<string, double> Flora, double Rocks, string Verge, Dictionary<string, PropRule> Props,
     Dictionary<string, double> Landform, double LakesPerKm, double Shore, string ShoreKind, double SweepChance, bool TidalRivers, double Roads, double[] Colour,
-    string? Ballast = null, double[]? BallastTint = null);
+    string? Ballast = null, double[]? BallastTint = null, double CorruptedTrees = 0, Dictionary<string, double>? CorruptedKinds = null);
 
 /// <summary>A dressing piece a biome stands along the line: per 150 m, its chance, how far out, how many.</summary>
 public sealed record PropRule(double Chance, double[] OutM, int Count);
@@ -318,6 +321,11 @@ public sealed record SignageFile(Dictionary<string, BoardDef> Boards, double KmP
 {
     /// <summary>How the lettered boards stand, read and shine (signage.json "billboard", note 560).</summary>
     public BillboardRules Billboard { get; init; } = new();
+    /// <summary>
+    /// How far past a stop a junction's or facility's far board stands, when the stop comes between it and what it counts to
+    /// (note 702: "J1, one kilometer ... came before the Talbot Foundry stop though, so that's a bit confusing").
+    /// </summary>
+    public double PastStopM { get; init; } = 300;
 }
 
 /// <summary>
@@ -338,6 +346,12 @@ public sealed record BoardDef(string Text, double HeightM, double WidthM, double
     public int Side { get; init; }
     /// <summary>It stands where the plan puts it (a km post marks its km): never moved, and the billboards keep clear of it instead.</summary>
     public bool Fixed { get; init; }
+    /// <summary>
+    /// It stands on the side its sign gives, whatever billboard.side, and never moved across the line: a mail board on its
+    /// crane's side, so the board and its arrow say the same side (the director's evening playtest, line 10: "I have a mail
+    /// sign here that's pointing in the wrong direction"; note 702).
+    /// </summary>
+    public bool SignSide { get; init; }
     /// <summary>How far its bottom stands over the land at its foot at least (m), if not billboard.overGroundM (0): a km post low, under the eye line.</summary>
     public double OverGroundM { get; init; }
 }

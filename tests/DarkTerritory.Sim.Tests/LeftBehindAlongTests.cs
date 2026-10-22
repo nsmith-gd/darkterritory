@@ -14,9 +14,9 @@ public class LeftBehindAlongTests
     [Fact]
     public void BesideTheRearCarOnAnAlternateIsBesideTheRearCar()
     {
-        var line = LineGen.Routes.Generate(DataFile.FindContentRoot(), "local:17", 10).Build();
+        var line = LineGen.Routes.Generate(DataFile.FindContentRoot(), "frontier:18", 10).Build();
         // Its last alternate (deepTerritory:1's J6 when the line was 37 km; at one 24 km length, note 270, J4, 1,173 m up it;
-        // on the 7 km nights of note 554, where alternates are few and short, local:17's, about 800 m long), most of the way
+        // on the 7 km nights of note 554, where alternates are few and short, local:17's, about 800 m long; with the abandoned villages laid, note 868, frontier:18's, 795 m), most of the way
         // up it.
         int alt = Enumerable.Range(0, line.Branches.Count).Last(i => line.Branches[i].Definition.Kind == Rail.BranchKind.Alternate);
         double toe = line.Branches[alt].Toe, up = Math.Min(1_173, line.Branches[alt].Definition.Length - 150);

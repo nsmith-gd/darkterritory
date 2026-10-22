@@ -28,13 +28,32 @@ namespace DarkTerritory.Game;
 /// <see cref="PlayerState.World"/> on the ground: their gait is paced over it, not over the ground it carries them across (note 211).</param>
 /// <param name="Local">Their feet in that car's frame (<see cref="PlayerState.Position"/>); unused on the ground.</param>
 /// <param name="Emote">An emote they're at (note 298), stood still with nothing else to do, and how far into it they are (s).</param>
+/// <param name="Signal">A lamp signal they're giving with the hand lamp in their fist (note 720), and how far into it they are (s).</param>
+/// <param name="Paint">The paint on their gas mask (note 731): its coat, its stencil and the stencil's colour; none for unpainted.</param>
+/// <param name="EmoteWith">Note 722: how their emote for two, dance-off or edge is drawn (<see cref="EmoteDetail"/>).</param>
+/// <param name="Pistol">Note 964: the flare pistol in their hand (a carried thing, held as a tool is, in place of it).</param>
+/// <param name="Scorch">Note 821: how hot a car fire is on them (0 to 1, <see cref="Sim.Enemies.CarFire.HeatOn(in PlayerState, Sim.World)"/>): smoke off them.</param>
 public readonly record struct Crewmate(byte Id, Double3 Feet, double Yaw, bool Alive, Double3 Hand = default, Double3 Other = default, int? Looks = null,
     CrewPose? Act = null, Tool Holding = Tool.None, (Double3 A, Double3 B)? Reach = null, bool Lamp = false, Survivor Survivor = Survivor.None,
     bool Stressed = false, int Health = 0, double Phase = 0, DeathCause Death = DeathCause.None, int Car = PlayerState.World,
-    Double3 Local = default, HeadsetBody? Headset = null, Sim.Player.Emote Emote = Sim.Player.Emote.None, double EmoteSeconds = 0)
+    Double3 Local = default, HeadsetBody? Headset = null, Sim.Player.Emote Emote = Sim.Player.Emote.None, double EmoteSeconds = 0,
+    bool Sooted = false, Sim.Player.LampSignal Signal = Sim.Player.LampSignal.None, double SignalSeconds = 0, Sim.Player.MaskPaint Paint = default,
+    EmoteDetail EmoteWith = default, int Hat = 0, double Scorch = 0, bool Pistol = false)
 {
     public int Variant => Looks ?? Id;
 }
+
+/// <summary>
+/// Note 722: what else an emote's drawing needs. A high five or fist bump: whether it's been <paramref name="Met"/>, how long
+/// ago (<paramref name="SinceMeet"/>, s), and how far apart the two stand (<paramref name="Gap"/>, m) and how much of that is
+/// to this one's right (<paramref name="Across"/>, m; note 807), so the hands meet between them. A dance-off: how many are in
+/// it (<paramref name="Dancers"/>, two or more), whether this one has the lead (<paramref name="Leading"/>), which turn it is
+/// (<paramref name="Round"/>: the host's tick over emotes.danceOffBeat) and how far into it (<paramref name="OnBeat"/>, s), so
+/// the lead's move and the rest's cheering keep the turn. The lean: how far the head's turned from the body to where they look (<paramref name="Turn"/>,
+/// radians, + to the left), and which of their sides is out of the doorway (<paramref name="Out"/>: +1 their right, −1 their left).
+/// </summary>
+public readonly record struct EmoteDetail(bool Met = false, double SinceMeet = 0, double Gap = 0, int Dancers = 0, bool Leading = false, double Turn = 0, int Out = 0,
+    double Across = 0, int Round = 0, double OnBeat = 0);
 
 /// <summary>
 /// What the snapshot says of a headset player's head (T82): its height over their feet (<see cref="PlayerState.Head"/>),
@@ -47,15 +66,19 @@ public readonly record struct HeadsetBody(double Head, double Pitch, int Parent,
 
 /// <summary>You, for your own arms in view (X3, <see cref="CreatureArt.OwnArms"/>): which way you face and look, what you're
 /// doing (<see cref="CrewActs.Of"/>), whether you're walking, how far into a swing you are (negative: not swinging), whose
-/// look is yours, the tool in your hand.</summary>
-public readonly record struct OwnView(float Yaw, float Pitch, CrewPose? Act, bool Moving, double Swing, int Variant, Tool Holding);
+/// look is yours, the tool in your hand, and the flare pistol in it in its place (note 964).</summary>
+public readonly record struct OwnView(float Yaw, float Pitch, CrewPose? Act, bool Moving, double Swing, int Variant, Tool Holding, bool Pistol = false);
 
 /// <summary>
 /// A line of the crew roster (T69): who, where, and whether they're alive. <paramref name="Id"/> is the player id the line
 /// is for; a Passenger's line has the id of the face it wears (App. A.7 "appears on the roster"), so it sits beside theirs,
 /// and it is not <paramref name="Voiced"/>: the voice heard under that id is the real crewmate's, never the thing's.
 /// </summary>
-public readonly record struct RosterLine(byte Id, string Name, string Where, bool Alive, bool You = false, bool Voiced = true);
+public readonly record struct RosterLine(byte Id, string Name, string Where, bool Alive, bool You = false, bool Voiced = true)
+{
+    /// <summary>Their voice is muted on this machine (note 724): the roster says so beside the name.</summary>
+    public bool Muted { get; init; }
+}
 
 /// <summary>What the app plays: the single-player prototype, or a networked session (host or client).</summary>
 public interface IPlaySession
@@ -137,8 +160,12 @@ public interface IPlaySession
     LinkInfo? Link => null;
     /// <summary>The crew roster (T69), in player-id order: everyone aboard by the figures, a Passenger among them.</summary>
     IReadOnlyList<RosterLine> Roster() => [new RosterLine((byte)PlayerId, "YOU", PrototypeSession.Where(Player, Train), Player.Alive, You: true)];
-    /// <summary>The living crewmate a dead or waiting player is watching (GDD App. D.10), or −1: nobody's left, or you're alive.</summary>
+    /// <summary>The crewmate a dead or waiting player is watching (GDD App. D.10; the living, or a dead one's body, note 743), or −1: nobody's left, or you're alive.</summary>
     int Watching => -1;
+    /// <summary>How a dead player's watching (App. D.10, note 743): the crewmate's eyes, the chase, the wide, over the shoulder.</summary>
+    DeadView DeadView => DeadView.Eyes;
+    /// <summary>On to the dead's next view (the view key, Tab); alone, there's nobody to watch, and nothing to change.</summary>
+    void NextDeadView() { }
     /// <summary>Whose eyes and ears this machine has: the player's own or, watching, the crewmate's (their space, their shelter).</summary>
     PlayerState Viewpoint => Player;
     /// <summary>
@@ -204,16 +231,61 @@ public static class Eyes
     /// </summary>
     public const double Seated = 1.56;
 
+    /// <summary>Sat back in a Muskoka chair on the BBQ deck (note 698): low, the line coming at you over your knees.</summary>
+    public const double Lounging = 1.05;
+    /// <summary>Sat on an edge, legs over (note 722): the eyes over the edge sat on (m), a seated body's (CreatureArt.SitOnEdge).</summary>
+    public const double SatOnEdge = 0.92;
+
+    /// <summary>Sat on one of the big cab's benches (note 905), sat up on its edge as on any edge (<see cref="SatOnEdge"/>), not lounging back.</summary>
+    static bool OnABench(in PlayerState s, IReadOnlyList<CarFrame> frames)
+    {
+        if (s.Parent < 0 || s.Parent >= frames.Count)
+            return false;
+        foreach (var l in frames[s.Parent].Shape.Lounges)
+            if (l.Kind == Sim.Train.LoungeKind.Bench && (l.At - s.Position).Length < 0.05)
+                return true;
+        return false;
+    }
+
     /// <summary>
-    /// Up in the crane's cab while at its controls (T48): looking along the gantry at the bridge and trolley, not down at the
-    /// hook. Spec D.2: "the crane operator cannot see the ground crew", who have to call the position.
+    /// Up in the crane's cab while at its controls (T48): looking along the gantry at the bridge and trolley. Spec D.2: "the
+    /// crane operator cannot see the ground crew", who have to call the position. Note 707 (the director: "widen the camera
+    /// angle a little bit, maybe even go a little more top down"): wider, and as the hook comes down the eye leans out and
+    /// the look tips down after it, so lowering into a car the operator sees the load go in (GDD §18). Note 736: the cab
+    /// rides the bridge on the stack's side (<see cref="Sim.Run.Crane.Cab"/>), so the cars no longer stand between the eye
+    /// and the castings.
     /// </summary>
     public static Camera? Operator(in PlayerState s, Sim.World world)
     {
         if (!s.Has(PlayerFlags.Operating) || world.Run?.CurrentSite?.CraneNear(Sim.Player.PlayerMotor.WorldPosition(s, world.Train)) is not { } crane)
             return null;
-        var trolley = crane.HookAt with { Y = crane.BridgeEnd(0).Y - 0.6 };
-        return Camera.LookAt(crane.Cab + Double3.Up * 0.3, trolley, 55);
+        return Operator(crane);
+    }
+
+    /// <summary>How far over the hook a rider's middle is (m, note 726).</summary>
+    const double RiderMiddle = 0.9;
+
+    /// <summary>The operator's view of <paramref name="crane"/> where its hook is now (note 707).</summary>
+    public static Camera Operator(Sim.Run.Crane crane)
+    {
+        var view = crane.Tuning.View;
+        double top = crane.BridgeEnd(0).Y - 0.6;
+        var trolley = crane.HookAt with { Y = top };
+        double lowered = view.LowerFrom > 0 ? Math.Clamp((top - crane.HookAt.Y) / view.LowerFrom, 0, 1) : 0;
+        // A friend stood on the hook (note 726) is the load the eye follows down: their middle, not the hook under their boots.
+        var load = crane.Riders > 0 ? crane.HookAt + Double3.Up * RiderMiddle : crane.HookAt;
+        var look = Double3.Lerp(trolley, load, view.Down * lowered);
+        // Note 736: from the cab over the stack, tipped on down toward the ground under the hook, so the castings under it
+        // are in the view while the hook's still up.
+        look = Double3.Lerp(look, crane.HookAt - Double3.Up * crane.Hook, view.Ground);
+        // At the cab's window on the track's side (note 736), out past its floor and platform, so they never hide the stack
+        // under it.
+        var inward = (crane.BridgeEnd(0) - crane.BridgeEnd(1)) with { Y = 0 };
+        var eye = crane.Cab + Double3.Up * 0.3 + (inward.Length > 1e-3 ? inward.Normalized * view.Window : default);
+        var toward = (look - eye) with { Y = 0 };
+        if (toward.Length > 1e-3)
+            eye += toward.Normalized * (view.Lean * lowered);
+        return Camera.LookAt(eye, look, (float)view.Fov);
     }
 
     /// <param name="crouchDrop">
@@ -224,7 +296,7 @@ public static class Eyes
         double crouchDrop = 0)
     {
         var local = prev.Parent == cur.Parent ? Double3.Lerp(prev.Position, cur.Position, alpha) : cur.Position;
-        var eyeLocal = local + Double3.Up * (!cur.Alive ? 0.3 : cur.Has(PlayerFlags.Seated) ? Seated
+        var eyeLocal = local + Double3.Up * (!cur.Alive ? 0.3 : cur.Has(PlayerFlags.Seated) ? Seated : cur.Has(PlayerFlags.Lounging) ? (OnABench(cur, frames) ? SatOnEdge : Lounging)
             : cur.Has(PlayerFlags.Crouched) && cur.Head <= 0 ? Height - crouchDrop : Height);
         bool onCar = cur.Parent != PlayerState.World && cur.Parent < frames.Count;
         var eye = onCar ? frames[cur.Parent].ToWorld(eyeLocal) : eyeLocal;

@@ -77,7 +77,7 @@ public static class IncidentLog
         var train = world.Train;
         string at = At(world, train.Frames[0].Origin, train.Dynamics.Distance);
         string cause = world.DerailCause is { Length: > 0 } c ? char.ToUpperInvariant(c[0]) + c[1..].TrimEnd('.') + ". " : "";
-        // C.9's contributing action for this cause: the throttle, the forward cannon (the Switchman), the firebox (a Stoker's runaway).
+        // C.9's contributing action for this cause: the throttle, the firebox (a Stoker's runaway).
         string blame = world.DerailAction is { Length: > 0 } action ? action.Replace("{actor}", NameOf(world, world.DerailActor)) + " "
             : world.DerailDriver >= 0 ? $"Throttle: {NameOf(world, world.DerailDriver)}. " : "Nobody on the throttle. ";
         return $"Consist derailed {at}, {Kmh(world.DerailSpeed)}. {cause}{blame}Recovery not scheduled.";
@@ -101,13 +101,10 @@ public static class IncidentLog
     }
 
     /// <summary>The failure, as the clerk reads it, for each way to die.</summary>
-    /// <param name="aboard">Died on the train (a car or the engine): the cold took them there, not left behind (note 547).</param>
-    public static string What(DeathCause cause, bool aboard = false) => cause switch
+    public static string What(DeathCause cause) => cause switch
     {
-        DeathCause.Cold when aboard => "Froze on the train",
         DeathCause.JumpedAtSpeed => "Jumped from the moving train",
         DeathCause.Derailed => "Killed in the derailment",
-        DeathCause.Cold => "Froze, left behind",
         DeathCause.Mauled => "Mauled by the hounds",
         DeathCause.Hollow => "Taken by the Hollow",
         DeathCause.Choir or DeathCause.Seized => "Taken by the Choir",
@@ -147,6 +144,17 @@ public static class IncidentLog
         DeathCause.Woken => "Taken at dawn by a Waker",
         DeathCause.Dave => "Struck Dave once too often",
         DeathCause.Fell => "Fell to their death",
+        DeathCause.Shoved => "Shoved off the train",
+        DeathCause.Dropped => "Dropped from the crane",
+        DeathCause.Lodger => "Taken by the Lodger in its house",
+        DeathCause.Hanger => "Hauled into the roof by the Hanger",
+        DeathCause.Householder => "Taken by the Householder for what wasn't paid for",
+        DeathCause.HollowHouse => "Crushed when the Hollow House came down",
+        DeathCause.Brakeman => "Lashed by the Brakeman",
+        DeathCause.Hotbox => "Bitten by the thing in the axle box",
+        DeathCause.TowerJaw => "Bitten by Tower Jaw",
+        DeathCause.Grumbler => "Mauled by the Grumbler",
+        DeathCause.Pickers => "Bitten by the Pickers",
         _ => cause.ToString(),
     };
 
@@ -160,8 +168,6 @@ public static class IncidentLog
         var a = world.Attribution;
         var train = world.Train;
         var at = PlayerMotor.WorldPosition(s, train);
-        // On the train: in its frame, on a car or the engine still in the rake (a car cut loose isn't the train).
-        bool aboard = s.Parent >= 0 && s.Parent < train.Frames.Count && train.Dynamics.Consist.IndexOf(s.Parent) >= 0;
         int actor = -1;
         string action;
         switch (s.Death)
@@ -170,17 +176,25 @@ public static class IncidentLog
                 actor = victim;
                 action = $"The train at {Kmh(train.Dynamics.Speed)}.";
                 break;
-            case DeathCause.Cold when !aboard:
+            case DeathCause.Shoved:
                 {
-                    // Left behind (B.2's cold off the train): how far from the train, to its nearest end, not a car's middle (an
-                    // end of a car is half its length from it: on the roof, "8 m from the train", note 547).
-                    double back = train.Dynamics.Consist.Vehicles.Min(v => Math.Max(0, (train.Frames[v.Id].Origin - at).Length - train.Frames[v.Id].Shape.HalfLength));
-                    actor = a.Driver;
-                    action = $"Throttle: {{actor}}. {back:0} m from the train.";
+                    // Note 717: a crewmate's shove, and the landing the world's rules made of it: who, and how fast the train
+                    // was going under them ("Shoved off by Dave at 58 km/h"); at a stand, the drop did it.
+                    // Note 723: thrown off a friend's shoulder, the same rule, and said so ("Thrown off by Dave at 40 km/h").
+                    var (by, speed) = world.ShovedBy(victim) ?? (-1, 0);
+                    actor = by;
+                    string how = world.WasThrown(victim) ? "Thrown" : "Shoved";
+                    action = speed >= 1 ? $"{how} off by {{actor}} at {Kmh(speed)}." : $"{how} off by {{actor}}.";
                     break;
                 }
+            case DeathCause.Dropped:
+                // Note 726: off the crane's hook after a lift, and the fall killed them: whose lift (or shake) it was, and how high
+                // ("Dropped from the crane by Dave, 9 m up.").
+                actor = world.DroppedBy(victim) ?? -1;
+                action = actor >= 0 ? World.DropLine(world.WasShaken(victim), world.DropHeight(victim)) : "Let go of the crane's hook.";
+                break;
             case DeathCause.Derailed or DeathCause.Struck or DeathCause.Thrown or DeathCause.TornOff:
-                // In a derailment, its own contributing action (note 190: the forward cannon for the Switchman, the firebox for
+                // In a derailment, its own contributing action (note 190: the firebox for
                 // the Stoker), and the speed it came off at.
                 if (world.Derailed && world.DerailAction is { Length: > 0 } derail)
                 {
@@ -249,7 +263,7 @@ public static class IncidentLog
                     break;
                 }
         }
-        return new Incident(IncidentKind.Death, Seconds(world), victim, What(s.Death, aboard), Where(world, s), actor, action, s.Death, body?.Id ?? -1);
+        return new Incident(IncidentKind.Death, Seconds(world), victim, What(s.Death), Where(world, s), actor, action, s.Death, body?.Id ?? -1);
     }
 
     /// <summary>A record of C.9's that isn't about a crewmate's death, rescue or the night's end: a creature's or the line's doing.</summary>
@@ -303,23 +317,6 @@ public static class IncidentLog
         return (lit, drawn + way);
     }
 
-    /// <summary>
-    /// C.9's Switchman row: whether the forward cannon was crewed this tick, and by whom (the lowest id, if more than one
-    /// forward gun was). A forward cannon is one mounted facing the way the train goes, on a vehicle still on the engine.
-    /// </summary>
-    public static (int Actor, string Action) ForwardCannon(World world)
-    {
-        var train = world.Train;
-        var guns = train.Dynamics.Consist.Vehicles.Select(v => v.Id).Where(id => train.Vehicles[id] is { HasGun: true, Gun.Facing: < 0 }).ToList();
-        if (guns.Count == 0)
-            return (-1, "No forward cannon on the consist.");
-        int gunner = world.Combat?.Guns is { } t
-            ? world.CrewThisTick.Where(c => c.State.Alive && Combat.Guns.MannedGun(c.State, train, t) is { } g && guns.Contains(g))
-                .Select(c => c.Id).DefaultIfEmpty(-1).Min()
-            : -1;
-        return gunner >= 0 ? (gunner, "Forward cannon crewed by {actor}.") : (-1, "Forward cannon not crewed.");
-    }
-
     /// <summary>C.9's Stoker row: who last fuelled or tended the firebox, and how long it had gone unattended since.</summary>
     public static (int Actor, string Action) Firebox(World world)
     {
@@ -362,6 +359,21 @@ public static class IncidentLog
             }
             else
                 lines.Add(new ReportLine(i.Kind, who, $"{i.What} {i.Where}. {action}".Trim()) { Seconds = i.Seconds, Victim = i.Victim });
+        }
+        // Note 717: the marked, a shove of theirs having killed: "Marked: Dave (shoved Priya off at 58 km/h)."
+        foreach (var (shover, victim, speed) in world.Marks)
+            lines.Add(new ReportLine(IncidentKind.Marked, NameOf(world, shover),
+                $"Marked: {NameOf(world, shover)} (shoved {NameOf(world, victim)} off{(speed >= 1 ? $" at {Kmh(speed)}" : "")}).")
+            { Victim = victim });
+        // Note 717: the bonks, for anyone who took horseplay.bonk.reportFrom or more: how many, and whose tool most of them were.
+        int from = world.HorseplayTuning.Bonk.ReportFrom;
+        foreach (var (victim, by) in world.Bonks)
+        {
+            int count = by.Values.Sum();
+            if (from <= 0 || count < from)
+                continue;
+            int most = by.OrderByDescending(b => b.Value).ThenBy(b => b.Key).First().Key;
+            lines.Add(new ReportLine(IncidentKind.Bonked, NameOf(world, victim), $"Bonked {count} times, mostly by {NameOf(world, most)}.") { Victim = victim });
         }
         // D.12 "what the dead voted for", hidden from the living till now (D.11): each creature voted for, and by whom.
         if (world.Director is { } director)

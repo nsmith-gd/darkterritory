@@ -220,6 +220,35 @@ public class FiremanTests
     }
 
     [Fact]
+    public void WithTheDriverDeadAndAClimberInTheCabTheReliefWaitsShortOfItTillItsGone()
+    {
+        // Note 955 (frontier:7, 8 crew, 12 cars, seed 6): Climbers took the driver at the Foundry and one stayed in the cab.
+        // Each relief went down into it alone and was taken (alone with it, a grab), five in four minutes, and the train stood
+        // till dawn. The relief waits on the roofs short of the engine, out of its reach, till it's gone (left alone it
+        // leaves), then takes the controls.
+        var n = new DriverAndWalker();
+        n.Run(2);
+        n.Crew[1] = n.Crew[1] with { Death = DeathCause.Climbed, Health = 0 };
+        var cab = n.Train.Frames[0].Shape.Cab!.Value;
+        var climber = n.World.AddEnemy(id => new Climber(id));
+        climber.Restore(SpinePhase.Commit, 0, Tuning.Enemies.Climbers.Health, 0, cab.Centre, 0, 0, 0, -1, 1);
+        n.Run(1);
+        Assert.True(climber.Inside);
+        Assert.True(n.Walker.Relieving);
+        double waited = 0;
+        for (; waited < Tuning.Enemies.Climbers.BoredSeconds + 30 && climber.Attached == 0 && !climber.Gone; waited++)
+        {
+            n.Run(1);
+            Assert.True(n.Crew[2].Alive, $"taken in the cab after {waited:0} s");
+            Assert.False(PlayerMotor.InCab(n.Crew[2], n.Train), $"down into the cab with it after {waited:0} s");
+        }
+        Assert.True(climber.Gone || climber.Attached != 0, $"the Climber's still in the cab after {waited:0} s");
+        Assert.True(n.UntilInCab(60) is not null, $"never got to the cab: at {n.Crew[2].Parent}/{n.Crew[2].Surface} {n.Crew[2].Position}");
+        n.Run(10);
+        Assert.True(n.Calls.Has(StopJob.Driver), "the crew hears a driver again");
+    }
+
+    [Fact]
     public void AClimberInTheCabBringsAWalkerForwardAndTheTwoClubItOut()
     {
         // Note 399: alone in the cab with a Climber, the driver keeps clear of it (a lone blow doesn't hurt it, note 288), and

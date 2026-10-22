@@ -36,6 +36,9 @@ return args switch
     // dt credits [--notices | --write]: everyone whose work is in the game, from the base content's provenance (note 390);
     // --notices prints THIRD-PARTY-NOTICES.txt, --write rewrites it in content/credits. A mod credits its own.
     ["credits", ..] => CreditsCommands.Run(baseContent, args),
+    // dt controls [--write | --check] (note 898): the controls map, every control on its default key, as README.md's table
+    // and PLAYING.txt's keys write it; --write rewrites both, --check exits 1 when either disagrees with Controls.Defaults.
+    ["controls", ..] => ControlsCommands.Run(baseContent, args),
     // dt report [--problem] [--out dir] (note 452): a crash report (or a player's own) as the game writes one, its JSON
     // twin, and the mail to the studio it opens.
     ["report", ..] => ReportCommands.Run(content, args),
@@ -49,7 +52,16 @@ return args switch
     ["review", ..] => ReviewCommands.Run(args),
     // dt trends measure | show <file.jsonl> | judge | value: main's numbers per commit (dt harness nights, dt perf), the falls
     // among them, and the bisect's call on a commit (note 523).
-    ["trends", ..] => TrendsCommands.Run(args, RunHarness, a => PerfCommands.Run(train, content, a)),
+    ["trends", ..] => TrendsCommands.Run(args, a => RunHarness(a), a => PerfCommands.Run(train, content, a)),
+    // dt director sweep [--quick] [--routes r,...] [--crews ..] [--cars ..] [--cells 1x3,..] [--seeds 1-4] [--compare f.json]: the
+    // spawn director overhaul's matrix of nights (the director's brief §8, note 888), encounters measured from the spines.
+    ["director", "sweep", ..] => DirectorCommands.Sweep(args, (a, w) => RunHarness(a, (_, _, world) => w(world))),
+    // dt director report <sweep.json> [--against old.json] [--bands f.json]: a sweep scored against the brief's §7 bands
+    // (tools/director/bands.json), old against new side by side (note 930).
+    ["director", "report", var sweep, ..] => DirectorCommands.Score(sweep, args),
+    // dt director join a.json b.json ... --out all.json: sweeps run in parts (a container that restarts loses only a part)
+    // joined: every night of every part, the groups remade from them (note 930).
+    ["director", "join", ..] => DirectorCommands.Join(args),
     // dt mcp: live control for agents (note 524): an MCP server on stdio whose tools host a night, step it, read it, insist
     // on what comes, open a recording, draw any of it framed on a subject (subject:gaunt), and run the rest of dt.
     ["mcp", ..] => McpCommands.Run(content, args, noMods),
@@ -79,9 +91,15 @@ return args switch
     ["line", "info", var name, ..] => Print(LineInfo(LoadLine(name), Opt(args, "--every", 100))),
     ["line", "drive", var name, ..] => Print(Drive(train, LoadLine(name), (int)Opt(args, "--cars", 3), Opt(args, "--start", -1), Opt(args, "--from", 0), Opt(args, "--throttle", 1), (int)Opt(args, "--seconds", 120))),
     ["art", "check", ..] => ArtCheck(train, content, args),
+    // dt art closed [--only a,b] [--over 0.05]: how much of each kit piece's inside shows from outside it (note 869, the back
+    // faces the renderer culls where a kit left a side out), worst first; non-zero if any is over the share.
+    ["art", "closed", ..] => ArtClosed(train, content, args),
     // dt art houses [--character cove|lunenburg|shelburne|farm|company|mixed] [--count n] [--seed n] [--kind lived|boarded|empty|burnt]:
     // a lineup of a town character's houses as the towns draw them (note 281), to judge their variety at a glance.
     ["art", "houses", ..] => Print(ArtHouses(content, args)),
+    // dt art trees [--kind barnacle|lantern|tar|iron|crystal|webbed|thorn|lattice] [--far]: the Corruption's trees, each
+    // kind's three in a row (note 696); --far their cards.
+    ["art", "trees", ..] => Print(ArtTrees(content, args)),
     ["art", "townsfolk", ..] => Print(ArtTownsfolk(content, args)),
     // dt art footprints [--write]: what each kit piece the lineside deals stands on, measured off its mesh (note 389);
     // --write puts it in content/linegen/footprints.json, which the sim stands the walls from.
@@ -112,6 +130,21 @@ return args switch
     // and the mixer's sound, encoded to an MP4 (GDD v1.4 App. E; note 251).
     ["film", ..] => Print(FilmCommands.Run(content, args)),
     ["playthrough", ..] => Print(PlaythroughCommands.Run(content, args)),
+    // Note 913 (queue #624): the playtest recorder's schema, and a bot night recorded with it.
+    ["telemetry", "schema", ..] => Print(TelemetryCommands.Schema()),
+    ["telemetry", "record", ..] => Print(TelemetryCommands.Record(content, args)),
+    // dt telemetry spool [--dir d] [--trim] [--export out] (queue #626, note 919): the spool's sessions against its caps; trim; bundle.
+    ["telemetry", "spool", ..] => Print(TelemetryCommands.Spool(content, args)),
+    // dt telemetry send [--dir d] [--dry-run] (queue #637, note 943): the pending sessions to PostHog, or what would go.
+    ["telemetry", "send", ..] => Print(TelemetryCommands.Send(content, args)),
+    ["telemetry", "summary", ..] => Print(TelemetryCommands.Summary(args)),
+    ["telemetry", "map", ..] => Print(TelemetryCommands.Map(content, args)),
+    // dt playtest bake --into <content> [--cohort CODE] (note 916): a playtest build's mark, as tools/package.sh --playtest bakes it.
+    ["playtest", "bake", ..] => Print(PlaytestBake(Str(args, "--into", ""), Str(args, "--cohort", ""))),
+    ["afoot", "census", ..] => Print(AfootCommands.Census(content, args)),
+    // dt eligibility rolls [--seeds 1-2000]: each kind's nightChance with the night's floor, by tier and crew. dt eligibility [--routes frontier:7,deadLines:3] [--crews 1:3,2:5,4:8] [--seeds 1-3] [--seconds 2700] [--markdown f.md]: every
+    // kind of the director's spend table, its gates read a second at a time through ordinary nights (note 875).
+    ["eligibility", ..] => Print(EligibilityCommands.Run(content, args, (a, also) => RunHarness(a, also))),
     ["afoot", ..] => Print(AfootCommands.Run(content, args)),
     // dt town [--route tier:seed] [--last culture] | dt town sweep [--seeds n]: the departure fortress's town (note 281).
     ["town", ..] => Print(TownCommands.Run(content, args)),
@@ -134,7 +167,14 @@ return args switch
         Opt(args, "--seconds", 2), new Ballast.Net.LinkConditions(Opt(args, "--latency", 0), Opt(args, "--jitter", 0), Opt(args, "--loss", 0)),
         // --space tunnel: heard as if in that space (content/audio/spaces.json), compressor, reverb and all.
         Str(args, "--space", "") is { Length: > 0 } space ? space : null,
-        args.Contains("--die-at") ? Opt(args, "--die-at", 1) : null)),
+        args.Contains("--die-at") ? Opt(args, "--die-at", 1) : null,
+        // --tube: down the speaking tube, the cab's mouthpiece to the guard van's horn (note 720).
+        tube: args.Contains("--tube"),
+        // Note 855: under way (--speed m/s), the listener in the cab or on a roof of their own, a quiet mic (--mic -20), a WAV.
+        speed: Opt(args, "--speed", 0), listenerInCab: args.Contains("--listener-cab"), listenerCar: (int)Opt(args, "--listener-car", 3),
+        listenerZ: Opt(args, "--listener-z", 0), micDb: Opt(args, "--mic", 0), wav: Str(args, "--out", "") is { Length: > 0 } wav ? wav : null,
+        // Note 862: --cab-door left|right|both, the cab's side doors held open.
+        cabDoors: Str(args, "--cab-door", "") switch { "left" => 4, "right" => 8, "both" => 12, _ => 0 })),
 
     _ => Usage(),
 };
@@ -156,7 +196,7 @@ static object TrainTable(TrainTuning t, PlayerTuning p) => t.Performance.Select(
     };
 }).ToList();
 
-object RunHarness(string[] args)
+object RunHarness(string[] args, Action<uint, IReadOnlyList<(DarkTerritory.Sim.Bots.IBot Bot, PlayerState State)>, World>? also = null)
 {
     Route? route = Str(args, "--route", "") is { Length: > 0 } spec ? DarkTerritory.Sim.LineGen.Routes.Generate(content, spec, (int)Opt(args, "--cars", 10)) : null;
     // --dawn-at s: the night's dawn that many seconds in, not the route's (note 628: a night with time for every stop, to see
@@ -166,7 +206,12 @@ object RunHarness(string[] args)
     var line = route?.Build() ?? LoadLine(Str(args, "--line", "test-loop"));
     var combat = DataFile.Load<DarkTerritory.Sim.Combat.CombatTuning>(Path.Combine(content, DarkTerritory.Sim.Combat.CombatTuning.File));
     var enemies = DataFile.Load<DarkTerritory.Sim.Enemies.EnemyTuning>(Path.Combine(content, DarkTerritory.Sim.Enemies.EnemyTuning.File));
-    using var online = args.Contains("--online") ? new DarkTerritory.Game.FakeLobbyNetwork() : null;
+    // --eos (note 896): the same over the EOS path, every machine behind a strict NAT so it all goes through the relays
+    // (--nat open|moderate|strict, --relay allow|force).
+    using DarkTerritory.Sim.Net.IHarnessNetwork? online = args.Contains("--online") ? new DarkTerritory.Game.FakeLobbyNetwork()
+        : args.Contains("--eos") ? new DarkTerritory.Game.FakeEosLobbyNetwork(Enum.Parse<Ballast.Online.Eos.EosNat>(Str(args, "--nat", "strict"), ignoreCase: true),
+            new Ballast.Online.Eos.EosSettings("", "", "", "", "", Str(args, "--relay", "allow")).RelayControl)
+        : null;
     // --trace file: a line each time anyone changes what they're doing (where they are, their part at a stop, warming up).
     using var trace = Str(args, "--trace", "") is { Length: > 0 } tracePath ? new StreamWriter(tracePath) : null;
     string lastTrace = "";
@@ -197,6 +242,8 @@ object RunHarness(string[] args)
     // the crew aboard, the perfect link, the loadout's tunings, the upkeep and the stops' finds (--no-upkeep, --no-loot to
     // leave them out, as `dt campaign play`). What stays the harness's: --seed seeds the director as well as the bots, so a
     // route's nights are as many nights as seeds (the app's director takes the route's seed: one night a route).
+    if (also is not null)
+        observe = observe is null ? also : observe + also;
     if (args.Contains("--as-app"))
     {
         if (route is null)
@@ -215,6 +262,7 @@ object RunHarness(string[] args)
             // The app's own link is UDP over localhost (D1.4); the perfect one is kept by default, as a trends night must
             // play the same on every commit it's measured on. --udp for the sockets.
             Udp = args.Contains("--udp"),
+            Shared = DataFile.Load<BalanceTuning>(Path.Combine(content, BalanceTuning.File)).Shared,
         }, args.Contains("--no-boiler") ? null : hosted.Boiler);
     }
     return Harness.Run(line, train, player, new HarnessOptions
@@ -246,6 +294,11 @@ object RunHarness(string[] args)
         Upkeep = args.Contains("--upkeep") ? DataFile.Load<UpkeepTuning>(Path.Combine(content, UpkeepTuning.File)) : null,
         Route = route,
         Udp = args.Contains("--udp"),
+        // --wire (note 921): what each kind of record costs each client, kbit/s.
+        Wire = args.Contains("--wire"),
+        // --talk n [--talk-radio] (note 956): n of the crew talking all night, aloud or on the radio.
+        Talkers = (int)Opt(args, "--talk", 0),
+        TalkRadio = args.Contains("--talk-radio"),
         Network = online,
         Holdouts = DataFile.Load<DarkTerritory.Sim.Run.HoldoutTuning>(Path.Combine(content, DarkTerritory.Sim.Run.HoldoutTuning.File)),
         Sight = sight,
@@ -267,6 +320,7 @@ object RunHarness(string[] args)
             ? DataFile.Load<BalanceTuning>(Path.Combine(content, BalanceTuning.File)).Combinations.HazardSets.First(h => h.Name == hz) : null,
         // And its look-out (note 212), as the sweep's; --no-look leaves it out (note 222: the before of a before/after).
         Look = args.Contains("--insist") && !args.Contains("--no-look") ? DataFile.Load<BalanceTuning>(Path.Combine(content, BalanceTuning.File)).Combinations.Look : null,
+        Shared = DataFile.Load<BalanceTuning>(Path.Combine(content, BalanceTuning.File)).Shared,
     }, args.Contains("--no-boiler") ? null : boiler);
 }
 
@@ -319,6 +373,7 @@ BalanceReport RunBalance(string[] args)
             Enemies = enemies,
             Route = route,
             Holdouts = holdouts,
+            Shared = targets.Shared,
             Sight = sight,
             Run = run,
             Facilities = facilities,
@@ -633,7 +688,7 @@ object CampaignCommand(string content, string verb, string[] args)
         contracts = DarkTerritory.Sim.Campaign.Campaign.Offers(t, runTuning, s).Select((c, i) => new { index = i, route = c.Route, perCar = c.PerCar }),
         stores = s.Stores,
         sellBack = DarkTerritory.Sim.Campaign.Campaign.SellBack(t, s),
-        shop = t.Upgrades.Where(u => !s.Upgrades.Contains(u.Id)).Select(u => new { u.Id, u.Name, size = u.Size.ToString(), cost = DarkTerritory.Sim.Campaign.Campaign.UpgradeCost(t, s, u), modelled = u.Effect.Count > 0 }),
+        shop = t.Upgrades.Where(u => !s.Upgrades.Contains(u.Id)).Select(u => new { u.Id, u.Name, kind = u.Kind.ToString(), size = u.Size.ToString(), cost = DarkTerritory.Sim.Campaign.Campaign.UpgradeCost(t, s, u), modelled = u.Effect.Count > 0 || u.Tally is not null, refused = DarkTerritory.Sim.Campaign.Campaign.Unavailable(t, s, u) }),
         underway = s.Current?.Route,
         autosave = s.Checkpoint is { } c ? $"left facility {c.Facility} at {c.Seconds / 60:0.0} min" : null,
         s.History,
@@ -663,6 +718,8 @@ object CampaignCommand(string content, string verb, string[] args)
                     "powder" => DarkTerritory.Sim.Campaign.Campaign.BuyStores(t, s, DarkTerritory.Sim.Campaign.StoreKind.Powder),
                     "lamp" => DarkTerritory.Sim.Campaign.Campaign.BuyStores(t, s, DarkTerritory.Sim.Campaign.StoreKind.Lamp),
                     "extinguisher" => DarkTerritory.Sim.Campaign.Campaign.BuyStores(t, s, DarkTerritory.Sim.Campaign.StoreKind.Extinguisher),
+                    // Note 871: the flare pistol, from the Frontier tier.
+                    "flare" => DarkTerritory.Sim.Campaign.Campaign.BuyStores(t, s, DarkTerritory.Sim.Campaign.StoreKind.Flare),
                     "sell" => DarkTerritory.Sim.Campaign.Campaign.SellCar(t, s),
                     _ => DarkTerritory.Sim.Campaign.Campaign.BuyUpgrade(t, s, what),
                 };
@@ -746,13 +803,25 @@ object CampaignCommand(string content, string verb, string[] args)
     }
 }
 
-// Can this machine reach Steam? Says who it's signed in as, or exactly what's missing.
+// Can this machine reach Steam, and EOS (note 896)? Says who it's signed in as, or exactly what's missing.
 static object OnlineCheck()
 {
-    using var steam = Ballast.Online.Steam.SteamBackend.TryStart(Ballast.Online.Steam.SteamBackend.DevAppId, out var error);
-    return steam is null
-        ? new { steam = false, error }
-        : new { steam = true, error = (string?)null, user = steam.NameOf(steam.Me), id = steam.Me.ToString() };
+    object steamCheck;
+    using (var steam = Ballast.Online.Steam.SteamBackend.TryStart(Ballast.Online.Steam.SteamBackend.DevAppId, out var error))
+        steamCheck = steam is null
+            ? new { steam = false, error }
+            : new { steam = true, error = (string?)null, user = steam.NameOf(steam.Me), id = steam.Me.ToString() };
+    var settings = Ballast.Online.Eos.EosSettings.Load();
+    string? eosError = settings is null ? "no credentials (eos.json beside the game, or the DT_EOS_* variables)" : null;
+    using var eos = settings is null ? null
+        : Ballast.Online.Eos.EosSdk.TryCreate(settings, out eosError) is { } sdk
+            ? Ballast.Online.Eos.EosBackend.TryStart(sdk, Environment.UserName, settings.RelayControl, out eosError)
+            : null;
+    return new
+    {
+        steam = steamCheck,
+        eos = new { eos = eos is not null, sdk = Ballast.Online.Eos.EosSdk.Available, error = eosError, id = eos?.Me.ToString(), relay = settings?.Relay },
+    };
 }
 
 RailLine LoadLine(string name) => RailLine.Load(Path.Combine(content, "lines", name + ".json"));
@@ -1031,7 +1100,16 @@ static int ScreenshotBatch(TrainTuning t, string content, string file, bool chec
 
 static object Screenshot(TrainTuning t, string content, string[] args)
 {
+    // --form: every town the one type (towns.json forms.force; note 692), "street" the street town of note 335.
+    if (Str(args, "--form", "") is { Length: > 0 } townForm)
+        DarkTerritory.Game.PrototypeSession.TownForm = townForm == "street" ? "" : townForm;
     string view = Str(args, "--view", "trackside");
+    // Note 721: the crew photo at the gate (crewphoto: a delivered night stood home at its terminus, four of the crew, one
+    // dead, Staging.PhotoCrew) and the departure town's board of lost crews (lostcrews: two crews' cards, Staging.LostCrews).
+    if (view == "crewphoto" && !args.Contains("--arrival"))
+        args = [.. args, "--arrival", "photo"];
+    if (view == "lostcrews" && !args.Contains("--town"))
+        args = [.. args, "--town", "lostcrews"];
     string lineName = Str(args, "--line", "test-loop");
     int cars = (int)Opt(args, "--cars", 6);
     int width = (int)Opt(args, "--width", 1280), height = (int)Opt(args, "--height", 720), scale = (int)Opt(args, "--scale", 1);
@@ -1042,19 +1120,51 @@ static object Screenshot(TrainTuning t, string content, string[] args)
     // stages it gnawing, the tower leaning over the line; towerjawfall, the tower down across it.
     string towerJawMode = Str(args, "--towerjaw", view switch { "towerjaw" => "lean", "towerjawfall" => "wreck", _ => "" });
     // --route tier:seed generates the night in memory; --coaling stops the train at its coaling tower, chute pouring.
-    Route? generated = Str(args, "--route", towerJawMode.Length > 0 ? "frontier:3" : Staging.IsHouseView(view) ? "frontier:7" : "") is { Length: > 0 } spec
+    Route? generated = Str(args, "--route", towerJawMode.Length > 0 ? "frontier:3" : Staging.IsHouseView(view) || view is "comet" or "trophies" or "crewphoto" or "lostcrews" or "jackpot" or "jackpothouse" or "looseloot" or "hoist" or "photographer" or "yardphoto" ? "frontier:7" : view == "oddities" ? "deadLines:9" : "") is { Length: > 0 } spec
         ? DarkTerritory.Sim.LineGen.Routes.Generate(content, spec, cars)
         : null;
     var line = generated?.Build() ?? RailLine.Load(Path.Combine(content, "lines", lineName + ".json"));
     // --upgrades id[,id]: the train as the campaign's upgrades make it (note 184: crewCar, secondGuardCar, armouredCar,
     // roofHandrails...).
-    if (Str(args, "--upgrades", "") is { Length: > 0 } upgrades)
+    // The dining and diningbar views (note 959) fit the dining car.
+    if (Str(args, "--upgrades", view is "dining" or "diningbar" ? "diningCar" : "") is { Length: > 0 } upgrades)
         t = DarkTerritory.Sim.Campaign.Campaign.Apply(DataFile.Load<DarkTerritory.Sim.Campaign.CampaignTuning>(Path.Combine(content, DarkTerritory.Sim.Campaign.CampaignTuning.File)),
             upgrades.Split(','), new DarkTerritory.Sim.Campaign.Loadout(t, DataFile.Load<BoilerTuning>(Path.Combine(content, BoilerTuning.File)),
                 DataFile.Load<DarkTerritory.Sim.Combat.CombatTuning>(Path.Combine(content, DarkTerritory.Sim.Combat.CombatTuning.File)), null)).Train;
+    // --handcar (note 729; the handcar and handcarlift views): the night has the handcar (train.json handcar.always).
+    bool handcar = view is "handcar" or "handcarlift" || args.Contains("--handcar");
+    if (handcar)
+        t = t with { Handcar = t.Handcar with { Always = true } };
     var consist = Consist.Uniform(t, cars, 1);
     DarkTerritory.Sim.Run.Run? run = null;
     double at = Opt(args, "--at", 1200);
+    // --odd (the oddities view, below): the night's odd things, every chance of one taken, and none left in a fortress's
+    // ground, where the lineside isn't drawn (note 979), as the night has them. A note out along the line (--lineside, note
+    // 965) stands the train just past it, so the leaving it was left at is built round the camera.
+    var oddKind = Str(args, "--odd", view == "oddities" ? "scarecrow" : "");
+    DarkTerritory.Sim.Run.Oddities? oddities = null;
+    double oddAlong = double.NaN;
+    if (oddKind.Length > 0 && generated is not null)
+    {
+        var rt = DataFile.Load<DarkTerritory.Sim.Run.RunTuning>(Path.Combine(content, DarkTerritory.Sim.Run.RunTuning.File));
+        var ot = rt.Oddities;
+        oddities = DarkTerritory.Sim.Run.Oddities.Of(ot with
+        {
+            Enabled = true,
+            Can = ot.Can with { Chance = 1 },
+            Scarecrow = ot.Scarecrow with { Chance = 1 },
+            Postbox = ot.Postbox with { Chance = 1 },
+            Note = ot.Note with { Chance = 1 },
+        }, generated, line, DarkTerritory.Sim.Run.Fortresses.Of(generated, line, generated.GateOr(RouteTuning.Load(content).YardLength), rt.TerminusZone));
+        if (args.Contains("--lineside") && !args.Contains("--at")
+            && oddities?.Things.FirstOrDefault(x => x.Kind == DarkTerritory.Sim.Run.OddThingKind.Note && x.Feature < 0) is { } far)
+        {
+            double hint = Enumerable.Range(0, (int)(line.Length / 25) + 1).Select(i => i * 25.0).MinBy(s => ((line.Sample(s).Position - far.At) with { Y = 0 }).Length);
+            line.Nearest(far.At, ref hint);
+            oddAlong = hint;
+            at = Math.Min(hint + 30, line.Length - 20);
+        }
+    }
     // --waker wall (note 599; the wakerwall view): the train home inside the terminus, a Waker stopped stopShort out.
     if ((Str(args, "--waker", "") == "wall" || view == "wakerwall") && generated is not null && !args.Contains("--at"))
         at = Math.Min((generated.Plan?.Terminus.GateM ?? line.Length - 600) + 260, line.Length - 20);
@@ -1070,9 +1180,22 @@ static object Screenshot(TrainTuning t, string content, string[] args)
         int index = generated.Of(FeatureKind.Facility).ToList().IndexOf(tower);
         run.Mirror(DarkTerritory.Sim.Run.RunPhase.AtFacility, DarkTerritory.Sim.Run.RunEnd.None, 900, index, true, [.. Enumerable.Repeat(200.0, run.FacilityCount)]);
     }
+    // The yard photographer (note 714; `--upgrades yardPhotographer`): the train stood in the yard short of the gate, him
+    // past it (photographer); or the picture he takes as she passes it, from his lens, flash and sepia (yardphoto).
+    double photoGate = 0;
+    if (view is "photographer" or "yardphoto" && generated is not null && run is null)
+    {
+        photoGate = generated.GateOr(DarkTerritory.Sim.Route.RouteTuning.Load(content).YardLength);
+        run = new DarkTerritory.Sim.Run.Run(DataFile.Load<DarkTerritory.Sim.Run.RunTuning>(Path.Combine(content, DarkTerritory.Sim.Run.RunTuning.File)), generated) { YardLength = photoGate };
+        if (!args.Contains("--at"))
+            at = view == "yardphoto" ? photoGate + YardPhotographer.PastGate - YardPhotographer.ShootAt : photoGate - 8;
+    }
     // --site: stop at the first facility with loading modules (spec D), crates out and the winch sled part-hauled.
     DarkTerritory.Sim.Run.Site? site = null;
-    if (args.Contains("--site") && generated is not null)
+    // The hoist view (note 726): a crane's facility, a friend on its hook.
+    bool hoist = view == "hoist";
+    List<Crewmate>? hoistCrew = null;
+    if ((args.Contains("--site") || hoist) && generated is not null)
     {
         run = new DarkTerritory.Sim.Run.Run(DataFile.Load<DarkTerritory.Sim.Run.RunTuning>(Path.Combine(content, DarkTerritory.Sim.Run.RunTuning.File)), generated);
         var facilities = DataFile.Load<DarkTerritory.Sim.Run.FacilityTuning>(Path.Combine(content, DarkTerritory.Sim.Run.FacilityTuning.File));
@@ -1090,13 +1213,17 @@ static object Screenshot(TrainTuning t, string content, string[] args)
             return Print(new { error = $"{Str(args, "--route", "")} has no {wantKind}", has = run.Sites.Where(x => x is not null).Select(x => x!.Feature.Facility.ToString()) });
         site = kindPick is { } k ? run.Sites.First(x => x?.Feature.Facility == k)
             : pick >= 0 && pick < run.Sites.Count ? run.Sites[pick]
-            : args.Contains("--crane") ? run.Sites.FirstOrDefault(x => x?.Crane is not null)
+            : args.Contains("--crane") || hoist ? run.Sites.FirstOrDefault(x => x?.Crane is not null)
             : run.Sites.FirstOrDefault(x => x is not null && x.Has(DarkTerritory.Sim.Run.ModuleKind.Winch)) ?? run.Sites.FirstOrDefault(x => x is not null);
-        if (site?.Crane is { } shownCrane)
+        // (--hook h: how high the hook with the friend on it hangs, 2.4 m.)
+        if (hoist && site?.Crane is { } hoistCrane)
+            hoistCrew = Staging.Hoist(hoistCrane, Opt(args, "--hook", 2.4));
+        else if (site?.Crane is { } shownCrane)
         {
             shownCrane.Castings[0].State = DarkTerritory.Sim.Run.CastingState.Hooked;
-            shownCrane.Hook = 4;
-            shownCrane.Trolley = 3;
+            // --hook h --trolley t: where the hook hangs (m over the ground) and the trolley stands across (m from the track).
+            shownCrane.Hook = Opt(args, "--hook", 4);
+            shownCrane.Trolley = Opt(args, "--trolley", 3);
         }
         if (site is not null)
         {
@@ -1139,7 +1266,9 @@ static object Screenshot(TrainTuning t, string content, string[] args)
         at = line.Branches[junction].Toe - (args.Contains("--through") ? 10 : 25);
     // --mail [s]: at the night's first mail crane, car 2's side door by it; s > 0, the bag caught s seconds ago (its snatch
     // and the arms falling).
-    Drop? mail = args.Contains("--mail") && generated is not null ? DarkTerritory.Sim.Route.Lineside.Drops(DataFile.Load<SightTuning>(Path.Combine(content, SightTuning.File)), generated).FirstOrDefault() : null;
+    // (The mail's cut for now, note 803: the view turns sight.json's mailCranes back on for itself, so the crane's still seen.)
+    var mailSight = DataFile.Load<SightTuning>(Path.Combine(content, SightTuning.File)) with { MailCranes = true };
+    Drop? mail = args.Contains("--mail") && generated is not null ? DarkTerritory.Sim.Route.Lineside.Drops(mailSight, generated).FirstOrDefault() : null;
     if (mail is not null)
         at = mail.At + t.Geometry.EngineLength + t.Geometry.CarLength * 1.5 + t.Geometry.CouplingGap * 2;
     // --structure type: the night's first of the plan's structures of that type on the main line (a girder, truss, trestle
@@ -1170,8 +1299,10 @@ static object Screenshot(TrainTuning t, string content, string[] args)
     // note 281), the train at the gate as a night starts, the camera standing in it (square: at the way in from the engine,
     // looking at the centrepiece; houses down its street; house, kitchen, parlour: the first open house, outside and in).
     DarkTerritory.Sim.Towns.Town? town = null;
-    if (args.Contains("--town") && generated is not null && DarkTerritory.Sim.Towns.TownContent.Load(content) is { } towns)
+    if (args.Contains("--town") && generated is not null && DarkTerritory.Sim.Towns.TownContent.Load(content) is { } loadedTowns)
     {
+        var towns = DarkTerritory.Game.PrototypeSession.TownForm is { } townType
+            ? loadedTowns with { Tuning = loadedTowns.Tuning with { Forms = loadedTowns.Tuning.Forms with { Force = townType } } } : loadedTowns;
         var runTuning = DataFile.Load<DarkTerritory.Sim.Run.RunTuning>(Path.Combine(content, DarkTerritory.Sim.Run.RunTuning.File));
         double gate = generated.GateOr(RouteTuning.Load(content).YardLength);
         if (!args.Contains("--at"))
@@ -1180,15 +1311,26 @@ static object Screenshot(TrainTuning t, string content, string[] args)
         var roster = DataFile.Load<DarkTerritory.Sim.Enemies.EnemyTuning>(Path.Combine(content, DarkTerritory.Sim.Enemies.EnemyTuning.File)).Director.Roster;
         town = new DarkTerritory.Sim.Towns.Town(DarkTerritory.Sim.Towns.TownGenerator.Generate(towns, DarkTerritory.Sim.Towns.TownSite.Of(generated, gate, roster, towns)),
             towns.Tuning, line, towns.Looks);
+        town.Lay(line);
         // --clock s: that far into the night, the town's people on their rounds (note 353).
         town.Clock = Opt(args, "--clock", 0);
+        // --bell: its council house's bell just rung (note 730), everyone within earshot stopped and looking up at it.
+        if (args.Contains("--bell") && town.BellRope is { } rope)
+        {
+            var bell = runTuning.Oddities.Bell;
+            foreach (var p in town.Plan.People)
+                if (((town.Feet(p) - rope) with { Y = 0 }).Length <= bell.EarshotM)
+                    town.React(p.Id, town.Clock, bell.LookSeconds, rope + Double3.Up * 6, "idle");
+        }
     }
     // --arrival [square|centre|gate|over|outside|...]: the terminus's town (note 600), the one the next night departs from,
     // the train stopped home inside its gate, the camera standing in it as --town's does in the departure's (TownCamera,
     // the town's own frame). `--arrival depart` is the same town as the next night's departure stands it, for comparing.
     DarkTerritory.Sim.Towns.Town? arrival = null;
-    if (args.Contains("--arrival") && generated is not null && DarkTerritory.Sim.Towns.TownContent.Load(content) is { } arrivalTowns)
+    if (args.Contains("--arrival") && generated is not null && DarkTerritory.Sim.Towns.TownContent.Load(content) is { } loadedArrival)
     {
+        var arrivalTowns = DarkTerritory.Game.PrototypeSession.TownForm is { } arrivalType
+            ? loadedArrival with { Tuning = loadedArrival.Tuning with { Forms = loadedArrival.Tuning.Forms with { Force = arrivalType } } } : loadedArrival;
         var runTuning = DataFile.Load<DarkTerritory.Sim.Run.RunTuning>(Path.Combine(content, DarkTerritory.Sim.Run.RunTuning.File));
         double gate = generated.GateOr(RouteTuning.Load(content).YardLength);
         var roster = DataFile.Load<DarkTerritory.Sim.Enemies.EnemyTuning>(Path.Combine(content, DarkTerritory.Sim.Enemies.EnemyTuning.File)).Director.Roster;
@@ -1207,10 +1349,12 @@ static object Screenshot(TrainTuning t, string content, string[] args)
             if (!args.Contains("--at"))
                 at = runTuning.DepartFrom(nextGate, consist.LengthMetres);
             town.Clock = Opt(args, "--clock", 0);
+            town.Lay(line);
         }
         else
         {
             arrival = DarkTerritory.Sim.Towns.Town.AtTerminus(arrivalTowns, generated, line, gate, roster, departure.Culture, named);
+            arrival?.Lay(line);
             run ??= new DarkTerritory.Sim.Run.Run(runTuning, generated) { YardLength = gate };
             if (!args.Contains("--at") && generated.Plan?.Terminus is { } terminus)
                 at = terminus.GateM + (runTuning.HomeInsideGateM ?? 0) + consist.LengthMetres + 10;
@@ -1218,7 +1362,49 @@ static object Screenshot(TrainTuning t, string content, string[] args)
                 arrival.Clock = Opt(args, "--clock", 0);
         }
     }
+    // --comet m (note 718; the comet view): the night's first stop with a comet fragment (every stop given the chance of one
+    // if none has), its loot out, the engine's front m past the fragment (−22: short of it): what the driver sees coming in.
+    DarkTerritory.Sim.Physics.Bodies? prizes = null;
+    if ((view == "comet" || args.Contains("--comet")) && generated is not null)
+    {
+        var lt = DataFile.Load<LootTuning>(Path.Combine(content, LootTuning.File));
+        run ??= new DarkTerritory.Sim.Run.Run(DataFile.Load<DarkTerritory.Sim.Run.RunTuning>(Path.Combine(content, DarkTerritory.Sim.Run.RunTuning.File)), generated);
+        run.EnableLoot(lt, line, null);
+        if (!Enumerable.Range(0, run.Stops.Count).Any(k => run.CometsAt(k).Count > 0) && lt.Comet is { } comet)
+            run.EnableLoot(lt with { Comet = comet with { Chance = new() { [StopLoot.TierKey(generated.Tier)] = 1 }, NightChance = new() { [StopLoot.TierKey(generated.Tier)] = 1 } } }, line, null);
+        int stop = Enumerable.Range(0, run.Stops.Count).First(k => run.CometsAt(k).Count > 0);
+        prizes = new();
+        run.Stock(prizes, stop);
+        // Where it lies along the line (the stop's zone is straight), and the engine's front --comet m past that: the cab
+        // coming up on it, the driver leaning out to look.
+        double s = run.Stops[stop].Start + run.CometsAt(stop)[0].S;
+        var by = line.Sample(s);
+        s += Double3.Dot(prizes.All.First(DarkTerritory.Sim.Run.Run.IsComet).Pbd.Particles[0].Position - by.Position, by.Tangent);
+        at = s + Opt(args, "--comet", -22);
+    }
+    // Note 719 (queue #453, the big finds): jackpot, two crewmates carrying a safe off the line's left ahead of the engine;
+    // jackpothouse, the night's first stop's jackpot house from its street, locked (--inside: opened, stood in its doorway, its
+    // things out); looseloot, the finds put down in a car's middle, ridden round the line's tightest bend at 20 m/s (--speed) for --seconds 4,
+    // where they slid to, from the car's front end. Every stop given a jackpot house and a safe for them.
+    var bigLoot = view is "jackpot" or "jackpothouse" or "looseloot" && generated is not null
+        ? Staging.Jackpotted(DataFile.Load<LootTuning>(Path.Combine(content, LootTuning.File)), generated.Tier, "safe") : null;
+    int bigStop = -1;
+    if (bigLoot is not null && view is "jackpot" or "jackpothouse")
+    {
+        run ??= new DarkTerritory.Sim.Run.Run(DataFile.Load<DarkTerritory.Sim.Run.RunTuning>(Path.Combine(content, DarkTerritory.Sim.Run.RunTuning.File)), generated!);
+        run.EnableLoot(bigLoot, line, null);
+        bigStop = Enumerable.Range(0, run.Stops.Count).FirstOrDefault(k => run.LockedHouse(k) >= 0 && run.JackpotsAt(k).Count > 0, -1);
+        // The jackpot house's stop: the train just past it, so it's built round the camera.
+        if (view == "jackpothouse" && bigStop >= 0 && !args.Contains("--at"))
+            at = run.Stops[bigStop].End + 40;
+    }
+    if (bigLoot is not null && view == "looseloot" && !args.Contains("--at"))
+        at = Staging.Bend(line);
     var train = new TrainOnLine(new TrainDynamics(consist), line, at);
+    // The handcar views (note 729): set on the rails and run --handcar-back m (40) back down the line, its handle swung
+    // --handcar-swing radians (0.9); or hung, a lift --lift of the way through (0.45).
+    if (handcar)
+        Staging.Handcar(train, view, Opt(args, "--handcar-back", 40), Opt(args, "--lift", 0.45), Opt(args, "--handcar-swing", 0.9));
     if (site is { Spur: >= 0 })
     {
         var state = train.Capture();
@@ -1230,7 +1416,7 @@ static object Screenshot(TrainTuning t, string content, string[] args)
     {
         run.StandCars(train);
         if (site.Has(DarkTerritory.Sim.Run.ModuleKind.Rakes)
-            && run.YardTracks(site.Index).Select(b => train.Rakes.FirstOrDefault(r => r.Path == b && train.Standing(r))).FirstOrDefault(r => r is not null) is { } standing)
+            && run.YardTracks(site.Index).Select(b => train.Rakes.FirstOrDefault(r => r.Path == b && train.Standing(r) && !TrainOnLine.IsHandcar(r))).FirstOrDefault(r => r is not null) is { } standing)
         {
             var state = train.Capture();
             int engine = Array.FindIndex(state.Rakes, r => r.Vehicles.Contains(0));
@@ -1291,11 +1477,14 @@ static object Screenshot(TrainTuning t, string content, string[] args)
     {
         train.Loose = DataFile.Load<UpkeepTuning>(Path.Combine(content, UpkeepTuning.File)).Coupling;
         train.Vehicles[Math.Min(2, train.Vehicles.Count - 1)].Loose = looseFor;
+        // --loose-cause working|jumped (note 865): the pin that takes two, in its warning (its callout beating hard) or jumped.
+        if (Str(args, "--loose-cause", "") is { Length: > 0 } cause)
+            train.Vehicles[Math.Min(2, train.Vehicles.Count - 1)].LooseCause = Enum.Parse<LooseCause>(cause, ignoreCase: true);
     }
     // --gannet soar|circle|hang|fold|dive|stuck|tearfree|climb|bank|swoop|pin|windup|peck: the staged Gannet (note 340;
     // Staging.Gannet) over the second car's roof, after crewmate 4 walking it; the train running at --speed (20 m/s: it only
     // rides a fast train), its smoke laid back. The gannet views stage it soaring, diving, stuck and pinning unless told.
-    string gannetMode = Str(args, "--gannet", view switch { "gannet" => "soar", "gannetfold" => "dive", "gannetstuck" => "stuck", "gannetpin" => "pin", _ => "" });
+    string gannetMode = Str(args, "--gannet", view switch { "gannet" => "soar", "gannetfold" => "dive", "gannetstuck" => "stuck", "gannetpin" => "pin", "gannetgerald" => "carry", _ => "" });
     if (gannetMode.Length > 0 && !args.Contains("--ruptured") && !args.Contains("--wreck"))
     {
         train.Dynamics.Velocity = Opt(args, "--speed", 20);
@@ -1324,8 +1513,40 @@ static object Screenshot(TrainTuning t, string content, string[] args)
     var outro = DataFile.Load<WreckTuning>(Path.Combine(content, WreckTuning.File)).Stranded;
     var camera = strandedAt >= 0 && !args.Contains("--view") ? Views.Stranded(train, outro, strandedAt)
         : train.Wreck is { } shown && !args.Contains("--view") ? Views.Wreck(shown, shown.RealSeconds) : Views.Get(view, train, (int)Opt(args, "--car", 2));
+    if (view == "yardphoto" && photoGate > 0)
+        camera = YardPhotographer.Lens(train.Line, photoGate, train);
+    else if (view == "photographer" && photoGate > 0)
+    {
+        var (feet, facing) = YardPhotographer.Stand(train.Line, photoGate);
+        camera = Camera.LookAt(feet - facing * 2.6 + Double3.Up * 2.1 + Double3.Cross(facing, Double3.Up) * 1.2, feet + facing * 9 + Double3.Up * 1.4, 60);
+    }
+    // The comet view (note 718): the driver leaning out of the cab on the side the fragment lies, looking up the line at it.
+    if (view == "comet" && prizes?.All.FirstOrDefault(DarkTerritory.Sim.Run.Run.IsComet) is { } fragment)
+    {
+        var cab = train.Frames[0];
+        var there = fragment.Pbd.Particles[0].Position;
+        int side = cab.ToLocal(there).X > 0 ? 1 : -1;
+        var eye = cab.ToWorld(Views.CabEye(cab.Shape, side) with { X = side * (cab.Shape.HalfWidth + 0.3) });
+        camera = Camera.LookAt(eye, there + Double3.Up * 1.5, 50);
+        // --close: stood over it, 3.5 m off on the line's side, to see the lump itself.
+        if (args.Contains("--close"))
+            camera = Camera.LookAt(there + ((eye - there) with { Y = 0 }).Normalized * 3.5 + Double3.Up * 1.6, there, 55);
+    }
+    // --close (note 818): the handcar's lift from beside the near lifter.
+    if (view == "handcarlift" && args.Contains("--close"))
+        camera = Staging.HandcarCamera(train, view, close: true);
     if (town is not null && !args.Contains("--view"))
         camera = Staging.TownCamera(town, args.Contains("--arrival") ? Str(args, "--where", "square") : Str(args, "--town", "square"));
+    // --bell rope (note 730): stood at the council house's bell rope, as a crewmate about to pull it sees it.
+    if (town?.BellRope is { } ropeAt && Str(args, "--bell", "") == "rope" && town.Plan.Buildings.FirstOrDefault(b => b.Style == "council") is { } hall)
+    {
+        var outward = ((ropeAt - town.World(hall.S, hall.D)) with { Y = 0 }).Normalized;
+        var along = Double3.Cross(outward, Double3.Up);
+        camera = Camera.LookAt(ropeAt + outward * 2.6 + along * 1.2 + Double3.Up * 1.65, ropeAt + Double3.Up * 1.6, 60);
+    }
+    // --fight s (note 951): the yard's fight s seconds on, the guards running out to it (0: looking to it from their posts).
+    if (arrival is not null && args.Contains("--fight"))
+        arrival.FightBegan(Opt(args, "--fight", 2.5));
     if (arrival is not null && !args.Contains("--view"))
         camera = Str(args, "--arrival", "square") == "brought"
             // --arrival brought --patrol (note 589): hounds ridden in on car 2, the town's guns on them, seen from the square's
@@ -1333,6 +1554,13 @@ static object Screenshot(TrainTuning t, string content, string[] args)
             ? train.Frames[Math.Min(2, train.Frames.Count - 1)] is var car && car.Right * (-arrival.Plan.Square.Side) is var toward
                 ? Ballast.Render.Camera.LookAt(car.Origin + toward * 22 + car.Back * 6 + Double3.Up * 8, car.Origin + Double3.Up * 3, 62) : camera
             : Staging.TownCamera(arrival, Str(args, "--arrival", "square"));
+    // (--fight: over the yard at the fight, car 2's, from the square's side: the guards running in round it.)
+    if (arrival is not null && args.Contains("--fight") && !args.Contains("--view") && !args.Contains("--cam"))
+    {
+        double fightAt = arrival.Along(train.Cars[Math.Min(2, train.Cars.Count - 1)].FrontDistance - 8);
+        int side = arrival.Plan.Square.Side == 0 ? 1 : arrival.Plan.Square.Side;
+        camera = Ballast.Render.Camera.LookAt(arrival.World(fightAt - 14, side * 30, 16), arrival.World(fightAt, 0, 1), 60);
+    }
     // --cam s,lateral,height --target s,lateral,height: place the camera anywhere by line coordinates.
     if (Str(args, "--cam", "") is { Length: > 0 } cam)
     {
@@ -1344,6 +1572,36 @@ static object Screenshot(TrainTuning t, string content, string[] args)
             return t.Position + right * p[1] + Double3.Up * p[2];
         }
         camera = Camera.LookAt(At(cam), At(Str(args, "--target", cam)), (float)Opt(args, "--fov", 65));
+    }
+    // --odd well|can|scarecrow|postbox|note (the oddities view: a scarecrow, on deadLines:9): the night's first odd thing of that
+    // oddThing at a stop (note 730), every chance of one taken, the camera stood off its front looking at it; --turned, a
+    // scarecrow found turned to the line. (The odd things are dealt above, with the train.)
+    if (oddKind.Length > 0 && generated is not null)
+    {
+        var oddThing = Enum.Parse<DarkTerritory.Sim.Run.OddThingKind>(oddKind, ignoreCase: true);
+        // --lineside (note 965): a note out along the line, at a hut, a camp, a grave or a wreck, not at a village.
+        if (oddities?.Things.FirstOrDefault(x => x.Kind == oddThing && (!args.Contains("--lineside") || x.Feature < 0)) is not { } thing)
+            return Print(new { error = "no " + oddThing + " on this night" });
+        if (args.Contains("--turned"))
+            oddities.Finish(thing.Index);
+        // (A note faces the house it's read at, so it's seen from the line's side: behind its front.)
+        var front = oddities.Facing(thing.Index, line) * (oddThing == DarkTerritory.Sim.Run.OddThingKind.Note ? -1 : 1);
+        var aside = Double3.Cross(front, Double3.Up).Normalized;
+        // A can, or a note on a doorstep (note 961), from close and low.
+        bool can = oddThing is DarkTerritory.Sim.Run.OddThingKind.Can or DarkTerritory.Sim.Run.OddThingKind.Note;
+        double back = can ? 1.6 : oddThing == DarkTerritory.Sim.Run.OddThingKind.Well ? 6 : 4.2;
+        camera = Camera.LookAt(thing.At + front * back + aside * (back * 0.35) + Double3.Up * (can ? 0.9 : 1.6),
+            thing.At + Double3.Up * (can ? 0.05 : 1.1), (float)Opt(args, "--fov", 55));
+        // A note out along the line (note 979), as a crewmate walking the line comes on it: from back down the line a little
+        // further out, over the verge's grass, with what it was left at beside it.
+        if (args.Contains("--lineside") && !double.IsNaN(oddAlong))
+        {
+            var t0 = line.Sample(oddAlong);
+            double lateral = Double3.Dot(thing.At - t0.Position, Double3.Cross(t0.Tangent, Double3.Up).Normalized);
+            var t1 = line.Sample(Math.Max(oddAlong - 7, 0));
+            var eye = t1.Position + Double3.Cross(t1.Tangent, Double3.Up).Normalized * (lateral + Math.Sign(lateral) * 2);
+            camera = Camera.LookAt(eye with { Y = thing.At.Y + 2.4 }, thing.At + Double3.Up * 0.3, (float)Opt(args, "--fov", 55));
+        }
     }
     // --tower (with --coaling): the coaling tower from across the track, along it a way, up at its chute where it pours
     // (note 422); --tower side: from out past the tower on its own side, the trestle and the bunker.
@@ -1425,7 +1683,7 @@ static object Screenshot(TrainTuning t, string content, string[] args)
             // half as far back along the line (note 410).
             double near = args.Contains("--close") ? 0.5 : 1;
             // The switchyard (note 187): across the gap between the engine and the cars it's coupling up to, from the open side.
-            var waiting = site.Has(DarkTerritory.Sim.Run.ModuleKind.Rakes) ? train.Rakes.FirstOrDefault(r => r.Path == train.Dynamics.Path && train.Standing(r)) : null;
+            var waiting = site.Has(DarkTerritory.Sim.Run.ModuleKind.Rakes) ? train.Rakes.FirstOrDefault(r => r.Path == train.Dynamics.Path && train.Standing(r) && !TrainOnLine.IsHandcar(r)) : null;
             // --building [m]: its buildings instead of its machinery (the modelled ones, note 381), from across the track and
             // back along it at a crewman's eye, up at whatever stands m out on its side (19 by default: the grain elevator's
             // silos). Where GreyboxScene puts them: 25 m short of the layout down a spur, at it on the main line.
@@ -1509,6 +1767,12 @@ static object Screenshot(TrainTuning t, string content, string[] args)
                 var side = (site.HoseCar >= 0 && site.HoseCar < train.Frames.Count ? (site.HoseStand - train.Frames[site.HoseCar].Origin) with { Y = 0 } : Out(site.HoseStand)).Normalized;
                 camera = Camera.LookAt(site.HoseStand + (side * 8 + Along() * 7 + Double3.Up * 5) * near, site.HoseStand + Double3.Up * 2.5 - side * 2.5, 62);
             }
+            // The hoist view (note 726): from the ground off the hook's side, looking up at the friend stood on it.
+            else if (site.Crane is { } hoisted && hoist && !args.Contains("--operator"))
+                camera = Staging.HoistCamera(hoisted);
+            // --operator: through the crane operator's eyes at the controls (note 707), the hook where --hook puts it.
+            else if (site.Crane is { } operated && args.Contains("--operator"))
+                camera = DarkTerritory.Game.Eyes.Operator(operated);
             else if (site.Crane is { } crane && !args.Contains("--crank"))
             {
                 // High on the near side of the track, past the gantry's end, looking down across the train at the hook and castings.
@@ -1569,6 +1833,12 @@ static object Screenshot(TrainTuning t, string content, string[] args)
         for (int i = 0; i < train.Vehicles.Count; i++)
             train.Vehicles[i].Integrity = Math.Clamp(each[Math.Min(i, each.Length - 1)], 0, 1);
     }
+    // --apart i[,j,...]: those cars come apart on the line (note 576's Failing.Apart: worn to nothing and off their rails),
+    // drawn as ComeApart has them (note 779).
+    if (Str(args, "--apart", "") is { Length: > 0 } apart)
+        foreach (int i in apart.Split(',').Select(int.Parse))
+            if (i > 0 && i < train.Vehicles.Count)
+                (train.Vehicles[i].Integrity, train.Vehicles[i].OffRails) = (0, true);
     // --cargo a[,b,...]: each cargo car's cargo, front to back, the last repeating (CargoKind: its load's cases, TrainKit.Load).
     if (Str(args, "--cargo", "") is { Length: > 0 } cargoes)
     {
@@ -1733,6 +2003,21 @@ static object Screenshot(TrainTuning t, string content, string[] args)
         Double3 At(double x, double y, double up) => DarkTerritory.Sim.Run.Run.StopWorld(line, f, DarkTerritory.Sim.Run.StopWalls.InHouse(b, x, y), up);
         camera = Camera.LookAt(At(inside.X, inside.Y, 1.75), At(-inside.X * 0.8, -inside.Y * 0.8, 1.0), 80);
     }
+    // --kept n: the night's nth cupboard or cabinet in an open village house (note 760), from a couple of metres in front of
+    // it and to one side at a crewmate's eye (with --searched, as it's left once searched; --lantern for a hand lamp).
+    if (Opt(args, "--kept", -1) is var keptAt and >= 0 && generated is not null)
+    {
+        var pieces = generated.Features.Where(f => f.Stop is not null)
+            .SelectMany(f => f.Stop!.Containers.Where(c => c.Kind is DarkTerritory.Sim.Stops.ContainerKind.Cupboard or DarkTerritory.Sim.Stops.ContainerKind.Cabinet
+                && c.Building >= 0 && f.Stop.Buildings[c.Building].Open && DarkTerritory.Sim.Run.StopWalls.Walled(f.Stop, c.Building)).Select(c => (Feature: f, Container: c))).ToList();
+        if (pieces.Count == 0)
+            return Print(new { error = $"{Str(args, "--route", "")} has no cupboards" });
+        var (f, c) = pieces[(int)keptAt % pieces.Count];
+        var b = f.Stop!.Buildings[c.Building];
+        var (x, y, fx, fy) = DarkTerritory.Sim.Run.StopWalls.Kept(b, c.Kind, c.Index);
+        Double3 At(double px, double py, double up) => DarkTerritory.Sim.Run.Run.StopWorld(line, f, DarkTerritory.Sim.Run.StopWalls.InHouse(b, px, py), up);
+        camera = Camera.LookAt(At(x + fx * 2.1 - fy * 0.7, y + fy * 2.1 + fx * 0.7, 1.65), At(x, y, 0.95), 70);
+    }
     // --gun-laid yaw,pitch (degrees): every gun turned and elevated so, as a seated gunner lays it (T112).
     if (Str(args, "--gun-laid", "") is { Length: > 0 } laid)
     {
@@ -1762,10 +2047,19 @@ static object Screenshot(TrainTuning t, string content, string[] args)
         double eaten = Math.Clamp(Opt(args, "--eaten", 0.5), 0, 1);
         (rear.Eaten, rear.Integrity) = (eaten, 1 - eaten);
     }
-    // --shouldered [walk] | --cradled [walk]: a crewmate carrying a body over the shoulder, or the child in their arms (App. C.4).
+    // --shouldered [walk] | --cradled [walk|first]: a crewmate carrying a body over the shoulder, or the child in their arms (App. C.4).
     var shouldered = args.Contains("--shouldered") ? Staging.Shouldered(train, content, Str(args, "--shouldered", "") == "walk")
         : args.Contains("--cradled") ? Staging.Shouldered(train, content, Str(args, "--cradled", "") == "walk", child: true)
         : ((DarkTerritory.Sim.Physics.Bodies Bodies, Crewmate Carrier)?)null;
+    // --cradled first: the child in your own arms, through your own eyes, looking down at it (note 823; the director, 15 Oct:
+    // "when I pick it up I dont see it in my hands"): drawn at your hands as the app draws what you carry, your arms in view.
+    bool cradledFirst = Str(args, "--cradled", "") == "first";
+    if (cradledFirst && shouldered is { } mine)
+    {
+        var facing = new Double3(-Math.Sin(mine.Carrier.Yaw), 0, -Math.Cos(mine.Carrier.Yaw));
+        var eyes = mine.Carrier.Feet + Double3.Up * DarkTerritory.Game.Eyes.Height;
+        camera = Camera.LookAt(eyes, eyes + facing * 1.0 - Double3.Up * Opt(args, "--down", 0.55), 70);
+    }
     // --powerhouse (note 509): the yards' power as the run has it, so a live powerhouse's lamp burns.
     if (Opt(args, "--powerhouse", -1) >= 0 && generated is not null)
     {
@@ -1783,10 +2077,100 @@ static object Screenshot(TrainTuning t, string content, string[] args)
         foreach (int k in run.HidingSpots.Select(h => h.Stop).Distinct())
             run.Stock(searched, k, searched: true);
     }
+    // The trophies view (note 718): every creature's trophy (loot.json trophies) laid out on the ground off the line's left,
+    // ahead of the engine, where a crewmate stood beside it looks down at them.
+    if (view == "trophies" && generated is not null)
+    {
+        var lt = DataFile.Load<LootTuning>(Path.Combine(content, LootTuning.File));
+        run ??= new DarkTerritory.Sim.Run.Run(DataFile.Load<DarkTerritory.Sim.Run.RunTuning>(Path.Combine(content, DarkTerritory.Sim.Run.RunTuning.File)), generated);
+        if (run.Stops.Count == 0)
+            run.EnableLoot(lt, line, null);
+        prizes ??= new();
+        var kinds = Enum.GetValues<DarkTerritory.Sim.Enemies.EnemyKind>().Where(k => lt.Trophies.ContainsKey(DarkTerritory.Sim.Enemies.Director.Key(k))).ToList();
+        for (int i = 0; i < kinds.Count; i++)
+            prizes.SpawnLoot(Staging.Lineside(train, 5 + i % 5 * 1.1, -3.6 - i / 5 * 1.0), train.Dynamics.Distance, DarkTerritory.Sim.Run.Run.TrophyOwner(kinds[i]), lt.Radius);
+    }
+    List<Crewmate>? carriers = null;
+    Camera? bigCamera = null;
+    if (bigLoot is not null && run is not null && bigStop >= 0 && view == "jackpot")
+    {
+        var (bigCarried, crew, carryCamera) = Staging.Jackpot(train, DarkTerritory.Sim.Run.Run.LootOwner(bigStop, DarkTerritory.Sim.Run.Run.JackpotContainer),
+            bigLoot.Jackpots!.Items["safe"].Radius);
+        prizes = bigCarried;
+        carriers = crew;
+        bigCamera = carryCamera;
+    }
+    if (bigLoot is not null && run is not null && bigStop >= 0 && view == "jackpothouse" && args.Contains("--inside"))
+    {
+        prizes ??= new();
+        run.Stock(prizes, bigStop, searched: true);
+    }
+    // looseloot: the night simulated on a train of its own at the same place (a world with the loot's riding on), the finds and
+    // the safe put down in the middle of its first car with a room, ridden round the bend; what's drawn is where they lie in
+    // that car's frame, on the screenshot's train.
+    if (bigLoot is not null && view == "looseloot")
+    {
+        var simTrain = new TrainOnLine(new TrainDynamics(Consist.Uniform(t, cars, 1)), line, at, DataFile.Load<BoilerTuning>(Path.Combine(content, BoilerTuning.File)));
+        var sim = new World(simTrain);
+        sim.EnableBodies();
+        sim.EnableRun(DataFile.Load<DarkTerritory.Sim.Run.RunTuning>(Path.Combine(content, DarkTerritory.Sim.Run.RunTuning.File)), generated!, 600, authority: true,
+            null, bigLoot with { Ride = bigLoot.Ride! with { Enabled = true } });
+        run = sim.Run!;
+        foreach (var b in sim.Bodies.All.ToList())
+            sim.Bodies.Remove(b);
+        // A plain car (no crew lockers down its side), so the floor across it shows where they went.
+        int looseCar = simTrain.Vehicles.First(v => v.Kind == VehicleKind.Cargo && simTrain.Frames[v.Id].Shape is { Interior: not null, Lockers.Count: 0 }).Id;
+        var looseRoom = simTrain.Frames[looseCar].Shape.Interior!.Value;
+        int k = Enumerable.Range(0, run.Stops.Count).First(i => run.Stops[i].Stop!.Containers.Count(c => c.Zone == StopZone.Village) >= 6);
+        var owners = run.Stops[k].Stop!.Containers.Where(c => c.Zone == StopZone.Village).Take(9).Select(c => DarkTerritory.Sim.Run.Run.LootOwner(k, c.Index)).ToList();
+        for (int i = 0; i < owners.Count; i++)
+        {
+            // A loose pile in the aisle's middle, a few on top of others.
+            var put = sim.Bodies.Put(simTrain, looseCar, DarkTerritory.Sim.Physics.BodyKind.Loot,
+                new Double3(-0.35 + i % 3 * 0.35, looseRoom.Min.Y + 0.3 + i / 3 * 0.3, -0.4 + i / 3 * 0.12), 0.15, 0.4, 0.05);
+            put.Owner = owners[i];
+            put.Yaw = i * 1.3;
+        }
+        var jackpot = sim.Bodies.Put(simTrain, looseCar, DarkTerritory.Sim.Physics.BodyKind.Heavy, new Double3(0.1, looseRoom.Min.Y + 0.5, 1.4), bigLoot.Jackpots!.Items["safe"].Radius, 0.35, 0.05);
+        jackpot.Owner = DarkTerritory.Sim.Run.Run.LootOwner(Enumerable.Range(0, run.Stops.Count).First(i => run.JackpotsAt(i).Count > 0), DarkTerritory.Sim.Run.Run.JackpotContainer);
+        void Ride(double speed, double seconds)
+        {
+            for (int i = 0; i < seconds * SimConstants.TickRate; i++)
+            {
+                simTrain.Dynamics.Velocity = speed;
+                sim.BeginTick();
+                sim.Step(new TrainControls { Reverser = 1, Brake = speed > 0 ? 0 : 1 });
+                sim.StepBodies([]);
+                sim.StepRun([]);
+            }
+        }
+        Ride(0, 1);
+        Ride(Opt(args, "--speed", 20), Opt(args, "--seconds", 4));
+        prizes = sim.Bodies;
+        if (Str(args, "--cam", "") is not { Length: > 0 })
+        {
+            var f = train.Frames[looseCar];
+            // Stood in the aisle a few steps short of where they were put down, looking down across the car at where they went.
+            bigCamera = Camera.LookAt(f.ToWorld(new Double3(0.7, looseRoom.Min.Y + 1.85, -3.4)), f.ToWorld(new Double3(-0.8, looseRoom.Min.Y + 0.1, 0.4)), 68);
+        }
+    }
     if (look is not null && args.Contains("--reverser"))
         look.Art.ReverserThrown = Opt(args, "--reverser", 0.4);
+    var horseplay = Str(args, "--horseplay", view switch { "shove" => "shove", "sooted" => "sooted", _ => "" }) is { Length: > 0 } horse
+        ? Staging.Horseplay(train, content, horse) : ((List<Crewmate> Crew, List<DarkTerritory.Sim.Player.LumpInFlight> Lumps)?)null;
+    // --rescue handup|carryfriend|throwoff (the views handup and carryfriend, note 723): a friend hauled up into a side door; one
+    // carried; one just thrown off the shoulder (note 818, with --view carryfriend).
+    if (Str(args, "--rescue", view switch { "handup" => "handup", "carryfriend" => "carryfriend", _ => "" }) is { Length: > 0 } rescued)
+        horseplay = (Staging.Rescue(train, content, rescued), []);
+    // --emotes highfive|danceoff|sitedge|leanout (the views of the same names, note 722): the emotes for two, and the edges.
+    if (Str(args, "--emotes", Staging.EmoteViews.Contains(view) ? view : "") is { Length: > 0 } emoting)
+        horseplay = (Staging.Emotes(train, content, emoting), []);
+    // The staged fire's cells as the game cuts them (enemies.json carFire.cellSize), so its flames and char draw (note 763).
+    var stagedFire = DataFile.Load<DarkTerritory.Sim.Enemies.EnemyTuning>(Path.Combine(content, DarkTerritory.Sim.Enemies.EnemyTuning.File)).CarFire;
     var scene = new GreyboxScene
     {
+        // --upgrades lampBrightness: the beam as far as the headlamp reaches (note 506).
+        LampReach = t.HeadlampReach,
         // --draw m: how far along the line to build it (an aerial view of a stretch wants more than the cab's 400).
         DrawDistance = (float)Opt(args, "--draw", 400),
         // (--shot-age s: that long after the guns fired, for the powder smoke rolling off, Effects.CannonShot.)
@@ -1796,10 +2180,19 @@ static object Screenshot(TrainTuning t, string content, string[] args)
         VrBody = look is null ? DataFile.Load<VrTuning>(Path.Combine(content, VrTuning.File)).Body : null,
         Route = route,
         Run = run,
+        // The words on the dressing (note 701): the stickers' puns, the towels' monograms, a staged crew's names on them.
+        Words = DataFile.Load<DarkTerritory.Game.DressWords>(Path.Combine(content, DarkTerritory.Game.DressWords.File)),
+        CrewNames = ["Dave", "Nicki", "Jacob"],
+        // --engine-name (note 714): the nameplate's.
+        EngineName = Str(args, "--engine-name", "") is { Length: > 0 } engineName ? engineName : null,
+        // --whimsy taken:3,canary:dead,playing (note 715): which of Gerald (bit 0) and the gnomes the Gannet's had, the canary's
+        // mood, the gramophone going.
+        WhimsyNow = Staging.Whimsy(Str(args, "--whimsy", "")) is var whimsyStaged ? () => whimsyStaged : null,
         Holdouts = holdouts,
         Town = town,
         Arrival = arrival,
         DropCaught = mail is not null ? id => id == mail.Id && Opt(args, "--mail", 0) > 0 : null,
+        Signs = mail is not null && generated is not null ? [.. DarkTerritory.Sim.Route.Lineside.Boards(mailSight, generated)] : null,
         StagedCatch = Opt(args, "--mail", 0),
         StagedCold = args.Contains("--cold") ? Opt(args, "--cold", 0) : null,
         StagedWind = args.Contains("--wind") ? Opt(args, "--wind", 0) : null, // the towns' flags fly in it (note 674)
@@ -1814,22 +2207,43 @@ static object Screenshot(TrainTuning t, string content, string[] args)
         // --scene-time s: the moment the scene's flickers are drawn at (a guttering lamp's, note 346); 0.37 as ever.
         Time = Opt(args, "--scene-time", 0.37),
         // --spread f: the staged fire f of the way to jumping the coupling (Staging.Spread).
-        Enemies = truss is not null ? Staging.Truss(truss.S0 + 10) : args.Contains("--patrol") ? Staging.Patrol(train) : args.Contains("--run") || args.Contains("--run-ahead") || args.Contains("--run-flank") ? Staging.Run(train, args.Contains("--run-ahead"), args.Contains("--run-flank")) : args.Contains("--threats") ? Later(Staging.Spread(args.Contains("--smoulder") ? Staging.Smoulder(Staging.Switchman(Staging.Soot(Staging.Passenger(Staging.Climber(Staging.Follower(Staging.Stoker(Staging.Grumbler(Staging.Gaunt(Staging.Ribbits(Staging.Whistler(Staging.Tippy(Staging.Hugger(Staging.Debris(Staging.Threats(train, Opt(args, "--doll-at", 22), args.Contains("--lurk-at") ? Opt(args, "--lurk-at", 30) : null), Str(args, "--debris", "")), Str(args, "--hugger", "")), train, Str(args, "--tippy", "")), Str(args, "--whistler", ""), train), Str(args, "--ribbits", ""), train), train, Str(args, "--gaunt", "")), train, Str(args, "--grumbler", "")), Str(args, "--stoker", "")), train, Str(args, "--follower", "")), train, Str(args, "--climber", "")), train, Str(args, "--passenger", "")), train, Str(args, "--soot", "")), Str(args, "--switchman", ""))) : Staging.Switchman(Staging.Soot(Staging.Passenger(Staging.Climber(Staging.Follower(Staging.Stoker(Staging.Grumbler(Staging.Gaunt(Staging.Ribbits(Staging.Whistler(Staging.Tippy(Staging.Hugger(Staging.Debris(Staging.Threats(train, Opt(args, "--doll-at", 22), args.Contains("--lurk-at") ? Opt(args, "--lurk-at", 30) : null), Str(args, "--debris", "")), Str(args, "--hugger", "")), train, Str(args, "--tippy", "")), Str(args, "--whistler", ""), train), Str(args, "--ribbits", ""), train), train, Str(args, "--gaunt", "")), train, Str(args, "--grumbler", "")), Str(args, "--stoker", "")), train, Str(args, "--follower", "")), train, Str(args, "--climber", "")), train, Str(args, "--passenger", "")), train, Str(args, "--soot", "")), Str(args, "--switchman", "")), Opt(args, "--spread", 0), DataFile.Load<DarkTerritory.Sim.Enemies.EnemyTuning>(Path.Combine(content, DarkTerritory.Sim.Enemies.EnemyTuning.File)).CarFire.SpreadSeconds), Opt(args, "--later", 0)) : null,
+        Enemies = truss is not null ? Staging.Truss(truss.S0 + 10) : args.Contains("--patrol") ? Staging.Patrol(train) : args.Contains("--ignite") ? Staging.Ignite(train, Opt(args, "--ignite-at", 0.55), DataFile.Load<DarkTerritory.Sim.Enemies.EnemyTuning>(Path.Combine(content, DarkTerritory.Sim.Enemies.EnemyTuning.File)).CinderHounds.Aboard.IgniteWindUpSeconds) : args.Contains("--run") || args.Contains("--run-ahead") || args.Contains("--run-flank") ? Staging.Run(train, args.Contains("--run-ahead"), args.Contains("--run-flank")) : args.Contains("--threats") ? Later(Staging.Spread(args.Contains("--smoulder") ? Staging.Smoulder((Staging.Soot(Staging.Passenger(Staging.Climber(Staging.Follower(Staging.Stoker(Staging.Grumbler(Staging.Gaunt(Staging.Ribbits(Staging.Whistler(Staging.Tippy(Staging.Hugger(Staging.Debris(Staging.Threats(train, Opt(args, "--doll-at", 22), args.Contains("--lurk-at") ? Opt(args, "--lurk-at", 30) : null, stagedFire), Str(args, "--debris", "")), Str(args, "--hugger", "")), train, Str(args, "--tippy", "")), Str(args, "--whistler", ""), train), Str(args, "--ribbits", ""), train), train, Str(args, "--gaunt", "")), train, Str(args, "--grumbler", "")), Str(args, "--stoker", "")), train, Str(args, "--follower", "")), train, Str(args, "--climber", "")), train, Str(args, "--passenger", "")), train, Str(args, "--soot", "")))) : (Staging.Soot(Staging.Passenger(Staging.Climber(Staging.Follower(Staging.Stoker(Staging.Grumbler(Staging.Gaunt(Staging.Ribbits(Staging.Whistler(Staging.Tippy(Staging.Hugger(Staging.Debris(Staging.Threats(train, Opt(args, "--doll-at", 22), args.Contains("--lurk-at") ? Opt(args, "--lurk-at", 30) : null, stagedFire), Str(args, "--debris", "")), Str(args, "--hugger", "")), train, Str(args, "--tippy", "")), Str(args, "--whistler", ""), train), Str(args, "--ribbits", ""), train), train, Str(args, "--gaunt", "")), train, Str(args, "--grumbler", "")), Str(args, "--stoker", "")), train, Str(args, "--follower", "")), train, Str(args, "--climber", "")), train, Str(args, "--passenger", "")), train, Str(args, "--soot", ""))), Opt(args, "--spread", 0), DataFile.Load<DarkTerritory.Sim.Enemies.EnemyTuning>(Path.Combine(content, DarkTerritory.Sim.Enemies.EnemyTuning.File)).CarFire.SpreadSeconds), Opt(args, "--later", 0)) : null,
         StagedPaces = args.Contains("--passenger") ? new Dictionary<int, float> { [48] = Staging.PassengerPace(Str(args, "--passenger", "")) } : null,
         // --stocked: the train as it leaves, its stores and every car's extinguisher aboard (--charge 0..1: theirs).
         Bodies = shouldered is { } carried ? carried.Bodies.All
             : args.Contains("--bodies") ? Staging.Bodies(train, content).All
+            // --flares (note 964): the flare pistol's shot along the view's look, one in its arc and one burning on the ground.
+            : args.Contains("--flares") ? Staging.Flares(train, camera.Position, new Double3(camera.Forward.X, camera.Forward.Y, camera.Forward.Z)).All
             : args.Contains("--stocked") ? WithToolInLocker(Staging.Stocked(train, content, Opt(args, "--charge", 1)), train, args).All : cargo,
         // --crew: three on car 2's roof, one reaching up, one holding out both hands, one with a keyboard (T47's arms).
         // --working: the crew at work (X1): carrying, at a hatch and a brake wheel on car 2's roof, sat at the last gun.
         // --act smash,pry,pick,...: a row of the crew down car 2's roof, each at one of those acts (CrewPose names).
         // (--survivor prisoner|wildlander: all of them freed survivors' figures, App. D.8.)
-        Crew = args.Contains("--act") ? Staging.Acts(train, content, Str(args, "--act", "").Split(','),
+        // --horseplay shove|sooted (the views shove and sooted, note 717): a shove over car 2's side; a crewmate's sooted face.
+        Lumps = horseplay is { } hp ? hp.Lumps : null,
+        // --sigil anchor (a look.json maskStencils key, or its number from 1): the crew's sigil on the engine's side and every
+        // mask (note 731); the views masks, maskface and sigil have the anchor.
+        CrewSigil = Str(args, "--sigil", view is "masks" or "maskface" or "maskside" or "sigil" ? "anchor" : "") is { Length: > 0 } sigil
+            ? int.TryParse(sigil, out int sigilNumber) ? sigilNumber : Array.IndexOf(look?.Tuning.MaskStencils ?? [], sigil) + 1 : 0,
+        Oddities = oddities,
+        Crew = horseplay is { } hc ? hc.Crew
+            // The handcar views (note 729): two pumping at its handle, or two lifting it down off the van.
+            : view is "handcar" or "handcarlift" ? Staging.HandcarCrew(train, view)
+            // The hoist view (note 726): a friend on the crane's hook, --hook h m up (2.4), another waving up at them.
+            : hoistCrew is not null ? hoistCrew
+            : args.Contains("--act") ? Staging.Acts(train, content, Str(args, "--act", "").Split(','),
                 Enum.Parse<DarkTerritory.Game.Art.Survivor>(Str(args, "--survivor", "none"), ignoreCase: true))
             // --vr-body: three headset crewmates on car 2's roof, leaning, crouched and mid-step (T82; views crew, crewside).
             // --driver: a crewmate at the engine's controls (note 445), on the whistle cord with --whistle; --reverser s: the
             // reverser thrown s seconds ago (SceneArt.ReverserThrown), the brake hand on it.
             : args.Contains("--driver") ? [Staging.Driver(train, args.Contains("--whistle"))]
+            // --signal stop,go,back: a crewmate for each on the ballast off car 1 giving that lamp signal (note 720; view
+            // lampsignal); --signal-at s: how far into it.
+            : args.Contains("--signal") ? Staging.Signallers(train, Str(args, "--signal", "stop,go,back").Split(','), Opt(args, "--signal-at", 0.9))
+            // --cabcrew: the crew in the big cab (note 716), and two off the train (its chart table's lamps, its hooks' caps).
+            // --masks: eight crewmates' painted masks in a row off the engine's front (note 731; views masks, maskface).
+            : args.Contains("--masks") || view is "masks" or "maskface" or "maskside" ? Staging.Masks(train)
+            : args.Contains("--cabcrew") ? Staging.CabCrew(train)
             : args.Contains("--vr-body") ? Staging.Headsets(train, content)
             : args.Contains("--working") ? Staging.Working(train, content)
             : args.Contains("--crew") ? [.. Staging.Crew(train, content), .. args.Contains("--ribbits") || args.Contains("--gaunt") || args.Contains("--grumbler") || args.Contains("--follower") || args.Contains("--soot") ? [Staging.Lone(train)] : Array.Empty<Crewmate>()]
@@ -1837,7 +2251,7 @@ static object Screenshot(TrainTuning t, string content, string[] args)
             // --bodies --burned: the staged body (crewmate 9's) is one the fire took: drawn charred, smouldering (spec C.1).
             : args.Contains("--burned") ? [new Crewmate(9, default, 0, false, Death: DarkTerritory.Sim.Player.DeathCause.Burned)]
             // --shouldered [walk]: a crewmate on car 2 with a body over the shoulder (App. C.4; Staging.Shouldered).
-            : shouldered is { } sh ? [sh.Carrier] : null,
+            : shouldered is { } sh && !cradledFirst ? [sh.Carrier] : null,
         Emergency = args.Contains("--emergency"),
         LampsOut = strandedAt >= 0 ? Views.StrandedLampsOut(train.Frames.Count, outro, strandedAt) : 0,
         KitLockerOpen = strandedAt >= 0,
@@ -1855,15 +2269,21 @@ static object Screenshot(TrainTuning t, string content, string[] args)
         Answer = args.Contains("--answer") ? Str(args, "--answer-at", "60,-12").Split(',') is var aa
             ? Staging.Answer(train, Opt(args, "--answer", 4), double.Parse(aa[0]), double.Parse(aa[1])) : default : default,
         // --watcher s,lateral,height: a sign shown a crewmate afoot (note 327), its eyes there in line coordinates (as --cam;
-        // `dt afoot` lists each sign's), --watcher-left seconds still to show (2.5: open, before the blink).
+        // `dt afoot` lists each sign's), --watcher-left seconds still to show (2.5: open, before the blink), --watcher-kind what it
+        // is (Ribbit; its shape under its eyes, note 761: Gaunt, Grumbler, SootChildren, Whistler).
         Watcher = Str(args, "--watcher", "") is { Length: > 0 } ws && ws.Split(',').Select(double.Parse).ToArray() is var wp
-            ? new DarkTerritory.Sim.Enemies.Watcher(Opt(args, "--watcher-left", 2.5), DarkTerritory.Sim.Enemies.EnemyKind.Ribbit, Staging.LineAt(line, wp[0], wp[1], wp[2]), 0)
+            ? new DarkTerritory.Sim.Enemies.Watcher(Opt(args, "--watcher-left", 2.5),
+                Enum.Parse<DarkTerritory.Sim.Enemies.EnemyKind>(Str(args, "--watcher-kind", "Ribbit"), ignoreCase: true), Staging.LineAt(line, wp[0], wp[1], wp[2]), 0)
             : default,
         // --perched [s]: the fire burned low s seconds (default 10), the Stoker waiting on the smokestack (World.StokerWaiting);
         // past 42 it's climbing down into it.
         StokerLowFor = args.Contains("--perched") ? Opt(args, "--perched", 10) : -1,
         // --whistle: a crewmate on the cord (the cord hauled down, the whistle's steam).
         CordPulled = args.Contains("--whistle"),
+        // --kettle s: the back wall's kettle singing that hard (0..1, note 716); --cuckoo c: the clock's bird c of the way
+        // through its call (0..1).
+        KettleSong = Opt(args, "--kettle", 0),
+        Cuckoo = args.Contains("--cuckoo") ? Opt(args, "--cuckoo", 0.5) : null,
         // --unseen: the livestock not looking round at the eye and the crew (note 455), for the before.
         Onlook = !args.Contains("--unseen"),
         // --coal u: that much on the fire, as the HUD's FIRE reads it (T121: the firebox's look follows it, out only at 0).
@@ -1878,6 +2298,8 @@ static object Screenshot(TrainTuning t, string content, string[] args)
         // --venting: the blow-off held open and the safety valve lifting (T101), their steam.
         Venting = args.Contains("--venting"),
         SafetyValve = args.Contains("--venting"),
+        // --flare x: a shovelful flaring that hard (1: one at its height, note 903), the stack's answer.
+        Flare = (float)Opt(args, "--flare", 0),
         // --ruptured s: the boiler burst s seconds ago (default 0.8: the blast at its height; 30 for the hiss after), spec
         // B.6, GDD §23; the drivers seized and sliding while she's still dragging down to coasting speed.
         // --strain x: every car straining round a bend that hard (0..1, BendStrain: 1 is coming off), its outer rail on the
@@ -1890,19 +2312,60 @@ static object Screenshot(TrainTuning t, string content, string[] args)
         Diverging = train.Diverging,
         // --throttle x: the regulator's handle drawn that far open (T29's cab levers).
         Controls = new TrainControls { Throttle = Math.Clamp(Opt(args, "--throttle", 0), 0, 1), Reverser = 1 },
-        // --own crowbar|shovel|wrench|none: your own arms in view, from the view's eye (X3); --own-swing s: that far into a
+        // --own crowbar|shovel|wrench|pistol|none: your own arms in view (pistol: the flare pistol, note 964), from the view's eye (X3); --own-swing s: that far into a
         // blow; --own-act shovel|carry|...: at that work instead.
         Own = Str(args, "--own", "") is { Length: > 0 } own
             ? new OwnView((float)camera.Yaw, (float)camera.Pitch,
                 Str(args, "--own-act", "") is { Length: > 0 } a ? Enum.Parse<DarkTerritory.Game.Art.CrewPose>(a.Replace("_", ""), true) : null,
                 args.Contains("--own-walk"), args.Contains("--own-swing") ? Opt(args, "--own-swing", 0.3) : -1, 1,
-                own == "none" ? Tool.None : Enum.Parse<Tool>(own, true))
+                own is "none" or "pistol" ? Tool.None : Enum.Parse<Tool>(own, true), Pistol: own == "pistol")
             : null,
     };
+    if (cradledFirst && shouldered is { } inArms)
+    {
+        var ahead = new Double3(-Math.Sin(camera.Yaw), 0, -Math.Cos(camera.Yaw));
+        var hands = inArms.Bodies.Hands;
+        scene.HeldHere = (inArms.Carrier.Id, camera.Position - Double3.Up * (DarkTerritory.Game.Eyes.Height - hands.CarryHeight) + ahead * hands.CarryForward, camera.Yaw);
+        scene.Own = new OwnView((float)camera.Yaw, (float)camera.Pitch, DarkTerritory.Game.Art.CrewPose.Cradle, false, -1, 1, Tool.None);
+    }
+    // --bbq (note 698; with --upgrades bbqDeck): the party at the front, the grill lit, a beer and a sausage going.
+    if (args.Contains("--bbq") && Staging.BbqParty(train, content) is var (party, partyBodies))
+    {
+        train.Vehicles[0].Grill = 120;
+        scene.Vehicles = train.Vehicles;
+        scene.Crew = party;
+        scene.Bodies = partyBodies;
+    }
+    // --pet-mood idle|walk|sleep|warn|fetch (note 745; with --upgrades yardCat,dog --stocked): the cat and the dog so.
+    if (Str(args, "--pet-mood", "") is { Length: > 0 } petMood && scene.Bodies is { } petBodies)
+        foreach (var pet in petBodies.Where(b => b.Kind is DarkTerritory.Sim.Physics.BodyKind.Cat or DarkTerritory.Sim.Physics.BodyKind.Dog))
+            pet.Tipped = (sbyte)Enum.Parse<DarkTerritory.Sim.PetMood>(petMood, ignoreCase: true);
+    // --cannonball (note 746; with --upgrades humanCannonball): someone in the guard van's gun, its gunner behind it.
+    if (args.Contains("--cannonball"))
+        scene.Crew = [.. scene.Crew ?? [], .. Staging.Cannonball(train, DataFile.Load<DarkTerritory.Sim.Combat.CombatTuning>(Path.Combine(content, DarkTerritory.Sim.Combat.CombatTuning.File)).Cannonball)];
+    // --lounge (note 744; with --upgrades hammock,hotTub): someone in the hammock, two in the hot tub.
+    if (args.Contains("--lounge") && Staging.Lounging(train) is var (loungers, loungeBodies))
+    {
+        scene.Crew = [.. scene.Crew ?? [], .. loungers];
+        scene.Bodies = [.. scene.Bodies ?? [], .. loungeBodies];
+    }
+    // --band (note 700): the crew on a roof, each playing one of the band's instruments.
+    if (args.Contains("--band") && Staging.Band(train, content, (int)Opt(args, "--car", 2)) is var (players, instruments))
+    {
+        scene.Crew = [.. scene.Crew ?? [], .. players];
+        scene.Bodies = [.. scene.Bodies ?? [], .. instruments];
+        scene.Band = DataFile.Load<DarkTerritory.Sim.Player.BandTuning>(Path.Combine(content, DarkTerritory.Sim.Player.BandTuning.File));
+    }
+    // --hats (note 714): every staged crewmate in one of the hat rack's hats, in turn.
+    if (args.Contains("--hats") && scene.Crew is { } hatted)
+        scene.Crew = [.. hatted.Select((c, i) => c with { Hat = i % 4 + 1 })];
     if (cameBack is { } risen)
         scene.Crew = [.. scene.Crew ?? [], risen];
     // Note 301's callouts, every break the crew can mend: --breached i[,j,...] those cars' end walls eaten through (dents are
     // --integrity's, the boiler --ruptured's); --mending a wrench at each, its strikes' sparks.
+    // --burnt car,s: its boards charred cell by cell as the fire left them (note 763).
+    if (scene.StagedBurnt is { } gutted)
+        Staging.Charred(train, gutted.Car, stagedFire);
     if (Str(args, "--breached", "") is { Length: > 0 } holes)
         foreach (int i in holes.Split(',').Select(int.Parse))
             if (i > 0 && i < train.Vehicles.Count && Breaches.EndWall(train.Frames[i].Shape) is { } wall)
@@ -1922,6 +2385,7 @@ static object Screenshot(TrainTuning t, string content, string[] args)
         scene.Breaks = breaks;
         // Note 576: the cars and engine --integrity has put under the failing line, shedding as they go.
         scene.Failings = Failing.Of(train);
+        scene.FailTuning = train.Dynamics.Tuning.Failing;
         if (args.Contains("--mending"))
             scene.Mending = Enumerable.Range(0, breaks.Count).ToHashSet();
     }
@@ -1946,10 +2410,33 @@ static object Screenshot(TrainTuning t, string content, string[] args)
             scene.Self = you;
         }
     }
+    // --put-out n (note 866; with --threats, the fire view): the staged car ablaze end to end, and the n stretches of it nearest
+    // the camera put out by the extinguisher, dark, wet and charred, as the crew leave a car they're working down.
+    if (args.Contains("--put-out") && scene.Enemies?.OfType<DarkTerritory.Sim.Enemies.CarFire>().FirstOrDefault() is { Heat.Length: > 0 } dousing)
+        Staging.PutOut(train, dousing, (int)Opt(args, "--put-out", 1), stagedFire);
+    // --scorch [m] (note 821; with --threats, the fire view): a crewmate in the burning car m from its hottest cell (1.4),
+    // the fire's heat on them as the host reckons it, smoking.
+    if (args.Contains("--scorch") && scene.Enemies?.OfType<DarkTerritory.Sim.Enemies.CarFire>().FirstOrDefault() is { Heat.Length: > 0 } burning)
+        scene.Crew = [.. scene.Crew ?? [], Staging.Scorched(train, burning, stagedFire ?? new DarkTerritory.Sim.Enemies.CarFireTuning(),
+            Array.IndexOf(args, "--scorch") is var sc && sc + 1 < args.Length
+                && double.TryParse(args[sc + 1], System.Globalization.CultureInfo.InvariantCulture, out double scorchFrom) ? scorchFrom : 1.4)];
+    // --fire-cause hotbox|hounds|inside|flies|lamp (note 939; with --threats): the staged fire lit by that, shown where it is: the
+    // hot box burning at its wheel (--view hotbox --car the fire's), a hound on its roof over it seen from inside (--view fire;
+    // --ignite-at w, its wind-up to light it again); with --hud, the line saying it.
+    if (Str(args, "--fire-cause", "") is { Length: > 0 } fireCause && scene.Enemies is { } stagedThreats)
+        scene.Enemies = Staging.Caused(train, stagedThreats, fireCause, Opt(args, "--ignite-at", 0),
+            DataFile.Load<DarkTerritory.Sim.Enemies.EnemyTuning>(Path.Combine(content, DarkTerritory.Sim.Enemies.EnemyTuning.File)).CinderHounds.Aboard.IgniteWindUpSeconds, stagedFire);
     // --hugger swallow: the one it has in its mouth at the rear car's end door (App. A.3; Staging.Swallowed).
     if (Str(args, "--hugger", "") == "swallow" && scene.Enemies?.OfType<DarkTerritory.Sim.Enemies.CarHugger>().FirstOrDefault() is { Holding: >= 0 })
         scene.Crew = [.. scene.Crew ?? [], Staging.Swallowed(train), .. args.Contains("--rescue") ? [Staging.SwallowRescuer(train)] : Array.Empty<Crewmate>()];
     // --whistler carry|nest: the one it's carrying off, or has at its nest, as well as anyone else staged (App. A.4; Staging.Carried).
+    // --alone whistler,...: of the staged creatures (--threats), only those kinds, so one's seen without the rest about it
+    // (note 759: the Whistler at its whistle, without the car fire's smoke over the train).
+    if (Str(args, "--alone", "") is { Length: > 0 } alone && scene.Enemies is { } all)
+    {
+        var kinds = alone.Split(',', StringSplitOptions.RemoveEmptyEntries | StringSplitOptions.TrimEntries);
+        scene.Enemies = [.. all.Where(e => kinds.Contains(e.Kind.ToString(), StringComparer.OrdinalIgnoreCase))];
+    }
     if (Str(args, "--whistler", "") is "carry" or "nest" && scene.Enemies?.OfType<DarkTerritory.Sim.Enemies.Whistler>().FirstOrDefault() is { Holding: >= 0 } carrying)
         scene.Crew = [.. scene.Crew ?? [], Staging.Carried(carrying)];
     // --moose graze|listen|warn|squareup|charge|wheel|snag|search|pin: the staged Moose (note 339; Staging.Moose) off the
@@ -1969,8 +2456,8 @@ static object Screenshot(TrainTuning t, string content, string[] args)
     // line, the camera on them (closeup: on their heads; turn: each turned by that much, to see their sides and backs).
     if (Str(args, "--lookbook", "") is { Length: > 0 } lookbook)
     {
-        var all = DarkTerritory.Game.Art.LookbookKit.Characters.Select(c => c.Id).ToList();
-        var ids = lookbook switch { "all" => all, "top" => all.Take(5).ToList(), "bottom" => all.Skip(5).ToList(), _ => [.. lookbook.Split(',')] };
+        var ten = DarkTerritory.Game.Art.LookbookKit.Characters.Select(c => c.Id).ToList();
+        var ids = lookbook switch { "all" => ten, "top" => ten.Take(5).ToList(), "bottom" => ten.Skip(5).ToList(), _ => [.. lookbook.Split(',')] };
         (scene.Lineup, camera) = Staging.Lookbook(train, ids, args.Contains("--closeup"), Opt(args, "--turn", 0));
     }
     // --jacob fish|blessed (note 572): Jacob with his rod out; blessed, the train's glow (the scene's clock from now).
@@ -1984,7 +2471,7 @@ static object Screenshot(TrainTuning t, string content, string[] args)
     if (Str(args, "--dave", view switch { "dave" or "davefar" or "daveface" => "paint", "davewarn" => "warn", _ => "" }) is { Length: > 0 } daveMode)
     {
         scene.Enemies = Staging.Dave(scene.Enemies is List<DarkTerritory.Sim.Enemies.Enemy> others ? others : [], train, daveMode);
-        // --outfit h,v: which of his hats and waistcoats (0-4 each), whatever the night's.
+        // --outfit h,v: which of his hats and waistcoats (0-5 each), whatever the night's.
         if (Str(args, "--outfit", "") is { Length: > 0 } outfit && outfit.Split(',') is [var h, var v])
             DarkTerritory.Game.Art.DaveKit.Wearing = (int.Parse(h), int.Parse(v));
         if (daveMode != "paint")
@@ -2002,6 +2489,25 @@ static object Screenshot(TrainTuning t, string content, string[] args)
     {
         scene.Enemies = Staging.Mourners(scene.Enemies is List<DarkTerritory.Sim.Enemies.Enemy> others ? others : [], train, content, mournersMode, out var mourned);
         scene.Bodies = [.. scene.Bodies ?? [], .. mourned.All];
+    }
+    // The sense table (note 728): a music box playing out in the field with the Moose come over to it (Staging.MusicBox), and
+    // the extinguisher on a Cinder Hound on a roof, driving it back (Staging.ExtinguisherHound).
+    if (view == "musicbox")
+    {
+        scene.Enemies = Staging.MusicBox(scene.Enemies is List<DarkTerritory.Sim.Enemies.Enemy> others ? others : [], train, content, out var box);
+        scene.Bodies = [.. scene.Bodies ?? [], .. box.All];
+    }
+    if (view == "extinguisherhound")
+    {
+        var (threats, sprayer, extinguisher) = Staging.ExtinguisherHound(scene.Enemies is List<DarkTerritory.Sim.Enemies.Enemy> others ? others : [], train, content);
+        scene.Enemies = threats;
+        scene.Crew = [.. (scene.Crew ?? []).Where(c => c.Id != Staging.SprayerId), sprayer];
+        scene.Bodies = [.. scene.Bodies ?? [], .. extinguisher.All];
+        scene.StagedSpray = true;
+        scene.StagedPaces = new Dictionary<int, float>(scene.StagedPaces ?? new Dictionary<int, float>())
+        {
+            [Staging.SprayedHoundId] = (float)DarkTerritory.Sim.Enemies.SenseTuning.Load(content).Answers.CinderHounds.BackOffSpeed,
+        };
     }
     // --beetle idle|walk|brace|push|startle: the staged Freight Beetle at a crate off the line's left (note 366;
     // Staging.Beetle), the beetle view's (pushing it unless told).
@@ -2021,6 +2527,18 @@ static object Screenshot(TrainTuning t, string content, string[] args)
         scene.Bodies = [.. scene.Bodies ?? [], .. crates.All];
         var paces = new Dictionary<int, float>(scene.StagedPaces ?? new Dictionary<int, float>());
         foreach (var (id, pace) in pickerPaces)
+            paces[id] = pace;
+        scene.StagedPaces = paces;
+    }
+    // --mousemoose yard|drag: the staged Mouse Moose off the line's left (note 790; Staging.MouseMoose): creeping in, tugging a
+    // load off, down its hole (the mousemoose view's); close to the one tugging (mousemoosedrag's).
+    if (Str(args, "--mousemoose", view switch { "mousemoose" or "mousemooseface" or "mousemoosehole" => "yard", "mousemoosedrag" => "drag", _ => "" }) is { Length: > 0 } mouseMode)
+    {
+        scene.Enemies = Staging.MouseMoose(scene.Enemies is List<DarkTerritory.Sim.Enemies.Enemy> others ? others : [], train, content, mouseMode,
+            out var loads, out var mousePaces);
+        scene.Bodies = [.. scene.Bodies ?? [], .. loads.All];
+        var paces = new Dictionary<int, float>(scene.StagedPaces ?? new Dictionary<int, float>());
+        foreach (var (id, pace) in mousePaces)
             paces[id] = pace;
         scene.StagedPaces = paces;
     }
@@ -2084,6 +2602,13 @@ static object Screenshot(TrainTuning t, string content, string[] args)
     }
     if (searched is not null)
         scene.Bodies = [.. scene.Bodies ?? [], .. searched.All];
+    if (prizes is not null)
+        scene.Bodies = [.. scene.Bodies ?? [], .. prizes.All];
+    if (carriers is not null)
+        scene.Crew = [.. (scene.Crew ?? []).Where(c => c.Id is not (Staging.JackpotFront or Staging.JackpotBack)), .. carriers];
+    // --gates 0..1 (note 847): every fortress gate's leaves held that far open, to see them swing.
+    if (args.Contains("--gates"))
+        scene.GatesHeld = Math.Clamp(Opt(args, "--gates", 0.5), 0, 1);
     // The village houses' doors (note 401), hanging open; --doors-shut: every one shut.
     if (generated is not null)
     {
@@ -2091,7 +2616,29 @@ static object Screenshot(TrainTuning t, string content, string[] args)
         if (args.Contains("--doors-shut"))
             foreach (var d in scene.Walls.HouseDoors)
                 scene.Walls.SetShut(d.Key, true);
+        // Note 719: the jackpot houses locked, as the run locks them (opened for jackpothouse --inside).
+        if (bigLoot is not null && run is not null)
+        {
+            scene.Walls.Lock(run.LockedDoors());
+            if (view == "jackpothouse" && bigStop >= 0)
+            {
+                int door = run.LockedDoors(bigStop).First();
+                // --plain (note 941): the door of the house nearest it, a village's plank door, not the jackpot house's.
+                if (args.Contains("--plain"))
+                {
+                    var jackpot = scene.Walls.HouseDoors.First(x => x.Key == door).At;
+                    door = scene.Walls.HouseDoors.Where(x => !scene.Walls.Locked(x.Key) && (x.Key - 1) >> 12 == (door - 1) >> 12)
+                        .OrderBy(x => (x.At - jackpot).Length).First().Key;
+                }
+                if (args.Contains("--inside"))
+                    scene.Walls.SetShut(door, false);
+                if (Str(args, "--cam", "") is not { Length: > 0 })
+                    camera = Staging.JackpotHouse(scene.Walls, door, args.Contains("--inside"), args.Contains("--close"));
+            }
+        }
     }
+    if (bigCamera is { } bigView && Str(args, "--cam", "") is not { Length: > 0 })
+        camera = bigView;
     // G1's house creatures (notes 584-586; Staging.House) in the night's first plain open house (frontier:7 unless --route says;
     // --house n the nth such): the hanger view's Hanger hidden in its roof space over its strands, hangergrab's hauling crewmate
     // 4 up on one (--hanger mode: hidden, grab, haul, hold, hit, retreat); the hollowhouse view's Hollow House sinking,
@@ -2269,8 +2816,43 @@ static object Screenshot(TrainTuning t, string content, string[] args)
     // --waker rise (note 599; the wakerrise view): one getting up --rise s into its rise (half of it) --behind m back of the
     // last car (riseBehind), or --aside -1|1 off to that side (riseAside out, asideBack further back), the earth and dust it
     // throws off as the sessions draw them.
-    string wakerMode = Str(args, "--waker", view switch { "waker" => "chase", "wakerlift" or "wakerinside" => "lift", "wakerrise" => "rise", "wakerwall" => "wall", _ => "" });
-    if (wakerMode.Length > 0)
+    string wakerMode = Str(args, "--waker", view switch { "waker" => "chase", "wakerlift" or "wakerinside" => "lift", "wakerrise" => "rise", "wakerwall" => "wall", "wakerpick" => "pick", _ => "" });
+    // --waker pick (note 710; the wakerpick view): a crewmate off the held train out in the field, and the one risen beside them
+    // --pick s into his grab (his hand bringing them up to his mouth; --phase rise|walk|grab|eat for the rest of it).
+    if (wakerMode == "pick")
+    {
+        var wt = DataFile.Load<DarkTerritory.Sim.Enemies.EnemyTuning>(Path.Combine(content, DarkTerritory.Sim.Enemies.EnemyTuning.File)).Wakers;
+        var from = DarkTerritory.Game.Staging.Lineside(train, 30, 26);
+        var picker = DarkTerritory.Sim.Enemies.Waker.Beside(9_101, 2, from, train, wt);
+        string pickPhase = Str(args, "--phase", "grab");
+        double pick = Opt(args, "--pick", wt.PickLiftSeconds * 0.7);
+        var phase = pickPhase switch
+        {
+            "rise" => DarkTerritory.Sim.Enemies.SpinePhase.Telegraph,
+            "walk" => DarkTerritory.Sim.Enemies.SpinePhase.Commit,
+            "eat" => DarkTerritory.Sim.Enemies.SpinePhase.Punish,
+            _ => DarkTerritory.Sim.Enemies.SpinePhase.Grab,
+        };
+        // Stood in reach of them for the grab and after; further off on his way over; where he rose for his rise.
+        var feet = phase == DarkTerritory.Sim.Enemies.SpinePhase.Telegraph ? picker.Local
+            : from + (picker.Local - from).Normalized * (phase == DarkTerritory.Sim.Enemies.SpinePhase.Commit ? 30 : wt.PickReach);
+        double fh = train.Dynamics.Distance;
+        feet = feet with { Y = DarkTerritory.Sim.Player.PlayerMotor.GroundAt(feet, line, ref fh) };
+        picker.Restore(phase, pick, 1, DarkTerritory.Sim.Enemies.Enemy.Loose, feet, picker.LineDistance, picker.Lateral, 0, picker.Extra, picker.Extra2);
+        scene.Enemies = [.. scene.Enemies ?? [], picker];
+        double k = phase == DarkTerritory.Sim.Enemies.SpinePhase.Grab ? Math.Clamp(pick / wt.PickLiftSeconds, 0, 1) : 0;
+        k = k * k * (3 - 2 * k);
+        var inHand = from + (DarkTerritory.Sim.Enemies.Waker.Mouth(feet, picker.Lateral, wt) - from) * k;
+        if (phase != DarkTerritory.Sim.Enemies.SpinePhase.Punish)
+            scene.Crew = [.. (scene.Crew ?? []).Where(c => c.Id != 2),
+                new DarkTerritory.Game.Crewmate(2, inHand, picker.Lateral + Math.PI, true,
+                    Act: phase == DarkTerritory.Sim.Enemies.SpinePhase.Grab ? DarkTerritory.Game.Art.CrewPose.HeldPinned : null)];
+        // From along the line, back off the field, at the two of them: up to his mouth.
+        var side = feet - from;
+        var mid = from + side * 0.5 + Double3.Up * 14;
+        camera = Camera.LookAt(mid + Double3.Cross(side.Normalized, Double3.Up) * Opt(args, "--dist", 80) + Double3.Up * 6, mid, 60);
+    }
+    else if (wakerMode.Length > 0)
     {
         var wt = DataFile.Load<DarkTerritory.Sim.Enemies.EnemyTuning>(Path.Combine(content, DarkTerritory.Sim.Enemies.EnemyTuning.File)).Wakers;
         var waker = (DarkTerritory.Sim.Enemies.Waker)DarkTerritory.Sim.Enemies.Enemy.Blank(DarkTerritory.Sim.Enemies.EnemyKind.Waker, 9_100);
@@ -2290,7 +2872,7 @@ static object Screenshot(TrainTuning t, string content, string[] args)
         }
         else
             waker.Restore(holds ? DarkTerritory.Sim.Enemies.SpinePhase.Punish : DarkTerritory.Sim.Enemies.SpinePhase.Commit, 30, 1, -1, default,
-                train.RearDistance - (holds ? 4 : Opt(args, "--behind", 150)), 0, 0, holds ? Opt(args, "--held", 7) : 0, 0);
+                train.RearDistance - (holds ? wt.CatchShort : Opt(args, "--behind", 150)), 0, 0, holds ? Opt(args, "--held", 7) : 0, 0);
         scene.Enemies = [.. scene.Enemies ?? [], waker];
         var lifted = new List<CarFrame>(leaned ?? train.Frames);
         DarkTerritory.Game.WakerLift.Apply(lifted, train, [waker], wt);
@@ -2312,7 +2894,10 @@ static object Screenshot(TrainTuning t, string content, string[] args)
                 ? Camera.LookAt(eating.Origin + eating.Right * -34 + Double3.Up * 14 + eating.Back * -8, eating.Origin + Double3.Up * 6 + eating.Back * 4, 72)
                 : camera,
             "wakerlift" => Camera.LookAt(train.Frames[next.Index].ToWorld(new Double3(-60, 4, 10)), train.Frames[next.Index].ToWorld(new Double3(0, 9, 12)), 66),
-            "wakerinside" => Camera.LookAt(next.ToWorld(new Double3(0.4, next.Shape.Bounds.Max.Y + 1.6, -half * 0.4)), next.ToWorld(new Double3(-1.5, next.Shape.Bounds.Max.Y + 2, half + 14)), 80),
+            // (Note 902: once the car's up in his hands, up at it and his face.)
+            "wakerinside" => Camera.LookAt(next.ToWorld(new Double3(0.4, next.Shape.Bounds.Max.Y + 1.6, -half * 0.4)),
+                DarkTerritory.Game.WakerLift.Of(train.Frames, train, waker, wt) is { Raised: > 0.3 } up ? up.Mouth
+                    : next.ToWorld(new Double3(-1.5, next.Shape.Bounds.Max.Y + 2, half + 14)), 80),
             _ => camera,
         };
     }
@@ -2321,6 +2906,13 @@ static object Screenshot(TrainTuning t, string content, string[] args)
     {
         var tilted = new List<CarFrame>(leaned ?? train.Frames);
         DarkTerritory.Game.TippleTilt.Apply(tilted, train, run);
+        leaned = tilted;
+    }
+    // And a car come apart on the line, or the engine broken down (note 779; --apart, --integrity 0), as the sessions draw it.
+    if (train.Vehicles.Any(v => v.OffRails) || Failing.BrokenDown(train))
+    {
+        var tilted = new List<CarFrame>(leaned ?? train.Frames);
+        DarkTerritory.Game.ComeApart.Apply(tilted, train, run);
         leaned = tilted;
     }
     // --held (note 580): the staged grab (a creature whose Holding is a staged crewmate: --hugger swallow, --moose pin,
@@ -2335,6 +2927,25 @@ static object Screenshot(TrainTuning t, string content, string[] args)
         camera = HeldShot.Frame(victim.Feet, holder.WorldPosition(train), eyesThere, inside, HeldShot.Size(holder.Kind),
             (x, z) => PlayerMotor.GroundAt(new Double3(x, 0, z), train.Line, ref heldHint));
     }
+    scene.PhotoFlash = view == "yardphoto" ? 1 : 0;
+    // Note 721: the crew photo at the gate, staged beside the engine on the yard's open side (CrewPhoto.YardSide) and taken
+    // from its own lens (--night n, --net s: the slate's); --side 1|-1 a side of the track of your own.
+    if (view == "crewphoto")
+    {
+        var memoryTuning = DataFile.Load<MemoryTuning>(Path.Combine(content, MemoryTuning.File));
+        var staged = CrewPhoto.Stage(train.Frames[0], (int)Opt(args, "--side", CrewPhoto.YardSide(arrival?.Plan.Square.Side)), Staging.PhotoCrew(),
+            CrewPhoto.Chalk(CrewPhoto.RouteName(Str(args, "--route", "frontier:7")), (int)Opt(args, "--night", 3), Opt(args, "--net", 1450)), memoryTuning.Photo);
+        (scene.Crew, scene.Photo) = (staged.Crew, staged.Props);
+        camera = staged.Camera;
+    }
+    // Note 721: the departure town's board of lost crews, two crews' cards on it (Staging.LostCrews), from in front of it;
+    // every other shot's board bare (a batch's renderer, and its look, is shared).
+    if (look is not null)
+        look.Art.World.LostCrews = view == "lostcrews" ? Staging.LostCrews() : [];
+    if (view == "lostcrews" && town is not null)
+        camera = Staging.TownCamera(town, "lostcrews");
+    // The crew's logbook on its shelf in car one, as every night has it (note 721; the lockers view sees it).
+    scene.Logbook = LogbookReader.Shelf(train, new LogbookTuning());
     scene.Build(mesh, train, camera.Position, leaned);
     // How long a frame's scene takes to build on the CPU, warm (the first build cooks the kit's pieces).
     var buildClock = Stopwatch.StartNew();
@@ -2342,6 +2953,14 @@ static object Screenshot(TrainTuning t, string content, string[] args)
     for (int b = 0; b < builds; b++)
         scene.Build(mesh, train, camera.Position, leaned);
     double buildMs = buildClock.Elapsed.TotalMilliseconds / builds;
+    // --walls [r]: the night's Sim walls within r of the eye (60 m) over the scene, to lay what's walked into against what's
+    // drawn (note 869; WallsOverlay). The whole night's, as the app stands them: the run, its facilities, both towns.
+    if (args.Contains("--walls") && generated is not null)
+    {
+        var night = new DarkTerritory.Game.PrototypeSession(content, generated, cars, enemies: false);
+        int drawn = WallsOverlay.Draw(mesh, night.World.Train.Walls!, night.Train.Line, camera.Position, Opt(args, "--walls", 60));
+        Console.Error.WriteLine($"walls: {drawn} of {night.World.Train.Walls!.All.Count} drawn");
+    }
     // --lantern: a hand lamp held just under the eye (the scene is eye-relative), the light you'd have in a dark car.
     if (args.Contains("--lantern") || Staging.IsHouseView(view))
         mesh.PointLights.Add(new PointLight(new System.Numerics.Vector3(0.15f, -0.35f, 0), DarkTerritory.Game.Palette.LampAmber * 1.6f, 6));
@@ -2373,6 +2992,9 @@ static object Screenshot(TrainTuning t, string content, string[] args)
     // --fog d: a thinner (or thicker) night than the route's, to look the lie of the land over.
     if (args.Contains("--fog"))
         lighting.FogDensity = (float)Opt(args, "--fog", lighting.FogDensity);
+    // The dead's wide (note 743), as the app thins the night for it.
+    else if (view == "deadwide")
+        lighting.FogDensity *= DeadViews.WideFog;
     if (strandedAt >= 0)
         Views.CinematicFog(ref lighting, Views.StrandedDistance(train, outro, strandedAt));
     // --survey: a flat, bright, clear light for reading the land's shape (the curves, the grades, the cuttings): a
@@ -2387,7 +3009,28 @@ static object Screenshot(TrainTuning t, string content, string[] args)
         lighting.FogDensity = args.Contains("--fog") ? lighting.FogDensity : 0.0012f;
         lighting.Wetness = 0;
     }
+    // --tipsy n [--tipsy-at s] (note 959): through the eyes of someone n drinks into the dining car's bar, s seconds after the
+    // last (2): the view blurred and leaning as the app draws it (Tipsy; look.json tipsy).
+    float wasBlur = renderer.Post.Blur;
+    if (Opt(args, "--tipsy", 0) is var drinks and > 0 && look?.Tuning.Tipsy is { } tipsyTuning)
+    {
+        var tipsy = new Tipsy();
+        for (int i = 0; i < (int)drinks; i++)
+            tipsy.Drank(0, tipsyTuning);
+        double tipsyAt = Opt(args, "--tipsy-at", tipsyTuning.LeanPeriod / 4);
+        camera.Roll = tipsy.Roll(tipsyAt, tipsyTuning);
+        renderer.Post = renderer.Post with { Blur = tipsy.Blur(tipsyAt, tipsyTuning) };
+    }
     var pixels = renderer.Render(mesh, camera, lighting, lighting.FogColor);
+    if (renderer.Post.Blur != wasBlur)
+        renderer.Post = renderer.Post with { Blur = wasBlur };
+    // The yard photographer's print (note 714): as the app keeps it, cropped, shrunk and sepia.
+    if (view == "yardphoto")
+    {
+        var print = BookmarkStills.Shrink(pixels, width, height, YardPhotographer.Width, YardPhotographer.Height);
+        YardPhotographer.Sepia(print.Rgba);
+        (pixels, width, height) = (print.Rgba, print.Width, print.Height);
+    }
     PngWriter.Write(output, pixels, width, height, scale);
     return new
     {
@@ -2425,10 +3068,25 @@ static int ArtCheck(TrainTuning t, string content, string[] args)
     return rows.Any(r => r.over) ? 1 : 0;
 }
 
+// How much of each kit piece's inside shows from outside it (note 869; MeshOpenness), worst first.
+static int ArtClosed(TrainTuning t, string content, string[] args)
+{
+    var look = DarkTerritory.Game.Look.Load(content);
+    var only = Str(args, "--only", "") is { Length: > 0 } names ? names.Split(',').ToHashSet() : null;
+    double over = Opt(args, "--over", 0.05);
+    var rows = DarkTerritory.Game.Art.ArtCatalog.Entries(look, t).Where(e => only is null || only.Contains(e.Name)).Select(e =>
+    {
+        var (inside, hits, worst) = DarkTerritory.Game.Art.MeshOpenness.SeenInside(e.Make());
+        return new { piece = e.Name, inside = Math.Round(inside, 3), hits, from = new[] { Math.Round(worst.X, 2), Math.Round(worst.Z, 2) } };
+    }).OrderByDescending(r => r.inside).ToList();
+    Print(new { over, open = rows.Where(r => r.inside > over).Select(r => r.piece), pieces = rows });
+    return rows.Any(r => r.inside > over) ? 1 : 0;
+}
+
 // What each lineside kit piece stands on (note 389), as content/linegen/footprints.json has it: one variant a line.
 static int ArtFootprints(string content, string[] args)
 {
-    var all = DarkTerritory.Game.Art.LinesideFootprints.Measure(null);
+    var all = DarkTerritory.Game.Art.LinesideFootprints.Measure(null, DarkTerritory.Game.Look.Load(content));
     var text = DarkTerritory.Game.Art.LinesideFootprints.Json(all);
     string path = Path.Combine(content, DarkTerritory.Sim.LineGen.LineGenConfig.Directory, "footprints.json");
     if (args.Contains("--write"))
@@ -2578,6 +3236,60 @@ static object ArtHouses(string content, string[] args)
     return new { path = Path.GetFullPath(output), character = character.Id, character.Name, designs };
 }
 
+// The Corruption's trees (note 696): each kind's three as a lineup, a row a kind, lamp-lit with a cold fill and the
+// moon, as they stand in the woods; --kind barnacle one kind's; --far their cards (what's drawn past
+// CorruptedTreeArt.ModelledWithinM) in place of their models, to judge them against each other; --time s the frame's
+// clock (the tar's drips sag and the lantern's pods breathe with it: a run of these is their animation).
+static object ArtTrees(string content, string[] args)
+{
+    var look = DarkTerritory.Game.Look.Load(content);
+    var props = DarkTerritory.Game.Art.PropArt.Of(look);
+    string only = Str(args, "--kind", "all");
+    string[] kinds = only == "all" ? DarkTerritory.Game.Art.CorruptedTreeArt.Kinds : [only];
+    bool far = args.Contains("--far");
+    int cols = DarkTerritory.Game.Art.CorruptedTreeArt.Variants, rows = kinds.Length;
+    int w = (int)Opt(args, "--width", 360), h = (int)Opt(args, "--height", 480);
+    using var gpu = new GpuContext("dt art trees");
+    using var renderer = new GreyboxRenderer(gpu, w, h);
+    look.Dress(renderer);
+    var sheet = new byte[w * cols * h * rows * 4];
+    var drawn = new List<object>();
+    double yaw = Opt(args, "--yaw", 25) * Math.PI / 180, pitch = 4 * Math.PI / 180;
+    for (int r = 0; r < rows; r++)
+        for (int v = 0; v < cols; v++)
+        {
+            string name = DarkTerritory.Game.Art.CorruptedTreeArt.Prop(kinds[r], v, far);
+            var piece = props.Get(name) ?? throw new FileNotFoundException($"{name}: tools/models/build.sh corrupted_trees");
+            var (min, max) = DarkTerritory.Game.Art.ArtCatalog.Bounds(piece);
+            var target = new Double3(0, max.Y * 0.48, 0);
+            var toward = new Double3(Math.Sin(yaw) * Math.Cos(pitch), Math.Sin(pitch), -Math.Cos(yaw) * Math.Cos(pitch));
+            var eye = target + toward * (max.Y * 1.22);
+            var camera = Camera.LookAt(eye, target, 50);
+            var mesh = new MeshBuilder { Style = look.Style };
+            var o = -new System.Numerics.Vector3((float)eye.X, (float)eye.Y, (float)eye.Z);
+            mesh.Instances.Add(new MeshInstance(piece, System.Numerics.Matrix4x4.CreateTranslation(o)));
+            float f = 40;
+            mesh.Quad(o + new System.Numerics.Vector3(-f, -0.01f, f), o + new System.Numerics.Vector3(f, -0.01f, f), o + new System.Numerics.Vector3(f, -0.01f, -f), o + new System.Numerics.Vector3(-f, -0.01f, -f), DarkTerritory.Game.Palette.Charcoal * 0.6f);
+            // A lamp off to the viewer's right, down at a lantern's height, and a cold fill from high on the left.
+            var side = System.Numerics.Vector3.Normalize(System.Numerics.Vector3.Cross(new System.Numerics.Vector3((float)toward.X, 0, (float)toward.Z), System.Numerics.Vector3.UnitY));
+            var front = new System.Numerics.Vector3((float)toward.X, 0, (float)toward.Z) * 7;
+            mesh.PointLights.Add(new PointLight(o + front - side * 4 + new System.Numerics.Vector3(0, 2.5f, 0), DarkTerritory.Game.Palette.LampAmber * 2.6f, 26));
+            mesh.PointLights.Add(new PointLight(o + front + side * 9 + new System.Numerics.Vector3(0, max.Y, 0), new System.Numerics.Vector3(0.35f, 0.42f, 0.55f), 45));
+            var light = look.Apply(FrameLighting.Night);
+            light.FogDensity = 0.002f;
+            light.LampRange = 0.01f;
+            light.Time = Opt(args, "--time", 0);
+            var px = renderer.Render(mesh, camera, light, light.FogColor);
+            int ox = v * w, oy = r * h;
+            for (int y = 0; y < h; y++)
+                px.AsSpan(y * w * 4, w * 4).CopyTo(sheet.AsSpan(((oy + y) * w * cols + ox) * 4));
+            drawn.Add(new { name, triangles = piece.Triangles, height = Math.Round(max.Y, 2) });
+        }
+    string output = Str(args, "--out", $"out/shots/art/trees-{only}{(far ? "-far" : "")}.png");
+    PngWriter.Write(output, sheet, w * cols, h * rows, 1);
+    return new { path = Path.GetFullPath(output), drawn };
+}
+
 // A town's people (note 353): each kind of breathing gear out of doors and at home (the mask down), each in its own hat,
 // three-quarters on and lamp-lit; --full the whole figure, --pose idle|lantern|crouch|seated, --yaw degrees round.
 static object ArtTownsfolk(string content, string[] args)
@@ -2671,8 +3383,31 @@ static object ArtClip(string content, string name, string clip, string[] args)
             art.Crewmate(mesh, placed, pose, pose is DarkTerritory.Game.Art.CrewPose.Swing or DarkTerritory.Game.Art.CrewPose.GetUp
                     or DarkTerritory.Game.Art.CrewPose.TakeDown ? time : time - ((int)Opt(args, "--variant", 0) & 7) * 0.41, (int)Opt(args, "--variant", 0),
                 inHand: DarkTerritory.Game.Art.PropArt.Of(look).Get(tool));
+        else if (name == DarkTerritory.Game.Art.DaveArt.Figure)
+        {
+            // Dave (note 491) in his hat and waistcoat (--hat h --vest v: DaveKit's order), his brush and palette in his hands at
+            // his canvas, a board where the easel stands it (the brush's tip on its face).
+            bool painting = clip == DarkTerritory.Game.Art.DaveArt.Painting;
+            DarkTerritory.Game.Art.DaveArt.Draw(look, mesh, placed, clip, time, (int)Opt(args, "--hat", 0), (int)Opt(args, "--vest", 0), painting);
+            if (painting)
+            {
+                float cw = DarkTerritory.Game.Art.DaveArt.CanvasHalfWidth, cz = -DarkTerritory.Game.Art.DaveArt.CanvasOut;
+                float c0 = DarkTerritory.Game.Art.DaveArt.CanvasFoot, c1 = DarkTerritory.Game.Art.DaveArt.CanvasTop;
+                mesh.Quad(new System.Numerics.Vector3(-cw, c0, cz) - e, new System.Numerics.Vector3(cw, c0, cz) - e,
+                    new System.Numerics.Vector3(cw, c1, cz) - e, new System.Numerics.Vector3(-cw, c1, cz) - e, DarkTerritory.Game.Palette.BoardEnamel);
+            }
+        }
         else
             art.Draw(mesh, name, clip, time, loop, placed, (int)Opt(args, "--variant", 0));
+        // (--with clip [--with-at x,z,yaw]: a second of them at the same time, at that clip, there (model space; yaw in degrees):
+        // a pair to look at together, a friend over the shoulder (note 812) at the same feet, a high five's other half facing.)
+        if (Str(args, "--with", "") is { Length: > 0 } other)
+        {
+            var pair = Str(args, "--with-at", "0,0,0").Split(',').Select(double.Parse).ToArray();
+            var there = System.Numerics.Matrix4x4.CreateRotationY((float)(pair[2] * Math.PI / 180))
+                * System.Numerics.Matrix4x4.CreateTranslation(new System.Numerics.Vector3((float)pair[0], 0, (float)pair[1]) - e);
+            art.Draw(mesh, name, other, time, loop, there, (int)Opt(args, "--variant", 0) + 1);
+        }
         var light = look.Apply(FrameLighting.Night);
         light.FogDensity = 0.004f;
         light.LampRange = 0.01f;
@@ -2699,7 +3434,8 @@ static object ArtReel(string content, string[] args)
     string[] cut = ["clinger", "weight", "sleeper", "hollow"];
     var only = Str(args, "--only", "") is { Length: > 0 } o ? o.Split(',') : null;
     var clipsOnly = Str(args, "--clips", "") is { Length: > 0 } co ? co.Split(',') : null;
-    int w = (int)Opt(args, "--width", 360), h = (int)Opt(args, "--height", 240), fps = (int)Opt(args, "--fps", 12);
+    // --fps: the game's own 30 by default (note 823: at 12 the Look Review's reels read choppier than the game plays them).
+    int w = (int)Opt(args, "--width", 360), h = (int)Opt(args, "--height", 240), fps = (int)Opt(args, "--fps", 30);
     var props = DarkTerritory.Game.Art.PropArt.Of(look);
     string dir = Str(args, "--out", "out/reel");
     using var gpu = new GpuContext("dt art reel");
@@ -2710,10 +3446,11 @@ static object ArtReel(string content, string[] args)
     {
         if (cut.Contains(name) || only is not null && !only.Contains(name) || art.Get(name) is not { } model)
             continue;
-        bool survivor = name.StartsWith("survivor_", StringComparison.Ordinal);
+        bool survivor = name.StartsWith("survivor_", StringComparison.Ordinal), dave = name == DarkTerritory.Game.Art.DaveArt.Figure;
         foreach (var clipName in model.Clips.Keys.Order())
         {
-            if (survivor && clipName is not ("idle" or "walk") || clipsOnly is not null && !clipsOnly.Contains(clipName))
+            if (survivor && clipName is not ("idle" or "walk") || dave && clipName is not ("idle" or "walk" or DarkTerritory.Game.Art.DaveArt.Painting)
+                || clipsOnly is not null && !clipsOnly.Contains(clipName))
                 continue;
             // The crew's acts are drawn as the game draws them, with what's in their hands: the reload's powder, rammer and
             // pick, the hand lamp hung from the fist, the bar or the wrench (CreatureArt.Crewmate; a Look Review note).
@@ -2821,6 +3558,9 @@ static object ArtReel(string content, string[] args)
                     var hand = art.Joints(name, clipName, time, loop).ElementAt(handL);
                     mesh.Append(extinguisher, System.Numerics.Matrix4x4.CreateTranslation(hand - new System.Numerics.Vector3(0, extTop - 0.02f, 0) - e));
                 }
+                else if (dave)
+                    DarkTerritory.Game.Art.DaveArt.Draw(look, mesh, System.Numerics.Matrix4x4.CreateTranslation(-e), clipName, time, 0, 0,
+                        clipName == DarkTerritory.Game.Art.DaveArt.Painting);
                 else
                     art.Draw(mesh, name, clipName, time, loop, System.Numerics.Matrix4x4.CreateTranslation(-e));
                 var light = look.Apply(FrameLighting.Night);
@@ -2899,6 +3639,22 @@ static object MenuShot(TrainTuning t, string content, string[] args)
     return new { path = Path.GetFullPath(output), screen = screen.ToString(), items = menu.Items.Select(i => i.Label) };
 }
 
+/// <summary>
+/// A playtest build's mark (note 916) into a content folder: <c>ui/playtest.json</c>, its channel and cohort code (cleaned as
+/// the game cleans a typed one). tools/package.sh --playtest bakes it into the build it zips.
+/// </summary>
+static object PlaytestBake(string into, string cohort)
+{
+    if (into.Length == 0)
+        throw new ArgumentException("dt playtest bake --into <content folder> [--cohort CODE]");
+    var build = new DarkTerritory.Game.Telemetry.PlaytestBuild(Cohort: DarkTerritory.Game.Telemetry.PlaytestKit.Clean(cohort));
+    string path = Path.Combine(into, DarkTerritory.Game.Telemetry.PlaytestBuild.File);
+    Directory.CreateDirectory(Path.GetDirectoryName(path)!);
+    File.WriteAllText(path, "// A playtest build (note 916): written by tools/package.sh --playtest (dt playtest bake).\n"
+        + System.Text.Json.JsonSerializer.Serialize(build, DataFile.Options) + "\n");
+    return new { written = Path.GetFullPath(path), build.Channel, build.Cohort };
+}
+
 /// <summary>The front end on <c>--menu</c>'s screen, with a demo campaign slot unless <c>--saves</c> names real ones.</summary>
 static (DarkTerritory.Game.FrontEnd Menu, DarkTerritory.Game.Screen Screen) DemoMenu(string content, string[] args)
 {
@@ -2934,12 +3690,16 @@ static (DarkTerritory.Game.FrontEnd Menu, DarkTerritory.Game.Screen Screen) Demo
             PublicLobby = !args.Contains("--private"),
             LobbyPassword = args.Contains("--private") ? "NIGHT OWLS" : "",
         }.Save(Path.Combine(dir, "settings.json"));
+    // --menu paint (note 731): PAINT YOUR MASK with a mask painted, signal red with an anchor in bone.
+    if (screen == DarkTerritory.Game.Screen.Paint)
+        new DarkTerritory.Game.Settings { MaskColour = 3, MaskStencil = 12, MaskInk = 1 }.Save(Path.Combine(dir, "settings.json"));
     var menu = new DarkTerritory.Game.FrontEnd(ct, rt, saves, Path.Combine(dir, "settings.json"), () => 7, edition);
     menu.DefaultPlayerName = "Nick";
-    // --menu profile (note 293): a tally as a few nights' crews would leave it, one badge not given yet.
+    // --menu profile (note 293): a tally as a few nights' crews would leave it, one badge not given yet; and a record (note 535).
     menu.Profile = new DarkTerritory.Game.PlayerProfile.Data
     {
         Commendations = new() { ["Came Back For Me"] = 3, ["Held the Switch"] = 1, ["Kept the Fire"] = 5, ["Brought Them Home"] = 2 },
+        RecordKm = 212.4,
     };
     menu.StillsFolder = "C:/Users/Nick/AppData/Local/DarkTerritory/bookmarks";
     menu.Music = DarkTerritory.Sim.Music.MusicManifest.Load(content).Tracks;
@@ -2956,6 +3716,48 @@ static (DarkTerritory.Game.FrontEnd Menu, DarkTerritory.Game.Screen Screen) Demo
         menu.ModProblems = ["Nightjar-LongerNights isn't loaded: it needs Nightjar-SharedCore-1.2.0, which isn't installed"];
         menu.ModsOff = args.Contains("--no-mods");
     }
+    // Note 914: playtest data's question and page (--menu consent, --menu playtestdata), unanswered in the shot's own folder
+    // (--dev: a developer build's, on unless said no).
+    var telemetryDir = Path.Combine(dir, "telemetry");
+    if (Directory.Exists(telemetryDir))
+        Directory.Delete(telemetryDir, recursive: true);
+    menu.PlaytestNotice = DarkTerritory.Game.Telemetry.PlaytestNotice.Load(content);
+    // Note 916: the playtest kit, --cohort CODE a playtest build's (the question says so; Settings shows its code); --menu survey
+    // the night's questions as a playtest's night ends (--answered: three answers and a word given).
+    if (args.Contains("--cohort"))
+        PlaytestBake(Path.Combine(dir, "playtest-build"), Str(args, "--cohort", ""));
+    menu.Kit = DarkTerritory.Game.Telemetry.PlaytestKit.Load(Path.Combine(dir, args.Contains("--cohort") ? "playtest-build" : "no-playtest-build"), telemetryDir);
+    // Note 946: a playtest build's (--cohort) is on from the start, and its first run is the notice, not the question.
+    // Note 968: the notice's firstBootLine makes it on in every build, and the title's shot is a first boot, its line under the menu.
+    bool casual = menu.PlaytestNotice.Casual;
+    menu.Playtest = DarkTerritory.Game.Telemetry.PlaytestConsent.Load(telemetryDir, defaultOn: args.Contains("--dev") || casual,
+        onByNotice: casual || !args.Contains("--dev") && args.Contains("--cohort"));
+    if (casual && screen == DarkTerritory.Game.Screen.Title)
+        menu.OpenPlaytest();
+    if (screen == DarkTerritory.Game.Screen.Survey)
+    {
+        if (!args.Contains("--cohort"))
+            menu.Kit.Type("FALL-26-A");
+        menu.AskSurvey(recording: true);
+        if (args.Contains("--answered"))
+        {
+            menu.Right();
+            menu.Right();
+            menu.Right();
+            menu.Down();
+            menu.Right();
+            menu.Right();
+            menu.Down();
+            menu.Right();
+            menu.Right();
+            menu.Right();
+            menu.Right();
+            menu.Right();
+            menu.Down();
+            menu.Select();
+            menu.Type("Lost the guard van on the bridge. Worth it.");
+        }
+    }
     // Note 452: reports go to the studio, and REPORT A PROBLEM writes one (in the shot's own folder).
     var reports = new DarkTerritory.Game.CrashReports(Path.Combine(dir, "crashes"));
     menu.Reports = DarkTerritory.Game.ReportsTuning.Load(content);
@@ -2968,13 +3770,43 @@ static (DarkTerritory.Game.FrontEnd Menu, DarkTerritory.Game.Screen Screen) Demo
         reports.Write(new InvalidOperationException("the boiler burst"), new DateTime(2026, 10, 8, 3, 15, 22));
         menu.Crash = DarkTerritory.Game.CrashReports.Unseen(reports.Directory);
     }
-    if (screen is DarkTerritory.Game.Screen.Fortress or DarkTerritory.Game.Screen.Upgrades or DarkTerritory.Game.Screen.Stores or DarkTerritory.Game.Screen.DeleteCrew)
+    if (screen is DarkTerritory.Game.Screen.Fortress or DarkTerritory.Game.Screen.Upgrades or DarkTerritory.Game.Screen.Stores or DarkTerritory.Game.Screen.DeleteCrew
+        or DarkTerritory.Game.Screen.Smithy)
         menu.ShowFortress((int)Opt(args, "--slot", 1));
+    // --menu smithy (note 697): the blacksmith's catalogue over the yard, the slot's campaign (--joined: a joiner's, who asks the host).
+    // --dev-unlock (note 747): a developer build's catalogue with its unlock row, turned on; --menu settings shows its row
+    // under DEVELOPER (note 904). --scrip n: the slot's crew with that much to spend (--scrip 0: nothing can be bought).
+    if (args.Contains("--dev-unlock"))
+    {
+        var unlock = new DarkTerritory.Dev.Smithy.DevUnlock { On = true };
+        menu.SmithyMode = () =>
+        {
+            menu.SmithyFree = unlock.On;
+            return unlock.Row();
+        };
+    }
+    if (screen == DarkTerritory.Game.Screen.Smithy && menu.Open is { } stock)
+    {
+        if (args.Contains("--scrip"))
+            stock = stock with { Scrip = Opt(args, "--scrip", 0) };
+        menu.OpenSmithy(new(Yard: true), new DarkTerritory.Game.SmithyShop("Archie MacNeil", stock, !args.Contains("--joined"), "the host"));
+    }
     // --menu night|leave (note 292): the in-night menu over a night hosted on the network for --others n (3), or with
-    // --joined, someone else's.
+    // --joined, someone else's. --listed: a listed run's host, with its MOOD and PASSWORD rows (note 535); --locked behind a
+    // password, its mood --mood's; --typing: a new password half typed.
     if (screen is DarkTerritory.Game.Screen.Night or DarkTerritory.Game.Screen.Leave)
-        menu.OpenNight(new(Hosting: !args.Contains("--joined"), Others: (int)Opt(args, "--others", 3), JoinAt: "192.168.1.20:27960"));
+        menu.OpenNight(new(Hosting: !args.Contains("--joined"), Others: (int)Opt(args, "--others", 3), JoinAt: "192.168.1.20:27960",
+            Lobby: args.Contains("--listed") && !args.Contains("--joined")
+                ? new DarkTerritory.Game.HostLobby(DarkTerritory.Game.Moods.Parse(Str(args, "--mood", "")), args.Contains("--locked")) : null));
     menu.Show(screen);
+    if (screen == DarkTerritory.Game.Screen.Night && args.Contains("--typing"))
+    {
+        int field = menu.Items.ToList().FindIndex(i => i.Label.StartsWith("PASSWORD", StringComparison.Ordinal));
+        for (int i = 0; i < field; i++)
+            menu.Down();
+        menu.Select();
+        menu.Type("tind");
+    }
     // --night-over: back at the title after a night, with the edition's word (the demo's end card).
     if (args.Contains("--night-over"))
         menu.NightOver();
@@ -2996,18 +3828,19 @@ static (DarkTerritory.Game.FrontEnd Menu, DarkTerritory.Game.Screen Screen) Demo
 /// </summary>
 static IReadOnlyList<DarkTerritory.Game.ListedGame> DemoLobbies(int protocol, int cap)
 {
-    Ballast.Net.LanGame Lan(string ip, string host, string name, int aboard, string tier, double ping, int protocol, string mood = "", bool locked = false) =>
+    Ballast.Net.LanGame Lan(string ip, string host, string name, int aboard, string tier, double ping, int protocol, string mood = "", bool locked = false, string record = "") =>
         new(new System.Net.IPEndPoint(System.Net.IPAddress.Parse(ip), DarkTerritory.Game.NetPlaySession.DefaultPort), host, $"{tier.ToUpperInvariant()}:7, 6 CARS, IN THE YARD", aboard, protocol,
             DarkTerritory.Game.NetPlaySession.Game)
-        { Name = name, Max = cap, Tier = tier, PingMs = ping, Mood = mood, Locked = locked };
+        { Name = name, Max = cap, Tier = tier, PingMs = ping, Mood = mood, Locked = locked, Record = record };
     var cloud = new Ballast.Online.FakeOnline();
     var me = cloud.SignIn("me");
-    var hosts = new (string Name, string Run, string Tier, (double, double) Where, Ballast.Online.LobbyVisibility Visibility, int Crew, string Mood)[]
+    // Their records (note 535): how far each host's crews have gone, beside the mood.
+    var hosts = new (string Name, string Run, string Tier, (double, double) Where, Ballast.Online.LobbyVisibility Visibility, int Crew, string Mood, string Record)[]
     {
-        ("PRIYA", "PRIYA'S RUN", "DeadLines", (30, 34), Ballast.Online.LobbyVisibility.Public, 3, "competitive"),
-        ("hollowman", "NO SLEEP TILL HOLLIN", "DeepTerritory", (90, 110), Ballast.Online.LobbyVisibility.Public, cap, "competitive"),
-        ("ash", "LOCALS ONLY", "Local", (60, 20), Ballast.Online.LobbyVisibility.Public, 5, "laughs"),
-        ("secret", "SECRET RUN", "Frontier", (5, 5), Ballast.Online.LobbyVisibility.FriendsOnly, 2, ""),
+        ("PRIYA", "PRIYA'S RUN", "DeadLines", (30, 34), Ballast.Online.LobbyVisibility.Public, 3, "competitive", "412"),
+        ("hollowman", "NO SLEEP TILL HOLLIN", "DeepTerritory", (90, 110), Ballast.Online.LobbyVisibility.Public, cap, "competitive", "1206"),
+        ("ash", "LOCALS ONLY", "Local", (60, 20), Ballast.Online.LobbyVisibility.Public, 5, "laughs", "38"),
+        ("secret", "SECRET RUN", "Frontier", (5, 5), Ballast.Online.LobbyVisibility.FriendsOnly, 2, "", ""),
     };
     var lobbies = new List<Ballast.Online.Lobby>();
     foreach (var h in hosts)
@@ -3019,6 +3852,7 @@ static IReadOnlyList<DarkTerritory.Game.ListedGame> DemoLobbies(int protocol, in
                 [DarkTerritory.Game.NetPlaySession.TierKey] = h.Tier,
                 [DarkTerritory.Game.NetPlaySession.RunKey] = $"{h.Tier.ToUpperInvariant()}:12, 6 CARS, IN THE YARD",
                 [DarkTerritory.Game.NetPlaySession.MoodKey] = h.Mood,
+                [DarkTerritory.Game.NetPlaySession.RecordKey] = h.Record,
             });
         lobby.Poll();
         DarkTerritory.Game.NetPlaySession.Advertise(lobby, h.Crew, cap);
@@ -3029,8 +3863,9 @@ static IReadOnlyList<DarkTerritory.Game.ListedGame> DemoLobbies(int protocol, in
     browser.Poll(0, events, search: true);
     me.Poll(events);
     browser.Poll(0, events, search: false);
-    Ballast.Net.LanGame[] lan = [Lan("192.168.1.20", "nick-pc", "THE NIGHT SHIFT", 2, "Frontier", 1.8, protocol, "laughs", locked: true),
-        Lan("192.168.1.31", "sam", "SAM'S RUN", 1, "Frontier", 3.2, protocol + 1), Lan("192.168.1.44", "jo", "JO'S RUN", cap, "DeadLines", 2.4, protocol, "laughs")];
+    Ballast.Net.LanGame[] lan = [Lan("192.168.1.20", "nick-pc", "THE NIGHT SHIFT", 2, "Frontier", 1.8, protocol, "laughs", locked: true, record: "96"),
+        Lan("192.168.1.31", "sam", "SAM'S RUN", 1, "Frontier", 3.2, protocol + 1), Lan("192.168.1.44", "jo", "JO'S RUN", cap, "DeadLines", 2.4, protocol, "laughs"),
+        Lan("192.168.1.52", "mara", "LONG HAUL", 4, "DeepTerritory", 4.1, protocol, "competitive", record: "1873")];
     var games = lan.Select(DarkTerritory.Game.ListedGame.From).Concat(browser.Games);
     foreach (var l in lobbies)
         l.Dispose();
@@ -3120,10 +3955,18 @@ static object HudShot(string content, string[] args)
             ? Staging.MailCrane(content, generated ?? DarkTerritory.Sim.LineGen.Routes.Generate(content, "frontier:7", cars), cars, craneSeconds, atDoor: !args.Contains("--mid-car"))
             : roofWarning == "bend-cab"
             ? Staging.BendWarning(content, generated ?? DarkTerritory.Sim.LineGen.Routes.Generate(content, "deadLines:1", cars), cars, Array.IndexOf(args, "--bend-warning") is var bw && bw + 1 < args.Length && double.TryParse(args[bw + 1], System.Globalization.CultureInfo.InvariantCulture, out double bws) ? bws : 4)
+            // --terminus approach|inside|home (note 765): the last town coming up, in through its gate, or the train all in and rolling.
+            : Str(args, "--terminus", "") is { Length: > 0 } terminusAt
+            ? Staging.Terminus(content, generated ?? DarkTerritory.Sim.LineGen.Routes.Generate(content, "frontier:7", cars), cars, terminusAt)
+            // --spur-stop [s] (note 764): stopped by a facility down a spur, the dawn clock s seconds out (150).
+            : args.Contains("--spur-stop")
+            ? Staging.SpurStop(content, generated ?? DarkTerritory.Sim.LineGen.Routes.Generate(content, "frontier:7", cars), cars,
+                Array.IndexOf(args, "--spur-stop") is var sp && sp + 1 < args.Length && double.TryParse(args[sp + 1], System.Globalization.CultureInfo.InvariantCulture, out double dawnIn) ? dawnIn : 150)
             : roofWarning.Length > 0
             ? Staging.RoofWarning(content, generated ?? DarkTerritory.Sim.LineGen.Routes.Generate(content, "deadLines:1", cars), cars, roofWarning)
-            : generated is null ? new PrototypeSession(content, Str(args, "--line", "test-loop"), cars) : new PrototypeSession(content, generated, cars, enemies: false);
-        if (roofWarning.Length == 0 && mailCrane is null)
+            : generated is null ? new PrototypeSession(content, Str(args, "--line", "test-loop"), cars) : new PrototypeSession(content, generated, cars, enemies: args.Contains("--taut-knotter"));
+        bool setUp = roofWarning.Length > 0 || mailCrane is not null || args.Contains("--spur-stop") || args.Contains("--terminus");
+        if (!setUp)
             solo.Controls.Throttle = Opt(args, "--throttle", args.Contains("--talk") ? 0 : 0.6);
         // (--news: out of the yard and under way, where cars are lost.)
         if (args.Contains("--news"))
@@ -3132,7 +3975,7 @@ static object HudShot(string content, string[] args)
         if (Str(args, "--hazards", "") is { Length: > 0 } hz)
             DarkTerritory.Sim.Net.HazardConditions.Apply(solo.Train.Line,
                 DataFile.Load<BalanceTuning>(Path.Combine(content, BalanceTuning.File)).Combinations.HazardSets.First(h => h.Name == hz));
-        for (int i = 0; i < (roofWarning.Length > 0 || mailCrane is not null ? 1 : Opt(args, "--seconds", 6) * SimConstants.TickRate); i++)
+        for (int i = 0; i < (setUp ? 1 : Opt(args, "--seconds", 6) * SimConstants.TickRate); i++)
             solo.Step(new PlayerIntent { LookPitch = i == 0 ? (float)Opt(args, "--pitch", 0) : 0, LookYaw = i == 0 ? (float)Opt(args, "--yaw", 0) : 0 });
         // --mend [t]: the repair kit in hand and a broken radio on the belt (GDD §23; note 201), t seconds into mending it.
         if (args.Contains("--mend"))
@@ -3152,6 +3995,18 @@ static object HudShot(string content, string[] args)
             for (int i = 0; i < things.Count; i++)
                 (things[i].Carrier, things[i].Locker, things[i].Pocket, things[i].Stashed) = (me, -1, 2 + i, i > 0);
             solo.Player = solo.Player with { HeldSlot = 2, Pockets = (byte)(things.Count > 1 ? 0b1100 : things.Count > 0 ? 0b0100 : 0) };
+        }
+        // --taut-knotter (note 945; with --route): a Knotter held taut in car 2's rear coupling, and stood on car 2's roof over it,
+        // facing it, where a blow reaches it: the crosshair's IT'S TAUT : STOP THE TRAIN.
+        if (args.Contains("--taut-knotter") && solo.World.Enemies is { } knotting)
+        {
+            const int knotCar = 2;
+            var knot = solo.World.AddEnemy(id => DarkTerritory.Sim.Enemies.Knotter.Into(id, solo.Train, knotCar, knotting.Knotter));
+            knot.Restore(DarkTerritory.Sim.Enemies.SpinePhase.Telegraph, 1, knot.Health, knotCar, knot.Local, 0, 0,
+                (int)DarkTerritory.Sim.Enemies.KnotterMode.Taut, -1, 0);
+            solo.Player = DarkTerritory.Sim.Player.PlayerMotor.SpawnOnRoof(solo.Train, knotCar, solo.Train.Frames[knotCar].Shape.HalfLength - 0.8,
+                solo.PlayerTuning) with
+            { Yaw = Math.PI, Pitch = -0.6 };
         }
         // --lockers [NAME] (note 264): stood at a crew locker (the fitter's if none named), facing it, with what it holds on
         // its door's tag; --carrying kit: the repair kit in hands (from the fitter's), as the hotbar shows it.
@@ -3174,6 +4029,22 @@ static object HudShot(string content, string[] args)
             if (Str(args, "--carrying", "") == "kit" && solo.World.Bodies.All.FirstOrDefault(b => b.Kind == DarkTerritory.Sim.Physics.BodyKind.RepairKit) is { } kit)
                 (kit.Carrier, kit.Locker) = (((IPlaySession)solo).PlayerId, -1);
         }
+        // --shelf (note 721): stood over the crew's logbook (on the big cab's chart table, note 716; or on its shelf across
+        // car one's aisle from the kit locker), looking at it, where Use opens it.
+        if (args.Contains("--shelf") && LogbookReader.Shelf(solo.Train, new LogbookTuning()) is { } shelf
+            && LogbookReader.ReadFrom(solo.Train, shelf) is { } feet)
+        {
+            var to = shelf.Local - (feet + Double3.Up * solo.Train.Dynamics.Tuning.Pick.EyeHeight);
+            solo.Player = solo.Player with
+            {
+                Parent = shelf.Car,
+                Surface = DarkTerritory.Sim.Player.Surface.Deck,
+                Position = feet,
+                Yaw = Math.Atan2(-to.X, -to.Z),
+                Pitch = Math.Atan2(to.Y, Math.Sqrt(to.X * to.X + to.Z * to.Z)),
+                Velocity = default,
+            };
+        }
         // --full-car (note 324): inside the first cargo car, loaded full, a crate from the first stop in hand.
         if (args.Contains("--full-car") && solo.World.Run is { } stocked)
         {
@@ -3185,12 +4056,45 @@ static object HudShot(string content, string[] args)
             solo.Train.Vehicles[car].Load = 1;
             solo.World.Bodies.All.First(b => b.Kind == DarkTerritory.Sim.Physics.BodyKind.Cargo).Carrier = ((IPlaySession)solo).PlayerId;
         }
-        // --news pin|engine (note 663): the news under the dawn clock, a moment after it's said: the pin behind car 2 dropped
-        // (cars 3 on lost), or the engine knocked down to failing at the buffer stop at 21 km/h.
+        // --news pin|engine|fire|loose (note 663): the news under the dawn clock, a moment after it's said: the pin behind car 2 dropped
+        // (cars 3 on lost), or the engine knocked down to failing at the buffer stop at 21 km/h; fire (note 851): car 3's hot
+        // box has just set it alight, and the line says so.
         if (Str(args, "--news", "") is { Length: > 0 } said)
         {
             if (said == "engine")
                 (solo.Train.Vehicles[0].Integrity, solo.Train.Vehicles[0].Knock) = (0.45, (DarkTerritory.Sim.Train.KnockCause.BufferStop, 21 / 3.6));
+            // loose (note 854): the pin behind car 2 just jumped on the 50 km/h bend taken at 62, and the line says so.
+            else if (said == "loose")
+            {
+                solo.Train.Loose = DataFile.Load<UpkeepTuning>(Path.Combine(content, UpkeepTuning.File)).Coupling;
+                solo.Train.Vehicles[2].Loose = SimConstants.TickSeconds;
+                solo.World.PinLoosened(2, DarkTerritory.Sim.Train.LooseCause.Bend, 62 / 3.6, 50);
+            }
+            // jumped (note 865): the pin behind car 2 just jumped clear at a rail joint at 64 km/h, the one that takes two; working,
+            // its warning before, most of the way through (the knock quick, the callout beating, the cars shaking).
+            else if (said is "jumped" or "working")
+            {
+                solo.Train.Loose = DataFile.Load<UpkeepTuning>(Path.Combine(content, UpkeepTuning.File)).Coupling;
+                var cause = said == "working" ? DarkTerritory.Sim.Train.LooseCause.Working : DarkTerritory.Sim.Train.LooseCause.Jumped;
+                double into = said == "working" ? solo.Train.Loose.Jump.WarnSeconds * 0.7 : SimConstants.TickSeconds;
+                (solo.Train.Vehicles[2].Loose, solo.Train.Vehicles[2].LooseCause) = (into, cause);
+                solo.World.PinLoosened(2, cause, 64 / 3.6);
+                // Jumped: down in its gap, at the pin, the HUD's prompt saying it takes two. Working: up on car 2's roof at its back
+                // end, looking back down into the gap, its callout beating there.
+                var g = solo.Train.Dynamics.Tuning.Geometry;
+                solo.Player = said == "working"
+                    ? DarkTerritory.Sim.Player.PlayerMotor.SpawnOnRoof(solo.Train, 2, solo.Train.Frames[2].Shape.HalfLength - 1.2, solo.PlayerTuning) with { Yaw = Math.PI, Pitch = -0.7 }
+                    : solo.Player with
+                    {
+                        Parent = 2,
+                        Surface = DarkTerritory.Sim.Player.Surface.Coupler,
+                        Velocity = default,
+                        Position = new Double3(g.PlateX, g.CouplerHeight, solo.Train.Frames[2].Shape.HalfLength + 0.7),
+                    };
+            }
+            else if (said == "fire")
+                solo.World.FireStarted(DarkTerritory.Sim.Enemies.CarFire.In(99, solo.Train, 3, 2, solo.World.Enemies?.CarFire ?? new DarkTerritory.Sim.Enemies.CarFireTuning(),
+                    DarkTerritory.Sim.Enemies.FireCause.HotBox, 3, -1, "Its rear axle box ran hot, ungreased."));
             else
                 solo.Train.Uncouple(2, DarkTerritory.Sim.Train.Parting.Pin);
             for (int i = 0; i < SimConstants.TickRate / 2; i++)
@@ -3211,6 +4115,34 @@ static object HudShot(string content, string[] args)
         }
         session = solo;
     }
+    // --boiler-red [max][-roof] (note 938): the boiler climbing past what its safety valve holds (max: pinned at the top, the
+    // countdown running), as the cab (at the controls: the key) or, with -roof, car 2's roof (one plain line, no key) is told it.
+    if (args.Contains("--boiler-red") && session.Train.BoilerTuning is { } redTuning)
+    {
+        string red = Str(args, "--boiler-red", "");
+        session.Train.Boiler.Pressure = red.StartsWith("max", StringComparison.Ordinal) ? redTuning.PressureMax : redTuning.SafetyValveLift + 2;
+        session.Train.Boiler.AtMaxSeconds = red.StartsWith("max", StringComparison.Ordinal) ? 6 : 0;
+        if (red.EndsWith("roof", StringComparison.Ordinal) && session is PrototypeSession redSolo)
+            redSolo.Player = PlayerMotor.SpawnOnRoof(redSolo.Train, 2, 0, redSolo.PlayerTuning) with { Yaw = 0, Pitch = -0.15 };
+    }
+    // --belt-short m (note 938): at a grain elevator's drive house (with --site --facility grainElevator), its belt running and
+    // the train m metres short of a car under its head (negative: past it), as the drive house's prompt says which way to go.
+    if (Opt(args, "--belt-short", double.NaN) is var short_ && !double.IsNaN(short_) && session is PrototypeSession beltSolo
+        && beltSolo.World.Run?.Sites.FirstOrDefault(x => x is not null && x.Has(DarkTerritory.Sim.Run.ModuleKind.Conveyor)) is { Spur: >= 0 } belt)
+    {
+        var beltTrain = beltSolo.Train;
+        var beltConsist = beltTrain.Dynamics.Consist;
+        double underHead = beltTrain.Line.Branches[belt.Spur].Toe + belt.ConveyorAlong + beltConsist.OffsetOf(1) + beltConsist.Vehicles[1].Length(beltTrain.Dynamics.Tuning) / 2;
+        var beltState = beltTrain.Capture();
+        beltTrain.Restore(beltState with { Rakes = [beltState.Rakes[0] with { Path = belt.Spur, Distance = underHead - short_, Velocity = 0 }, .. beltState.Rakes[1..]] });
+        beltTrain.RefreshFrames();
+        belt.Mirror(belt.State with { Start = 0, Running = true });
+        beltSolo.Player = PlayerMotor.SpawnOnGround(belt.ConveyorStarter - Double3.Up * 0.9, beltTrain.Line, belt.MainDistance, beltSolo.PlayerTuning);
+    }
+    // --crew-news held|gone (note 750): a crewmate held, or just killed, on the last car's roof, out of voice reach: the line
+    // this player's shown for it, under the news.
+    if (Str(args, "--crew-news", "") is { Length: > 0 } crewNews)
+        session = CrewNewsShot.With(session, gone: crewNews == "gone");
     // --talk person|board|paper|fixture|door [--who i] (note 281): stood in the departure fortress's town in front of one
     // of its people (the i-th) or things, their card open and the line typed out, as Use at the prompt opens it. With
     // --arrival, in the terminus's town (note 603), as the crew would after the night's delivered.
@@ -3219,7 +4151,8 @@ static object HudShot(string content, string[] args)
     if (Str(args, "--talk", "") is { Length: > 0 } talked && session is PrototypeSession here
         && (args.Contains("--arrival") ? here.World.Arrival : here.World.Town) is { } town)
     {
-        talk = new TownTalk();
+        // (The board of lost crews, note 721, with two crews' cards on it: Staging.LostCrews.)
+        talk = new TownTalk { LostCrews = talked == "lostcrews" ? Staging.LostCrews() : [] };
         var (stand, lookAt) = Staging.TownStand(town, talked, (int)Opt(args, "--who", 0));
         var eyeAt = stand + Double3.Up * here.Train.Dynamics.Tuning.Pick.EyeHeight;
         var to = lookAt - eyeAt;
@@ -3237,6 +4170,31 @@ static object HudShot(string content, string[] args)
         for (int i = 0; i < (int)Opt(args, "--again", 0); i++)
             talk.Use(town, Hud.TownTarget(here), 0);
         talkNow = 30;
+    }
+    // --note (note 961): stood on the line's side of the night's first note at a village house's door, Use held till it's
+    // picked up, and the note read on the HUD (the night's oddities with every stop's note out).
+    if (args.Contains("--note") && session is PrototypeSession reader && reader.World.Oddities is { } odds)
+    {
+        if (odds.Things.FirstOrDefault(x => x.Kind == DarkTerritory.Sim.Run.OddThingKind.Note && (!args.Contains("--lineside") || x.Feature < 0)) is not { } note)
+            return new { error = "no note at this night's villages (try another --route)" };
+        var noteAt = odds.At(note.Index);
+        var stand = noteAt - note.Facing * 0.8;
+        var eyeAt = stand + Double3.Up * reader.Train.Dynamics.Tuning.Pick.EyeHeight;
+        var to = noteAt - eyeAt;
+        double hint = reader.Train.Dynamics.Distance;
+        reader.Player = reader.Player with
+        {
+            Parent = DarkTerritory.Sim.Player.PlayerState.World,
+            Surface = DarkTerritory.Sim.Player.Surface.Ground,
+            Position = stand with { Y = PlayerMotor.GroundAt(stand, reader.Train.Line, ref hint) },
+            Yaw = Math.Atan2(-to.X, -to.Z),
+            Pitch = Math.Atan2(to.Y, Math.Sqrt(to.X * to.X + to.Z * to.Z)),
+            Velocity = default,
+        };
+        var hold = new DarkTerritory.Sim.Player.PlayerIntent { Buttons = DarkTerritory.Sim.Player.PlayerButtons.Use };
+        for (int i = 0; i < 90 && !odds.Done(note.Index); i++)
+            reader.Step(hold);
+        reader.Step(default);
     }
     int width = (int)Opt(args, "--width", 480), height = (int)Opt(args, "--height", 270), scale = (int)Opt(args, "--scale", 2);
     // --text-size s (note 347): the HUD on TEXT SIZE's smaller canvas, at 1080p (each canvas pixel 4, 5 or 6 of the screen's).
@@ -3267,7 +4225,20 @@ static object HudShot(string content, string[] args)
         session.World.DawnEndsCampaign = true;
     var frames = session.InterpolatedFrames(1);
     var camera = session.EyeCamera(frames, 1, 0, 0);
-    // --loading [built]: the next night's loading card over the town the crew's in (note 604), from its square; "built", the
+    // --flare (note 871): a flare burning on the ground 35 m out ahead of the eye, and a loaded flare pistol in your hands.
+    if (args.Contains("--flare"))
+    {
+        var ahead = new Double3(camera.Forward.X, 0, camera.Forward.Z);
+        var at = camera.Position + ahead * (35 / ahead.Length);
+        double hint = session.Train.Dynamics.Distance;
+        at = at with { Y = PlayerMotor.GroundAt(at, session.Train.Line, ref hint) };
+        var flare = session.World.Bodies.SpawnItem(at, hint, DarkTerritory.Sim.Physics.BodyKind.Flare);
+        (flare.Burns, flare.Charge) = (60, 1);
+        flare.Pbd.Sleep();
+        var pistol = session.World.Bodies.SpawnItem(at, hint, DarkTerritory.Sim.Physics.BodyKind.FlarePistol);
+        (pistol.Charge, pistol.Carrier) = (2, session.PlayerId);
+    }
+    // --loading [built|following]: the next night's loading card over the town the crew's in (note 604), from its square; "built", the
     // night ahead named (its terminus), as it holds before the night opens.
     var loadingIn = args.Contains("--loading") ? session.World.Arrival : null;
     if (loadingIn is not null)
@@ -3283,9 +4254,12 @@ static object HudShot(string content, string[] args)
     {
         Route = session.Route,
         Run = session.World.Run,
+        Band = session.World.BandTuning,
+        Words = DataFile.Load<DarkTerritory.Game.DressWords>(Path.Combine(content, DarkTerritory.Game.DressWords.File)),
         Holdouts = session.World.Holdouts,
         Town = session.World.Town,
         Arrival = session.World.Arrival,
+        Oddities = session.World.Oddities,
         TownFacing = talk?.Open is { Kind: DarkTerritory.Sim.Towns.TownTargetKind.Person } facing ? (facing.Index, camera.Position) : null,
         TownFacingIn = talk?.In,
         Vehicles = session.Train.Vehicles,
@@ -3293,6 +4267,8 @@ static object HudShot(string content, string[] args)
         Time = 0.37,
         Look = look,
         Crew = crew,
+        // The crew's logbook on its shelf (note 721).
+        Logbook = LogbookReader.Shelf(session.Train, Hud.Remembering.Logbook),
     };
     // The rest of the crew, but not the one whose eyes these are (as the app draws it).
     Scene([.. session.Crew(frames, 1).Where(c => c.Id != session.Watching)]).Build(mesh, session.Train.Line, frames, session.Train.Dynamics.Distance, camera.Position);
@@ -3328,6 +4304,12 @@ static object HudShot(string content, string[] args)
             kept = new BookmarkAlbum(dir, DateTime.Now, session.Route?.Name ?? "night").Save(staged, stills.Stills, session.World);
     }
     var hud = new Overlay();
+    string photoFile = Str(args, "--photo", "");
+    var photoStill = BookmarkAlbum.ReadPhoto(photoFile);
+    // --heat [h]: a car fire h hot on the player (note 821), the heat glow round the view.
+    if (args.Contains("--heat"))
+        Hud.StagedHeat = Array.IndexOf(args, "--heat") is var he && he + 1 < args.Length
+            && double.TryParse(args[he + 1], System.Globalization.CultureInfo.InvariantCulture, out double heat) ? heat : 0.3;
     // --hurt [s]: just hit (GDD App. F.1's damage model; note 272), the red edge flash at strength s (a heavy hit is 1).
     if (args.Contains("--hurt"))
         Hud.StagedHurt = Array.IndexOf(args, "--hurt") is var hu && hu + 1 < args.Length
@@ -3359,16 +4341,48 @@ static object HudShot(string content, string[] args)
             ahead = DarkTerritory.Sim.LineGen.Routes.Generate(content, DarkTerritory.Sim.Towns.TownAt.With(Str(args, "--next", "frontier:3"), named),
                 session.Train.Dynamics.Consist.CarCount).Plan?.Terminus.Name;
         }
-        var (heading, under) = TownBackdrop.Card(loadingIn.Plan.Name, ahead);
-        Onboarding.DrawLoading(hud, width, height, heading, under, null);
+        // --loading following (note 950): a joiner's card while its host picks the next night, the way back to the menu under it.
+        bool following = Str(args, "--loading", "") == "following";
+        var (heading, under) = TownBackdrop.Card(loadingIn.Plan.Name, ahead, following);
+        Onboarding.DrawLoading(hud, width, height, heading, under, null, following ? TownBackdrop.LeaveWait : null);
     }
     else
     {
-        Hud.Build(hud, width, height, session, pixels: scale, firstNight: args.Contains("--first-night"), captions: captioned, commendations: args.Contains("--commend")
+        // --ping: the crew's pings (note 739): Priya's on car 2 (as if afire) and on the controls, one of yours on car 3,
+        // Dunmore's on a town, and yours on a spur that Dunmore's answered (note 936).
+        if (args.Contains("--ping"))
+        {
+            var pinged = session.World;
+            pinged.Names[90] = "Priya";
+            var f = session.Train.Frames;
+            Double3 Mid(int car) => f[Math.Min(car, f.Count - 1)].ToWorld(new Double3(0, f[Math.Min(car, f.Count - 1)].Shape.RoofHeight * 0.5, 0));
+            pinged.Pings.Add(new PingEvent(9001, (uint)session.HostTick, 90, PingKind.Fire, 2, Mid(2)));
+            pinged.Pings.Add(new PingEvent(9002, (uint)session.HostTick, 90, PingKind.Cab, 0, f[0].ToWorld(f[0].Shape.Levers?.Regulator ?? default)));
+            pinged.Pings.Add(new PingEvent(9003, (uint)session.HostTick, session.PlayerId, PingKind.Fire, 3, Mid(3)));
+            // And Dunmore's on the abandoned town (note 739 part two), a house out beside the line.
+            pinged.Names[91] = "Dunmore";
+            pinged.Pings.Add(new PingEvent(9004, (uint)session.HostTick, 91, PingKind.Town, 0, f[Math.Min(2, f.Count - 1)].ToWorld(new Double3(-80, 2, -40))));
+            // And yours on a spur's lever, answered (note 936): "DUNMORE: ON THE SPUR".
+            pinged.Pings.Add(new PingEvent(9005, (uint)session.HostTick + 1, session.PlayerId, PingKind.Points, -1, f[0].ToWorld(new Double3(4, 0.9, -40)), Taker: 91));
+        }
+        // --photo f.png (note 721): the crew photo at the gate (`dt screenshot --view crewphoto`'s) as tonight's, the end card's print.
+        Hud.Build(hud, width, height, session, pixels: scale, firstNight: args.Contains("--first-night"), captions: captioned, photo: photoStill, commendations: args.Contains("--commend")
             ? [("Dave", UiStyle.Commendation.CameBackForMe, "Okafor"), ("Priya", UiStyle.Commendation.KeptTheFire, "Dave"),
                 ("Okafor", UiStyle.Commendation.HeldTheSwitch, "Priya"), ("Dunmore", UiStyle.Commendation.LastOneStanding, "Dave")]
             : null, stills: stills.Stills, talk: talk, now: talkNow);
     }
+    // --logbook [n] (note 721): the crew's logbook open at its nth page (the last, 3, if not said): three nights of a crew's,
+    // the last with --photo's print pasted in (Staging.LogPages); --logbook 0 an empty book.
+    if (args.Contains("--logbook"))
+    {
+        int open = (int)Opt(args, "--logbook", 3);
+        var pages = open <= 0 ? [] : Staging.LogPages(photoFile);
+        var shown = pages.Count > 0 ? pages[Math.Clamp(open - 1, 0, pages.Count - 1)] : null;
+        Hud.LogbookPage(hud, width, height, "The Night Mail", pages, Math.Clamp(open - 1, 0, Math.Max(0, pages.Count - 1)),
+            shown is { Photo.Length: > 0 } ? BookmarkAlbum.ReadPhoto(shown.Photo) : null);
+    }
+    if (args.Contains("--ping"))
+        PingMarks.Draw(hud, width, height, camera, session.World);
     // --emote-wheel: the emote wheel held, the mouse leant toward the wave (note 298).
     if (args.Contains("--emote-wheel"))
     {
@@ -3376,13 +4390,17 @@ static object HudShot(string content, string[] args)
         wheel.Update(true, -60, 0);
         wheel.Draw(hud, width, height, Hud.PromptScaleAt(scale));
     }
-    // --radio manifest|tally [s]: the fortress on the radio (GDD §9; note 178), staged from this night and a delivered report,
-    // --radio-at s into the reading.
+    // --radio manifest|tally|red [s]: the fortress on the radio (GDD §9; note 178), staged from this night and a delivered report
+    // (red: one delivered in the red, three of the crew lost, the clerk saying what cost most; note 766), --radio-at s into the
+    // reading.
     if (Str(args, "--radio", "") is { Length: > 0 } reading)
     {
-        var lines = reading == "tally"
-            ? DarkTerritory.Sim.Run.Radio.Tally(Staging.Report(session.World, DarkTerritory.Sim.Run.RunEnd.Delivered))
-            : DarkTerritory.Sim.Run.Radio.Manifest(session.World, [0, 1, 2, 3]);
+        var lines = reading switch
+        {
+            "tally" => DarkTerritory.Sim.Run.Radio.Tally(Staging.Report(session.World, DarkTerritory.Sim.Run.RunEnd.Delivered)),
+            "red" => DarkTerritory.Sim.Run.Radio.Tally(Staging.InTheRed(session.World)),
+            _ => DarkTerritory.Sim.Run.Radio.Manifest(session.World, [0, 1, 2, 3]),
+        };
         Hud.RadioCard(hud, width, height, lines, Opt(args, "--radio-at", 6), session.World.Run?.Tuning.Radio ?? new());
     }
     // --supplies: the supplies aboard (the director's decision of 2026-10-06; note 264), as I toggles it on.
@@ -3392,7 +4410,12 @@ static object HudShot(string content, string[] args)
     if (args.Contains("--roster"))
     {
         var (lines, heard) = Staging.Roster(session.Train, content);
-        Hud.Roster(hud, width, height, lines, heard);
+        // Note 724: as a host in a public run has it: Reyes muted, the keys under the names, and a vote open on Okafor.
+        // --roster dead (note 938): Dunmore dead, as the roster marks the dead.
+        bool dunmoreDead = Str(args, "--roster", "") == "dead";
+        Hud.Roster(hud, width, height, [.. lines.Select(l => l.Id == 3 ? l with { Muted = true } : l.Id == 1 && dunmoreDead ? l with { Alive = false } : l)], heard, Hud.RosterKeys(host: true, vote: true));
+        if (Hud.KickVoteLine(new DarkTerritory.Sim.Net.KickVote(2, 1, 2, 0), "OKAFOR", onYou: false, 21, 2) is { } vote)
+            Hud.KickVoteBanner(hud, width, height, vote);
     }
     // --card: the generated line's route card over it; --overlay: the designer's overlay (linegen plan §9.7, §20.2).
     if (session.Route?.Plan is { } plan)
@@ -3839,8 +4862,8 @@ static int Usage()
           line drive <name> [--cars n] [--start s] [--from v] [--throttle 0..1] [--seconds t]
           trailer [--route tier:seed] [--fps n] [--width w --height h] [--short] [--beats i,j] [--ffmpeg path] [--crf n]   the trailer cut from the game itself, heard through the game's mixer: frames, trailer.wav and its spectrogram to out/trailer, ffmpeg to trailer.mp4 and contact.png
           art clearance [--only crew] [--clips a,b] [--limit m] [--allow clip:pair,..]   a figure's clips checked for limbs through its body
-          art reel [--only a,b] [--clips c,d] [--fps n] [--width w --height h]   every animated model's every clip as frame strips + reel.json in out/reel (the Look Review's animations)
-          art clip <creature> <clip> [--frames n] [--at x,y,z --dist m --yaw deg --pitch deg] [--lift m] [--variant n] [--once]   a clip as a lit contact sheet
+          art reel [--only a,b] [--clips c,d] [--fps n (30)] [--width w --height h]   every animated model's every clip as frame strips + reel.json in out/reel (the Look Review's animations)
+          art clip <creature> <clip> [--frames n] [--at x,y,z --dist m --yaw deg --pitch deg] [--lift m] [--variant n] [--once] [--with clip [--with-at x,z,yaw]]   a clip as a lit contact sheet (--with: a second of them beside it, a pair)
           screenshot [--view trackside|roof|cab|chase|ahead] [--line name] [--cars n] [--at s] [--car i] [--cut n]
                      [--cam s,lateral,height --target s,lateral,height --fov deg]   camera by line coordinates
                      [--width w] [--height h] [--scale k] [--out file.png] [--threats]   --threats stages one of each enemy
@@ -3858,14 +4881,15 @@ static int Usage()
                      [--utility i,j]   those cars as utility cars, fitted out for the crew (bunks, stove, table)
                      [--cold c]   a night that cold (0..1): frost on what's outdoors, breath from every mouth
                      [--burnt car,s]   that car gutted by a fire out s seconds ago: charred, smouldering
+                     [--put-out n]     with --threats, the staged car ablaze end to end, its n stretches nearest the fire view put out (note 866)
                      [--route tier:seed --structure girder|truss|trestle|viaduct|causeway|retainingwall]   the night's first of the plan's structures of that type, the train on it, from off its side
                      [--route tier:seed --mail s]   at the night's first mail crane, car 2's door by it; s > 0: the bag caught s seconds ago (its snatch, the arms falling)
-                     [--route tier:seed --site [--crank | --crane | --facility i|kind [--leak] [--settled]]]   stopped at a facility: crates out, the winch sled part-hauled (spec D); --crank: close on the cranks; --crane: a gantry crane's facility, a casting on the hook; --facility: the route's i-th
+                     [--route tier:seed --site [--crank | --crane | --facility i|kind [--leak] [--settled]]]   stopped at a facility: crates out, the winch sled part-hauled (spec D); --crank: close on the cranks; --crane: a gantry crane's facility, a casting on the hook [--hook h --trolley t] [--operator: from its cab]; --facility: the route's i-th
              [--route tier:seed --junction i [--diverge] [--through]]   at a switch, set for the branch, run in onto it
              [--route tier:seed --town [square|centre|board|hall|gate|street|houses|house|kitchen|parlour|over|lane]]   the departure fortress's town (note 281), standing in it
           art check                                every kit piece against its triangle budget (exit 1 if any is over)
           art show <piece> [--yaw deg] [--pitch deg] [--zoom k] [--ps2] [--greybox]   a piece on a turntable, to out/shots/art/
-          screenshot --menu title|slots|fortress|upgrades|stores|quickNight|host|join|settings|credits|night|leave|profile [--down n] [--saves dir] [--others n] [--joined]
+          screenshot --menu title|slots|fortress|upgrades|stores|quickNight|host|join|settings|credits|night|leave|profile|consent|playtestData|survey [--dev] [--cohort CODE] [--answered] [--down n] [--saves dir] [--others n] [--joined]
                      a screen of the front end over the yard, as the game draws it
           screenshot --hud [--emote-wheel] [--lost] [--route tier:seed] [--seconds t] [--throttle 0..1] [--pitch r] [--yaw r]
                      a solo session played for a few seconds, first person, with the HUD, at the game's 480x270
@@ -3889,8 +4913,10 @@ static int Usage()
           linegen sweep [--tier all|t] [--cars 3,10,20] [--seeds n] [--report sweep.csv] [--fallbacks]
                      generation, validation and metrics over many seeds (plan §16.5, §20.2)
           harness [--bots n] [--cars n] [--seconds t] [--seed s] [--latency s] [--jitter s] [--loss 0..1] [--line name | --route tier:seed]
-                     [--enemies] [--no-combat] [--no-boiler] [--udp | --online] [--trace file]   --udp: real sockets on localhost instead of the simulated link;
+                     [--enemies] [--no-combat] [--no-boiler] [--udp | --online | --eos] [--trace file] [--wire] [--talk n [--talk-radio]]   --udp: real sockets on localhost instead of the simulated link;
                      --online: every bot joins a lobby on the fake Steam and plays over relayed P2P
+                     --eos [--nat strict|moderate|open] [--relay allow|force]: every bot joins the host's lobby on the fake EOS
+                     by its code, over EOS P2P (strict NATs: all through the relays; note 896)
                      host + bot clients over a simulated network; reports prediction error, bandwidth, deaths,
                      and with --enemies the director's spawns, punishes, deaths by cause and fairness audit; on a route, the
                      facility stops the crew worked (five bots make a crew for a winch); --trace writes who's doing what;
@@ -3914,7 +4940,7 @@ static int Usage()
                      an OpenXR session end to end (Monado's simulated headset works headless) and both eyes as a PNG
           campaign new|show|slots|buy car|kit|powder|lamp|extinguisher|sell|<upgrade>|sim|play [--slot 1..3] [--saves dir] [--contract i] [--seed n]
                      the campaign between nights (spec E, F): the board, purchases, F.4's progression check, a bot night settled
-          online check                             is Steam reachable from here (signed-in user, or what's missing)
+          online check                             are Steam and EOS reachable from here (signed-in user, or what's missing)
           audio opera [--check]
                      the derailment's music (GDD v1.4 App. E.6): our own CC0 recordings into content/audio/music, the manifest, CREDITS.md
           audio render [--scenario bed|tells|chaos|wreck|toys] [--cars n] [--speed v] [--listener car (0 = cab) | all] [--seconds t] [--out file.wav] [--track id] [--space name]
@@ -3924,8 +4950,10 @@ static int Usage()
           audio render --sound <name> [--param name=value ...] [--seconds t] [--out file.wav]
                      one sound alone (a one-shot to its end, a loop for 4 s): WAV, spectrogram, its length, takes and level
           edit [--port p] [--screenshot file.png]   the designer's editor (tuning + routes) at http://127.0.0.1:<port>/
-          voice bench [--car n (0 = cab)] [--z m] [--radio] [--latency s --jitter s --loss 0..1]
-                     one speaker to a listener on car 3 through host routing, Opus and the mixer (spec A.5)
+          voice bench [--car n (0 = cab)] [--z m] [--radio] [--latency s --jitter s --loss 0..1] [--speed m/s]
+                      [--listener-cab | --listener-car n --listener-z m] [--mic dB] [--cab-door left|right|both] [--out file.wav]
+                     one speaker to a listener on car 3 through host routing, Opus and the mixer (spec A.5); restDb is
+                     everything else they hear in the voice band, overRestDb the voice's margin over it (note 855)
         """);
     return 2;
 }
@@ -3939,3 +4967,4 @@ sealed record SpectatedNight(NetPlaySession Host, NetPlaySession Watcher) : IDis
         Host.Dispose();
     }
 }
+

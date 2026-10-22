@@ -82,6 +82,16 @@ public sealed record Settings
     /// with the cap or helmet and scarf that go with it), or −1 for your player id's. Sent as you join; tried on in the yard.
     /// </summary>
     public int Outfit { get; init; } = -1;
+    /// <summary>The hat from the hat rack (note 714): 0 none, else look.json crewHats' (from 1). Worn only on a train with the rack.</summary>
+    public int Hat { get; init; }
+    /// <summary>
+    /// Note 731 (GDD §29 "Painted masks"): your gas mask's coat (look.json maskPaints, from 1; 0 unpainted), its stencil
+    /// (maskStencils, from 1; 0 none) and the stencil's colour (from 1; 0 look.json maskInk's). Sent as you join; tried on in
+    /// the yard (PAINT YOUR MASK).
+    /// </summary>
+    public int MaskColour { get; init; }
+    public int MaskStencil { get; init; }
+    public int MaskInk { get; init; }
     /// <summary>
     /// Note 347: how big the HUD's and the menus' print is, one of <see cref="TextSizes"/>. The overlay's canvas is drawn smaller
     /// and scaled up to the window (<see cref="Canvas"/>), so everything on it grows together and keeps its layout.
@@ -120,7 +130,15 @@ public sealed record Settings
     public static readonly Control[] Toggleable = [Control.Run, Control.Brake, Control.Talk, Control.Radio, Control.Roster, Control.Crouch];
 
     /// <summary>The outfit as the wire has it (note 298): none for −1 or anything off the end.</summary>
-    public byte OutfitByte(int outfits) => Outfit >= 0 && Outfit < outfits ? (byte)Outfit : Sim.Net.Messages.NoOutfit;
+    public byte OutfitByte(int outfits, int hats = 0) =>
+        Hat > 0 && Hat <= hats ? Sim.Player.Outfit.Encode(Outfit < outfits ? Outfit : -1, Hat)
+            : Outfit >= 0 && Outfit < outfits ? (byte)Outfit : Sim.Net.Messages.NoOutfit;
+
+    /// <summary>The mask's paint as the wire has it (note 731): each part none past what's on offer (<paramref name="paints"/>, <paramref name="stencils"/>).</summary>
+    public Sim.Player.MaskPaint MaskPaint(int paints, int stencils) => new(
+        MaskColour > 0 && MaskColour <= paints ? (byte)MaskColour : (byte)0,
+        MaskStencil > 0 && MaskStencil <= stencils ? (byte)MaskStencil : (byte)0,
+        MaskInk > 0 && MaskInk <= paints ? (byte)MaskInk : (byte)0);
     /// <summary>
     /// T83, note 672: a window, or the whole screen, borderless or exclusive. A new install starts on the whole screen,
     /// exclusive (the director, 13 Oct: "I have notifications popping up that are coming up over the bottom right
@@ -217,12 +235,31 @@ public sealed record Settings
         return this with { Keys = keys };
     }
 
+    /// <summary>
+    /// A saved file's keys brought past a default that moved (note 898): a shove saved on Caps Lock goes to its default, 5,
+    /// unless the player put something else on 5; and a player who did, with the shove never changed, keeps the shove on
+    /// Caps Lock, where it was, so no key does two things. Every other key the player chose stays.
+    /// </summary>
+    public Settings Migrated()
+    {
+        string shove = Control.Shove.ToString(), key = Controls.Defaults[Control.Shove];
+        bool taken = Keys.Any(k => k.Key != shove && k.Value == key);
+        var keys = new Dictionary<string, string>(Keys);
+        if (keys.GetValueOrDefault(shove) == "CapsLock" && !taken)
+            keys.Remove(shove);
+        else if (!keys.ContainsKey(shove) && taken)
+            keys[shove] = "CapsLock";
+        else
+            return this;
+        return this with { Keys = keys };
+    }
+
     /// <summary>The file's settings, or the defaults if there's no file or it can't be read.</summary>
     public static Settings Load(string path)
     {
         try
         {
-            return File.Exists(path) ? JsonSerializer.Deserialize<Settings>(File.ReadAllText(path), DataFile.Options) ?? new() : new();
+            return File.Exists(path) ? (JsonSerializer.Deserialize<Settings>(File.ReadAllText(path), DataFile.Options) ?? new()).Migrated() : new();
         }
         catch (JsonException)
         {
@@ -243,7 +280,8 @@ public sealed record Settings
         && MasterVolume == other.MasterVolume && EffectsVolume == other.EffectsVolume && MusicVolume == other.MusicVolume
         && VoiceVolume == other.VoiceVolume && MicDevice == other.MicDevice && MicLevel == other.MicLevel
         && VrTurn == other.VrTurn && VrVignette == other.VrVignette && MouseSpeed == other.MouseSpeed
-        && InvertMouse == other.InvertMouse && FieldOfView == other.FieldOfView && CameraShake == other.CameraShake && Outfit == other.Outfit
+        && InvertMouse == other.InvertMouse && FieldOfView == other.FieldOfView && CameraShake == other.CameraShake && Outfit == other.Outfit && Hat == other.Hat
+        && MaskColour == other.MaskColour && MaskStencil == other.MaskStencil && MaskInk == other.MaskInk
         && TextSize == other.TextSize && Colours == other.Colours && FirstNights == other.FirstNights && Captions == other.Captions && ToggleHolds == other.ToggleHolds && TextBacking == other.TextBacking
         && Display == other.Display && VSync == other.VSync && Resolution == other.Resolution && RenderScale == other.RenderScale
         && PlayerName == other.PlayerName && PublicLobby == other.PublicLobby && LobbyName == other.LobbyName
@@ -252,7 +290,7 @@ public sealed record Settings
 
     public override int GetHashCode() => HashCode.Combine(Mute, PushToTalk, Hud, VrTurn, VrVignette, MouseSpeed, Keys.Count,
         HashCode.Combine(Display, VSync, Resolution, RenderScale, PublicLobby, LobbyName, HashCode.Combine(MasterVolume, EffectsVolume, MusicVolume, VoiceVolume, MicDevice, MicLevel),
-            HashCode.Combine(InvertMouse, FieldOfView, CameraShake, Outfit, ControlHints, TextSize, Colours, HashCode.Combine(FirstNights, Captions, ToggleHolds, TextBacking, LobbyPassword, Mood))));
+            HashCode.Combine(InvertMouse, FieldOfView, CameraShake, Outfit, ControlHints, TextSize, Colours, HashCode.Combine(FirstNights, Captions, ToggleHolds, TextBacking, LobbyPassword, Mood, HashCode.Combine(MaskColour, MaskStencil, MaskInk)))));
 
     /// <summary>The field of view the eyes are drawn at (note 297): the setting if it's one on offer, else 75.</summary>
     public float EyeFov => (float)(FieldsOfView.Contains(FieldOfView) ? FieldOfView : 75);

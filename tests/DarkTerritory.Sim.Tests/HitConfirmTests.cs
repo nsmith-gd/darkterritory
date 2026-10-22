@@ -49,7 +49,7 @@ public class HitConfirmTests
         ref var gun = ref n.Train.Vehicles[0].Gun;
         (gun.Cooldown, gun.ReloadNeeded) = (0, 0);
         // Where the gunner saw it: the targets as the world last had them (as it's just been put there, without a tick of its
-        // own first: a Switchman with no junction to wait at, or a hound with no train to chase, wouldn't stay).
+        // own first: a hound with no train to chase, wouldn't stay).
         var body = e.Body(n.Train, E).ToList();
         n.World.Targets.AddRange(body);
         // Laid on the top of it: the stack's in the way of anything lower on the rail nearer than about 60 m (the engine's
@@ -123,16 +123,15 @@ public class HitConfirmTests
     /// </summary>
     public static readonly EnemyKind[] Creatures =
     [
-        EnemyKind.CinderHound, EnemyKind.Switchman, EnemyKind.SootChildren, EnemyKind.Dragger, EnemyKind.Stoker, EnemyKind.Climber,
+        EnemyKind.CinderHound, EnemyKind.SootChildren, EnemyKind.Dragger, EnemyKind.Stoker, EnemyKind.Climber,
         EnemyKind.Gaunt, EnemyKind.Passenger, EnemyKind.Follower, EnemyKind.TrackDoll, EnemyKind.CarHugger, EnemyKind.Whistler,
         EnemyKind.TippyToesie, EnemyKind.FireFlies, EnemyKind.Ribbit, EnemyKind.Grumbler, EnemyKind.Choir, EnemyKind.Moose, EnemyKind.Gannet, EnemyKind.Mourners, EnemyKind.TowerJaw, EnemyKind.FreightBeetle, EnemyKind.Brakeman, EnemyKind.Hotbox, EnemyKind.Knotter,
-        EnemyKind.Pickers, EnemyKind.Lodger, EnemyKind.Householder, EnemyKind.Hanger,
+        EnemyKind.Pickers, EnemyKind.Lodger, EnemyKind.Householder, EnemyKind.Hanger, EnemyKind.MouseMoose,
     ];
 
     static Enemy Make(EnemyKind kind, int id) => kind switch
     {
         EnemyKind.CinderHound => new CinderHound(id, 0),
-        EnemyKind.Switchman => new Switchman(id),
         EnemyKind.SootChildren => new SootChildren(id),
         EnemyKind.Dragger => new Dragger(id),
         EnemyKind.Stoker => new Stoker(id),
@@ -160,6 +159,7 @@ public class HitConfirmTests
         EnemyKind.Lodger => new Lodger(id),
         EnemyKind.Householder => new Householder(id),
         EnemyKind.Hanger => new Hanger(id),
+        EnemyKind.MouseMoose => new MouseMoose(id),
         _ => throw new ArgumentException($"{kind} isn't a creature"),
     };
 
@@ -395,7 +395,8 @@ public class HitConfirmTests
     public void EveryBodyIsUprightOverWhereItStands()
     {
         // enemies.json bodies: a stack of spheres over the creature's feet, none below the ground it stands on, each its own size.
-        Assert.Equal(Shootable().Select(r => r.Data).OrderBy(k => k), E.Bodies.Keys.Select(k => Enum.Parse<EnemyKind>(k, true)).OrderBy(k => k));
+        // (And the Waker's, note 940: a titan's, sixty metres of him, so not in the creatures' sizes; WakersTests has him.)
+        Assert.Equal(Shootable().Select(r => r.Data).Append(EnemyKind.Waker).OrderBy(k => k), E.Bodies.Keys.Select(k => Enum.Parse<EnemyKind>(k, true)).OrderBy(k => k));
         foreach (var kind in Creatures)
             foreach (var (radius, height) in E.Body(kind))
             {

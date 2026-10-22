@@ -348,7 +348,7 @@ public class NetcodeTests
     [Fact]
     public void ABrakeLeftOnStaysOnWithNobodyAtTheControls()
     {
-        // frontier:7: the driver got down to club a Switchman, the brake came off with nobody holding it, and the train
+        // frontier:7: the driver got down (to club a Switchman, then; it's cut, note 852), the brake came off with nobody holding it, and the train
         // rolled down the grade into its points. The brake valve stays where it was left, as the throttle does.
         var (net, host, clients) = Session(2);
         Run(net, host, clients, 10, _ => default);
@@ -623,10 +623,52 @@ public class SessionRulesTests
         // Watching the crewmate on the guard car's roof, it's theirs to see.
         Watching(watched, 20);
         Assert.Single(clients[0].World.ActiveEnemies);
-        // The watched one dead too: back to their own.
+        // The watched one dead too: their body's where they fell, by the guard car, and watching it (note 743) is still
+        // watching what's round it.
         host.SetPlayerState(watched, host.Players.Single(p => p.Id == watched).State with { Health = 0, Death = DeathCause.Mauled });
         Watching(watched, 20);
+        Assert.Contains(host.World.Bodies.All, b => b.Kind == DarkTerritory.Sim.Physics.BodyKind.Ragdoll && b.Owner == watched);
+        Assert.Single(clients[0].World.ActiveEnemies);
+        // Gone (eaten, say): no body, and back to their own.
+        host.World.Bodies.Remove(host.World.Bodies.All.First(b => b.Owner == watched));
+        Watching(watched, 20);
         Assert.Empty(clients[0].World.ActiveEnemies);
+    }
+
+    [Fact]
+    public void ADeadPlayerWatchingABodyIsSentWhatsAroundIt()
+    {
+        // Note 743 (the director, 14 Oct: "We should also be able to view other players' or bots' dead bodies"): the dead are
+        // sent every crewmate's body however far off it lies, and watching one, what's around it.
+        var (net, host, clients, _) = Session(2, cars: 20);
+        host.EnableEnemies(Tuning.Enemies, null, 1, 2);
+        host.InterestRadius = 220;
+        Run(net, host, clients, 10);
+        byte dead = clients[0].PlayerId!.Value, fallen = clients[1].PlayerId!.Value;
+        int guard = host.Train.Dynamics.Consist.Vehicles[^1].Id;
+        var onGuard = PlayerMotor.SpawnOnRoof(host.Train, guard, 0, P);
+        host.SetPlayerState(fallen, onGuard with { Health = 0, Death = DeathCause.Mauled });
+        host.World.Bodies.SpawnRagdoll(host.Train, fallen, onGuard);
+        host.SetPlayerState(dead, host.Players.Single(p => p.Id == dead).State with { Health = 0, Death = DeathCause.Mauled });
+        var shape = host.Train.Frames[guard].Shape;
+        host.World.AddEnemy(id => new DarkTerritory.Sim.Enemies.Dragger(id) { Attached = guard, Local = new Double3(shape.HalfWidth + 0.1, shape.RoofHeight - 0.35, 0), Extra = -1 });
+        void Watching(byte who, int ticks)
+        {
+            for (int t = 0; t < ticks; t++)
+            {
+                net.Advance(SimConstants.TickSeconds);
+                host.Step();
+                clients[0].Step(new PlayerIntent { Watch = who });
+                clients[1].Step(default);
+            }
+        }
+        // Watching nobody, from the cab: the body 300 m back is theirs to choose, the Dragger by it isn't sent.
+        Watching(0, 20);
+        Assert.Contains(clients[0].World.Bodies.All, b => b.Kind == DarkTerritory.Sim.Physics.BodyKind.Ragdoll && b.Owner == fallen);
+        Assert.Empty(clients[0].World.ActiveEnemies);
+        // Watching the body: what's round it.
+        Watching(fallen, 20);
+        Assert.Single(clients[0].World.ActiveEnemies);
     }
 
     [Fact]

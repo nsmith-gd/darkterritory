@@ -1,0 +1,9 @@
+// #613's balance sweep (note 930): the shipping content with one of the director's pending asks on, to give each its
+// 30-seed number. `dt --edition f1-gannet-12 director sweep ...`. Measurement only; never shipped.
+{
+  "id": "edition-f1-gannet-12",
+  "name": "f1-gannet-12",
+  "version": "1.0.0",
+  "description": "gannet-12: the Gannet arrives above 12 m/s (note 915)",
+  "order": -1000
+}

@@ -83,7 +83,8 @@ public class CampaignTests
         Assert.Equal(Tuning.Boiler.FireTimeConstant / 0.85, up.Boiler.FireTimeConstant, 6);
         Assert.Equal(Tuning.Boiler.SteamPerUnit / Tuning.Boiler.FireTimeConstant, up.Boiler.SteamPerUnit / up.Boiler.FireTimeConstant, 6);
         Assert.Equal((int)(Tuning.Combat.Guns.Ammo * 1.5), up.Combat.Guns.Ammo);
-        Assert.Equal(Tuning.Enemies.Sleepers.LampRevealDistance * 1.25, up.Enemies!.Sleepers.LampRevealDistance, 6);
+        // Lamp brightness (note 506): the headlamp's reach, everything it shows (UpgradeTests).
+        Assert.Equal(1.25, up.Train.HeadlampReach, 6);
         // An upgrade the campaign doesn't sell changes nothing (every one it does sell does something: UpgradeTests, note 196).
         Assert.Equal(base_, Campaign.Campaign.Apply(C, ["warpDrive"], base_));
         // The consist's (note 184): fitted to the train, the numbers they bring in train.json composition.
@@ -103,6 +104,13 @@ public class CampaignTests
         var log = Assert.Single(after.History);
         Assert.Equal("frontier:7", log.Route);
         Assert.Equal(RunEnd.Delivered, log.End);
+        // Note 535: how far the night went is kept, and the crew's distance is every night's together.
+        Assert.Equal(27, log.Km);
+        var again = Campaign.Campaign.Settle(Campaign.Campaign.Begin(after, new Contract(RouteTier.Frontier, 8, 700)), report with { DistanceKm = 31.5 });
+        Assert.Equal(58.5, Campaign.Campaign.Distance(again), 6);
+        // A save from before kept no distance: it reads as none.
+        var old = System.Text.Json.JsonSerializer.Deserialize<RunLog>("""{"run":1,"route":"frontier:7","end":"Delivered","net":10,"carsLost":0,"scripAfter":10}""", DataFile.Options)!;
+        Assert.Equal(0, old.Km);
     }
 
     /// <summary>

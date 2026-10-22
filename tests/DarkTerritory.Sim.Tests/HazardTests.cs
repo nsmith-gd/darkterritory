@@ -7,51 +7,29 @@ using DarkTerritory.Sim.Train;
 
 namespace DarkTerritory.Sim.Tests;
 
-/// <summary>GDD §22, §23 hazards (note 183): deep cold, wind, fouled guns, broken radios, lamps out.</summary>
+/// <summary>GDD §22, §23 hazards (note 183): wind, fouled guns, broken radios, lamps out (the deep cold went with the cold, note 852).</summary>
 public class HazardTests
 {
     static readonly PlayerTuning P = Tuning.Player;
     static readonly CombatTuning C = Tuning.Combat;
 
-    sealed class Weather(int cold, double wind = 0, double adhesion = 1) : ITrackConditions
+    sealed class Weather(double wind = 0, double adhesion = 1) : ITrackConditions
     {
         public double Ground(Double3 world) => 0;
         public double Adhesion(int path, double distance) => adhesion;
         public double Drag(int path, double distance, double speed) => 0;
-        public int ColdStep(int path, double distance) => cold;
         public double Wind(int path, double distance) => wind;
     }
 
     /// <param name="wrench">Note 301's <c>repair.wrench</c>: the wrench mends a radio. Off, the repair kit does (note 200).</param>
-    static TrainOnLine Train(ITrackConditions? conditions, int cars = 5, bool wrench = true) =>
-        new(new TrainDynamics(Consist.Uniform(Tuning.Train with { Repair = Tuning.Train.Repair with { Wrench = wrench } }, cars, 1)),
+    // The loose radio sets (note 749's radio each off): the radio tests here take one and put it on.
+    static TrainOnLine Train(ITrackConditions? conditions, int cars = 5, bool wrench = true, double? grabBreak = null) =>
+        new(new TrainDynamics(Consist.Uniform(Tuning.LooseRadios with
+        {
+            Repair = Tuning.Train.Repair with { Wrench = wrench },
+            Kit = Tuning.LooseRadios.Kit with { RadioBreakOnGrab = grabBreak ?? Tuning.LooseRadios.Kit.RadioBreakOnGrab },
+        }, cars, 1)),
             new RailLine(new LineDefinition("t", [new TrackSegment(40_000)])) { Conditions = conditions }, 2_000);
-
-    static double ColdAfter(ITrackConditions? conditions, double seconds)
-    {
-        var train = Train(conditions);
-        var s = PlayerMotor.SpawnOnRoof(train, 2, 0, P);
-        for (int i = 0; i < seconds * SimConstants.TickRate; i++)
-            PlayerMotor.Step(ref s, default, train, P, Tuning.Train, SimConstants.TickSeconds, applyLook: false);
-        return s.Cold;
-    }
-
-    [Fact]
-    public void DeepColdComesOnFaster()
-    {
-        double normal = ColdAfter(null, 10), deep = ColdAfter(new Weather(cold: 2), 10);
-        Assert.True(normal > 0);
-        Assert.Equal(normal * (1 + 2 * P.Cold.PerColdStep), deep, 1);
-    }
-
-    [Fact]
-    public void DeepColdTakesTheEdgeOffTheFire()
-    {
-        var bt = Tuning.Boiler;
-        Assert.Equal(1, bt.ColdEfficiency(0));
-        Assert.Equal(1 - 2 * bt.ColdEfficiencyPerStep, bt.ColdEfficiency(2), 9);
-        Assert.Equal(bt.ColdEfficiencyFloor, bt.ColdEfficiency(100));
-    }
 
     [Fact]
     public void FoulingIsAHashTheSameEverywhereAndRoughlyTheChance()
@@ -101,9 +79,9 @@ public class HazardTests
         Assert.False(w.Train.Vehicles[0].Gun.Jammed);
     }
 
-    static (World World, Body Radio, PlayerState Wearer) Wearing(int id = 1, bool wrench = true)
+    static (World World, Body Radio, PlayerState Wearer) Wearing(int id = 1, bool wrench = true, double? grabBreak = null)
     {
-        var world = new World(Train(null, 6, wrench));
+        var world = new World(Train(null, 6, wrench, grabBreak));
         world.EnableBodies();
         world.Stock();
         var radio = world.Bodies.All.First(b => b.Kind == BodyKind.Radio);
@@ -129,10 +107,12 @@ public class HazardTests
     [Fact]
     public void GrabbedSomeRadiosBreakAndUnhurtNone()
     {
+        // The mechanism, at the old chance (note 749 made the game's 0: a grab never breaks the set, RadioTests).
+        const double Chance = 0.25;
         int broken = 0, trials = 400;
         for (int id = 1; id <= trials; id++)
         {
-            var (world, radio, s) = Wearing(id);
+            var (world, radio, s) = Wearing(id, grabBreak: Chance);
             world.StepBodies([(id, s)]);
             world.StepBodies([(id, s)]);
             Assert.False(radio.Broken);
@@ -140,7 +120,7 @@ public class HazardTests
             world.StepBodies([(id, s)]);
             broken += radio.Broken ? 1 : 0;
         }
-        double expect = trials * Tuning.Train.Kit.RadioBreakOnGrab;
+        double expect = trials * Chance;
         Assert.InRange(broken, expect * 0.6, expect * 1.4);
     }
 
@@ -149,8 +129,8 @@ public class HazardTests
     [Fact]
     public void TheWindPushesARoofStanderSideways()
     {
-        var calm = Train(new Weather(0, wind: 0));
-        var windy = Train(new Weather(0, wind: 1));
+        var calm = Train(new Weather(wind: 0));
+        var windy = Train(new Weather(wind: 1));
         var s0 = PlayerMotor.SpawnOnRoof(calm, 2, 0, P);
         var s1 = PlayerMotor.SpawnOnRoof(windy, 2, 0, P);
         double push = PlayerMotor.WindPush(s1, default, windy, P, Tuning.Train);
@@ -172,7 +152,7 @@ public class HazardTests
     [Fact]
     public void RunningCatchesMoreWindAndAHandrailOrAGunSeatLess()
     {
-        var train = Train(new Weather(0, wind: 1.5));
+        var train = Train(new Weather(wind: 1.5));
         var s = PlayerMotor.SpawnOnRoof(train, 2, 0, P);
         double stood = Math.Abs(PlayerMotor.WindPush(s, default, train, P, Tuning.Train));
         double running = Math.Abs(PlayerMotor.WindPush(s, new PlayerIntent { Buttons = PlayerButtons.Run }, train, P, Tuning.Train));
@@ -199,23 +179,14 @@ public class HazardTests
     }
 
     [Fact]
-    public void InAWindAndColdNightPredictionStillMatchesTheHost()
+    public void InAWindyNightPredictionStillMatchesTheHost()
     {
         // The wind's push changes the player's state, so a predicting client must compute it as the host does (its own copy
         // of the line: the hazard set is laid over the line it's given).
         var line = RailLine.Load(Path.Combine(DataFile.FindContentRoot(), "lines/test-loop.json"));
-        var cold = Net.HazardSet.Clear with { Name = "cold", ColdStep = 2, Wind = 1.5 };
-        var r = Net.Harness.Run(line, Tuning.Train, P, new Net.HarnessOptions { Bots = 8, Seconds = 45, Link = Ballast.Net.LinkConditions.Perfect, Hazards = cold });
+        var windy = Net.HazardSet.Clear with { Name = "wind", Wind = 1.5 };
+        var r = Net.Harness.Run(line, Tuning.Train, P, new Net.HarnessOptions { Bots = 8, Seconds = 45, Link = Ballast.Net.LinkConditions.Perfect, Hazards = windy });
         Assert.All(r.Clients, c => Assert.True(c.MaxCorrectionM < 0.001, $"player {c.Id} corrected by {c.MaxCorrectionM} m"));
-    }
-
-    [Fact]
-    public void TheColdStepIsWhereYouAre()
-    {
-        var train = Train(new Weather(cold: 3));
-        Assert.Equal(3, PlayerMotor.ColdStep(PlayerMotor.SpawnOnRoof(train, 2, 0, P), train));
-        var plain = Train(null);
-        Assert.Equal(0, PlayerMotor.ColdStep(PlayerMotor.SpawnOnRoof(plain, 2, 0, P), plain));
     }
 
     static (World World, Body Radio, Body Kit, PlayerState Mender) Mending()

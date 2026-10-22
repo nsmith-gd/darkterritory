@@ -43,6 +43,8 @@ public sealed partial class GameAudio
         PrepareMix(contentRoot);
         Opera = new Opera(contentRoot);
         Clerk = new ClerkVoice(Bank.Samples);
+        // The band's recordings (note 711), where the content has them.
+        Recordings = BandSamples.Load(contentRoot) is { } band ? new BandSamples(band, Bank.Samples) : null;
     }
 
     public SoundBank Bank { get; }
@@ -169,6 +171,8 @@ public sealed partial class GameAudio
         Cues(world);
         RoofWarning(world);
         Toys(world, train);
+        Band(world, train, dt);
+        Whimsies(world, train);
         Ride(train);
         HearWalls(world);
     }
@@ -287,7 +291,7 @@ public sealed partial class GameAudio
     /// <summary>
     /// A noisy toy in someone's hands (GDD v1.4 §19, App. C item 4): its squeak, tune or drum for as long as it's carried, in
     /// the carrier's car (and in the carrier's name on the Choir's meter, host-side), and a moment as it's jostled landing.
-    /// Lying still, it's quiet.
+    /// Lying still, a squeaker's quiet; a wound music box or drummer plays on until it runs down (note 728).
     /// </summary>
     void Toys(World world, TrainOnLine train)
     {
@@ -295,7 +299,8 @@ public sealed partial class GameAudio
         foreach (var b in world.Bodies.All)
         {
             bool jostled = _jostled.TryGetValue(b.Id, out double until) && _time < until;
-            if (b.Kind != Sim.Physics.BodyKind.Toy || b.Carrier < 0 && !jostled || b.Noise == Sim.Physics.ToyNoise.None)
+            // Note 728: a wound music box or drummer set down or thrown plays on where it lies (Body.Playing, the host's).
+            if (b.Kind != Sim.Physics.BodyKind.Toy || b.Carrier < 0 && !jostled && !b.Playing || b.Noise == Sim.Physics.ToyNoise.None)
                 continue;
             carried.Add(b.Id);
             if (!_toys.TryGetValue(b.Id, out var voice) || voice.Finished)
@@ -401,16 +406,45 @@ public sealed partial class GameAudio
     /// <summary>The train's whistle, from the engine's dome, for as long as it blows (the cord, or the Whistler at it).</summary>
     void Whistle(World world, TrainOnLine train)
     {
+        // The steam calliope (note 715): its notes are the whistle.
+        if (Calliope(world, train))
+            return;
+        // The honk and the gold-plated whistle (queue #505, note 775), where they're installed.
+        if (Honk(world, train) || GoldWhistle(world, train))
+            return;
         // The cord's own whistle, once it's installed, is the crew's (crew-cab-controls, GameAudio.Crew.cs).
+        if (world.WhistleSeconds <= 0 && train.Dynamics.Tuning.Composition.Dressed("cucarachaHorn"))
+        {
+            // Every pull, all of it: let go, it plays on to its end.
+            if (_whistle is { Finished: true })
+                _whistle = null;
+            return;
+        }
         if (world.WhistleSeconds <= 0 || CordWhistles(world))
         {
-            // A held whistle stops with the blowing; a recorded blast (a whole take, start to release) rings out.
-            if (Bank.Get("train-whistle") is { Loop: true })
+            // A held whistle stops with the blowing. So does a crewmate's pull on a recorded blast (note 839, the director, 16 Oct:
+            // "when I let go of the key, it immediately stops the whistle. That way we can actually do the longs and the shorts"):
+            // the sim's short tail (train.json whistle.tailSeconds) is its release. The Whistler's blast (no hand on the cord,
+            // App. A.4) rings out as recorded.
+            if (Bank.Get("train-whistle") is { Loop: true } || world.WhistleBy >= 0)
                 _whistle?.Stop();
             _whistle = null;
             return;
         }
         var engine = train.Frames[0];
+        // The La Cucaracha horn (note 701): the whole phrase on each pull, however short, and again if it's still held.
+        if (train.Dynamics.Tuning.Composition.Dressed("cucarachaHorn"))
+        {
+            if (_whistle is { Finished: true })
+                _whistle = null;
+            _whistle ??= Mixer.Play(CucarachaSound, engine.ToWorld(new Double3(0, engine.Shape.RoofHeight + 0.6, -2)))?.Also(v => v.Clip = _cucaracha ??= new AudioClip(BandSynth.Cucaracha(), Audio.SampleRate));
+            if (_whistle is not null)
+            {
+                _whistle.Position = engine.ToWorld(new Double3(0, engine.Shape.RoofHeight + 0.6, -2));
+                _whistle.Occlusion = Occlusion(PlayerMotor.Outside);
+            }
+            return;
+        }
         if (_whistle is { Finished: true })
             _whistle = null;    // a recorded blast that's ended while the cord's still held: another
         // On low steam the whistle can barely speak: a thin, flat wheeze (crew-mishaps). The cord's and the Whistler's alike,
@@ -422,6 +456,77 @@ public sealed partial class GameAudio
         {
             _whistle.Position = engine.ToWorld(new Double3(0, engine.Shape.RoofHeight + 0.6, -2));
             _whistle.Occlusion = Occlusion(PlayerMotor.Outside);
+        }
+    }
+
+    AudioClip? _cucaracha;
+    bool _goldBlowing;
+
+    /// <summary>
+    /// The honk (note 678; queue #505, note 775): a clown's bulb horn where the whistle was. A honk on each pull, however
+    /// short, and another while it's held; let go, the last one finishes. True when it's fitted and installed.
+    /// </summary>
+    bool Honk(World world, TrainOnLine train)
+    {
+        if (!train.Dynamics.Tuning.Composition.Dressed("theHonk") || !HasCue("up-horns.honk"))
+            return false;
+        if (_whistle is { Finished: true })
+            _whistle = null;
+        if (world.WhistleSeconds <= 0)
+            return true;
+        var at = WhistleDome(train);
+        _whistle ??= Cue("up-horns.honk", at, Occlusion(PlayerMotor.Outside));
+        if (_whistle is not null)
+            _whistle.Position = at;
+        return true;
+    }
+
+    /// <summary>
+    /// The gold-plated whistle (note 678; queue #505, note 775): brighter and a quarter louder, its own sounding, held and let
+    /// go. True when it's fitted and installed.
+    /// </summary>
+    bool GoldWhistle(World world, TrainOnLine train)
+    {
+        if (!train.Dynamics.Tuning.Composition.Dressed("goldWhistle") || !HasCue("up-horns.gold"))
+            return false;
+        var at = WhistleDome(train);
+        float outside = Occlusion(PlayerMotor.Outside);
+        bool blowing = world.WhistleSeconds > 0;
+        if (blowing && !_goldBlowing)
+        {
+            Cue("up-horns.gold-start", at, outside);
+            _whistle?.Stop();
+            _whistle = Cue("up-horns.gold", at, outside);
+        }
+        else if (!blowing && _goldBlowing)
+        {
+            _whistle?.Stop();
+            _whistle = null;
+            Cue("up-horns.gold-stop", at, outside);
+        }
+        _goldBlowing = blowing;
+        if (_whistle is not null)
+        {
+            _whistle.Position = at;
+            _whistle.Occlusion = outside;
+        }
+        return true;
+    }
+
+    /// <summary>Where the whistle sounds: its dome on the engine's roof.</summary>
+    static Double3 WhistleDome(TrainOnLine train) =>
+        train.Frames[0].ToWorld(new Double3(0, train.Frames[0].Shape.RoofHeight + 0.6, -2));
+
+    /// <summary>The La Cucaracha horn's sound (note 701): the whistle's tier and reach (a tell: it's still the whistle), its phrase as a clip.</summary>
+    string CucarachaSound
+    {
+        get
+        {
+            const string name = "train-horn-cucaracha";
+            if (Bank.Get(name) is null && Bank.Get("train-whistle") is { } whistle)
+                Bank.Add(name, new SoundDef(whistle.Tier, [new LayerDef(SourceKind.Sample, 1)], MaxInstances: 1, MinDistance: whistle.MinDistance,
+                    MaxDistance: whistle.MaxDistance, Rolloff: whistle.Rolloff, GainDb: whistle.GainDb));
+            return name;
         }
     }
 
@@ -573,6 +678,21 @@ public sealed partial class GameAudio
         s.Next = _time + gap + jitter * _rng.Next();
     }
 
+    static readonly SootChildrenTuning SootDefaults = new();
+
+    /// <summary>
+    /// Whether a Soot Child at <paramref name="at"/> is into its telegraph: the nearest of the crew within
+    /// <see cref="Art.CreatureArt.SootRiseFrom"/> of its lunge's reach, as the art has it turn and rise (note 823; note 829).
+    /// </summary>
+    bool SootRising(World world, Double3 at)
+    {
+        double lunge = (world.Enemies?.SootChildren ?? SootDefaults).LungeWithin, nearest = double.MaxValue;
+        foreach (var (_, c) in CrewStates)
+            if (c.Alive && At(world.Train, c) is { } feet)
+                nearest = Math.Min(nearest, ((feet - at) with { Y = 0 }).Length);
+        return Art.CreatureArt.SootPoise(nearest, lunge) > 0;
+    }
+
     static TrainDynamics? RakeOf(TrainOnLine train, int vehicle) => train.Rakes.FirstOrDefault(r => r.Consist.Vehicles.Any(v => v.Id == vehicle));
 
 
@@ -676,8 +796,21 @@ public sealed partial class GameAudio
                     Loop(s, "grumbler-gnaw", at, occlusion);
                     break;
                 case EnemyKind.SootChildren when ((SootChildren)e).Extra > 0.5:
-                    // Calling for help (App. A.6): a real child and a Soot Child sound the same. The eyes are the tell.
-                    // Call after call, with a frightened wait for an answer between.
+                    // Calling for help (App. A.6): a real child and a Soot Child sound the same. The eyes are the tell, from afar.
+                    // Call after call, with a frightened wait for an answer between. But a Soot Child rising for its lunge
+                    // stops calling dead as it turns to them (its telegraph, note 823's: note 829); a real child goes on.
+                    if (e.Phase == SpinePhase.Telegraph && ((SootChildren)e).Soot && SootRising(world, at))
+                    {
+                        // Its gain to nothing over this block (no click), and gone the next.
+                        if (s.Loop is { Finished: false, Volume: > 0 } calling)
+                            calling.Volume = 0;
+                        else
+                        {
+                            s.Loop?.Stop();
+                            s.Loop = null;
+                        }
+                        break;
+                    }
                     Repeat(s, "child-call", at, occlusion, 1.6, 2.4);
                     break;
                 case EnemyKind.CarFire:
@@ -744,8 +877,9 @@ public sealed partial class GameAudio
         Gestures(world);
     }
 
-    readonly HashSet<int> _heardHits = [], _heardImpacts = [], _heardEmotes = [];
+    readonly HashSet<int> _heardHits = [], _heardImpacts = [], _heardEmotes = [], _heardMeets = [];
     readonly Dictionary<int, byte> _outfitsHeard = [];
+    readonly Dictionary<int, MaskPaint> _paintsHeard = [];
     bool _strikesPrimed, _gesturesPrimed;
 
     /// <summary>
@@ -758,13 +892,29 @@ public sealed partial class GameAudio
         bool primed = _gesturesPrimed;
         foreach (var e in world.Emotes)
         {
+            // Note 722: a high five's slap, or a fist bump's knock, the moment the hands meet: once a pair (on the record of the
+            // lower id of the two), at the hands, about head height between them. Their own (queue #519, note 786), else the
+            // bare-handed slap and the body's knock stand in.
+            if (e.Met && e.By < e.With && _heardMeets.Add(e.Id) && primed && Crewmate(e.By) is { } a && At(world.Train, a) is { } here)
+            {
+                var there = Crewmate(e.With) is { } b && At(world.Train, b) is { } p ? p : here;
+                Cue(e.Kind == Emote.HighFive ? OwnOr("crew-emotes.high-five", "crew-mishaps.bare-slap") : OwnOr("crew-emotes.fist-bump", "crew-mishaps.body-knock"),
+                    (here + there) * 0.5 + Double3.Up * (e.Kind == Emote.HighFive ? 1.8 : 1.2),
+                    OccludedAt(world.Train, a.Parent, a.Position));
+            }
             if (!_heardEmotes.Add(e.Id) || !primed)
                 continue;
             string? cue = e.Kind switch
             {
                 Emote.Dance => "crew-emotes.dance",
-                Emote.Wave => "crew-emotes.wave",
+                Emote.Wave or Emote.Aboard => "crew-emotes.wave",
                 Emote.Point => "crew-emotes.point",
+                // Sat down on an edge, or leant out of a doorway (note 722; queue #519, note 786): the coat settling, a hand on the frame.
+                Emote.SitEdge => "crew-emotes.sit",
+                Emote.LeanOut => "crew-emotes.lean",
+                // The "more emotes" upgrade (note 714; queue #534, note 806): a bow's coat and boot, a salute's heels and sleeve.
+                Emote.Bow => "crew-emotes.bow",
+                Emote.Salute => "crew-emotes.salute",
                 _ => null,
             };
             if (cue is not null && Crewmate(e.By) is { } s && At(world.Train, s) is { } at)
@@ -772,13 +922,45 @@ public sealed partial class GameAudio
         }
         if (_heardEmotes.Count > 64)
             _heardEmotes.IntersectWith(world.Emotes.Select(e => e.Id));
+        if (_heardMeets.Count > 64)
+            _heardMeets.IntersectWith(world.Emotes.Select(e => e.Id));
         foreach (var (id, outfit) in world.Outfits)
         {
             if (_outfitsHeard.TryGetValue(id, out byte was) && was != outfit && Crewmate(id) is { } s && At(world.Train, s) is { } at)
                 Cue("crew-emotes.outfit", at + Double3.Up * 1.2, OccludedAt(world.Train, s.Parent, s.Position));
             _outfitsHeard[id] = outfit;
         }
+        // A mask painted afresh in the yard (note 731; queue #518, note 785): tried on as an outfit is, heard the same.
+        foreach (var (id, paint) in world.Paints)
+        {
+            if (_paintsHeard.TryGetValue(id, out var was) && was != paint && Crewmate(id) is { } s && At(world.Train, s) is { } at)
+                Cue("crew-emotes.outfit", at + Double3.Up * 1.2, OccludedAt(world.Train, s.Parent, s.Position));
+            _paintsHeard[id] = paint;
+        }
         _gesturesPrimed = true;
+    }
+
+    /// <summary>The conga's one held voice (queue #534, note 806): owner of its <see cref="Hold"/>.</summary>
+    const int CongaOwner = 0x0C0A6A;
+
+    /// <summary>
+    /// The conga (note 714; queue #534, note 806): boots in step and the hummed tune, held while anyone dances it, one voice for
+    /// the whole line where its dancers are (a line of eight is a line, not eight of it), a little fuller with more in it.
+    /// </summary>
+    void Conga(World world)
+    {
+        var at = Double3.Zero;
+        int n = 0;
+        int? first = null;
+        foreach (var e in world.Emotes)
+            if (e.Kind == Emote.Conga && Crewmate(e.By) is { } s && At(world.Train, s) is { } p)
+            {
+                at += p;
+                n++;
+                first ??= e.By;
+            }
+        if (n > 0 && Crewmate(first!.Value) is { } lead)
+            HoldLevel("crew-emotes.conga", CongaOwner, at * (1.0 / n) + Double3.Up, OccludedAt(world.Train, lead.Parent, lead.Position), Math.Min(1, 0.7 + 0.1 * n));
     }
 
     /// <summary>
@@ -824,6 +1006,13 @@ public sealed partial class GameAudio
                 Cue(blow, h.At, occlusion);
             else
                 Mixer.Play("hit-confirm", h.At)?.Also(v => v.Occlusion = occlusion);
+            // A Waker shot (note 940: "nothing happens when I shoot it"): he roars at it, once in a while however many land.
+            if (h.Kind == Sim.Enemies.EnemyKind.Waker && _time >= _wakerHitRoar
+                && world.ActiveEnemies.FirstOrDefault(e => e.Id == h.EnemyId) is { } shot)
+            {
+                Cue("tell-wakers.roar", shot.WorldPosition(world.Train) + Ballast.Double3.Up * 50, 0);
+                _wakerHitRoar = _time + WakerHitRoarEvery;
+            }
         }
         _strikesPrimed = true;
         // Forget what's gone off the wire (ids aren't reused for a long while: a night's worth).
@@ -832,6 +1021,10 @@ public sealed partial class GameAudio
         if (_heardHits.Count > 64)
             _heardHits.IntersectWith(world.Hits.Select(h => h.Id));
     }
+
+    // Note 940: the soonest a shot Waker roars again (the mixer's clock), and how far apart his roars at shots come (s).
+    double _wakerHitRoar;
+    const double WakerHitRoarEvery = 4;
 
     SoundInstance? _cooling;
     int _lampsOut;
@@ -885,7 +1078,9 @@ public sealed partial class GameAudio
         _heardHits.Clear();
         _heardImpacts.Clear();
         _heardEmotes.Clear();
+        _heardMeets.Clear();
         _outfitsHeard.Clear();
+        _paintsHeard.Clear();
         _strikesPrimed = _gesturesPrimed = false;
         _cooling = null;
         _lampsOut = 0;
@@ -893,6 +1088,7 @@ public sealed partial class GameAudio
         _space = PlayerMotor.Outside;
         EndNightCues();
         EndNightAreas();
+        EndNightBand();
     }
 
     /// <summary>Plays a one-shot at a point: crew actions the game knows about (a shovel of coal).</summary>

@@ -1935,6 +1935,25 @@
     "license": "CC0-1.0"
   },
   {
+    "name": "lantern_pane",
+    "diffuse": "lantern_pane.png",
+    "spec": "lantern_pane_s.png",
+    "size": 512,
+    "tileMetres": 0.25,
+    "tiling": true,
+    "family": "emissive",
+    "alphaTest": false,
+    "sources": [
+      {
+        "generator": "tools/art/textures.py",
+        "what": "sooted lantern glass: film, runs, specks, warm patches",
+        "author": "Dark Territory",
+        "license": "CC0-1.0"
+      }
+    ],
+    "license": "CC0-1.0"
+  },
+  {
     "name": "window_lit",
     "diffuse": "window_lit.png",
     "spec": "window_lit_s.png",
@@ -2404,6 +2423,29 @@
     "license": "CC0-1.0"
   },
   {
+    "name": "fx_char",
+    "diffuse": "fx_char.png",
+    "spec": "fx_char_s.png",
+    "size": 512,
+    "tileMetres": null,
+    "tiling": false,
+    "family": "fx",
+    "alphaTest": false,
+    "frames": [
+      4,
+      4
+    ],
+    "sources": [
+      {
+        "generator": "tools/art/textures.py",
+        "what": "ragged oval stepped by boards, anisotropic voronoi checks, sooted halo, posterised alpha",
+        "author": "Dark Territory",
+        "license": "CC0-1.0"
+      }
+    ],
+    "license": "CC0-1.0"
+  },
+  {
     "name": "ground_heath",
     "diffuse": "ground_heath.png",
     "spec": "ground_heath_s.png",
@@ -2730,6 +2772,48 @@
     "license": "CC0-1.0"
   },
   {
+    "name": "shingle_cedar",
+    "diffuse": "shingle_cedar.png",
+    "spec": "shingle_cedar_s.png",
+    "normal": "shingle_cedar_n.png",
+    "size": 512,
+    "tileMetres": 1.0,
+    "tiling": true,
+    "family": "wood",
+    "alphaTest": false,
+    "albedoTarget": 0.13,
+    "sources": [
+      {
+        "generator": "tools/art/textures.py",
+        "what": "courses of cedar shingles: widths, tone, grain, butt shadow, joints, rain, lichen",
+        "author": "Dark Territory",
+        "license": "CC0-1.0"
+      }
+    ],
+    "license": "CC0-1.0"
+  },
+  {
+    "name": "clapboard",
+    "diffuse": "clapboard.png",
+    "spec": "clapboard_s.png",
+    "normal": "clapboard_n.png",
+    "size": 512,
+    "tileMetres": 1.0,
+    "tiling": true,
+    "family": "wood",
+    "alphaTest": false,
+    "albedoTarget": 0.26,
+    "sources": [
+      {
+        "generator": "tools/art/textures.py",
+        "what": "lapped painted boards: lap shadow, butt joints, grain, worn paint, grime",
+        "author": "Dark Territory",
+        "license": "CC0-1.0"
+      }
+    ],
+    "license": "CC0-1.0"
+  },
+  {
     "name": "finds_atlas",
     "diffuse": "finds_atlas.png",
     "spec": "finds_atlas_s.png",
@@ -2898,48 +2982,6 @@
       {
         "generator": "tools/art/textures.py",
         "what": "printed labels, wrappers, enamel, gingham, baize and polished brass for the village finds",
-        "author": "Dark Territory",
-        "license": "CC0-1.0"
-      }
-    ],
-    "license": "CC0-1.0"
-  },
-  {
-    "name": "shingle_cedar",
-    "diffuse": "shingle_cedar.png",
-    "spec": "shingle_cedar_s.png",
-    "normal": "shingle_cedar_n.png",
-    "size": 512,
-    "tileMetres": 1.0,
-    "tiling": true,
-    "family": "wood",
-    "alphaTest": false,
-    "albedoTarget": 0.13,
-    "sources": [
-      {
-        "generator": "tools/art/textures.py",
-        "what": "courses of cedar shingles: widths, tone, grain, butt shadow, joints, rain, lichen",
-        "author": "Dark Territory",
-        "license": "CC0-1.0"
-      }
-    ],
-    "license": "CC0-1.0"
-  },
-  {
-    "name": "clapboard",
-    "diffuse": "clapboard.png",
-    "spec": "clapboard_s.png",
-    "normal": "clapboard_n.png",
-    "size": 512,
-    "tileMetres": 1.0,
-    "tiling": true,
-    "family": "wood",
-    "alphaTest": false,
-    "albedoTarget": 0.26,
-    "sources": [
-      {
-        "generator": "tools/art/textures.py",
-        "what": "lapped painted boards: lap shadow, butt joints, grain, worn paint, grime",
         "author": "Dark Territory",
         "license": "CC0-1.0"
       }
@@ -3256,6 +3298,203 @@
       {
         "generator": "tools/art/textures.py",
         "what": "the towns' flags: trade fields, the province's saltire, the customs' charges, weathered",
+        "author": "Dark Territory",
+        "license": "CC0-1.0"
+      }
+    ],
+    "license": "CC0-1.0"
+  },
+  {
+    "name": "wrack_card",
+    "diffuse": "wrack_card.png",
+    "spec": "wrack_card_s.png",
+    "normal": "wrack_card_n.png",
+    "size": [
+      256,
+      512
+    ],
+    "tileMetres": null,
+    "tiling": false,
+    "family": "foliage",
+    "alphaTest": true,
+    "albedoTarget": 0.05,
+    "sources": [
+      {
+        "generator": "tools/art/textures.py",
+        "what": "wrack ribbons with bladders; beard lichen threads (strokes)",
+        "author": "Dark Territory",
+        "license": "CC0-1.0"
+      }
+    ],
+    "license": "CC0-1.0"
+  },
+  {
+    "name": "leaf_card",
+    "diffuse": "leaf_card.png",
+    "spec": "leaf_card_s.png",
+    "normal": "leaf_card_n.png",
+    "size": [
+      256,
+      512
+    ],
+    "tileMetres": null,
+    "tiling": false,
+    "family": "foliage",
+    "alphaTest": true,
+    "albedoTarget": 0.07,
+    "sources": [
+      {
+        "generator": "tools/art/textures.py",
+        "what": "withered leaves on stalks along a hanging twig (ellipses, strokes)",
+        "author": "Dark Territory",
+        "license": "CC0-1.0"
+      }
+    ],
+    "license": "CC0-1.0"
+  },
+  {
+    "name": "membrane_web",
+    "diffuse": "membrane_web.png",
+    "spec": "membrane_web_s.png",
+    "normal": "membrane_web_n.png",
+    "size": 512,
+    "tileMetres": 1.5,
+    "tiling": true,
+    "family": "flesh",
+    "alphaTest": true,
+    "albedoTarget": 0.14,
+    "sources": [
+      {
+        "generator": "tools/art/textures.py",
+        "what": "skin: pores, wrinkles and stretch marks (fbm), bruises, veins (strokes), tears",
+        "author": "Dark Territory",
+        "license": "CC0-1.0"
+      }
+    ],
+    "license": "CC0-1.0"
+  },
+  {
+    "name": "quartz",
+    "diffuse": "quartz.png",
+    "spec": "quartz_s.png",
+    "normal": "quartz_n.png",
+    "size": 512,
+    "tileMetres": 0.5,
+    "tiling": true,
+    "family": "flesh",
+    "alphaTest": false,
+    "albedoTarget": 0.3,
+    "sources": [
+      {
+        "generator": "tools/art/textures.py",
+        "what": "quartz facets (voronoi), cloud and clear (fbm)",
+        "author": "Dark Territory",
+        "license": "CC0-1.0"
+      }
+    ],
+    "license": "CC0-1.0"
+  },
+  {
+    "name": "wound",
+    "diffuse": "wound.png",
+    "spec": "wound_s.png",
+    "normal": "wound_n.png",
+    "size": 512,
+    "tileMetres": 0.4,
+    "tiling": true,
+    "family": "flesh",
+    "alphaTest": false,
+    "albedoTarget": 0.06,
+    "sources": [
+      {
+        "generator": "tools/art/textures.py",
+        "what": "raw flesh: muscle grain (fbm), fat knots (voronoi), clots",
+        "author": "Dark Territory",
+        "license": "CC0-1.0"
+      }
+    ],
+    "license": "CC0-1.0"
+  },
+  {
+    "name": "glow_pod",
+    "diffuse": "glow_pod.png",
+    "spec": "glow_pod_s.png",
+    "normal": "glow_pod_n.png",
+    "size": 512,
+    "tileMetres": 0.3,
+    "tiling": true,
+    "family": "flesh",
+    "alphaTest": false,
+    "sources": [
+      {
+        "generator": "tools/art/textures.py",
+        "what": "lit cells (voronoi), dark veins (strokes), cloud (fbm); glow in B",
+        "author": "Dark Territory",
+        "license": "CC0-1.0"
+      }
+    ],
+    "license": "CC0-1.0"
+  },
+  {
+    "name": "barnacle_crust",
+    "diffuse": "barnacle_crust.png",
+    "spec": "barnacle_crust_s.png",
+    "normal": "barnacle_crust_n.png",
+    "size": 512,
+    "tileMetres": 0.5,
+    "tiling": true,
+    "family": "flesh",
+    "alphaTest": false,
+    "albedoTarget": 0.11,
+    "sources": [
+      {
+        "generator": "tools/art/textures.py",
+        "what": "barnacles (voronoi cones, plates, mouths), slime, mussels",
+        "author": "Dark Territory",
+        "license": "CC0-1.0"
+      }
+    ],
+    "license": "CC0-1.0"
+  },
+  {
+    "name": "tar_drip",
+    "diffuse": "tar_drip.png",
+    "spec": "tar_drip_s.png",
+    "normal": "tar_drip_n.png",
+    "size": 512,
+    "tileMetres": 0.5,
+    "tiling": true,
+    "family": "flesh",
+    "alphaTest": false,
+    "albedoTarget": 0.035,
+    "sources": [
+      {
+        "generator": "tools/art/textures.py",
+        "what": "runs and strings (stretched fbm), bubbles",
+        "author": "Dark Territory",
+        "license": "CC0-1.0"
+      }
+    ],
+    "license": "CC0-1.0"
+  },
+  {
+    "name": "shroud_card",
+    "diffuse": "shroud_card.png",
+    "spec": "shroud_card_s.png",
+    "normal": "shroud_card_n.png",
+    "size": [
+      256,
+      512
+    ],
+    "tileMetres": null,
+    "tiling": false,
+    "family": "foliage",
+    "alphaTest": true,
+    "albedoTarget": 0.13,
+    "sources": [
+      {
+        "generator": "tools/art/textures.py",
+        "what": "pale lichen threads fanning from a fist (strokes), gathered into locks",
         "author": "Dark Territory",
         "license": "CC0-1.0"
       }

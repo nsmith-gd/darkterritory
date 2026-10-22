@@ -36,6 +36,127 @@ public class TownsfolkTests
         return (world, world.Town!);
     }
 
+    /// <summary>A stop of a round stood inside a wall of the town, looking out over it (note 963's "gate" and "wall").</summary>
+    static bool AtTheWall(Town town, RoundStop x) => town.Plan.Bounds is { } b && x.Act == "idle" && x.Via.Count == 0
+        && (x.FaceS > 0.99 && Math.Abs(x.S - (b.Gate - 2.5)) < 0.01 || x.FaceS < -0.99 && Math.Abs(x.S - (b.Rear + 2.5)) < 0.01
+            || x.FaceD > 0.99 && Math.Abs(x.D - (b.Right - 2.5)) < 0.01 || x.FaceD < -0.99 && Math.Abs(x.D - (-b.Left + 2.5)) < 0.01);
+
+    /// <summary>
+    /// Note 963 (docs/design/townsfolk.md, "Not yet": "The restless could walk to the gate and look out, a watcher could stand at
+    /// the wall, a mender could tend the lamp garden"): their rounds go by their temperaments. Across a few towns, watchers
+    /// and the restless are found stood at the walls and the gate looking out, menders at the lamp garden or mending, and
+    /// nobody else is out at the wall; the same plan twice is the same rounds.
+    /// </summary>
+    [Fact]
+    public void TheirRoundsGoByTheirTemperaments()
+    {
+        int atWall = 0, atGate = 0, tending = 0;
+        foreach (var (spec, people) in new[] { ("frontier:7", 300), ("local:3", 2000), ("frontier:3", 600), ("deadLines:2", 600), ("local:5", 2000), ("frontier:1", 600) })
+        {
+            var town = Plan(spec, people);
+            var again = Plan(spec, people);
+            var gardens = town.Plan.Fixtures.Where(f => f.Kind == "garden" && f.House < 0).ToList();
+            foreach (var p in town.Plan.People.Where(p => p.House < 0))
+            {
+                var stops = town.Rounds[p.Id]!.Stops;
+                Assert.Equal(stops.Select(x => (x.S, x.D, x.FaceS, x.FaceD, x.Act)), again.Rounds[p.Id]!.Stops.Select(x => (x.S, x.D, x.FaceS, x.FaceD, x.Act)));
+                string temper = p.Personality?.Temperament ?? "plain";
+                foreach (var x in stops.Where(x => AtTheWall(town, x)))
+                {
+                    Assert.True(temper is "watcher" or "restless", $"{p.Title} ({temper}) out at the wall");
+                    if (temper == "restless")
+                        atGate++;
+                    else
+                        atWall++;
+                }
+                if (temper == "mender")
+                    tending += stops.Count(x => x.Act == "mend");
+            }
+        }
+        Assert.True(atWall > 0, "no watcher at a wall");
+        Assert.True(atGate > 0, "nobody restless at the gate");
+        Assert.True(tending > 0, "no mender tending the lamp garden or mending");
+    }
+
+    /// <summary>
+    /// Note 963 (docs/design/townsfolk.md, "Not yet": "A frayed person could type in bursts, a hollow one slowly"): the talk card
+    /// types each temperament's lines in its own voice. A hollow one's take longest, a talker's least; a frayed one's come in
+    /// bursts with stalls between; every voice gets the whole line out, a character at a time, never back.
+    /// </summary>
+    [Fact]
+    public void TheirLinesTypeInTheirTemperamentsVoice()
+    {
+        var t = Towns.Tuning;
+        const string line = "Talk to me. Keep talking, will you. When people stop talking is when I hear it.";
+        double pace = t.TypePerSecond;
+        double plain = TalkVoice.Plain.Seconds(line, pace);
+        Assert.Equal(line.Length / pace, plain, 6);
+        Assert.True(t.Voices["hollow"].Seconds(line, pace) > plain * 1.5, "hollow isn't slow");
+        Assert.True(t.Voices["talker"].Seconds(line, pace) < plain, "a talker isn't quick");
+        foreach (var (name, voice) in t.Voices)
+        {
+            double all = voice.Seconds(line, pace);
+            int last = 0;
+            for (double at = 0; at <= all + 0.05; at += 0.02)
+            {
+                int typed = voice.Typed(line, pace, at);
+                Assert.InRange(typed, last, Math.Min(line.Length, last + 3));
+                last = typed;
+            }
+            Assert.Equal(line.Length, last);
+        }
+        // Frayed: a burst, then nothing for its burstPause, then on.
+        var frayed = t.Voices["frayed"];
+        Assert.True(frayed.Burst > 0 && frayed.BurstPause > 0.2);
+        double end = frayed.Seconds(line[..frayed.Burst], pace);
+        Assert.Equal(frayed.Burst, frayed.Typed(line, pace, end + 0.01));
+        Assert.Equal(frayed.Burst, frayed.Typed(line, pace, end + frayed.BurstPause * 0.9));
+        Assert.True(frayed.Typed(line, pace, end + frayed.BurstPause + 0.1) > frayed.Burst);
+        // Somebody's voice is their temperament's; anybody without one types plainly.
+        var town = Plan("frontier:7", 300);
+        foreach (var p in town.Plan.People)
+            Assert.Equal(p.Personality is { } who && t.Voices.ContainsKey(who.Temperament) ? t.Voices[who.Temperament] : TalkVoice.Plain, t.VoiceOf(p));
+    }
+
+    /// <summary>
+    /// Note 971 (docs/design/townsfolk.md, "Not yet": "Households don't argue: a lapsed lodger in a zealous house could say
+    /// so"): across a few towns some households quarrel. Each is its two most at odds on the trait it's over, towns.json
+    /// <c>quarrels.gap</c> apart or more, the one higher on it speaking first and the two taking turns; the same plan twice
+    /// is the same quarrels. And the custom's lines are marked as such, for its telling once.
+    /// </summary>
+    [Fact]
+    public void SomeHouseholdsQuarrelByTheirTraits()
+    {
+        var q = Towns.Tuning.Quarrels;
+        int quarrels = 0, custom = 0;
+        foreach (var (spec, people) in new[] { ("frontier:7", 300), ("local:3", 2000), ("deadLines:2", 600) })
+        {
+            var town = Plan(spec, people);
+            Assert.Equal(town.Plan.Quarrels.Select(x => (x.House, x.A, x.B, x.Over)), Plan(spec, people).Plan.Quarrels.Select(x => (x.House, x.A, x.B, x.Over)));
+            Assert.Equal(town.Plan.Quarrels.Count, town.Plan.Quarrels.Select(x => x.House).Distinct().Count());
+            foreach (var x in town.Plan.Quarrels)
+            {
+                quarrels++;
+                var (a, b) = (town.Plan.People[x.A], town.Plan.People[x.B]);
+                Assert.Equal(x.House, a.House);
+                Assert.Equal(x.House, b.House);
+                int axis = Array.IndexOf(TownTraits.Axes, x.Over);
+                Assert.True(a.Personality!.Traits[axis] - b.Personality!.Traits[axis] >= q.Gap - 1e-9, $"{x.Over}: not far enough apart");
+                Assert.True(x.Lines.Count >= 2);
+                for (int k = 0; k < x.Lines.Count; k++)
+                    Assert.Equal(k % 2 == 0 ? x.A : x.B, x.Lines[k].Who);
+                Assert.DoesNotContain(x.Lines, l => l.Line.Contains('{'));
+            }
+            foreach (var p in town.Plan.People)
+            {
+                Assert.All(p.Custom, k => Assert.InRange(k, 0, p.Lines.Count - 1));
+                custom += p.Custom.Count;
+            }
+        }
+        Assert.True(quarrels > 0, "no household quarrels");
+        Assert.True(custom > 0, "nobody's told the custom");
+    }
+
     [Fact]
     public void EveryoneBreathesThroughGearOfTheKindsTheirTownKeeps()
     {

@@ -71,7 +71,7 @@ public sealed class Passenger(int id) : Enemy(id)
                 if (PhaseSeconds < t.StalkSeconds)
                     return;
                 var mark = ctx.LivingCrew().Where(c => c.Player.State.Parent > 0 && !c.Player.State.Has(PlayerFlags.Held) && CrewSense.Alone(ctx, c.Player.Id, t.AloneRadius))
-                    .OrderBy(c => Math.Abs(train.Dynamics.Consist.IndexOf(c.Player.State.Parent) - train.Dynamics.Consist.IndexOf(Attached)))
+                    .OrderBy(c => ctx.Weigh(c.Player.Id, Math.Abs(train.Dynamics.Consist.IndexOf(c.Player.State.Parent) - train.Dynamics.Consist.IndexOf(Attached))))
                     .Select(c => (int?)c.Player.Id).FirstOrDefault();
                 if (mark is not { } who)
                     return;
@@ -223,178 +223,6 @@ public sealed class Passenger(int id) : Enemy(id)
     }
 }
 
-/// <summary>
-/// THE SWITCHMAN · vibration · corrupted human (GDD v1.1 §21, App. A.8). Half railway worker, half something spindly and
-/// wrong, waiting at a junction ahead: a tall figure at the lever in the headlamp, the junction lamp showing the wrong signal
-/// (it's thrown it). The train takes the wrong route as it passes: a dead line that leads nowhere, the clock's cost (stop,
-/// back out, and set the points back by hand). Rule: kill the Switchman before the switch. One cannon shot, or stop and
-/// club it; killed before the train's over its points, its lever falls back to the main line.
-/// <para>
-/// The director's decision of 7 Oct 2026 (note 286): "The switch itself shouldn't cause derail, it should be lines that lead
-/// nowhere." It never throws points under the train (v1.1's derailing kind is behind enemies.json
-/// <c>switchman.throwsUnderTrain</c>, off, for a mod). A derailment comes only from the driver running off the end of the
-/// dead line through its buffers, warned in the cab in time to stop (<see cref="Train.DeadEnds"/>).
-/// </para>
-/// </summary>
-/// <remarks><see cref="Enemy.Extra"/> is the branch whose switch it works; <see cref="Enemy.Extra2"/> is 1 when it means to derail.</remarks>
-public sealed class Switchman(int id) : Enemy(id)
-{
-    public override EnemyKind Kind => EnemyKind.Switchman;
-    public override PressureZone Zone => PressureZone.Corrupted;
-    public override Sense Sense => Sense.Vibration;
-    public override Want Want => Want.Cargo;
-    public override bool OnMainLine => true;
-    /// <summary>At his lever, revealed (the telegraph on): "one cannon shot, or stop and club it" (GDD §21).</summary>
-    public override double MeleeRadius => Phase is SpinePhase.Telegraph or SpinePhase.Commit ? 0.7 : 0;
-    public override bool GunAnswers => true;
-    public int Branch => (int)Extra;
-    public bool Derailer => Extra2 > 0.5;
-
-    /// <summary>
-    /// C.9's Switchman row (note 190) for its PUNISH short of a derailment (whose own record says it): the train down the dead
-    /// line, or the points split under a crawling engine. Whether the forward cannon was crewed, and by whom.
-    /// </summary>
-    protected override Run.Incident? Punished(EnemyContext ctx)
-    {
-        if (ctx.World.Derailed)
-            return null;
-        var (gunner, cannon) = Run.IncidentLog.ForwardCannon(ctx.World);
-        string what = Derailer ? "Split the Switchman's points under the engine" : "Switchman threw the train down the dead line";
-        return Run.IncidentLog.Event(ctx.World, Run.IncidentKind.Points, what, gunner, cannon);
-    }
-    /// <summary>
-    /// Killed (a cannon round, or clubbed) before the train's over its points: the lever falls back and the points go back to
-    /// the main line (note 286, enemies.json <c>switchman.killedSetsBack</c>): "kill the Switchman before the switch".
-    /// </summary>
-    public override void Struck(EnemyContext ctx, int by, double damage)
-    {
-        var was = Phase;
-        base.Struck(ctx, by, damage);
-        var train = ctx.Train;
-        if (!Gone || Derailer || !ctx.Tuning.Switchman.KilledSetsBack || was is not (SpinePhase.Dormant or SpinePhase.Telegraph)
-            || Branch < 0 || Branch >= train.Line.Branches.Count)
-            return;
-        var rake = train.Dynamics;
-        if (rake.Path == Rail.RailLine.MainPath && rake.Distance < train.Line.Branches[Branch].Toe - 1 && train.Diverging(Branch))
-            ctx.World.SetSwitch(Branch, false);
-    }
-
-    /// <summary>Gripping the lever to throw it under the train (the derail's telegraph: the lamp flickers).</summary>
-    public bool Gripping => Derailer && Phase == SpinePhase.Commit;
-
-    /// <summary>A dead line's points ahead, inside the window, set for the main line: where it waits (App. B.8), or null.</summary>
-    public static Rail.Branch? Junction(World world, SwitchmanTuning t)
-    {
-        var train = world.Train;
-        if (!train.OnMain)
-            return null;
-        double front = train.Dynamics.Distance;
-        return train.Line.Branches.Where(b => b.Kind == Rail.BranchKind.DeadLine && !train.Diverging(b.Index)
-                && b.Toe - front >= t.Ahead[0] && b.Toe - front <= t.Ahead[1])
-            .OrderBy(b => b.Toe).FirstOrDefault();
-    }
-
-    public static Switchman At(int id, Rail.Branch branch, SwitchmanTuning t, double leverOffset, bool derail) => new(id)
-    {
-        Extra = branch.Index,
-        Extra2 = derail ? 1 : 0,
-        LineDistance = branch.Toe,
-        Lateral = branch.Side * (leverOffset + t.StandBeside),
-        Health = t.Health,
-    };
-
-    protected override void Tick(EnemyContext ctx)
-    {
-        var t = ctx.Tuning.Switchman;
-        var train = ctx.Train;
-        if (Branch < 0 || Branch >= train.Line.Branches.Count)
-        {
-            Enter(ctx, SpinePhase.Gone);
-            return;
-        }
-        var branch = train.Line.Branches[Branch];
-        var engine = train.Dynamics;
-        double ahead = branch.Toe - engine.Distance;
-        switch (Phase)
-        {
-            case SpinePhase.Dormant:
-                // At the lever. The routing kind has already thrown it: the lamp reads wrong. (Note 286: once thrown, it
-                // waits there. It threw it again every tick, and World.SetSwitch says false for a switch already set, so
-                // it was gone the tick after it threw, its lever left over with nobody at it to see or shoot.)
-                if (!Derailer && !train.Diverging(Branch) && !ctx.World.SetSwitch(Branch, true))
-                {
-                    Enter(ctx, SpinePhase.Gone);
-                    return;
-                }
-                if (!Derailer)
-                    ctx.World.SwitchmanThrew.Add(Branch);
-                if (ahead <= t.RevealAt)
-                    Enter(ctx, SpinePhase.Telegraph);
-                return;
-            case SpinePhase.Telegraph:
-                if (!Derailer)
-                {
-                    // Set back by hand, it's lost this one.
-                    if (!train.Diverging(Branch))
-                    {
-                        Enter(ctx, SpinePhase.BreakOff);
-                        Enter(ctx, SpinePhase.Gone);
-                    }
-                    else if (engine.Path == Branch && engine.Distance > branch.Toe && Enter(ctx, SpinePhase.Commit))
-                    {
-                        // THROW: the train's taken the points, down the dead line: the clock's cost, never a life.
-                        Enter(ctx, SpinePhase.Punish);
-                    }
-                    else if (engine.Distance > branch.Toe + engine.Consist.LengthMetres)
-                        Enter(ctx, SpinePhase.Gone);
-                    return;
-                }
-                // DERAIL: it grips the lever in time to brake or fire.
-                if (ahead <= t.GripAt && PhaseSeconds >= ctx.Tuning.MinReactionSeconds)
-                    Enter(ctx, SpinePhase.Commit);
-                return;
-            case SpinePhase.Commit:
-                // Under the train: the engine's over the points and the rest isn't.
-                if (engine.Path == Rail.RailLine.MainPath && engine.Distance > branch.Toe + 2 && engine.RearDistance < branch.Toe - 2)
-                {
-                    ctx.World.SetSwitch(Branch, true);
-                    double v = engine.Speed;
-                    if (v > t.DerailAbove)
-                    {
-                        // C.9's Switchman row (note 190): not the throttle, but whether the forward cannon was crewed, and by whom.
-                        var (gunner, cannon) = Run.IncidentLog.ForwardCannon(ctx.World);
-                        ctx.World.Derail($"the Switchman threw the points under it at {v * 3.6:0} km/h (over {t.DerailAbove * 3.6:0} km/h they throw a train off)",
-                            gunner, cannon);
-                    }
-                    else
-                    {
-                        // Run through at a crawl: the points split, the engine's wrenched about and brought up short.
-                        var front = train.Vehicles[engine.Consist.Vehicles[0].Id];
-                        front.Integrity = Math.Max(0, front.Integrity - t.RunThroughDamage);
-                        front.Knock = (KnockCause.Points, v);
-                        foreach (var rake in train.Rakes)
-                            rake.Velocity = 0;
-                    }
-                    Enter(ctx, SpinePhase.Punish);
-                    return;
-                }
-                // Stopped short of it, or got by whole: it's done.
-                if (engine.RearDistance > branch.Toe + 2)
-                    Enter(ctx, SpinePhase.Gone);
-                return;
-            case SpinePhase.Punish:
-                if (PhaseSeconds >= t.LingerSeconds)
-                {
-                    Enter(ctx, SpinePhase.BreakOff);
-                    Enter(ctx, SpinePhase.Gone);
-                }
-                return;
-            default:
-                Enter(ctx, SpinePhase.Gone);
-                return;
-        }
-    }
-}
 
 /// <summary>
 /// GRUMBLER · sound · corrupted human (GDD v1.1 §21, App. A.8). A labourer that still works the crane, after a fashion: it
@@ -429,8 +257,14 @@ public sealed class Grumbler(int id) : Enemy(id)
     public bool Feral => Extra2 > 0.5;
     public int Casting => (int)Math.Round(Extra);
 
-    public static Grumbler OnCrates(int id, Double3 world, int casting, GrumblerTuning t) =>
-        new(id) { Attached = Loose, Local = world, Extra = casting, Health = t.Health };
+    /// <summary>
+    /// The crane whose castings it's on (note 848: a yard's gantry, the perch it was put on), on the host; null, the stop's
+    /// own crane as before (the gym's call, a test's).
+    /// </summary>
+    Crane? _crane;
+
+    public static Grumbler OnCrates(int id, Double3 world, int casting, GrumblerTuning t, Crane? crane = null) =>
+        new(id) { Attached = Loose, Local = world, Extra = casting, Health = t.Health, _crane = crane };
 
     protected override void Tick(EnemyContext ctx)
     {
@@ -451,7 +285,7 @@ public sealed class Grumbler(int id) : Enemy(id)
             case SpinePhase.Telegraph when !Feral:
                 {
                     // On its casting: where the casting goes, it goes. Craned onto a car: LOADED, it's aboard.
-                    if (ctx.World.Run?.CurrentSite?.Crane is { } crane && Casting >= 0 && Casting < crane.Castings.Length)
+                    if ((_crane ?? ctx.World.Run?.CurrentSite?.Crane) is { } crane && Casting >= 0 && Casting < crane.Castings.Length)
                     {
                         var c = crane.Castings[Casting];
                         if (c.State == CastingState.Loaded && c.Car >= 0 && c.Car < train.Frames.Count)
@@ -563,7 +397,7 @@ public sealed class Grumbler(int id) : Enemy(id)
         _bite = 0;
         if (prey.Health <= t.GrabBelowHealth && Grab(ctx, LastHitBy, t.MaulSeconds))
             return;
-        ctx.Bite(LastHitBy, t.BiteDamage, DeathCause.Mauled);
+        ctx.Bite(LastHitBy, t.BiteDamage, DeathCause.Grumbler);
     }
 
     public override void Struck(EnemyContext ctx, int by, double damage)
@@ -603,7 +437,7 @@ public sealed class Grumbler(int id) : Enemy(id)
 
     protected override void Punish(EnemyContext ctx, int victim)
     {
-        Kill(ctx, victim, DeathCause.Mauled);
+        Kill(ctx, victim, DeathCause.Grumbler);
         Enter(ctx, SpinePhase.BreakOff);
         Enter(ctx, SpinePhase.Telegraph);
     }

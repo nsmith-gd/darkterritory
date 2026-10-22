@@ -19,6 +19,9 @@ static class PerfCommands
 {
     public static object Run(TrainTuning t, string content, string[] args)
     {
+        // --form: every town the one type (note 692).
+        if (Str(args, "--form", "") is { Length: > 0 } townForm)
+            DarkTerritory.Game.PrototypeSession.TownForm = townForm == "street" ? "" : townForm;
         var tuning = DataFile.Load<PerfTuning>(Path.Combine(content, PerfTuning.File));
         int frames = (int)Opt(args, "--frames", 12);
         var views = Str(args, "--views", string.Join(',', Views.Names)).Split(',');
@@ -237,7 +240,7 @@ static class PerfCommands
         using var renderer = new GreyboxRenderer(gpu, 320, 180, moonShadowSize: 512);
         look?.Dress(renderer);
         var mesh = new MeshBuilder();
-        var frames = new List<(double Build, double Prepare, double At, string Worst)>();
+        var frames = new List<(double Build, double Prepare, double At, string Worst, double Jit, int Uploaded, long UploadedBytes)>();
         const double dt = 1.0 / 60;
         long allocated = 0;
         int gen0 = 0, gen1 = 0, gen2 = 0;
@@ -260,13 +263,14 @@ static class PerfCommands
             if (f == 1)
                 (allocated, gen0, gen1, gen2) = (GC.GetAllocatedBytesForCurrentThread(), GC.CollectionCount(0), GC.CollectionCount(1), GC.CollectionCount(2));
             var clock = Stopwatch.StartNew();
+            var jit0 = System.Runtime.JitInfo.GetCompilationTime(currentThread: true);
             scene.Build(mesh, train, camera.Position);
             double built = clock.Elapsed.TotalMilliseconds;
             clock.Restart();
             renderer.Prepare(mesh);
             double prepared = clock.Elapsed.TotalMilliseconds;
             gpu.Submit(cmd => renderer.Record(cmd, [camera], lighting, lighting.FogColor));
-            frames.Add((built, prepared, train.Dynamics.Distance, scene.Timings.MaxBy(p => p.Value.Ms).Key));
+            frames.Add((built, prepared, train.Dynamics.Distance, scene.Timings.MaxBy(p => p.Value.Ms).Key, (System.Runtime.JitInfo.GetCompilationTime(currentThread: true) - jit0).TotalMilliseconds, renderer.Uploaded, renderer.UploadedBytes));
         }
         scene.Timings = null;
         // The first frame cooks everything in reach: the loading screen's, not the ride's.
@@ -291,7 +295,7 @@ static class PerfCommands
             allocatedKbPerFrame = Math.Round((GC.GetAllocatedBytesForCurrentThread() - allocated) / 1024.0 / Math.Max(1, ride.Count)),
             collections = new { gen0 = GC.CollectionCount(0) - gen0, gen1 = GC.CollectionCount(1) - gen1, gen2 = GC.CollectionCount(2) - gen2 },
             worst = ride.OrderByDescending(x => x.Build + x.Prepare).Take(8)
-                .Select(x => new { at = Math.Round(x.At), buildMs = Math.Round(x.Build, 1), prepareMs = Math.Round(x.Prepare, 1), part = x.Worst }),
+                .Select(x => new { at = Math.Round(x.At), buildMs = Math.Round(x.Build, 1), prepareMs = Math.Round(x.Prepare, 1), jitMs = Math.Round(x.Jit, 1), meshesUploaded = x.Uploaded, uploadedKb = x.UploadedBytes / 1024, part = x.Worst }),
         };
     }
 

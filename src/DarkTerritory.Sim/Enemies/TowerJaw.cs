@@ -34,6 +34,9 @@ public enum TowerJawTarget : byte { CoalingTower, Gantry }
 public sealed class TowerJaw(int id) : Enemy(id)
 {
     double _modeSeconds, _awayFor;
+    // Note 728: how long it keeps listening to the last knock on the rail (s), and where that was.
+    double _listen;
+    Double3 _knock;
     readonly List<uint> _blows = [];
     // Its structure: which facility, what kind, its support (where it gnaws), and where it falls (the line's distance the
     // wreck closes, on the main path; NaN for one that closes no line).
@@ -53,6 +56,8 @@ public sealed class TowerJaw(int id) : Enemy(id)
     public override bool Hazard => Mode == TowerJawMode.Wreck;
     public override bool OnMainLine => Mode == TowerJawMode.Wreck;
     public override bool StaysAboard => true;
+    /// <summary>Gnawing its support (note 881): the coaling tower or the gantry coming down, heard or not.</summary>
+    public override bool Working(World world) => !Gone && Mode == TowerJawMode.Gnaw;
 
     public TowerJawMode Mode => (TowerJawMode)(int)Height;
     public double Gnawed => Extra;
@@ -191,10 +196,28 @@ public sealed class TowerJaw(int id) : Enemy(id)
             }
             if (d <= t.LungeWithin && PhaseSeconds >= t.ThreatSeconds && Phase == SpinePhase.Telegraph && Enter(ctx, SpinePhase.Commit))
             {
-                ctx.Bite(near.Player.Id, t.Bite, DeathCause.Taken);
+                ctx.Bite(near.Player.Id, t.Bite, DeathCause.TowerJaw);
                 SetMode(TowerJawMode.Lunge);
                 Enter(ctx, SpinePhase.Telegraph);
             }
+            return;
+        }
+        // Note 728 (senses.json answers.towerJaw): a knock on the rail within its reach, and it stops gnawing, turns to it and
+        // rears (its threat, at no one) a while.
+        var a = world.Senses.Answers.TowerJaw;
+        if (a.KnocksTurn && world.Loudest(Sense.Vibration, me, e => e.Kind == EmitterKind.Knock) is { } knock)
+        {
+            _listen = a.ListenSeconds;
+            _knock = knock.At;
+        }
+        else
+            _listen = Math.Max(0, _listen - dt);
+        if (_listen > 0)
+        {
+            Lateral = Yaw(_knock - me);
+            SetMode(TowerJawMode.Threat);
+            if (Phase is SpinePhase.Dormant or SpinePhase.Telegraph)
+                Enter(ctx, SpinePhase.Alert);
             return;
         }
         if (Mode is TowerJawMode.Threat or TowerJawMode.Lunge)
@@ -216,7 +239,7 @@ public sealed class TowerJaw(int id) : Enemy(id)
     {
         foreach (var (p, at) in ctx.LivingCrew())
             if (Flat(at - _fallsAt) <= t.CrushRadius)
-                ctx.Bite(p.Id, t.Crush, DeathCause.Taken);
+                ctx.Bite(p.Id, t.Crush, DeathCause.Crushed);
         var world = ctx.World;
         if (world.Authority && world.Run is { } run)
         {

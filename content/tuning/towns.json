@@ -31,7 +31,10 @@
   // A town of more than "lineRow" houses keeps that many on the line's street, the nearest its square, and takes streets
   // of its own for the rest (note 668; the director, 13 Oct, of frontier:7's: "a long row of houses. It doesn't feel like
   // a town"): a hamlet stays a row by the track.
-  "houses": { "every": 15, "out": 10.9, "width": [6.5, 9.0], "gableWidth": [5.4, 7.0], "depth": [5.2, 6.0], "fromGate": 30, "burnt": 0.15, "open": 0.12, "lineRow": 10 },
+  // A company town's houses (note 815) stand in runs of one plan "planRun" m long down each street, the next run maybe
+  // another plan's.
+  "houses": { "every": 15, "out": 10.9, "width": [6.5, 9.0], "gableWidth": [5.4, 7.0], "depth": [5.2, 6.0], "fromGate": 30, "burnt": 0.15, "open": 0.12, "lineRow": 10,
+    "planRun": 45 },
 
   // A walled town (the director, 7 Oct: "fortresses aren't just some straight line around the railroad, they should
   // surround towns, towns should be explorable"; queue #74, ARCHITECTURE §8 note 335). A town with more houses than the
@@ -40,7 +43,8 @@
   // side, their fronts "setback" back from it on lots of "lot" frontage; lanes across every "laneEvery" m, "laneWidth"
   // wide, the way from the line to the streets; the rows from "from" m up from the yard's start to "toGate" m inside the
   // gate. The wall stands "margin" past the last row's backs, down both sides, across the front from the gatehouse and
-  // across the back "rear" m along from the yard's start (behind it). Linegen levels the ground for it (tiers.json
+  // across the back "rear" m along from the yard's start, its gate there the way in from the last night (0, at the yard's
+  // start: note 692, so an arrival's way out is at the end of its line, a yard's length past the terminus's gate). Linegen levels the ground for it (tiers.json
   // fortress padM). A town whose houses fit the line's street keeps the yard's walls (note 274).
   // The streets bend (note 353; the director, 8 Oct: "Towns dont feel like they have a natural layout to them"): each
   // side's swing out and back on one wave "bendWavelength" m long, the first street "bendBase" m and each further out
@@ -49,7 +53,7 @@
   // A lane runs crooked: where it meets each street it turns "laneJog" m along the line, one way or the other, straight
   // between (never into the square or across its green).
   "walled": { "first": 34.5, "every": 30, "width": 6, "setback": 3.5, "lot": [13, 17], "laneEvery": [90, 130], "laneWidth": 8, "laneJog": [3, 10],
-    "from": 22, "toGate": 22, "margin": 7, "rear": -8, "maxStreets": 5,
+    "from": 22, "toGate": 22, "margin": 7, "rear": 0, "maxStreets": 5,
     "bendBase": 3.0, "bendStep": 0.6, "bendMax": 5.4, "bendWavelength": [220, 320], "bendClear": 30, "setbackJitter": [0, 1.2],
     // The town's works (queue #90, note 353; GDD §3 "furnaces, rail yards and warehouses"): its trade at work across the
     // line from the green, between the far side's first and second streets, from "worksBefore" m before the square's rear
@@ -60,7 +64,16 @@
     // Nothing ruled straight (note 490): "turnChance" of the shut houses on the streets stand "turn" degrees off true one way
     // or the other (their yards keep to their lots); the row across the second street from the green turns to it, up to
     // "crescent" degrees at its ends, a crescent round it. Each turned no further than its lot has room for.
-    "turn": [1, 4], "turnChance": 0.75, "crescent": 16 },
+    "turn": [1, 4], "turnChance": 0.75, "crescent": 16,
+    // The town's rail yard (queue #239, note 502; GDD §3 "rail yards and warehouses"): behind the home platform, between it
+    // and the first street, from "yardBefore" m before the square's rear end to its gate end, where the first street's near
+    // row would have stood (no lane crosses it, and that street runs straight beside it). Its siding "yardSiding" m out from
+    // the line, its points long lifted: a buffer stop "yardMargin" m in from each end; its pieces (world/towns.json "yard",
+    // in order from the gate end) fronting the siding, "yardMargin" m in from their street, "yardGap" m apart; "yardStock"
+    // of world/towns.json's "stock" left standing in the siding, "yardLamps" m apart down it; "yardHands" of the town's
+    // porters at work there at night. A town of fewer than "yardPeople" has none: its first street's houses are all it has
+    // on that side.
+    "yardPeople": 400, "yardBefore": 90, "yardSiding": 14, "yardMargin": 1.5, "yardGap": 4, "yardStock": [2, 4], "yardLamps": 28, "yardHands": 2 },
 
   // The square (GDD §3.1): where the walls step back on the side away from the platform (side -1, left of the way out)
   // for the town's heart, beside the engine as the night starts (run.json departShortOfGateM). fromGate: where it runs
@@ -68,8 +81,14 @@
   // stands, inside the yard's level pad (linegen LongPad, 70 m); buildingDepth: the hall, the clerk's and the store,
   // backed onto that wall, fronts to the line.
   // A small town's green (note 490), in its square's rear end: "greenAlong" m from that end, "greenOut" m out from the line.
+  // market (queue #552, note 825; the director's playtest of 14 Oct, line 3: "Still a bit basic"): the night market's
+  // stalls on the square, the least and the most, one more for every marketPer people; its row marketIn m in front of the
+  // buildings' fronts, its stalls at least marketEvery m apart along it. Its second row (note 870; the director's playtest
+  // of 19 Oct, line 4: "Too many cut and paste stalls in a row ... doesn't look like a market"): across an aisle marketAisle
+  // m wide, its counters facing the first's; every stall set off its place by up to marketJitter m along and across.
   "square": { "side": -1, "fromGate": [-100, -28], "wallOut": 30, "buildingDepth": 6, "hallWidth": 14, "officeWidth": 9,
-    "greenAlong": [5, 17], "greenOut": [7, 17] },
+    "greenAlong": [5, 17], "greenOut": [7, 17], "market": [4, 8], "marketPer": 400, "marketIn": 3.6, "marketEvery": 4.6,
+    "marketAisle": 3.4, "marketJitter": 0.5 },
 
   // People. "ring": how many stand round the centrepiece, one for every 30 in the town between these; the rest have
   // their places (the gate, the doors, the board, the engine, the platform), more of them in a bigger town, and the
@@ -90,6 +109,12 @@
   // run if they take it"; never said in the Wiki): hold Use within "reach" m of her for "holdSeconds", a glass a crewmate a
   // night, and "health" on top of what they have for the night that's about to set out (she's only ever in the departure town).
   "wine": { "reach": 2.6, "holdSeconds": 0.8, "health": 25 },
+  // The blacksmith, who does the trains (note 697; the director, 13 Oct: "Upgrades need to be purchasable in the fortress
+  // towns from a vendor who is clearly marked as the vendor blacksmith of the town who does train upgrades"). The forge
+  // "fromGate" m along the line from the gate (into the yard: beside the cab as the engine stands 8 m short of the gate,
+  // run.json departShortOfGateM), "out" m off the line on the town's side; the smith "stand" m in front of it. Use pressed on
+  // them opens the catalogue (campaign.json upgrades; note 904: talking to him is buying from him).
+  "smithy": { "fromGate": -18, "out": 8.5, "stand": 2.2 },
   // Quirks a town has on top of its culture, and its board: notices pinned up, and notes left lying about the square.
   // Of the board's notices, after the custom's own order, "boardOwn" are the town's own, written for it (note 669).
   "quirks": [1, 2],
@@ -103,6 +128,57 @@
   "reach": { "talk": 2.6, "read": 2.0, "lookDegrees": 28, "closeBeyond": 4.0 },
   // A line types out at this many characters a second (the radio card's pace), and stays this long once it's out.
   "typePerSecond": 45,
+  // Households that argue (note 971; docs/design/townsfolk.md, "Not yet": "a lapsed lodger in a zealous house could say so"):
+  // a house whose two most at odds on one of lines' traits are gap or more apart (traits run -1..1) has that trait's quarrel,
+  // overheard within hear m of its front for lasts s of every every s, a line each lineSeconds. Its lines go back and forth,
+  // the first said by the one higher on the trait; {other} is the other one's given name.
+  "quarrels": { "gap": 1.1, "hear": 9, "every": 150, "lasts": 40, "lineSeconds": 5,
+    "lines": {
+      "keeping": [
+        ["Three times, {other}. Not twice. Three.", "And when three doesn't bring him back, what then? Four?", "Don't you say his name in this house."],
+        ["You left the shelf half done again.", "It's a shelf, {other}. It doesn't know.", "It knows. Everything out there knows."],
+        ["The council says once. You'll do it twice, under my roof.", "Your roof. It was Da's roof, and he did it once.", "And where's Da?"]
+      ],
+      "hope": [
+        ["There's seed in the tin. In spring we'll put in the beds.", "There's no spring, {other}. There's this.", "Then I'll plant them in this."],
+        ["The Hollisters' boy got a letter through.", "A letter's paper. Paper's easy.", "You used to read me his letters."]
+      ],
+      "welcome": [
+        ["They've come a long way. Let them warm their hands.", "Let them warm them at their own fire, {other}.", "They haven't got one. That's the point."],
+        ["I asked the train folk in for tea.", "You what?", "Tea, {other}. It's only tea."]
+      ]
+    } },
+  // What somebody says in place of the custom once it's been told in their town (note 971; townsfolk.md, "Not yet": "The
+  // crew could hear a different line from someone who's been told 'the custom' by another townsperson first"), by their
+  // temperament; plain for anybody else. One of theirs, by who they are.
+  "told": {
+    "plain": ["You've had it from somebody already, I can tell. Then you know.", "Somebody's told you how it's kept. Good. Keep it."],
+    "faithful": ["They told you? Then do it like they said. Do it more."],
+    "doubter": ["You've heard it. Now ask yourself which half of it's true."],
+    "mourner": ["They told you, then. They didn't tell you what it cost."],
+    "hollow": ["You know already. Knowing's not the hard part."],
+    "watcher": ["Who told you? I saw you at the board. Never mind. Do it."],
+    "comforter": ["Somebody's told you. Don't let it frighten you. Sit."],
+    "talker": ["Who told you? Was it me? It might have been me."],
+    "frayed": ["They told you. Good. Good. Then you'll do it."],
+    "mender": ["You know the rule now. There's room in it, if you look."],
+    "restless": ["You've heard how it's kept. Out there, nobody keeps anything."]
+  },
+  // How each temperament's lines type (note 963; docs/design/townsfolk.md, "Not yet": "A frayed person could type in bursts,
+  // a hollow one slowly"): rate times typePerSecond; a pause (s) after a comma or dash and after a sentence's end; in bursts
+  // of burst characters with burstPause between. Not named: plain, at typePerSecond.
+  "voices": {
+    "frayed": { "rate": 1.6, "burst": 9, "burstPause": 0.35, "stop": 0.5 },
+    "hollow": { "rate": 0.5, "comma": 0.5, "stop": 0.9 },
+    "mourner": { "rate": 0.7, "comma": 0.4, "stop": 0.7 },
+    "talker": { "rate": 1.35, "comma": 0.05 },
+    "watcher": { "rate": 0.9, "comma": 0.3, "stop": 0.6 },
+    "comforter": { "rate": 0.85, "comma": 0.2, "stop": 0.3 },
+    "faithful": { "stop": 0.4 },
+    "doubter": { "comma": 0.35, "stop": 0.3 },
+    "mender": { "rate": 0.95, "stop": 0.25 },
+    "restless": { "rate": 1.15 }
+  },
   "lingerSeconds": 6,
 
   // Their rounds (ARCHITECTURE §8 note 353; the director, 8 Oct 2026: "There needs to be a behaviour loop for all the
@@ -110,5 +186,61 @@
   // "slots" of "slot" seconds, their own post and somewhere about the square in turn (a bench, a fire barrel, the board,
   // a stall, the centrepiece, a neighbour), a pacer "pace" m either way of their post; at home, a household goes round
   // its rooms' places, "homeSlot" seconds at each. They walk between at "walk" m/s, and stop for whoever talks to them.
-  "rounds": { "slot": 45, "slots": 4, "homeSlot": 38, "walk": 1.2, "pace": 3.5, "street": [10, 24] }
+  "rounds": { "slot": 45, "slots": 4, "homeSlot": 38, "walk": 1.2, "pace": 3.5, "street": [10, 24],
+    // Note 963 (docs/design/townsfolk.md, "Not yet"): a temperament's pull on a slot away from their post, where to and how
+    // often: "gate" stood inside it looking out down the line, "wall" at the nearest of the walls looking out, or a kind of
+    // the square's places ("garden" the lamp garden, "vigil" the names and the centrepiece, "warm" a fire, "read", "work",
+    // "mend"), "lamps" down their street to a lamp, seeing to it, or "talk", a word with somebody; more than one, comma-separated, tried in turn. Out of reach (40 m) or no room, the
+    // slot goes as anyone's does.
+    "temperaments": {
+      "restless": { "to": "gate", "chance": 0.6 }, "watcher": { "to": "wall", "chance": 0.6 },
+      "mender": { "to": "garden,lamps", "chance": 0.6 }, "mourner": { "to": "vigil", "chance": 0.5 },
+      "faithful": { "to": "vigil", "chance": 0.35 }, "comforter": { "to": "warm", "chance": 0.5 },
+      "talker": { "to": "talk", "chance": 0.6 }, "frayed": { "to": "warm", "chance": 0.4 }
+    } },
+
+  // The town types (queue #424, ARCHITECTURE §8 note 692; the director, 13 Oct 2026, with five renders of town layouts:
+  // "we want for the world building to have multiple different town types ... interesting culture, interesting looks,
+  // interesting development", "the towns don't necessarily need to be this big ... they still need to be able to fit the
+  // twenty-car maximum train length for the yard, but it's okay if the towns stretch a little bit more", "a town needs a
+  // gate that is the entrance from the previous run, and then it also needs a gate that is the exit to the next run").
+  // Off, every town is the street town of note 335. Each town's form is drawn from its trade (byTrade: trade -> form ->
+  // weight; "" the street town) on its own stream, so the town arrived at and the town left from are the same.
+  // yardM: the longest consist (train.json: an engine of 20 m, 20 cars of 14 m, 1.5 m between: 330 m), which stands in
+  // the yard back from shortOfGate m inside the way out (run.json departShortOfGateM) and every form's length holds with
+  // room to spare. shapes: each form's length between its two gates, its wall's reach left (the square's side) and right
+  // (the platform's), its lots' frontage, depth and setback from their way, its water's level and its terraces' rise
+  // (m against the yard's level) and depth (past 0.75 m it's railed off, TownGround.Wade; a marsh's is waded), a
+  // quarry's benches; each street band's rise over the last (a terraced town's tiers, stair streets between: note 692's
+  // verticality; the director, 13 Oct: "it's lacking some of the verticality ... integrating the layout of the town with
+  // the layout of the landscape"), and how far past the wall it shapes the land it stands in (margin: its landform, the
+  // headland, the sea, the mesa, the valley, easing into the line's land over the margin's outer 40%), and roll: how far its
+  // landforms swell up and down (m, either way; a ridge reads as land, not a plateau; inside the wall stays level). All inside the yard's level pad (linegen fortress padM, 200).
+  "forms": {
+    // Whether the trades draw their towns' forms (byTrade below); off, every town is the street town but where force
+    // says otherwise. (Off from note 692 until note 804 found what took the Game test suite past the CI machine's memory.)
+    "enabled": true,
+    // Every town this form ("harbour", "dykeland", "quarry", "tidewater", "glasshouse"; "" the street town), to play or
+    // look at one type; null, each town its own.
+    "force": null,
+    "yardM": 330,
+    "shortOfGate": 8,
+    "byTrade": {
+      "coal": { "quarry": 3, "harbour": 1, "crag": 2, "highline": 1, "timber": 1, "": 2 },
+      "farm": { "glasshouse": 2, "dykeland": 2, "harbour": 1, "salt": 2, "timber": 2, "highline": 1, "": 2 },
+      "foundry": { "tidewater": 2, "harbour": 1, "quarry": 1, "furnace": 3, "crag": 1, "": 2 }
+    },
+    "shapes": {
+      "harbour":    { "length": 560, "left": 150, "right": 175, "lot": [6.5, 9.5], "lotDepth": 7,  "setback": 0.6, "waterLevel": -2.4, "terraceLevel": 16, "rise": 4, "margin": 190, "roll": 5, "packed": true },
+      "dykeland":   { "length": 540, "left": 160, "right": 160, "lot": [6.5, 9.5], "lotDepth": 7,  "setback": 0.6, "waterLevel": -0.6, "waterDepth": 0.5, "terraceLevel": 0, "margin": 110, "packed": true },
+      "quarry":     { "length": 600, "left": 190, "right": 120, "lot": [6.5, 9.5], "lotDepth": 7,  "setback": 0.6, "waterLevel": -2.0, "terraceLevel": 5, "benches": 3, "margin": 110, "roll": 3, "packed": true },
+      "tidewater":  { "length": 560, "left": 160, "right": 180, "lot": [6.5, 9.5], "lotDepth": 7,  "setback": 0.6, "waterLevel": -1.4, "terraceLevel": 14, "rise": 4, "margin": 170, "roll": 6, "packed": true },
+      "glasshouse": { "length": 450, "left": 120, "right": 130, "lot": [6.5, 9.5], "lotDepth": 7,  "setback": 0.6, "waterLevel": -1.8, "terraceLevel": 0, "margin": 170, "roll": 6, "packed": true },
+      "furnace":    { "length": 560, "left": 150, "right": 160, "lot": [6.5, 9.5], "lotDepth": 7,  "setback": 0.6, "waterLevel": -3.0, "waterDepth": 1.6, "terraceLevel": 6, "rise": 12, "margin": 170, "roll": 4, "packed": true },
+      "highline":   { "length": 560, "left": 160, "right": 150, "lot": [6.5, 9.5], "lotDepth": 7,  "setback": 0.6, "waterLevel": -2.0, "terraceLevel": 14, "rise": 12, "margin": 170, "roll": 5, "packed": true },
+      "timber":     { "length": 540, "left": 160, "right": 160, "lot": [6.5, 9.5], "lotDepth": 7,  "setback": 0.6, "waterLevel": -1.0, "terraceLevel": 4, "rise": 4, "margin": 150, "roll": 2, "packed": true, "palisade": true, "wander": 4 },
+      "salt":       { "length": 540, "left": 150, "right": 150, "lot": [6.5, 9.5], "lotDepth": 7,  "setback": 0.6, "waterLevel": -0.6, "waterDepth": 0.5, "terraceLevel": 0, "margin": 110, "packed": true },
+      "crag":       { "length": 560, "left": 160, "right": 160, "lot": [6.5, 9.5], "lotDepth": 7,  "setback": 0.6, "waterLevel": -3.0, "waterDepth": 1.6, "terraceLevel": 16, "rise": 12, "margin": 190, "roll": 5, "packed": true }
+    }
+  }
 }

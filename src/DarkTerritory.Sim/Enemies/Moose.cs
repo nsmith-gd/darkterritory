@@ -104,6 +104,12 @@ public sealed class Moose(int id) : Enemy(id)
             Calm(ctx);
             return;
         }
+        // The band (note 711): music within its hearing stops it to listen, short of a pin.
+        if (Phase is not (SpinePhase.Grab or SpinePhase.Punish) && Music(ctx, t) is { } music)
+        {
+            Listen(ctx, t, music);
+            return;
+        }
         switch (Phase)
         {
             case SpinePhase.Dormant or SpinePhase.Alert or SpinePhase.BreakOff when Target is null:
@@ -146,7 +152,7 @@ public sealed class Moose(int id) : Enemy(id)
             double d = Flat(at - here);
             double add = 0;
             // Crowding is what it sees (round a corner or behind the train, you're not crowding it); voices it hears anyway.
-            bool crowds = CrewSense.OnGround(p.State) && d <= t.CrowdAt && Clear(ctx.Train, here + Double3.Up * 1.8, at + Double3.Up * 1.2);
+            bool crowds = CrewSense.Afoot(p.State, ctx.Train) && d <= t.CrowdAt && Clear(ctx.Train, here + Double3.Up * 1.8, at + Double3.Up * 1.2);
             if (crowds && d <= t.CloseAt)
                 add += t.ClosePerSecond;
             else if (crowds)
@@ -180,6 +186,35 @@ public sealed class Moose(int id) : Enemy(id)
             int who = _put.OrderByDescending(k => k.Value).ThenBy(k => k.Key).First().Key;
             Rile(ctx, who);
             return;
+        }
+        // Note 728 (senses.json answers.moose): the loudest thing it hears is a toy, playing where it lies or in someone's hands:
+        // it goes to it and stands over it listening; quiet again, it goes home.
+        if (Lure(ctx, t) is { } toy && Flat(toy.At - _home) <= t.LeashRadius)
+        {
+            _lured = true;
+            // Listening to it: its head up and its ears on it (its meter held at listenAt: a toy puts it on edge, never past).
+            Extra2 = Math.Max(Extra2, t.ListenAt);
+            var to = toy.At - here;
+            if (Flat(to) > ctx.World.Senses.Answers.Moose.StandOff)
+            {
+                SetMode(MooseMode.Search);
+                Walk(ctx, t, toy.At, t.SearchSpeed);
+            }
+            else
+            {
+                SetMode(MooseMode.Graze);
+                Turn(to, Math.PI);
+            }
+            if (Phase == SpinePhase.Dormant)
+                Enter(ctx, SpinePhase.Alert);
+            return;
+        }
+        if (_lured && Phase != SpinePhase.BreakOff)
+        {
+            SetMode(MooseMode.Home);
+            if (Walk(ctx, t, _home, t.SearchSpeed) > 1.0)
+                return;
+            _lured = false;
         }
         if (Phase == SpinePhase.BreakOff)
         {
@@ -249,6 +284,9 @@ public sealed class Moose(int id) : Enemy(id)
         bool seen = Sees(ctx, t, s, at);
         if (seen)
             _lastSeen = at;
+        // Note 728: a toy louder than any voice it hears is where it searches (it's the loudest thing about).
+        else if (Lure(ctx, t) is { } toy)
+            _lastSeen = toy.At;
         // A voice near it gives anyone away (the director, 7 Oct 2026): whoever it hears is who it's after now.
         else if (Heard(ctx, t) is { } heard && heard.Id != who)
         {
@@ -370,7 +408,7 @@ public sealed class Moose(int id) : Enemy(id)
                     _charged += step;
                     foreach (var (p, _) in ctx.Crew)
                     {
-                        if (!CrewSense.OnGround(p.State) || _hitThisCharge.Contains(p.Id))
+                        if (!CrewSense.Afoot(p.State, ctx.Train) || _hitThisCharge.Contains(p.Id))
                             continue;
                         var at = PlayerMotor.WorldPosition(p.State, ctx.Train);
                         var off = (at - Local) with { Y = 0 };
@@ -418,6 +456,49 @@ public sealed class Moose(int id) : Enemy(id)
     }
 
     /// <summary>Gives up: its meter emptied, back home to graze (it can be riled again the same way).</summary>
+    /// <summary>The nearest crewmate playing the band's instruments within its hearing (<c>bandHears</c>), where they are.</summary>
+    Double3? Music(EnemyContext ctx, MooseTuning t)
+    {
+        if (t.BandHears <= 0)
+            return null;
+        Double3? nearest = null;
+        double best = t.BandHears;
+        foreach (var (p, _) in ctx.Crew)
+        {
+            if (!p.State.Alive || !p.State.Has(PlayerFlags.Playing))
+                continue;
+            var at = PlayerMotor.WorldPosition(p.State, ctx.Train);
+            double d = Flat(at - Local);
+            if (d <= best)
+                (best, nearest) = (d, at);
+        }
+        // The gramophone and the calliope (note 715): heard from as far as each carries.
+        foreach (var (at, hears) in ctx.World.Playing())
+        {
+            double d = Flat(at - Local);
+            if (d <= hears && (nearest is null || d < best))
+                (best, nearest) = (d, at);
+        }
+        return nearest;
+    }
+
+    /// <summary>
+    /// Stopped by the band (note 711; the director: "the moose stopping to listen"): whoever it was after is forgotten, it stands
+    /// listening with its head to the music (its listening tell), and its temper falls; quiet again, it grazes as before.
+    /// </summary>
+    void Listen(EnemyContext ctx, MooseTuning t, Double3 music)
+    {
+        Extra = -1;
+        _put.Clear();
+        _blocked = 0;
+        _ramCar = -1;
+        Extra2 = Math.Max(0, Extra2 - t.BandCalmPerSecond * SimConstants.TickSeconds);
+        if (Phase != SpinePhase.Alert)
+            Enter(ctx, SpinePhase.Alert);
+        SetMode(MooseMode.Graze);
+        Turn(music - Local, Math.PI);
+    }
+
     void Calm(EnemyContext ctx)
     {
         Extra = -1;
@@ -477,7 +558,26 @@ public sealed class Moose(int id) : Enemy(id)
 
     /// <summary>On the ground, within its sight, and nothing between (a building, a car).</summary>
     bool Sees(EnemyContext ctx, MooseTuning t, in PlayerState s, Double3 at) =>
-        CrewSense.OnGround(s) && Flat(at - Local) <= t.SightRange && Clear(ctx.Train, Local + Double3.Up * 1.8, at + Double3.Up * 1.2);
+        CrewSense.Afoot(s, ctx.Train) && Flat(at - Local) <= t.SightRange && Clear(ctx.Train, Local + Double3.Up * 1.8, at + Double3.Up * 1.2);
+
+    /// <summary>
+    /// The loudest thing it hears, when that's a noisy toy (note 728, senses.json <c>answers.moose.toysLure</c>): a squeaker, a
+    /// music box or a drummer playing within its own sound's reach, louder than any voice within its hearing (a voice's level /
+    /// 255, the table's scale). It hears nothing else in the table: a lamp's light is nothing to it.
+    /// </summary>
+    Emitter? Lure(EnemyContext ctx, MooseTuning t)
+    {
+        if (!ctx.World.Senses.Answers.Moose.ToysLure)
+            return null;
+        double voice = 0;
+        foreach (var (p, intent) in ctx.Crew)
+            if (p.State.Alive && intent.Voice >= t.TalkingAbove && Flat(PlayerMotor.WorldPosition(p.State, ctx.Train) - Local) <= t.HearVoice)
+                voice = Math.Max(voice, intent.Voice / 255.0);
+        return ctx.World.Loudest(Sense.Sound, Local + Double3.Up * 1.8,
+            e => e.Kind is EmitterKind.Squeaker or EmitterKind.MusicBox or EmitterKind.Drummer && e.Strength > voice);
+    }
+
+    bool _lured;
 
     /// <summary>The loudest voice within its hearing, and where they are.</summary>
     (int Id, Double3 At)? Heard(EnemyContext ctx, MooseTuning t)
@@ -486,12 +586,14 @@ public sealed class Moose(int id) : Enemy(id)
         int loudest = t.TalkingAbove - 1;
         foreach (var (p, intent) in ctx.Crew)
         {
-            if (!p.State.Alive || intent.Voice <= loudest)
+            // Note 717: a marked voice weighs as many times louder (it still has to be talking at all).
+            int voice = intent.Voice < t.TalkingAbove ? intent.Voice : (int)Math.Min(int.MaxValue / 2, intent.Voice * ctx.World.TargetBias(p.Id));
+            if (!p.State.Alive || voice <= loudest)
                 continue;
             var at = PlayerMotor.WorldPosition(p.State, ctx.Train);
             if (Flat(at - Local) > t.HearVoice)
                 continue;
-            loudest = intent.Voice;
+            loudest = voice;
             best = (p.Id, at);
         }
         return best;

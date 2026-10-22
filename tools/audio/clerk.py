@@ -44,7 +44,9 @@ CANDIDATES = [(385, "a low, even man's voice"), (518, "a deep man's voice, slowe
 # "engineering kit reported lost" and "with car": the kit lost (GDD App. E.12 q.5; note 308).
 PHRASES = ["engineering kit reported lost", "with car", "yard to consist", "manifest follows", "gates open", "yard out", "yard clerk", "consist received",
            "tally follows", "powder and shot", "cars delivered", "cars lost", "child survivor", "child survivors",
-           "body recovered", "body not recovered", "gunpowder and shot", "machine parts", "comet-derived material"]
+           "body recovered", "body not recovered", "gunpowder and shot", "machine parts", "comet-derived material",
+           # Note 746: the human cannonball on the radio (Radio.Fired).
+           "fired from the rear cannon"]
 WORDS = ["crew", "coal", "cars", "freight", "cargo", "paid", "fee", "refund", "mail", "salvage", "repairs", "net", "next",
          # The cargoes (Train.Cargoes.Name).
          "goods", "grain", "salvage", "livestock", "food", "chemicals", "ore", "medicine", "timber",
@@ -55,13 +57,13 @@ WORDS = ["crew", "coal", "cars", "freight", "cargo", "paid", "fee", "refund", "m
 
 
 # The derail cause card (GDD v1.4 App. E.5; IncidentLog.CauseCard and the causes World.Derail and Overspeed are given:
-# Lineside's bends, the Sleepers, the Switchman, TrackRules' washouts and bridges, the Stoker's runaway, C.9's blame lines)
+# Lineside's bends, the Sleepers, TrackRules' washouts and bridges, the Stoker's runaway, C.9's blame lines)
 # and the Stranded line (E.9; Radio.Stranded). ClerkVoice says "68 km/h" as "68 kilometres an hour", "at km 12" as
 # "at kilometre 12", "40 s" as "40 seconds" and "12 m" as "12 metres".
 CAUSE_PHRASES = ["consist derailed", "took the", "too fast", "ran onto the washout", "gave way under car",
-                 "the switchman threw the points under it", "they throw a train off", "ran onto the sleepers", "they'll take",
-                 "the stoker ran away with it", "nobody on the throttle", "forward cannon crewed by", "forward cannon not crewed",
-                 "no forward cannon on the consist", "firebox last tended", "nobody had tended the firebox",
+                 "ran onto the sleepers", "they'll take",
+                 # (Not the forward cannon's three, which the card stopped saying: note 988, Rowan's note 858.)
+                 "the stoker ran away with it", "nobody on the throttle", "firebox last tended", "nobody had tended the firebox",
                  "recovery not scheduled", "cause not established", "consist reported stranded", "recovery at first light",
                  "recovery is chargeable", "kilometres an hour", "from the train"]
 CAUSE_WORDS = ["at", "the", "over", "bend", "throttle", "unattended", "kilometre", "seconds", "metres", "car",
@@ -87,7 +89,9 @@ def places():
 
 # How a word's said where the phonemizer guesses wrong ("Achebe" came out "Aitch-b").
 SAY = {"achebe": "Ah-chay-bay", "okafor": "Oh-kah-for", "reyes": "Ray-ez", "moreau": "Mor-oh", "combe": "Coom",
-       "drury": "Droo-ree"}
+       "drury": "Droo-ree",
+       # The upgrades' words the model can't read off the page (the Irish drum; the steam organ; a gramophone wound, not a wound).
+       "bodhrán": "Bow-rawn", "a calliope": "a ka-lie-oh-pee", "wound": "wownd"}
 
 
 def bots():
@@ -97,9 +101,71 @@ def bots():
     return [n.lower() for n in json.loads(text)["botNames"]]
 
 
+# The night's prizes in the tally (note 718; Radio.Prizes): "Find: pocket watch, 110.", "Finds: candles, 3 at 25.", "Light
+# fingers: Dave, 1140.", every find's and trophy's name as loot.json names it.
+PRIZE_PHRASES = ["light fingers"]
+PRIZE_WORDS = ["find", "finds"]
+
+# The upgrades read into every night's tally (U1's #967, note 678; queue #505, note 775; the checklist's up-clerk-words):
+# "Whistle: gold." "Fiddle: in tune, mostly." "Air freshener: pine." Read off campaign.json's upgrades (upgrades()), so a new
+# upgrade's line is in the bank the next time it's built. "Engine: {engine}." is the nameplate's name, a player's typing, or
+# "unnamed" (NetPlaySession) when there's none.
+UPGRADE_WORDS = ["unnamed"]
+
+# The tally's costs and a night in the red (note 766; Radio.Tally, Radio.Costliest): "Recovery: 900.", "Brigade fees: 120.",
+# "Net: -1607. Most of it the crew lost, 1500. Next." Each cost is named as the ledger names it ("the recovery", "the brigade").
+LEDGER_PHRASES = ["most of it", "the crew lost", "brigade fees"]
+LEDGER_WORDS = ["recovery", "brigade"]
+
+
+COUNTED = re.compile(r"\{([A-Za-z]+)\?([^|{}]*)\|([^{}]*)\}")
+
+
+def readings(tally):
+    """Every way a tally line can read (Sim.Run.Radio.Fill; note 972): each "{name?counted|none}" both ways, and the counts
+    ("#", "{name}") taken out, since the clerk says a number from the bank's number words. "{engine}" goes too: a name a
+    player typed."""
+    todo, out = [tally], []
+    while todo:
+        r = todo.pop(0)
+        m = COUNTED.search(r)
+        if m is None:
+            out.append(re.sub(r"\{[A-Za-z]+\}|#", "", r))
+        else:
+            todo += [r[:m.start()] + alt + r[m.end():] for alt in (m.group(2), m.group(3))]
+    return out
+
+
+def upgrades():
+    """Every upgrade's tally line (campaign.json upgrades' "tally"), in every reading, in the pieces the clerk says between its
+    marks: "Fiddle: in tune, mostly." is "fiddle", "in tune", "mostly". A piece with a number in it ("Fee 0") is said from
+    the number words. A {slot} (the engine's nameplate) is a name a player typed: the set breaks up over it, as over any
+    typed name."""
+    out = []
+    for u in jsonc("content", "tuning", "campaign.json")["upgrades"]:
+        for reading in readings(u.get("tally") or ""):
+            for part in re.split(r"[:,.;()]", reading):
+                part = part.strip().lower()
+                if part and not re.search(r"\d", part):
+                    out.append(part)
+    return out
+
+
+def finds():
+    """Every find's and trophy's name (loot.json items), as the clerk says it mid-line: "pocket watch", "the gaunt's hand"."""
+    return [n.lower() for n in jsonc("content", "tuning", "loot.json")["items"].values()]
+
+
+def damage():
+    """A fragile find's damage as the tally reads it (note 719; queue #513, note 783): "Find: mantel clock, smashed, 30.", each
+    word by its knocks (loot.json fragile.items)."""
+    return [w.lower() for words in (jsonc("content", "tuning", "loot.json").get("fragile") or {}).get("items", {}).values() for w in words]
+
+
 def vocabulary():
     seen, out = set(), []
-    for w in PHRASES + CAUSE_PHRASES + WORDS + CAUSE_WORDS + bots() + places():
+    for w in (PHRASES + CAUSE_PHRASES + PRIZE_PHRASES + LEDGER_PHRASES + upgrades() + finds() + damage() + WORDS
+              + CAUSE_WORDS + PRIZE_WORDS + UPGRADE_WORDS + LEDGER_WORDS + bots() + places()):
         if w not in seen:
             seen.add(w)
             out.append(w)

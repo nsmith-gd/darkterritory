@@ -448,6 +448,83 @@ public static class StructureKit
         return k.Build($"wall-{side}");
     }
 
+    /// <summary>
+    /// Ten metres of timber palisade (note 692; the director's "Timberholds"): the stone wall's footprint and height (the
+    /// Sim's wall is the same), its face upright logs sharpened at their tops, a plank walk behind them on its posts.
+    /// </summary>
+    public static MeshAsset Palisade(Look? look, int side)
+    {
+        var k = new Kit(look, 960 + side);
+        const float h = 8, t = 1.6f, len = 10, r = 0.26f;
+        float face = side > 0 ? t / 2 - r : -t / 2 + r;
+        k.Use("pine_bark", Palette.DeepBrown, 0.9f, 0.05f, tile: 0.8f);
+        for (float z = -r; z > -len; z -= 2 * r)
+        {
+            float top = h + 0.4f + 0.3f * MathF.Sin(z * 7.3f);
+            k.Cylinder(new Vector3(face, -0.5f, z), new Vector3(face, top, z), r, 6, caps: false, smooth: false);
+            k.Cylinder(new Vector3(face, top, z), new Vector3(face, top + 0.7f, z), r, 6, caps: false, smooth: false, radiusB: 0.02f);
+        }
+        // The walk behind, on its posts, the length of the bay.
+        k.Use("wood_grey", Palette.DeepBrown, 0.9f, 0.05f, tile: 2);
+        float walk0 = side > 0 ? -t / 2 : face + r, walk1 = side > 0 ? face - r : t / 2;
+        k.Box(new Vector3(walk0, h - 1.4f, -len), new Vector3(walk1, h - 1.2f, 0), Kit.Faces.PosY | Kit.Faces.NegY | Kit.Faces.Sides);
+        foreach (float z in new[] { -1.5f, -5f, -8.5f })
+            k.Rod(new Vector3((walk0 + walk1) / 2, -0.5f, z), new Vector3((walk0 + walk1) / 2, h - 1.4f, z), 0.12f);
+        return k.Build($"palisade-{side}");
+    }
+
+    /// <summary>
+    /// A watchtower of logs (note 692; Timberholds): the stone tower's footprint and height, on four log legs braced
+    /// across, a plank cabin up top under a shingled roof, its lamp toward the line.
+    /// </summary>
+    public static MeshAsset TimberTower(Look? look, int side)
+    {
+        var k = new Kit(look, 970 + side);
+        const float half = 2.4f, h = 13;
+        k.Use("pine_bark", Palette.DeepBrown, 0.9f, 0.05f, tile: 0.8f);
+        foreach (var (x, z) in new[] { (-1f, -1f), (1f, -1f), (1f, 1f), (-1f, 1f) })
+            k.Cylinder(new Vector3(x * (half - 0.2f), -0.5f, z * (half - 0.2f)), new Vector3(x * (half - 0.5f), h - 3, z * (half - 0.5f)), 0.28f, 6, caps: false, smooth: false);
+        foreach (float y in new[] { 2.5f, 6.5f })
+            for (int i = 0; i < 4; i++)
+            {
+                var (ax, az) = i switch { 0 => (-1f, -1f), 1 => (1f, -1f), 2 => (1f, 1f), _ => (-1f, 1f) };
+                var (bx, bz) = i switch { 0 => (1f, -1f), 1 => (1f, 1f), 2 => (-1f, 1f), _ => (-1f, -1f) };
+                k.Rod(new Vector3(ax * (half - 0.3f), y, az * (half - 0.3f)), new Vector3(bx * (half - 0.3f), y + 2.5f, bz * (half - 0.3f)), 0.1f);
+            }
+        k.Use("wood_grey", Palette.DeepBrown, 0.9f, 0.05f, tile: 2);
+        k.Box(new Vector3(-half, h - 3, -half), new Vector3(half, h - 2.8f, half));
+        k.Box(new Vector3(-half, h - 2.8f, -half), new Vector3(half, h - 1.6f, half), Kit.Faces.Sides);
+        foreach (var (x, z) in new[] { (-1f, -1f), (1f, -1f), (1f, 1f), (-1f, 1f) })
+            k.Rod(new Vector3(x * (half - 0.1f), h - 1.6f, z * (half - 0.1f)), new Vector3(x * (half - 0.1f), h, z * (half - 0.1f)), 0.1f);
+        k.Use("shingle_cedar", Palette.DeepBrown, 0.9f, 0.05f, tile: 1);
+        k.Lathe(new Vector3(0, h, 0), [new(half + 0.6f, 0), new(0, 1.8f)], 4, smooth: false);
+        k.Use("window_lit", Palette.LampAmber, 0.1f, 0.3f, tile: 1);
+        k.Panel(new Vector3(-side * (half + 0.02f), h - 2.2f, 0), new Vector3(-side, 0, 0), Vector3.UnitY, 0.5f, 0.4f, Vector2.Zero, Vector2.One);
+        return k.Build($"timbertower-{side}");
+    }
+
+    /// <summary>
+    /// A deck of logs (note 692; Timberholds' log yards): spruce, eight metres long, stacked four, three, two and one high
+    /// across a pair of skids, their cut ends pale.
+    /// </summary>
+    public static MeshAsset LogStack(Look? look, int variant)
+    {
+        var k = new Kit(look, 980 + variant);
+        const float r = 0.34f, len = 4.2f;
+        k.Use("wood_sleeper", Palette.DeepBrown, 0.9f, 0.05f, tile: 1);
+        foreach (float x in new[] { -1.6f, 1.6f })
+            k.Box(new Vector3(-1.6f, 0, x - 0.15f), new Vector3(1.6f, 0.25f, x + 0.15f));
+        k.Use("pine_bark", Palette.DeepBrown, 0.9f, 0.05f, tile: 0.6f);
+        int rows = 4 - variant % 2;
+        for (int row = 0; row < rows; row++)
+            for (int i = 0; i < rows - row; i++)
+            {
+                float x = (i - (rows - row - 1) / 2f) * 2 * r, y = 0.25f + r + row * r * 1.72f;
+                k.Cylinder(new Vector3(x, y, -len), new Vector3(x, y, len), r, 7, caps: true, smooth: true);
+            }
+        return k.Build($"logstack-{variant}");
+    }
+
     /// <summary>A gun tower on the wall: square, taller than the wall, crenellated, a lit loophole and a lamp towards the line.</summary>
     public static MeshAsset Tower(Look? look, int side)
     {
@@ -502,32 +579,92 @@ public static class StructureKit
         for (float x = -8; x < 8.6f; x += 1.3f)
             foreach (float z in new[] { -3.4f, 3.4f })
                 k.BoxAt(new Vector3(x, 14.45f, z), new Vector3(0.4f, 0.45f, 0.18f));
-        // The iron gates, drawn back against the passage walls.
-        k.Use("iron_plate", Palette.IronGrey, 0.9f, 0.35f);
+        // Its gates are pieces of their own, swung open and shut (GateLeaf, note 847): here the iron posts they hang from, set
+        // into the passage's walls where the leaves' hinges are.
+        k.Use("rust_heavy", Palette.IronGrey, 0.9f, 0.3f);
+        float post = (float)Sim.Run.Fortresses.LeafHinge, arch = (float)Sim.Run.Fortresses.ArchBottom;
         foreach (int side in new[] { -1, 1 })
-            k.Box(new Vector3(side * 3.5f - side * 0.25f - 0.06f, 0, -3.2f), new Vector3(side * 3.5f - side * 0.25f + 0.06f, 7.8f, 0.5f));
+            k.Box(new Vector3(side < 0 ? -3.5f : post - 0.1f, 0, -0.22f), new Vector3(side < 0 ? -post + 0.1f : 3.5f, arch, 0.22f));
         k.Use("rust_heavy", Palette.RustRed, 0.9f, 0.2f);
         k.Box(new Vector3(-3.5f, 7.8f, 3.3f), new Vector3(3.5f, 8.2f, 3.6f));
         return k.Build("gatehouse");
     }
 
     /// <summary>
+    /// One of a gatehouse's two iron gates (note 847), hung on its hinge at the piece's origin and reaching across the passage
+    /// to the line, toward −X for the right-hand one (<paramref name="side"/> 1) and +X for the left (−1): heavy timber in an
+    /// iron frame, three straps across, up to the arch (Sim.Run.Fortresses: LeafHinge, ArchBottom). The one with
+    /// <paramref name="wicket"/> has the wicket in it near the line, standing open into the fortress (+Z), for whoever's on foot.
+    /// </summary>
+    public static MeshAsset GateLeaf(Look? look, int side, bool wicket)
+    {
+        var k = new Kit(look, 961 + side + (wicket ? 4 : 0));
+        float reach = (float)Sim.Run.Fortresses.LeafHinge, top = (float)Sim.Run.Fortresses.ArchBottom, t = 0.06f;
+        // The wicket's span out from the hinge, and its height (the Sim's opening).
+        float w0 = reach + (float)Sim.Run.Fortresses.WicketLo, w1 = reach + (float)Sim.Run.Fortresses.WicketHi, wh = (float)Sim.Run.Fortresses.WicketHeight;
+        // A span out from the hinge (0 at it, reach at the line) as a box in the piece, toward the line.
+        // (Its least and most x either side: the left leaf's, −side × a, runs the other way, and a box given its ends the
+        // wrong way round is built inside out, its faces turned in and culled; note 869.)
+        void Span(float a, float b, float y0, float y1, float thick) =>
+            k.Box(new Vector3(MathF.Min(-side * a, -side * b), y0, -thick), new Vector3(MathF.Max(-side * a, -side * b), y1, thick));
+        // Heavy timber, banded with iron: it reads against the stone of the passage round it.
+        k.Use("wood_sleeper", Palette.DeepBrown, 0.85f, 0.05f);
+        if (wicket)
+        {
+            Span(0, w0, 0, top, t);
+            Span(w1, reach, 0, top, t);
+            Span(w0, w1, wh, top, t);
+        }
+        else
+            Span(0, reach, 0, top, t);
+        // The frame round it and the straps across, proud of the timber on both faces (broken at the wicket).
+        k.Use("rust_heavy", Palette.IronGrey, 0.9f, 0.3f);
+        Span(0, 0.18f, 0, top, t + 0.04f);
+        Span(reach - 0.12f, reach, 0, top, t + 0.04f);
+        Span(0, reach, top - 0.2f, top, t + 0.04f);
+        foreach (float y in new[] { 0.9f, 3.9f, 6.6f })
+        {
+            if (wicket && y < wh + 0.1f)
+            {
+                Span(0, w0 - 0.05f, y, y + 0.22f, t + 0.04f);
+                Span(w1 + 0.05f, reach, y, y + 0.22f, t + 0.04f);
+            }
+            else
+                Span(0, reach, y, y + 0.22f, t + 0.04f);
+        }
+        if (wicket)
+        {
+            // The wicket's frame, and its door swung in on its hinge by the line's side of the opening.
+            Span(w0 - 0.08f, w0, 0, wh + 0.08f, t + 0.03f);
+            Span(w1, w1 + 0.08f, 0, wh + 0.08f, t + 0.03f);
+            Span(w0 - 0.08f, w1 + 0.08f, wh, wh + 0.08f, t + 0.03f);
+            k.Use("wood_sleeper", Palette.DeepBrown, 0.85f, 0.05f);
+            float hx = -side * w1;
+            k.Box(new Vector3(hx - 0.04f, 0.04f, t), new Vector3(hx + 0.04f, wh - 0.04f, t + (w1 - w0) - 0.04f));
+        }
+        return k.Build(wicket ? $"gateleaf-wicket-{side}" : $"gateleaf-{side}");
+    }
+
+    /// <summary>
     /// A bay of the fortified station's platform (the art sheet's "fortified station"): cobbles at a low kerb, timber posts,
     /// a pitched canopy of slate on rafters, a lantern hanging under each bay. <see cref="Lantern"/> is where its light is.
+    /// Its deck, posts, bench and crates are where the Sim stands them solid (Sim.Run.Fortresses: PlatformEdge, PostOut,
+    /// OnThePlatformBay; note 869).
     /// </summary>
     /// <param name="lantern">False when the scene hangs a sourced lantern on the bracket instead (tools/models).</param>
     public static MeshAsset PlatformBay(Look? look, int variant, bool lantern = true)
     {
         var k = new Kit(look, 970 + variant);
-        const float x0 = 3.6f, x1 = 10, len = 8;
+        const float x0 = (float)Sim.Run.Fortresses.PlatformEdge, x1 = (float)Sim.Run.Fortresses.PlatformOut, len = (float)Sim.Run.Fortresses.PlatformBay;
+        float deck = (float)Sim.Run.Fortresses.PlatformDeck, post = (float)Sim.Run.Fortresses.PostHalf, postTop = (float)Sim.Run.Fortresses.PostTop;
         k.Use("cobbles", Palette.Ballast, 0.7f, 0.05f, tile: 2);
-        k.Box(new Vector3(x0, -0.3f, -len), new Vector3(x1, 0.25f, 0), Kit.Faces.PosY | Kit.Faces.NegX);
+        k.Box(new Vector3(x0, -0.3f, -len), new Vector3(x1, deck, 0), Kit.Faces.PosY | Kit.Faces.NegX);
         k.Use("stone_block", Palette.Charcoal, 0.7f, 0.1f, tile: 1.2f);
         k.Box(new Vector3(x0, -0.3f, -len), new Vector3(x0 + 0.35f, 0.3f, 0), Kit.Faces.PosY | Kit.Faces.NegX);
         k.Use("wood_sleeper", Palette.DeepBrown, 0.9f, 0, tile: 1.5f);
-        foreach (float x in new[] { 5.2f, 9.2f })
+        foreach (float x in Sim.Run.Fortresses.PostOut.Select(o => (float)o))
         {
-            k.Box(new Vector3(x - 0.13f, 0.25f, -0.13f), new Vector3(x + 0.13f, 4.2f, 0.13f));
+            k.Box(new Vector3(x - post, deck, -post), new Vector3(x + post, postTop, post));
             // Knee braces up under the canopy.
             k.Rod(new Vector3(x, 3.4f, 0), new Vector3(x - 0.9f, 4.2f, 0), 0.06f);
             k.Rod(new Vector3(x, 3.4f, 0), new Vector3(x + 0.9f, 4.2f, 0), 0.06f);
@@ -544,24 +681,27 @@ public static class StructureKit
         if (lantern)
         {
             k.BoxAt(l + new Vector3(0, 0.22f, 0), new Vector3(0.14f, 0.03f, 0.14f));
-            k.Use("lamp_lens", Palette.LampAmber, 0, 0, tile: 0.25f);
+            k.Use("lantern_pane", Palette.LampAmber, 0, 0, tile: 0.25f);
             k.Emissive = 1;
             k.BoxAt(l, new Vector3(0.1f, 0.18f, 0.1f));
             k.Emissive = 0;
         }
-        // Something on the platform: a bench, or crates, or a sack barrow.
+        // Something on the platform: a bench, or crates (where the Sim stands them, Fortresses.OnThePlatformBay).
+        var on = Sim.Run.Fortresses.OnThePlatformBay(variant);
         if (variant % 3 == 0)
         {
+            var (bx0, bz0, bx1, bz1, top) = on[0];
             k.Use("wood_grey", Palette.DeepBrown, 0.9f, 0, tile: 1);
-            k.Box(new Vector3(8.6f, 0.25f, -5.5f), new Vector3(9.1f, 0.7f, -3.5f));
-            k.Box(new Vector3(9.0f, 0.7f, -5.5f), new Vector3(9.1f, 1.2f, -3.5f));
+            k.Box(new Vector3((float)bx0, deck, (float)bz0), new Vector3((float)bx1, 0.7f, (float)bz1));
+            k.Box(new Vector3((float)bx1 - 0.1f, 0.7f, (float)bz0), new Vector3((float)bx1, (float)top, (float)bz1));
         }
         else if (variant % 3 == 1)
         {
+            var ((ax0, az0, ax1, az1, atop), (cx0, cz0, cx1, cz1, ctop)) = (on[0], on[1]);
             k.Use("wood_crate", Palette.TarnishedBrass * 0.8f, 0.8f, 0, tile: 0.6f);
-            k.Box(new Vector3(7.5f, 0.25f, -3), new Vector3(8.1f, 0.85f, -2.4f));
-            k.Box(new Vector3(7.6f, 0.85f, -2.95f), new Vector3(8.1f, 1.35f, -2.45f));
-            k.Box(new Vector3(8.2f, 0.25f, -3.1f), new Vector3(8.8f, 0.85f, -2.5f));
+            k.Box(new Vector3((float)ax0, deck, (float)az0), new Vector3((float)ax1, 0.85f, (float)az1));
+            k.Box(new Vector3((float)ax0 + 0.1f, 0.85f, (float)az0 + 0.05f), new Vector3((float)ax1, (float)atop, (float)az1 - 0.05f));
+            k.Box(new Vector3((float)cx0, deck, (float)cz0), new Vector3((float)cx1, (float)ctop, (float)cz1));
         }
         return k.Build($"platform-{variant}");
     }

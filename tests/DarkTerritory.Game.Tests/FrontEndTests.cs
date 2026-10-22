@@ -89,6 +89,34 @@ public sealed class FrontEndTests : IDisposable
     }
 
     [Fact]
+    public void ThePlaytestRecorderHearsTheMenusRebindsAndPurchases()
+    {
+        // Note 913: a screen left (and how long it was up), a control rebound (its name, never the key), a car bought (what,
+        // the scrip it cost, the scrip after); recorded, as everything, only with consent.
+        var sink = new DarkTerritory.Game.Telemetry.MemoryTelemetrySink();
+        var m = Menu();
+        m.Telemetry = new DarkTerritory.Game.Telemetry.SessionRecorder(sink, new DarkTerritory.Game.Telemetry.FixedTelemetryGate(true, "unused"));
+        Saves.Save(Campaign.New(C, 1, "Crew 1", 5) with { Scrip = 10_000 });
+        m.ShowFortress(1);
+        double cost = Campaign.NextCarCost(C, m.Open!);
+        Choose(m, "BUY A CAR");
+        m.Show(Screen.Settings);
+        Choose(m, "CONTROLS");
+        Choose(m, "USE: E");
+        m.Bind("F");
+        var lines = sink.Lines.Select(l => System.Text.Json.JsonDocument.Parse(l).RootElement).ToList();
+        var bought = Assert.Single(lines, l => l.GetProperty("type").GetString() == "purchase");
+        Assert.Equal("car", bought.GetProperty("what").GetString());
+        Assert.Equal(cost, bought.GetProperty("cost").GetDouble(), 3);
+        Assert.Equal(10_000 - cost, bought.GetProperty("scripAfter").GetDouble(), 3);
+        Assert.Equal("Use", Assert.Single(lines, l => l.GetProperty("type").GetString() == "rebind").GetProperty("control").GetString());
+        var menus = lines.Where(l => l.GetProperty("type").GetString() == "menu").Select(l => l.GetProperty("name").GetString()).ToList();
+        Assert.Contains("Fortress", menus);
+        Assert.Contains("Settings", menus);
+        Assert.DoesNotContain(sink.Lines, l => l.Contains("\"F\"", StringComparison.Ordinal));
+    }
+
+    [Fact]
     public void TheFortressSellsCarsAndUpgradesAndSaysWhyNot()
     {
         var m = Menu();
@@ -107,22 +135,117 @@ public sealed class FrontEndTests : IDisposable
         Assert.NotNull(m.Message);
         Assert.Equal(C.StartingCars + 1, Saves.Load(1)!.Cars);
 
-        // Upgrades: bought once, then owned and greyed out.
+        // Upgrades (note 697): the fortress's UPGRADES is the blacksmith's shelves to look at; they're bought at the forge.
         Saves.Save(m.Open! with { Scrip = 10_000 });
         m.ShowFortress(1);
         Choose(m, "UPGRADES");
         Assert.Equal(Screen.Upgrades, m.Screen);
         var first = C.Upgrades[0];
         Choose(m, first.Name.ToUpperInvariant());
-        Assert.Contains(first.Id, Saves.Load(1)!.Upgrades);
-        var owned = m.Items.Single(i => i.Label.StartsWith(first.Name.ToUpperInvariant(), StringComparison.Ordinal));
-        Assert.EndsWith("OWNED", owned.Label);
-        Assert.False(owned.Enabled);
+        Assert.DoesNotContain(first.Id, Saves.Load(1)!.Upgrades);
+        Assert.Contains("blacksmith", m.Message);
         // Every upgrade the fortress sells does something tonight (note 196): none says it isn't modelled.
         Assert.All(C.Upgrades, u => Assert.DoesNotContain("not modelled",
             m.Items.Single(i => i.Label.StartsWith(u.Name.ToUpperInvariant(), StringComparison.Ordinal)).Detail ?? ""));
         m.Back();
         Assert.Equal(Screen.Fortress, m.Screen);
+    }
+
+    [Fact]
+    public void TheBlacksmithSellsTheCatalogueOverTheYardAndOnlyTheHostPays()
+    {
+        // Note 687: Use held on the town's blacksmith in the yard opens their catalogue over the night. The host buys on the
+        // campaign (saved at once, fitted before the gate); a joiner's told who keeps the scrip.
+        var m = Menu();
+        var crew = Campaign.New(C, 1, "Crew 1", 5) with { Scrip = 10_000 };
+        Saves.Save(crew);
+        var first = C.Upgrades[0];
+        string label = first.Name.ToUpperInvariant();
+        string? bought = null;
+        m.SmithyBuy = id =>
+        {
+            var p = Campaign.BuyUpgrade(C, Saves.Load(1)!, id);
+            if (p.Ok)
+            {
+                Saves.Save(p.State);
+                bought = id;
+            }
+            return p;
+        };
+        m.OpenSmithy(new NightMenu(Yard: true), new SmithyShop("Archie MacNeil", crew, CanBuy: true));
+        Assert.Equal(Screen.Smithy, m.Screen);
+        Assert.Contains(m.Items, i => i is { Heading: true, Label: "TOOLS" });
+        Assert.Null(Choose(m, label));
+        Assert.Equal(first.Id, bought);
+        Assert.Contains(first.Id, Saves.Load(1)!.Upgrades);
+        Assert.Contains("fitted before the gate", m.Message);
+        var owned = m.Items.Single(i => i.Label.StartsWith(label, StringComparison.Ordinal));
+        Assert.EndsWith("OWNED", owned.Label);
+        Assert.False(owned.Enabled);
+        // DONE (or Escape) and it's the night again.
+        Choose(m, "DONE");
+        Assert.Null(m.Night);
+        Assert.Null(m.Smithy);
+
+        // A joiner: the same shelves, and the host to ask.
+        bought = null;
+        m.OpenSmithy(new NightMenu(Hosting: false, Yard: true), new SmithyShop("Archie MacNeil", crew, CanBuy: false, "Sam"));
+        Choose(m, C.Upgrades[1].Name.ToUpperInvariant());
+        Assert.Null(bought);
+        Assert.Contains("ask Sam", m.Message);
+        m.Back();
+        Assert.Null(m.Night);
+    }
+
+    [Fact]
+    public void TheBlacksmithSaysPlainlyWhenNothingCanBeBoughtAndShowsWhatItCosts()
+    {
+        // Note 904 (the director, 16 Oct: "It should tell me that nothing is available to purchase until you have scrip").
+        var m = Menu();
+        var broke = Campaign.New(C, 1, "Crew 1", 5) with { Scrip = 0 };
+        m.SmithyBuy = id => Campaign.BuyUpgrade(C, broke, id);
+        m.OpenSmithy(new NightMenu(Yard: true), new SmithyShop("Archie MacNeil", broke, CanBuy: true));
+        Assert.Equal("NOTHING CAN BE BOUGHT UNTIL YOU HAVE SCRIP", m.Items[0].Label);
+        Assert.False(m.Items[0].Enabled);
+        // Every line on the shelves says its price, the ones for a longer train too.
+        foreach (var u in C.Upgrades)
+            Assert.Contains(m.Items, i => i.Label.StartsWith($"{u.Name.ToUpperInvariant()}: ", StringComparison.Ordinal)
+                && i.Label.EndsWith($"{Campaign.UpgradeCost(C, broke, u):0} SCRIP", StringComparison.Ordinal));
+        // Some scrip, not enough: it says the cheapest.
+        var some = broke with { Scrip = 1 };
+        m.OpenSmithy(new NightMenu(Yard: true), new SmithyShop("Archie MacNeil", some, CanBuy: true));
+        Assert.StartsWith("NOTHING HERE YOU CAN AFFORD YET: 1 SCRIP", m.Items[0].Label, StringComparison.Ordinal);
+        // Enough, and the shelves start at their first heading.
+        m.OpenSmithy(new NightMenu(Yard: true), new SmithyShop("Archie MacNeil", broke with { Scrip = 100_000 }, CanBuy: true));
+        Assert.True(m.Items[0].Heading);
+        // The fortress's UPGRADES says it too.
+        Saves.Save(broke);
+        m.Back();
+        m.ShowFortress(1);
+        Choose(m, "UPGRADES");
+        Assert.Equal("NOTHING CAN BE BOUGHT UNTIL YOU HAVE SCRIP", m.Items[0].Label);
+    }
+
+    [Fact]
+    public void SettingsHasTheDevUnlockOnlyWhenADeveloperBuildGivesIt()
+    {
+        // Note 904 (the director, 16 Oct: "I don't see a developer setting to be able to go in and unlock everything"): a
+        // player's build never sets SmithyMode, and its Settings have no DEVELOPER section.
+        var m = Menu();
+        m.Show(Screen.Settings);
+        Assert.DoesNotContain(m.Items, i => i.Label == "DEVELOPER");
+        bool on = false;
+        m.SmithyMode = () =>
+        {
+            m.SmithyFree = on;
+            return (new MenuItem(on ? "DEV UNLOCK: ON" : "DEV UNLOCK: OFF"), () => on = !on);
+        };
+        m.Show(Screen.Settings);
+        Assert.Contains(m.Items, i => i is { Label: "DEVELOPER", Heading: true });
+        Choose(m, "DEV UNLOCK: OFF");
+        Assert.True(on);
+        Assert.True(m.SmithyFree);
+        Assert.Contains(m.Items, i => i.Label == "DEV UNLOCK: ON");
     }
 
     [Fact]
@@ -559,14 +682,15 @@ public sealed class FrontEndTests : IDisposable
         var rows = m.Items.Select(i => i.Label).ToList();
         Assert.StartsWith("LOBBY", rows[0]);
         Assert.Equal(["OLD'S RUN", "NICK'S RUN", "PACKED'S RUN", "PRIYA'S RUN"], rows.Skip(1).Take(4).Select(r => r[..25].TrimEnd()));
-        // Every row says its ping (note 450), and who the run's for ("-": the host said either).
-        Assert.Matches(@"^NICK'S RUN +1/12 +FRONTIER +- +3 MS$", rows[2]);
-        Assert.Matches(@"^PRIYA'S RUN +3/12 +DEAD LINES +- +41 MS$", rows[4]);
+        // Every row says its ping (note 450), who the run's for ("-": the host said either) and its host's record (note 535;
+        // "-": none said).
+        Assert.Matches(@"^NICK'S RUN +1/12 +FRONTIER +- +- +3 MS$", rows[2]);
+        Assert.Matches(@"^PRIYA'S RUN +3/12 +DEAD LINES +- +- +41 MS$", rows[4]);
         // Greyed, with the reason on the row where the tier would be: another version, a full crew.
         Assert.False(m.Items[1].Enabled);
-        Assert.Matches(@"^OLD'S RUN +1/12 +OTHER VERSION +- +2 MS$", rows[1]);
+        Assert.Matches(@"^OLD'S RUN +1/12 +OTHER VERSION +- +- +2 MS$", rows[1]);
         Assert.False(m.Items[3].Enabled);
-        Assert.Matches(@"^PACKED'S RUN +12/12 +FULL +- +5 MS$", rows[3]);
+        Assert.Matches(@"^PACKED'S RUN +12/12 +FULL +- +- +5 MS$", rows[3]);
         // The first you can join is chosen; a network game joins by address, a Steam one by its lobby.
         Assert.Equal(2, m.Selected);
         Assert.Equal(new Launch.Join("192.168.1.20:27450"), m.Select());
@@ -576,6 +700,32 @@ public sealed class FrontEndTests : IDisposable
         Assert.True(m.TakeRefresh());
         Assert.False(m.TakeRefresh());
         Assert.Contains(rows, r => r.StartsWith("ADDRESS", StringComparison.Ordinal));
+    }
+
+    [Fact]
+    public void AGameHeardAfterTheJoinScreenOpensIsWhatEnterJoins()
+    {
+        // Note 985 (a friend's first join, headless): the screen opened before the host's beacon was heard, so the selection
+        // sat on MOOD under the list and Enter changed the mood. The first game you can join takes it, till you move it.
+        var m = Menu();
+        static Ballast.Net.LanGame Lan(string ip, int protocol) =>
+            new(new System.Net.IPEndPoint(System.Net.IPAddress.Parse(ip), 27450), "nick", "FRONTIER:7, 6 CARS, IN THE YARD", 1, protocol, "darkterritory")
+            { Name = "NICK'S RUN", Max = 8, Tier = "Frontier" };
+        Choose(m, "JOIN");
+        Assert.StartsWith("MOOD", m.Items[m.Selected].Label);
+        // Another version's is no game to join: the selection stays.
+        m.Games = ListedGame.Merge([Lan("192.168.1.30", m.Protocol + 1)], [], "");
+        Assert.StartsWith("MOOD", m.Items[m.Selected].Label);
+        m.Games = ListedGame.Merge([Lan("192.168.1.20", m.Protocol)], [], "");
+        Assert.Equal(new Launch.Join("192.168.1.20:27450"), m.Select());
+
+        // Moved by hand first, it's left where it was put.
+        var moved = Menu();
+        Choose(moved, "JOIN");
+        moved.Down();
+        string there = moved.Items[moved.Selected].Label;
+        moved.Games = ListedGame.Merge([Lan("192.168.1.20", moved.Protocol)], [], "");
+        Assert.Equal(there, moved.Items[moved.Selected].Label);
     }
 
     [Fact]
@@ -815,17 +965,19 @@ public sealed class FrontEndTests : IDisposable
         // Note 450 (the director, 8 Oct 2026): "a setting called 'Here for Laughs' ... that will automatically sort lowest
         // ping, here for laughs servers"; "Private matches should be password gated", listed with a lock.
         var m = Menu();
-        Ballast.Net.LanGame Lan(string ip, string name, double ping, string mood, bool locked) =>
+        Ballast.Net.LanGame Lan(string ip, string name, double ping, string mood, bool locked, string record = "") =>
             new(new System.Net.IPEndPoint(System.Net.IPAddress.Parse(ip), 27450), "host", "FRONTIER:7, 6 CARS, IN THE YARD", 1, m.Protocol, "darkterritory")
-            { Name = name, Max = 8, Tier = "Frontier", PingMs = ping, Mood = mood, Locked = locked };
-        m.Games = ListedGame.Merge([Lan("10.0.0.1", "GIGGLES", 30, "laughs", false), Lan("10.0.0.2", "LONG HAUL", 5, "competitive", false),
+            { Name = name, Max = 8, Tier = "Frontier", PingMs = ping, Mood = mood, Locked = locked, Record = record };
+        m.Games = ListedGame.Merge([Lan("10.0.0.1", "GIGGLES", 30, "laughs", false), Lan("10.0.0.2", "LONG HAUL", 5, "competitive", false, record: "1873"),
             Lan("10.0.0.3", "FRIENDS ONLY", 10, "", true)], [], "Steam");
         Choose(m, "JOIN");
-        List<string> Names() => [.. m.Items.Skip(1).Take(3).Select(i => i.Label[..26].TrimStart(Ballast.Render.BitmapFont.Lock).Trim())];
+        List<string> Names() => [.. m.Items.Skip(1).Take(3).Select(i => i.Label[..25].TrimStart(Ballast.Render.BitmapFont.Lock).Trim())];
         // Looking for either: nearest first.
         Assert.Equal(["LONG HAUL", "FRIENDS ONLY", "GIGGLES"], Names());
-        Assert.Matches(@"^LONG HAUL +1/8 +FRONTIER +COMPETE +5 MS$", m.Items[1].Label);
-        Assert.Matches(@"^GIGGLES +1/8 +FRONTIER +LAUGHS +30 MS$", m.Items[3].Label);
+        // Note 535: a competitive run's host's record beside its mood ("-": none said).
+        Assert.Matches(@"^LOBBY +CREW +TIER +MOOD +RECORD +PING$", m.Items[0].Label);
+        Assert.Matches(@"^LONG HAUL +1/8 +FRONTIER +COMPETE +1873 KM +5 MS$", m.Items[1].Label);
+        Assert.Matches(@"^GIGGLES +1/8 +FRONTIER +LAUGHS +- +30 MS$", m.Items[3].Label);
         // The private run's row starts with the lock, and says why on its detail line.
         Assert.StartsWith($"{Ballast.Render.BitmapFont.Lock} FRIENDS ONLY", m.Items[2].Label);
         Assert.StartsWith("Private:", m.Items[2].Detail);

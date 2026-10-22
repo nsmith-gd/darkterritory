@@ -8,9 +8,12 @@ namespace DarkTerritory.Sim.Towns;
 /// along the main line, the night's seed, the creatures this edition fields (enemies.json director.roster; empty, all of
 /// them), and the custom of the last town, which this one won't share (App. F.1: "different from the last").
 /// </summary>
-/// <para><see cref="Burnt"/>: how many of its houses are burnt out (note 608), the nearest its gate (<see cref="TownGenerator.Harmed"/>).</para>
+/// <para><see cref="Burnt"/>: how many of its houses are burnt out (note 608), the nearest where a train come in stands (<see cref="TownGenerator.Harmed"/>, note 966).</para>
 public sealed record TownSite(string Name, string Industry, double Gate, ulong Seed, IReadOnlyList<string> Roster, string? Last = null, int Burnt = 0)
 {
+    /// <summary>The town type to make it (note 692; "" the street town), or null to draw it from its trade and seed.</summary>
+    public string? Form { get; init; }
+
     /// <summary>The departure fortress of a route: the plan's, or for a hand-laid line one named from the seed.</summary>
     public static TownSite Of(Route.Route route, double gate, IReadOnlyList<string> roster, TownContent content, string? last = null)
     {
@@ -32,10 +35,51 @@ public static partial class TownGenerator
 {
     // Where the people with places stand, in metres. Not design numbers: where a body stands to be in front of the thing
     // it tends (a door, the board, the engine), clear of the thing itself.
+    /// <summary>
+    /// The board of lost crews (note 721): along the square from its middle (the notice board's at +14, the bench at +7), and
+    /// what it says to anyone with no crews posted (each machine's own profile fills it).
+    /// </summary>
+    const double LostCrewsAlong = 10.6;
+    public const string LostCrewsText = "The company's board. A card goes up for every crew whose train was taken: the crew's name, how many nights it ran, and how its last one ended. Nothing's posted for any crew you rode with.";
     const double DoorStep = 1.4, BoardOut = 6.5, BoardReader = 1.3, BesideTrack = 3.4, Ring = 1.8, GateIn = 9, GateOut = 4.5;
     const double PlatformD = 7.0, PlatformTop = 0.25;
     /// <summary>The quiet house: how far inside the gate, and how far out from the line on the far side (m).</summary>
     const double QuietIn = 15, QuietOut = 21;
+    /// <summary>How far past the way in's gatehouse a town type's murals are painted on its back wall (m; note 692).</summary>
+    /// <summary>
+    /// Note 971: a household's quarrel, at most one a house, by its two at most odds on a trait <c>quarrels.lines</c> names,
+    /// <c>quarrels.gap</c> apart or more; the first line said by the one higher on it. Not at the party.
+    /// </summary>
+    static List<TownQuarrel> Quarrels(QuarrelTuning t, IReadOnlyList<Townsperson> people, Pcg32 rng)
+    {
+        var quarrels = new List<TownQuarrel>();
+        if (t.Lines.Count == 0)
+            return quarrels;
+        string[] axes = [.. TownTraits.Axes.Where(t.Lines.ContainsKey)];
+        foreach (var house in people.Where(p => p.House >= 0 && p.Personality is not null && !p.Hosting).GroupBy(p => p.House).OrderBy(g => g.Key))
+        {
+            var members = house.OrderBy(p => p.Id).ToList();
+            (Townsperson A, Townsperson B, string Over, double Gap)? worst = null;
+            foreach (var axis in axes)
+                for (int x = 0; x < members.Count; x++)
+                    for (int y = x + 1; y < members.Count; y++)
+                    {
+                        int at = Array.IndexOf(TownTraits.Axes, axis);
+                        double a = members[x].Personality!.Traits[at], b = members[y].Personality!.Traits[at];
+                        if (Math.Abs(a - b) >= t.Gap && (worst is null || Math.Abs(a - b) > worst.Value.Gap))
+                            worst = a >= b ? (members[x], members[y], axis, Math.Abs(a - b)) : (members[y], members[x], axis, Math.Abs(a - b));
+                    }
+            if (worst is not { } w || t.Lines[w.Over] is not { Length: > 0 } decks)
+                continue;
+            var said = decks[rng.RangeInclusive(0, decks.Length - 1)];
+            string Given(Townsperson p) => p.Personality?.Given is { Length: > 0 } g ? g : p.Name;
+            quarrels.Add(new TownQuarrel(house.Key, w.A.Id, w.B.Id, w.Over,
+                [.. said.Select((line, k) => k % 2 == 0 ? (w.A.Id, line.Replace("{other}", Given(w.B))) : (w.B.Id, line.Replace("{other}", Given(w.A))))]));
+        }
+        return quarrels;
+    }
+
+    const double MuralByGate = 6;
 
     /// <summary>The roles any townsperson without a place may have ("hand": works at what the town makes).</summary>
     static readonly string[] Folk = ["widow", "driver", "cook", "guard", "hand"];
@@ -126,7 +170,14 @@ public static partial class TownGenerator
         // The houses down the yard's street, and the households in the open ones (TownGenerator.Houses).
         // Who the people are and what they're called (note 474), when the content has the townsfolk's matrix.
         var folk = content.Folk is { } fc ? new TownFolk(fc, w, site, culture.Id, seed) : null;
-        var homes = Houses(content, site, square, population, former, Rng, folk);
+        // What kind of town it is (note 692; the director, 13 Oct: "multiple different town types"), from its trade and its
+        // own stream, and its ground plan: a harbour, a dykeland, a quarry, a tidewater or a glasshouse town, or the
+        // street town of note 335.
+        string formId = site.Form ?? TownForms.Pick(t.Forms, site.Industry, Rng("form"));
+        var form = TownForms.Make(t, w, formId, site.Gate, square, Rng);
+        var homes = Houses(content, site, square, population, former, Rng, folk, form);
+        // What its people believe, by its houses' character (note 822, the Flooders'): heard with its custom, posted after it.
+        var creed = homes.Creed is { } creedId ? w.Creeds.FirstOrDefault(c => c.Id == creedId) : null;
 
         // The council's laws posted by the clerk's door, and the town's flag in the square; a walled town's green across the
         // street with its statue, its wall of names, its bandstand, its garden under lamps and its trees; and the day painted
@@ -162,6 +213,19 @@ public static partial class TownGenerator
                 Fix("tree", trees[i % trees.Count].Title, trees[i % trees.Count].Text, corners[i].S, side * corners[i].D, 0, -side);
             foreach (double along in (double[])[-6, 6])
                 Fix("bench", "a bench", "", gs + along, gd - side * 3.5, 0, -side);
+        }
+        // A town type's landmarks (note 692), standing where its form put them.
+        // (Its own words for one; one of many, its works' words of that kind in turn: a glasshouse town's ranges.)
+        var many = new Dictionary<string, int>();
+        foreach (var (kind, _, ls, ld, lfs, lfd) in form?.Landmarks ?? [])
+        {
+            var words = w.Forms.GetValueOrDefault(form!.Form)?.Landmarks.GetValueOrDefault(kind);
+            if (words is null && (w.Works.GetValueOrDefault(form.Form) ?? []).Where(x => x.Kind == kind).ToList() is { Count: > 0 } kinds)
+            {
+                int n = many[kind] = many.GetValueOrDefault(kind) + 1;
+                words = new TownText(kinds[(n - 1) % kinds.Count].Title, kinds[(n - 1) % kinds.Count].Text);
+            }
+            Fix(kind, words?.Title.Replace("{town}", site.Name) ?? kind, words?.Text.Replace("{town}", site.Name) ?? "", ls, ld, lfs, lfd);
         }
         if (homes.Works is { } works)
         {
@@ -206,6 +270,8 @@ public static partial class TownGenerator
                 Fix(piece.Kind, piece.Title.Replace("{town}", site.Name), piece.Text.Replace("{town}", site.Name), from + at,
                     works.Side * (middle + piece.Across), 0, -works.Side);
         }
+        if (homes.Yard is { } ry)
+            RailYard(ry, t.Walled, w, site.Name, Rng("yard"), Fix);
         if (homes.Bounds is not null)
         {
             // A walled town's clerk keeps the council's house (note 353): its cupola and clock over the square.
@@ -250,9 +316,19 @@ public static partial class TownGenerator
             var drng = Rng("civic.dave");
             if (murals.Count > 0 && drng.Chance(t.DaveMural) && all.Where(daves).ToList() is { Count: > 0 } his)
                 murals[drng.Chance(0.5) ? 0 : murals.Count - 1] = drng.Pick(his);
-            for (int i = 0; i < murals.Count && i < walls.Streets.Count; i++)
-                Fix("mural", murals[i].Title, murals[i].Text, walls.Rear + Run.Fortresses.WallHalf + 0.05, walls.Streets[i].At(walls.Rear), 1, 0);
+            // (A town type's warren has none of the street town's streets, note 692: the back wall either side of the way in's
+            // gatehouse, where everybody coming in from the last night sees it.)
+            var at = walls.Streets.Count > 0 ? walls.Streets.Select(x => x.At(walls.Rear)).ToList()
+                : [side * (Run.Fortresses.GateOuter + MuralByGate), -side * (Run.Fortresses.GateOuter + MuralByGate)];
+            for (int i = 0; i < murals.Count && i < at.Count; i++)
+                Fix("mural", murals[i].Title, murals[i].Text, walls.Rear + Run.Fortresses.WallHalf + 0.05, at[i], 1, 0);
         }
+
+        // The night market (queue #552, note 825): its stalls lit and open in a row between the buildings' fronts and the
+        // centrepiece, each where it's clear of what's in the square and of the doors. Its stalls are listed after every other
+        // fixture but the forge, and its stallholders after every other townsperson but the blacksmith and the Flame's keeper,
+        // so every other keeps its index and its name.
+        var market = Market(sq, s0, s1, side * (front - sq.MarketIn), population, fixtures, buildings, homes.Green, w, industry, Rng("market"));
 
         // The people. Those with a place: the jobs a town this size has, round the centrepiece, the households at home, out
         // with a lantern in front of the lived-in houses.
@@ -288,14 +364,57 @@ public static partial class TownGenerator
         for (int i = 0; i < outdoors; i++)
         {
             var h = lived[i];
-            // Out on the street in front of it, clear of an enclosed porch (HouseDesign.VestibuleDepth).
-            spots.Add(new("", h.S + (i % 3 - 1) * 1.2, h.FrontD - h.Side * 2.6, 0, -h.Side, 0, Street: true, Pose: "lantern"));
+            // Out on the street in front of it, clear of an enclosed porch (HouseDesign.VestibuleDepth); in front of it as it
+            // stands turned (a town type's ring of houses turns them far round, note 692).
+            var (ls, ld) = h.Body((i % 3 - 1) * 1.2, -2.6);
+            var (lfs, lfd) = h.BodyFacing(0, -1);
+            spots.Add(new("", ls, ld, lfs, lfd, 0, Street: true, Pose: "lantern"));
+        }
+        // Its people out at their own work among its houses (note 841; the director, 16 Oct, in a Flooder town: "There's
+        // also nobody walking around. There's no kind of like culture going on"): one for every Out[0] of its houses, spread
+        // evenly through the town, at a house's front corner facing it (a hull caulked, the water's mark read on a stilt), or
+        // out with a lamp, walking its street.
+        if (homes.Out is [> 0, > 0] && homes.OutActs.Length > 0)
+        {
+            // Any house standing shut, lived in or left (a neighbour's hull caulked as their own): the lived ones keep to
+            // the square's end of a town that's emptied.
+            var lit = lived.Take(outdoors).ToHashSet();
+            var further = homes.Houses.Where(h => h.Layout is null && h.Kind != HouseKind.Burnt && !lit.Contains(h)).ToList();
+            int count = Math.Min(Math.Min(homes.Out[1], homes.Houses.Count / homes.Out[0]), further.Count);
+            for (int i = 0; i < count; i++)
+            {
+                var h = further[i * further.Count / count];
+                string act = homes.OutActs[i % homes.OutActs.Length];
+                double u = (i % 2 == 0 ? -1 : 1) * Math.Max(0, h.Width / 2 - OutAtCorner);
+                var (os, od) = h.Body(u, -OutInFront - (h.Design.Hull ? HouseDesign.HullBow : 0));
+                var (ofs, ofd) = act == "lantern" ? h.BodyFacing(0, -1) : h.BodyFacing(0, 1);
+                spots.Add(new("", os, od, ofs, ofd, 0, Street: act == "lantern", Pose: act));
+            }
         }
         // The works' hands (note 353), at work all night: in front of a piece with a door or a mouth to it, one a kind.
         if (homes.Works is { } atWork)
             foreach (var f in fixtures.Where(f => atWork.Holds(f.S, f.D) && f.Kind is "headframe" or "winding" or "casting" or "glasshouse"
                 or "elevator" or "warehouse").DistinctBy(f => f.Kind).Take(t.Walled.WorksHands))
                 spots.Add(new("hand", f.S, f.D + f.FaceD * (f.SolidD + 1.2), -f.FaceS, -f.FaceD, 0));
+        // The rail yard's porters (note 502), at the office's door and the weighbridge's window: off the siding.
+        if (homes.Yard is { } inYard)
+            foreach (var f in fixtures.Where(f => inYard.Holds(f.S, f.D) && f.Kind is "yardoffice" or "weighbridge").Take(t.Walled.YardHands))
+                spots.Add(new("porter", f.S, f.D + f.FaceD * (f.SolidD + 1.2), -f.FaceS, -f.FaceD, 0));
+
+        // The night market's stallholders (note 825), each behind their counter, facing the square: after everyone else with
+        // a place, before the blacksmith, who stays last.
+        foreach (var (ms, md, face, _) in market)
+            spots.Add(new("stallholder", ms, md - face * (TownFixtures.Size("marketstall").HalfD + StallholderBack), 0, face, 0));
+
+        // The town's blacksmith, who does the trains (note 697; the director, 13 Oct 2026: "a vendor who is clearly marked as
+        // the vendor blacksmith of the town who does train upgrades"): every town has one, at the forge beside the engine as it
+        // stands in the yard. Last of everyone, so who everybody else is and what they're called is as it was.
+        if (t.Smithy is { } smithy)
+            spots.Add(new("blacksmith", site.Gate + smithy.FromGate, side * (smithy.Out - smithy.Stand), 0, -side, 0));
+        // A harbour town's keeper of the Flame (queue #547, note 819), at the Hope Tower's door all night, looking out over
+        // the town between the hours' tubs of coal.
+        foreach (var f in fixtures.Where(f => f.Kind == "lighthouse" && f.House < 0).Take(1))
+            spots.Add(new("flamekeeper", f.S + f.FaceS * (f.SolidS + 1.2), f.D + f.FaceD * (f.SolidD + 1.2), f.FaceS, f.FaceD, 0));
 
         // Who they are: a name each, a household's sharing its surname.
         var names = new HashSet<string>();
@@ -350,6 +469,8 @@ public static partial class TownGenerator
         // Each person's lines. A household's say their own story first; the folk round the centrepiece and the keeper talk
         // about the custom; the people at work about the work; then perhaps a scrap of a thread, and what anybody says.
         var cultureLines = new Deck<string>(culture.Lines, Rng("lines.culture"));
+        // The creed (note 822): heard once the custom's lines are spoken for, before the town's other habits.
+        var creedLines = new Deck<string>(creed?.Lines ?? [], Rng("lines.creed"));
         var spare = new Deck<string>([.. quirks.SelectMany(q => q.Lines)], Rng("lines.spare"));
         var trade = new Deck<string>(industry?.Lines ?? [], Rng("lines.trade"));
         var scraps = new Deck<string>([.. w.Threads.SelectMany(th => th.Lines)], Rng("lines.scraps"));
@@ -374,6 +495,7 @@ public static partial class TownGenerator
         }
         var lrng = Rng("lines");
         var said = new List<string>[people.Count];
+        var custom = new int[people.Count][];
         foreach (int i in Enumerable.Range(0, people.Count).OrderBy(i => Precedence(people[i].Spot)).ThenBy(i => i))
         {
             var (role, name, spot, street) = (people[i].Role, people[i].Name, people[i].Spot, people[i].Spot.Street);
@@ -401,12 +523,13 @@ public static partial class TownGenerator
                         lines.Add(line);
                 first = lines.Count;
                 // At the party, nobody's talking about the custom tonight.
-                if (!close && spot.Part != "guest" && spot.Part != "host" && cultureLines.Next() is { } town)
+                if (!close && spot.Part != "guest" && spot.Part != "host" && (cultureLines.Next() ?? creedLines.Next()) is { } town)
                     lines.Add(town);
             }
             else
             {
-                string? job = JobDeck(role).Next(), town = (street ? inside.Next() : close ? null : cultureLines.Next()) ?? spare.Next() ?? trade.Next();
+                string? job = JobDeck(role).Next(), town = (street ? inside.Next() : close ? null : cultureLines.Next() ?? creedLines.Next()) ?? spare.Next()
+                    ?? trade.Next();
                 // The gatekeeper says the town's law first, as you come in (the first thing anyone in a town tells you).
                 if (role == "gatekeeper" && w.Welcome.Length > 0)
                     lines.Add(Rng("welcome").Pick(w.Welcome));
@@ -426,7 +549,10 @@ public static partial class TownGenerator
             while (lines.Count < want && (spare.Next() ?? inside.Next() ?? trade.Next() ?? JobDeck(role).Next() ?? scraps.Next() ?? anyone.Next()) is { } extra)
                 lines.Add(extra);
             var vars = spot.House >= 0 ? homes.Vars(spot.House) : null;
-            said[i] = [.. lines.Take(Math.Max(Math.Max(1, want), spot.House >= 0 ? 2 : 1)).Select(l => fill.In(l, name, vars))];
+            var kept = lines.Take(Math.Max(Math.Max(1, want), spot.House >= 0 ? 2 : 1)).ToList();
+            said[i] = [.. kept.Select(l => fill.In(l, name, vars))];
+            // Which are the custom's (note 971): once it's been told in the town, they say something else in its place.
+            custom[i] = [.. kept.Select((l, k) => (l, k)).Where(x => culture.Lines.Contains(x.l) || creed?.Lines.Contains(x.l) == true).Select(x => x.k)];
         }
         var townsfolk = new List<Townsperson>();
         for (int i = 0; i < people.Count; i++)
@@ -436,7 +562,7 @@ public static partial class TownGenerator
                 : role == "hand" ? industry?.Hand ?? "townsman" : w.Roles.TryGetValue(role, out var rt) ? rt.Title : role;
             townsfolk.Add(new Townsperson(i, name, fill.In(title, name, spot.House >= 0 ? homes.Vars(spot.House) : null), role, spot.S, spot.D, spot.Up, spot.FaceS, spot.FaceD,
                 (int)(Streams.Mix(seed, "look", name) % 8), said[i], spot.House, spot.Pose, TownGear.Pick(homes.Gear, Streams.Mix(seed, "gear", name)), mind)
-            { Hosting = spot.Part == "host" });
+            { Hosting = spot.Part == "host", Custom = custom[i] });
         }
 
         // The plaque: the town, when it was walled, how many live here and how many did.
@@ -464,6 +590,14 @@ public static partial class TownGenerator
             }
         }
 
+        // The company's board of lost crews (GDD §3.1, §11; the director, 14 Oct 2026; note 721), beside the notices: each
+        // ended campaign the player rode with is a card on it, from their own profile (the app's, not the plan's). Last of the
+        // fixtures, so every other keeps its index.
+        Fix("lostcrews", "the board of lost crews", LostCrewsText, mid + LostCrewsAlong, side * BoardOut, 0, -side);
+        // The night market's stalls (note 825), after it.
+        foreach (var (ms, md, face, on) in market)
+            Fix("marketstall", on.Title, on.Text, ms, md, 0, face);
+
         // The board: the custom's order first, then what the town makes, then whatever else is posted; and a note or two
         // left about the square (a letter on a bench, a page by the hall door, a scrap by the engine).
         var papers = new List<TownPaper>();
@@ -475,7 +609,11 @@ public static partial class TownGenerator
         var own = new Deck<TownText>(culture.Board, Rng("papers.board"));
         for (int i = 0; i < t.BoardOwn && own.Next() is { } o; i++)
             posted.Add(o);
-        var more = new Deck<TownText>([.. industry?.Notes ?? [], .. quirks.SelectMany(q => q.Notes), .. w.Notices, .. w.Threads.SelectMany(th => th.Notes)], prng);
+        // And the creed's first (note 822: the Flooders' Water Book), after the town's own.
+        if (creed is { Notes.Length: > 0 })
+            posted.Add(creed.Notes[0]);
+        var more = new Deck<TownText>([.. industry?.Notes ?? [], .. quirks.SelectMany(q => q.Notes), .. creed?.Notes.Skip(1) ?? [], .. w.Notices,
+            .. w.Threads.SelectMany(th => th.Notes)], prng);
         int notices = prng.RangeInclusive(t.Notices[0], t.Notices[1]);
         while (posted.Count < notices && more.Next() is { } p)
             posted.Add(p);
@@ -493,22 +631,58 @@ public static partial class TownGenerator
         for (int i = 0; i < looseCount && loose.Next() is { } n; i++)
             papers.Add(new TownPaper(papers.Count, fill.In(n.Title, null), fill.In(n.Text, null), false, lying[i].S, lying[i].D, lying[i].H));
 
+        // The forge, last of the fixtures (so every other one's number is as it was): its board lettered to read from the cab.
+        if (t.Smithy is { } forge)
+            Fix("forge", w.Forge?.Title ?? "the forge", fill.In(w.Forge?.Text ?? "", null), site.Gate + forge.FromGate, side * forge.Out, 0, -side);
+
         var plan = new TownPlan(site.Name, population, former, culture.Id, culture.Creature, culture.Law.Replace("{town}", site.Name), culture.Hall,
             industry?.Name ?? site.Industry, [.. quirks.Select(q => q.Id)], square, buildings, homes.Houses, townsfolk, papers, fixtures, homes.Character, homes.Bounds,
-            homes.Green, homes.Works)
+            homes.Green, homes.Works, homes.Yard)
         {
             Gate = site.Gate,
+            Frame = FrameOf(t, site.Gate, homes.Bounds),
+            Form = form?.Form ?? "",
+            Districts = form?.Districts ?? [],
+            Laid = form is null ? "" : $"stairs {form.Stairs}, cut off {form.CutOff}, on ways {form.OnWays}, on landmarks {form.OnLandmarks}, off their ground {form.OffGround}",
+            Margin = form?.Margin ?? 0,
+            Ways = form?.Ways ?? [],
+            Wards = form?.Wards ?? [],
+            Moles = form?.Moles ?? [],
+            Quarrels = Quarrels(t.Quarrels, townsfolk, Rng("quarrels")),
         };
         return Remember(plan, site.Burnt, w, Rng("remember"));
     }
 
     /// <summary>
+    /// Where the town's two gates and its yard are (note 692): in at the rear wall from the last night, out at the gate to
+    /// the next, the longest consist (towns.json <c>forms.yardM</c>) standing back from the way out.
+    /// </summary>
+    static TownFrame FrameOf(TownTuning t, double gate, TownBounds? bounds)
+    {
+        double exit = gate, entry = bounds?.Rear ?? 0;
+        double front = exit - t.Forms.ShortOfGate;
+        return new TownFrame(entry, exit, Math.Max(entry, front - t.Forms.YardM), front);
+    }
+
+    /// <summary>
     /// The <paramref name="count"/> houses a creature brought in through the gate burns (note 608): lived-in houses, the
-    /// nearest the gate first (the yard's fight is there), the same ones every time for the same plan. A plan with some
-    /// burnt already gives the next ones, so tonight's fires and the town the crew comes back to agree.
+    /// nearest where the train come in stands first (<see cref="FromWayIn"/>), the same ones every time for the same plan. A plan with
+    /// some burnt already gives the next ones, so tonight's fires and the town the crew comes back to agree.
     /// </summary>
     public static IReadOnlyList<TownHouse> Harmed(TownPlan plan, int count) =>
-        count <= 0 ? [] : [.. plan.Houses.Where(h => h.Kind == HouseKind.Lived).OrderBy(h => Math.Abs(h.S - plan.Gate)).ThenBy(h => h.Id).Take(count)];
+        count <= 0 ? [] : [.. plan.Houses.Where(h => h.Kind == HouseKind.Lived).OrderBy(h => FromWayIn(plan, h)).ThenBy(h => h.Id).Take(count)];
+
+    /// <summary>
+    /// How far a house stands from where a train come in through the town's way in stands (m; note 966): along the line from
+    /// its rear gate (<see cref="TownFrame.Entry"/>; the engine's home is run.json homeInsideGateM inside it, its rake behind),
+    /// and out from the line, as the crew on the ground there sees it. The gate's houses (the way out) stood about 430 m up
+    /// the town on frontier:7 (note 958), the fire neither seen nor heard from the train.
+    /// </summary>
+    public static double FromWayIn(TownPlan plan, TownHouse h)
+    {
+        double along = h.S - plan.Frame.Entry;
+        return Math.Sqrt(along * along + h.D * h.D);
+    }
 
     /// <summary>
     /// The town remembering what's been brought into it (note 608): its <paramref name="burnt"/> houses (<see cref="Harmed"/>)
@@ -535,6 +709,115 @@ public static partial class TownGenerator
             return p with { Lines = all };
         }).ToList();
         return plan with { Houses = houses, People = people, Burnt = harmed.Count };
+    }
+
+    /// <summary>How far a piece of stock stands out either side of its siding's middle (m; TownFixtures "van", "flatdory").</summary>
+    const double StockHalf = 1.5;
+
+    /// <summary>
+    /// A walled town's rail yard (queue #239, note 502; GDD §3: "Fortified towns survive behind stone and steel walls ... rail
+    /// yards and warehouses"): a buffer stop at each end of its siding; its pieces (world/towns.json "yard") fronting the
+    /// siding from the gate end back, each that fits short of the yard's rear end (<see cref="TownWork.After"/>: room left
+    /// beside it toward that end, the weighbridge's plate); the lamps down the siding's near side; and the stock left
+    /// standing in the siding, one to a stretch of it, clear of each other and the buffer stops.
+    /// </summary>
+    static void RailYard(TownYard yard, WalledTuning wt, TownWriting w, string town, Pcg32 rng,
+        Action<string, string, string, double, double, double, double, int, double?> fix)
+    {
+        void Fix(string kind, string name, string text, double s, double d, double faceS, double faceD) =>
+            fix(kind, name.Replace("{town}", town), text.Replace("{town}", town), s, d, faceS, faceD, -1, null);
+        int side = yard.Side;
+        var buffers = w.Yard.Where(p => p.Kind == "buffers").ToList();
+        double bd = TownFixtures.Size("buffers").HalfD;
+        Fix("buffers", buffers.ElementAtOrDefault(0)?.Title ?? "a buffer stop", buffers.ElementAtOrDefault(0)?.Text ?? "",
+            yard.Siding1 + bd, side * yard.SidingD, -1, 0);
+        Fix("buffers", buffers.ElementAtOrDefault(1)?.Title ?? "a buffer stop", buffers.ElementAtOrDefault(1)?.Text ?? "",
+            yard.Siding0 - bd, side * yard.SidingD, 1, 0);
+        // The pieces front the siding's stock (a goods shed's dock at a van's side), the far ones back toward the street.
+        double front = yard.SidingD + StockHalf + 0.1, back = yard.Far - wt.YardMargin, at = yard.S1 - wt.YardMargin;
+        foreach (var piece in w.Yard)
+        {
+            if (piece.Kind == "buffers")
+                continue;
+            var (hs, hd, _) = TownFixtures.Size(piece.Kind);
+            double d = front + piece.Across + hd;
+            if (d + hd > back || at - 2 * hs - piece.After < yard.S0 + wt.YardMargin)
+                continue;
+            Fix(piece.Kind, piece.Title, piece.Text, at - hs, side * d, 0, -side);
+            at -= 2 * hs + piece.After + wt.YardGap;
+        }
+        // Its lamps between the platform's back and the siding, lighting the stock.
+        double lampD = (yard.Near + yard.SidingD - StockHalf) / 2;
+        for (double s = yard.S1 - wt.YardLamps / 2; s > yard.S0 + 2; s -= wt.YardLamps)
+            Fix("yardlamp", "", "", s, side * lampD, 0, side);
+        // The stock: the siding cut into a stretch apiece, each standing somewhere in its own, facing up or down the line.
+        int count = Math.Min(w.Stock.Length, rng.RangeInclusive(wt.YardStock[0], wt.YardStock[1]));
+        var stock = Take(w.Stock, count, rng.Fork(1));
+        double from = yard.Siding0 + 0.5, stretch = (yard.Siding1 - 0.5 - from) / Math.Max(1, stock.Count);
+        for (int i = 0; i < stock.Count; i++)
+        {
+            double half = TownFixtures.Size(stock[i].Kind).HalfD;
+            if (2 * half > stretch)
+                continue;
+            double s = from + i * stretch + half + rng.NextDouble() * (stretch - 2 * half);
+            Fix(stock[i].Kind, stock[i].Title, stock[i].Text, s, side * yard.SidingD, rng.Chance(0.5) ? 1 : -1, 0);
+        }
+    }
+
+    /// <summary>
+    /// Where a town's people out at their work stand (note 841): in from a house's corner along its front, and out in front
+    /// of it (past a houseboat's hull), a body's room from what's solid (m).
+    /// </summary>
+    const double OutAtCorner = 0.6, OutInFront = 1.2;
+
+    /// <summary>How far behind a market stall's counter its stallholder stands (m), and how wide a door's way is kept clear.</summary>
+    const double StallholderBack = 0.7, DoorClear = 1.6;
+
+    /// <summary>
+    /// The night market (queue #552, note 825; the director's playtest of 14 Oct, line 3: "The town's looking better ...
+    /// Still a bit basic"; of 19 Oct, line 4, note 870: "Too many cut and paste stalls in a row ... doesn't look like a
+    /// market"): two rows of stalls facing each other across an aisle (<see cref="SquareTuning.MarketAisle"/>), the first
+    /// <paramref name="d"/> out with its counters to the line, the second nearer the line with its counters to the
+    /// buildings; along each, every <see cref="SquareTuning.MarketEvery"/> from ten metres in from the square's ends (the
+    /// second row's places half a step on from the first's), each stall set off its place by up to
+    /// <see cref="SquareTuning.MarketJitter"/> each way, where it stands clear of every fixture so far, of the
+    /// buildings' doors and of a small town's green; as many of those as the town's size has stalls
+    /// (<see cref="SquareTuning.Market"/>), drawn at random and laid in order along the square. Each stall's wares are
+    /// dealt from the town's trade's stalls and the market's own, none twice and none a shut stall's already. Face: the way
+    /// its counter looks, across the line (±1).
+    /// </summary>
+    static List<(double S, double D, int Face, TownText Wares)> Market(SquareTuning sq, double s0, double s1, double d, int population,
+        List<TownFixture> fixtures, List<TownBuilding> buildings, TownGreen? green, TownWriting w, TownIndustry? industry, Pcg32 rng)
+    {
+        int want = Math.Clamp(sq.Market[0] + (int)(population / Math.Max(1, sq.MarketPer)), sq.Market[0], sq.Market[1]);
+        var (hs, hd, _) = TownFixtures.Size("marketstall");
+        int side = Math.Sign(d);
+        // The rows: the first toward the buildings, counters to the line; the second across the aisle from it.
+        var rows = new[] { (D: d, Face: -side, From: 0.0), (D: d - side * (2 * hd + sq.MarketAisle), Face: side, From: sq.MarketEvery / 2) };
+        var clear = new List<(double S, double D, int Face)>();
+        var jitter = rng.Fork(2);
+        foreach (var row in rows)
+            for (double s = s0 + 10 + row.From; s <= s1 - 10; s += sq.MarketEvery)
+            {
+                // Each off its place a little, along and across, so the rows are a market's, not a ruled line.
+                double ps = s + (jitter.NextDouble() * 2 - 1) * sq.MarketJitter, pd = row.D + (jitter.NextDouble() * 2 - 1) * sq.MarketJitter;
+                if (fixtures.All(f => Math.Abs(f.S - ps) > f.SolidS + hs + 0.8 || Math.Abs(f.D - pd) > f.SolidD + hd + 0.8)
+                    && buildings.All(b => Math.Abs(b.S - ps) > hs + DoorClear) && green?.Holds(ps, pd, Math.Max(hs, hd)) != true)
+                    clear.Add((ps, pd, row.Face));
+            }
+        // Which of them: a shuffle of the clear places, the first as many as are wanted, in order along the square.
+        for (int i = clear.Count - 1; i > 0; i--)
+        {
+            int j = rng.RangeInclusive(0, i);
+            (clear[i], clear[j]) = (clear[j], clear[i]);
+        }
+        var wares = new Deck<TownText>([.. (industry?.Stalls ?? []).Where(x => fixtures.All(f => f.Text != x)).Select(x => new TownText("a market stall", x)),
+            .. w.Market], rng.Fork(1));
+        var stalls = new List<(double, double, int, TownText)>();
+        foreach (var (s, sd, face) in clear.Take(want).OrderBy(x => x.S).ThenBy(x => x.Face))
+            if (wares.Next() is { } on)
+                stalls.Add((s, sd, face, on));
+        return stalls;
     }
 
     static List<T> Take<T>(IReadOnlyList<T> from, int count, Pcg32 rng) where T : class
@@ -629,6 +912,8 @@ public static class TownFixtures
     public static (double HalfS, double HalfD, double Height) Size(string kind) => kind switch
     {
         "bell" => (1.3, 0.9, 3.6),
+        // Note 687: the blacksmith's forge, its hood and its board (the chimney's above).
+        "forge" => (1.7, 1.1, 3.4),
         "post" => (0.35, 0.35, 2.4),
         "tally" => (1.2, 0.25, 2.4),
         "lamps" => (1.6, 0.45, 2.2),
@@ -642,11 +927,13 @@ public static class TownFixtures
         "bench" => (1.0, 0.3, 0.9),
         "carriage" => (3.2, 1.4, 3.6),
         "cannon" => (1.4, 0.8, 1.3),
-        "board" => (1.1, 0.15, 2.2),
+        "board" or "lostcrews" => (1.1, 0.15, 2.2),
         "plaque" => (0.2, 0.2, 2.2),
         "crate" => (0.5, 0.4, 0.8),
         "barrel" => (0.35, 0.35, 1.0),
         "stall" => (0.9, 1.5, 2.6),
+        // The night market's stalls (note 825): open, a counter of its wares, an awning and a lantern, end on along the row.
+        "marketstall" => (1.4, 1.2, 2.7),
         // The civic pieces (note 353): a statue on its plinth, the wall of names, the bandstand's raised floor, a bed under
         // its lamps, a tree's trunk, the flagpole, the laws' board; a mural is paint on a wall (its half-width to look from).
         "statue" => (0.8, 0.8, 3.4),
@@ -675,10 +962,106 @@ public static class TownFixtures
         "pigs" => (2.2, 1.2, 1.1),
         "warehouse" => (5.5, 7.5, 7.5),
         "watertower" => (2.2, 3.2, 10.2),
+        // The town types' landmarks (note 692): the harbour's lighthouse on its head and the beacon at the breakwater's end,
+        // its boat shed on the slip; a chapel on a hummock or a hill; a watch tower; a quarry's lift and crane; the seed house.
+        // The harbour's light is its Hope Tower (queue #547, note 819; HopeKit): its plinth and the coal bay under its hoist,
+        // and up to its fire basket's brim.
+        "lighthouse" => (8.4, 8.4, 84),
+        "beacon" => (1.2, 1.2, 6),
+        "boatshed" => (9.0, 6.0, 7.5),
+        "chapel" => (5.5, 9.0, 12),
+        "watchtower" => (2.7, 2.7, 16),
+        "lift" => (3.0, 3.0, 30),
+        "crane" => (2.0, 2.0, 14),
+        // A dory tied at a jetty's foot (note 692): its beam across, its length along its bow's way.
+        "dory" => (0.8, 2.6, 0.9),
+        "seedhouse" => (6.0, 4.0, 6.0),
+        // A glasshouse town's great glasshouses (note 692): the works' glasshouse at 2.6 times its size, end on to the line.
+        "greathouse" => (9.4, 20.8, 10.1),
+        // The second five town types' landmarks (note 692): a mill stack (SettingKit.Chimney); a foundry's and a sawmill's
+        // sheds (the foundry shed's model, at the works' 0.6 and at 0.5); a stack of logs; a watchtower of logs on legs; a
+        // windpump; a processing shed (the fish shed at 1.6); a keep (a wall's tower at 1.8); a barge (the dory at 4.5).
+        "stack" => (2.2, 2.2, 26),
+        "foundry" => (24.2, 6.9, 9),
+        "sawmill" => (20.2, 5.8, 7.5),
+        "logs" => (5.2, 2.0, 2.4),
+        "timbertower" => (2.7, 2.7, 14.4),
+        "windpump" => (2.4, 2.4, 16),
+        "shed" => (9.0, 6.0, 7.5),
+        "keep" => (4.6, 4.6, 24),
+        "barge" => (3.3, 11.7, 3.5),
+        // A town's rail yard (note 502), behind the home platform: the goods shed (the facility's modelled piece, its walls
+        // and dock as TownYardArtTests holds them: the office at one end, the steps at the other; its canopy and its crane's
+        // jib reach out over the siding), the yard office, the weighbridge's house (its plate lies beside it, flush), freight
+        // stacked waiting, a handcart, old sleepers stacked to dry; in the siding a van and a flat wagon with a dory or rails
+        // on it (half their width, half their length: they face along it),
+        // the buffer stops at its ends (half their width across it, their depth); the lamps down it.
+        "goodsshed" => (17.9, 6.4, 9.1),
+        "yardoffice" => (2.4, 1.8, 3.8),
+        "weighbridge" => (1.3, 1.3, 3.0),
+        "freight" => (2.0, 1.0, 1.8),
+        "cart" => (1.0, 1.6, 1.5),
+        "sleepers" => (1.4, 1.4, 1.35),
+        "van" => (1.5, 4.2, 3.7),
+        "flatdory" or "flatrails" => (1.4, 4.6, 2.2),
+        "buffers" => (1.4, 0.45, 1.2),
+        "yardlamp" => (0.15, 0.15, 4.6),
         // In the houses (their furniture is the layout's): only the cradle stands on its own feet.
         "cradle" => (0.45, 0.3, 0.7),
         "table" or "letters" or "anklebell" or "timetable" or "boots" or "boards" or "suitcase" or "radio" or "clock"
             or "stove" or "stairdoor" or "photo" => (0, 0, 0.5),
         _ => (0.5, 0.5, 1.5),
     };
+
+    /// <summary>
+    /// The works' heaps, slag and coal (WorksKit.Heap, note 870's mound tipped from a line: a ridge along X at its crest, set
+    /// back toward +Z, its slopes straight, gullied): a mound, not a block.
+    /// </summary>
+    public static bool Heap(string kind) => kind is "slag" or "coal";
+
+    /// <summary>
+    /// A heap's walls (note 869; the director's playtest of 19 Oct line 2, "Collision boxes are off": a slag heap stood a 4 m
+    /// box from the ground over its whole footprint, so its foot stopped you in mid-air): a stack of layers no deeper than
+    /// <paramref name="step"/> (player.json stepUp: walked up, as a heap is), each the cross of two boxes inside where the
+    /// mound stands higher than the layer's foot. In the heap's own frame (WorksKit's: X along its front, +Z back from it),
+    /// its footprint <paramref name="halfX"/> by <paramref name="halfZ"/>: each layer's half sizes, how far back its middle
+    /// stands, its foot and top. From the art's shape at every height (its outline's least reach, <see cref="HeapReachLeast"/>;
+    /// its gullies' deepest, <see cref="HeapGully"/> of its height), so a layer is never out past the mound drawn.
+    /// </summary>
+    public static IEnumerable<(double HalfX, double HalfZ, double Back, double Bottom, double Top)> HeapLayers(double halfX, double halfZ, double height,
+        double step)
+    {
+        // Up to its crest, less what a gully takes off it.
+        double peak = height * (1 - HeapGully);
+        int layers = Math.Max(1, (int)Math.Ceiling(peak / Math.Max(0.05, step * 0.9)));
+        for (int i = 0; i < layers; i++)
+        {
+            double below = peak * i / layers, top = peak * (i + 1) / layers;
+            // How far out (t) its slope still stands over the layer's foot, its gullies' worst taken off: y = h (1 - t^1.2).
+            double fall = Math.Min(1, below / height + HeapGully);
+            double t = SixthRootOfFifth(1 - fall), r = t * HeapReachLeast;
+            double x = halfX * (0.42 * (1 - r) + r), z = halfZ * (0.06 * (1 - r) + r), back = halfZ * 0.18 * (1 - t);
+            // The cross inscribed in that ellipse: (0.88, 0.44) and (0.44, 0.88) of it, its corners just inside.
+            yield return (x * 0.88, z * 0.44, back, below, top);
+            yield return (x * 0.44, z * 0.88, back, below, top);
+        }
+    }
+
+    /// <summary>
+    /// x^(5/6), the art's t^1.2 undone (1 / 1.2 = 5 / 6), for x in 0..1: the y with y^6 = x^5, found by halving, so it's the
+    /// same bits on every machine (the C library's Pow isn't; DeterministicMathTests).
+    /// </summary>
+    static double SixthRootOfFifth(double x)
+    {
+        double target = DMath.Pow(Math.Clamp(x, 0, 1), 5), lo = 0, hi = 1;
+        for (int i = 0; i < 52; i++)
+        {
+            double mid = (lo + hi) / 2;
+            (lo, hi) = DMath.Pow(mid, 6) < target ? (mid, hi) : (lo, mid);
+        }
+        return lo;
+    }
+
+    /// <summary>A heap's outline's least reach (of its footprint's half sizes) and its gullies' deepest (of its height): WorksKit.Heap's. Not design numbers.</summary>
+    public const double HeapReachLeast = 0.72, HeapGully = 0.17;
 }

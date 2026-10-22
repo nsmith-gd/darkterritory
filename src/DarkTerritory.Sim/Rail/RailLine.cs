@@ -41,7 +41,7 @@ public sealed record LineDefinition(string Name, IReadOnlyList<TrackSegment> Seg
 
 public enum BranchKind : byte
 {
-    /// <summary>A disused line off into the Territory, ending at a buffer stop (what the Switchman sets you onto, App. A.7).</summary>
+    /// <summary>A disused line off into the Territory, ending at a buffer stop (the clock's cost if the train's sent down one).</summary>
     DeadLine,
     /// <summary>A facility's siding (GDD §17): where the empties go to be loaded.</summary>
     Spur,
@@ -84,8 +84,6 @@ public interface ITrackConditions
     double Adhesion(int path, double distance);
     /// <summary>A deceleration (m/s²) the track puts on a train at <paramref name="speed"/> there (brass across the rail).</summary>
     double Drag(int path, double distance, double speed);
-    /// <summary>How deep the cold is there (GDD §22 "deep cold"; linegen plan §14's cold steps, 0 a normal night; note 183).</summary>
-    int ColdStep(int path, double distance) => 0;
     /// <summary>How exposed to the wind it is there (GDD §22 "wind"; 0 sheltered, 1 a normal night's wind; note 183).</summary>
     double Wind(int path, double distance) => 0;
     /// <summary>
@@ -286,6 +284,29 @@ public sealed class RailLine
             curvature[i] = -t.Curvature;
         }
         return new RailLine(Name + " (turned)", points, grade, curvature, length);
+    }
+
+    /// <summary>
+    /// This line from <paramref name="at"/> on: distance 0 there, running on along it for <paramref name="length"/> (to its
+    /// end at most). A terminus's town stands in it (ARCHITECTURE §8 notes 600, 692): the frame a departure town stands in
+    /// from its yard's start, laid where the arrival's starts, the same way round, so the train comes in at its way in from
+    /// the last night and the line runs on through it to its way out.
+    /// </summary>
+    public RailLine From(double at, double length)
+    {
+        length = Math.Max(Step, Math.Min(length, Length - at));
+        int n = (int)Math.Ceiling(length / Step - 1e-9) + 1;
+        var points = new Double3[n];
+        var grade = new double[n];
+        var curvature = new double[n];
+        for (int i = 0; i < n; i++)
+        {
+            var t = Sample(at + Math.Min(i * Step, length));
+            points[i] = t.Position;
+            grade[i] = t.GradePercent;
+            curvature[i] = t.Curvature;
+        }
+        return new RailLine(Name + " (from " + at.ToString("0", System.Globalization.CultureInfo.InvariantCulture) + ")", points, grade, curvature, length);
     }
 
     public string Name { get; }

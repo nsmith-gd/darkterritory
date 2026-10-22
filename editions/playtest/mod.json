@@ -1,0 +1,10 @@
+// The playtest-only values (note 970; the director, 21 Oct 2026, on n1-B3-gannet-12: "playtest only"): baked into the
+// director's dev build and a playtest's build by tools/package.sh (dt edition bake playtest), never the shipping build's.
+// `--edition playtest` plays it from the repo.
+{
+  "id": "edition-playtest",
+  "name": "Playtest edition",
+  "version": "1.0.0",
+  "description": "What the playtests try before it ships: the Gannet arriving at 12 m/s.",
+  "order": -1000
+}

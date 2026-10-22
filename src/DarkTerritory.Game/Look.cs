@@ -202,6 +202,20 @@ public sealed record StirLook
     public Vector3 Line { get; init; } = new(0.34f, 0.37f, 0.42f);
     /// <summary>How bright it gets, at dawn.</summary>
     public float Strength { get; init; } = 1;
+    /// <summary>Note 962: how far through the stir (0..1) the far hills toward it start to move.</summary>
+    public float HillsFrom { get; init; } = 0.35f;
+    /// <summary>Note 962: how high their swells heave by dawn (degrees of the sky).</summary>
+    public float Hills { get; init; } = 0.9f;
+
+    /// <summary>
+    /// How far the hills heave <paramref name="t"/> (0..1) through the stir (note 962): nothing till <see cref="HillsFrom"/>,
+    /// then growing, eased, to <see cref="Hills"/> degrees at dawn; it stays so after, while they come on.
+    /// </summary>
+    public float HillsAt(float t)
+    {
+        float k = Math.Clamp((t - HillsFrom) / Math.Max(1e-3f, 1 - HillsFrom), 0, 1);
+        return Hills * k * k * (3 - 2 * k);
+    }
 }
 
 /// <summary>
@@ -284,6 +298,8 @@ public sealed record LookTuning
     public float[][] CrewColours { get; init; } = [[1, 1, 1]];
     /// <summary>Each of <see cref="CrewColours"/> by name, for the settings' OUTFIT (note 298).</summary>
     public string[] CrewColourNames { get; init; } = [];
+    /// <summary>The hat rack's hats' names (note 714), in HatKit's order.</summary>
+    public string[] CrewHats { get; init; } = [];
 
     /// <summary>A crewmate's paint colour.</summary>
     public System.Numerics.Vector3 CrewColour(int id)
@@ -291,6 +307,30 @@ public sealed record LookTuning
         var c = CrewColours.Length > 0 ? CrewColours[(id % CrewColours.Length + CrewColours.Length) % CrewColours.Length] : [1, 1, 1];
         return new System.Numerics.Vector3(c[0], c[1], c[2]);
     }
+
+    /// <summary>The mask paints (note 731): multipliers over the pale paint, and their names on PAINT YOUR MASK, in turn.</summary>
+    public float[][] MaskPaints { get; init; } = [];
+    public string[] MaskPaintNames { get; init; } = [];
+    /// <summary>The stencils by key (Art.MaskKit draws them), in the menu's order.</summary>
+    public string[] MaskStencils { get; init; } = [];
+    /// <summary>A stencil's colour when none's picked, and the crew sigil's (both from 1).</summary>
+    public int MaskInk { get; init; } = 1;
+    public int SigilInk { get; init; } = 1;
+
+    /// <summary>A mask paint by its number from 1 (round again past the list), or null for 0: none.</summary>
+    public System.Numerics.Vector3? MaskPaint(int paint)
+    {
+        if (paint <= 0 || MaskPaints.Length == 0)
+            return null;
+        var c = MaskPaints[(paint - 1) % MaskPaints.Length];
+        return new System.Numerics.Vector3(c[0], c[1], c[2]);
+    }
+
+    /// <summary>A stencil's key by its number from 1 (round again past the list), or null for 0: none.</summary>
+    public string? MaskStencil(int stencil) => stencil <= 0 || MaskStencils.Length == 0 ? null : MaskStencils[(stencil - 1) % MaskStencils.Length];
+
+    /// <summary>A stencil's name on the menus: its key in capitals ("x-eyes", X EYES).</summary>
+    public static string StencilName(string key) => key.Replace('-', ' ').ToUpperInvariant();
 
     /// <summary>By <see cref="Palette"/> colour name.</summary>
     public Dictionary<string, MaterialTuning> Materials { get; init; } = new();
@@ -300,6 +340,57 @@ public sealed record LookTuning
     public WaterTuning Water { get; init; } = new();
     public DamageTuning Damage { get; init; } = new();
     public BiteTuning Bite { get; init; } = new();
+    public WorkLightTuning WorkLight { get; init; } = new();
+    public SpeedFeelTuning SpeedFeel { get; init; } = new();
+    public TipsyTuning Tipsy { get; init; } = new();
+}
+
+/// <summary>The dining car's drinks on the drinker's view (upgrades.md §8.5, note 959). Mirror of look.json <c>tipsy</c>, where each field is documented.</summary>
+public sealed record TipsyTuning
+{
+    public double Seconds { get; init; } = 60;
+    public double MoreEach { get; init; } = 15;
+    public double Blur { get; init; } = 0.5;
+    public double BlurEach { get; init; } = 0.15;
+    public double LeanDegrees { get; init; } = 4;
+    public double LeanEach { get; init; } = 1.5;
+    public double LeanPeriod { get; init; } = 7;
+    public double MostDrinks { get; init; } = 4;
+    public double FadeSeconds { get; init; } = 10;
+}
+
+/// <summary>
+/// GDD §28 "What you came for is lit" (note 705): the work lamps over a loading and the pools round what lies on the ground
+/// to be taken. Mirror of look.json <c>workLight</c>, where each field is documented.
+/// </summary>
+public sealed record WorkLightTuning
+{
+    public float HookIntensity { get; init; } = 2.2f;
+    public float HookRange { get; init; } = 6.5f;
+    public float HookAbove { get; init; } = 1.4f;
+    public float StackIntensity { get; init; } = 1.6f;
+    public float StackRange { get; init; } = 7;
+    public float StackHeight { get; init; } = 3.2f;
+    public float GroundIntensity { get; init; } = 1.1f;
+    public float GroundRange { get; init; } = 3.5f;
+    public float GroundHeight { get; init; } = 1.1f;
+    public float GroundWithin { get; init; } = 30;
+    public int GroundCount { get; init; } = 6;
+}
+
+
+/// <summary>GDD §31 "Speed is felt" (note 709). Mirror of look.json <c>speedFeel</c>, where each field is documented.</summary>
+public sealed record SpeedFeelTuning
+{
+    public double Widen { get; init; }
+    public double FullAt { get; init; } = 20;
+    public double Ease { get; init; } = 1;
+    public double Joint { get; init; } = 12.5;
+    public double Bogies { get; init; } = 8.5;
+    public double Jolt { get; init; }
+    public double JoltWidth { get; init; } = 0.35;
+    public double Sway { get; init; }
+    public double SwayWave { get; init; } = 34;
 }
 
 /// <summary>One entry of content/art/textures/index.json (written by tools/art/textures.py).</summary>
@@ -533,6 +624,7 @@ public sealed class Look
         light.Stir = t * d.Stir.Strength;
         light.StirDirection = Vector3.Normalize(flat);
         light.StirColour = Vector3.Lerp(d.Stir.Bruise, d.Stir.Line, t * t);
+        light.Hills = d.Stir.HillsAt(t);
         return light;
     }
 

@@ -55,7 +55,8 @@ public sealed partial class StopHand
         if (_spot is null)
         {
             // Not with the dawn close, and not more than our share of the hands at once.
-            if (run.DawnIn < t.VillageDawnSpare || calls.OutCount(member) >= Math.Max(1, (int)Math.Ceiling(calls.CrateHands * t.VillageShare)))
+            // (A hand sent to the town by a ping, note 739, goes whoever else is out.)
+            if (run.DawnIn < t.VillageDawnSpare || !TownOrdered(_stopIndex) && calls.OutCount(member) >= Math.Max(1, (int)Math.Ceiling(calls.CrateHands * t.VillageShare)))
                 return GiveUpVillage(self, world, p);
             var kept = Lived(world);
             var next = run.HidingSpots
@@ -64,10 +65,10 @@ public sealed partial class StopHand
                 .OrderBy(h => (Flat(h.At) - Flat(here)).Length).ThenBy(h => h.Key).FirstOrDefault();
             if (next.Seconds <= 0)
                 return GiveUpVillage(self, world, p);
-            if ((Flat(next.At) - Flat(here)).Length > t.VillageReach)
+            if ((Flat(next.At) - Flat(here)).Length > Reach(world, t))
                 return GiveUpVillage(self, world, p);
             var path = FootPath.Plan(train, here, Front(next));
-            if (path is null || FootPath.Length(here, path) > t.VillageReach * 1.4)
+            if (path is null || FootPath.Length(here, path) > Reach(world, t) * 1.4)
             {
                 // Nowhere it can walk to from here (round the far side of a lake, say): try the next one next tick.
                 _cantReach.Add(next.Key);
@@ -151,18 +152,32 @@ public sealed partial class StopHand
     {
         var t = Crew(world);
         var kept = Lived(world);
-        return run.DawnIn >= t.VillageDawnSpare && calls.OutCount(member) < Math.Max(1, (int)Math.Ceiling(calls.CrateHands * t.VillageShare))
+        return run.DawnIn >= t.VillageDawnSpare && (TownOrdered(_stopIndex) || calls.OutCount(member) < Math.Max(1, (int)Math.Ceiling(calls.CrateHands * t.VillageShare)))
             && run.HidingSpots.Any(h => h.Stop == _stopIndex && !run.Searched(h.Stop, h.Container.Index) && !_cantReach.Contains(h.Key)
-                && !calls.SpotClaimed(h.Key, member) && (Flat(h.At) - Flat(here)).Length <= t.VillageReach && !InLived(world, kept, h.At));
+                && !calls.SpotClaimed(h.Key, member) && (Flat(h.At) - Flat(here)).Length <= Reach(world, t) && !InLived(world, kept, h.At));
     }
 
     /// <summary>
+    /// How far from where it stands it goes to a spot (m): the crew's village reach; a hand sent to the town by a ping, as far
+    /// as the town pinged (note 936, player.json <c>pings.townReach</c>).
+    /// </summary>
+    double Reach(World world, StopCrewTuning t) => TownOrdered(_stopIndex) ? Math.Max(t.VillageReach, world.PingTuning.TownReach) : t.VillageReach;
+
+    /// <summary>
+    /// Whether this hand's order is the town at this stop (note 739 part two; the director, 14 Oct: "an abandoned town by a
+    /// yard"): out to search its houses whatever the crates and however many hands are out already.
+    /// </summary>
+    bool TownOrdered(int stop) => stop >= 0 && PlayerId is { } me && calls.OrderOf(me) is { Kind: PingKind.Town, Target: var k } && k == stop;
+
+    /// <summary>
     /// The houses something lives in (the house creatures, notes 583–586): the bots keep out of them, as they keep out of the
-    /// Gaunt's (note 413). They search the rest.
+    /// Gaunt's (note 413). They search the rest. And a jackpot house still locked (note 719): no way in for a bot (the wrench
+    /// is the crew's to bring).
     /// </summary>
     static HashSet<int> Lived(World world) =>
         [.. world.ActiveEnemies.Where(e => !e.Gone && e.Kind is Enemies.EnemyKind.Lodger or Enemies.EnemyKind.Householder or Enemies.EnemyKind.HollowHouse or Enemies.EnemyKind.Hanger)
-            .Select(e => (int)e.Extra2)];
+            .Select(e => (int)e.Extra2),
+            .. world.Train.Walls is { } walls ? walls.OpenHouses.Where(h => walls.LockedHouse(h.Index)).Select(h => h.Index) : []];
 
     static bool InLived(World world, HashSet<int> lived, Double3 at) =>
         lived.Count > 0 && world.Train.Walls is { } walls && walls.HouseAt(at + Double3.Up * 0.3) is var h and >= 0 && lived.Contains(h);
@@ -200,6 +215,38 @@ public sealed partial class StopHand
         calls.Out(member, true);
         Doing = "bringing the find back";
         return Follow(self, train, foot);
+    }
+
+    /// <summary>
+    /// A find pinged for this hand (note 739 part two; the director, 14 Oct: "If I point at loot ..."): off the car, round
+    /// the walls and the train to it (<see cref="FootPath"/>), and up with it; <see cref="FindHome"/> then brings it to a car
+    /// as it does the village's. Null with no find pinged for it, or that find taken or aboard already.
+    /// </summary>
+    PlayerIntent? Pinged(in PlayerState self, World world, StopPlan p)
+    {
+        if (PlayerId is not { } me || calls.OrderOf(me) is not { Kind: PingKind.Loot, Target: var id })
+            return null;
+        var find = world.Bodies.All.FirstOrDefault(b => b.Id == id && b.Kind == Physics.BodyKind.Loot && b.Carrier < 0 && !b.Stowed
+            && b.Parent == PlayerState.World);
+        if (find is null)
+            return null;
+        var train = world.Train;
+        calls.Out(member, true);
+        if (self.Parent != PlayerState.World)
+            return OffTheCar(self, world, p) ?? GetDown(self, train, p.Site.Side);
+        var here = PlayerMotor.WorldPosition(self, train);
+        var at = Physics.Bodies.WorldCentre(find, train);
+        if ((Flat(at) - Flat(here)).Length < 1.4)
+        {
+            _path = null;
+            double yaw = DMath.Atan2(-(at.X - here.X), -(at.Z - here.Z));
+            if (!Aligned(self, yaw))
+                return new PlayerIntent { LookYaw = Turn(self, yaw) };
+            Doing = "picking up the find it was pointed at";
+            return Press();
+        }
+        Doing = "to the find it was pointed at";
+        return Follow(self, train, at);
     }
 
     /// <summary>The cargo car nearest a point (a find's stowed in any car: it takes no room).</summary>

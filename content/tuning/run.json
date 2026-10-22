@@ -16,6 +16,13 @@
   // (2.5 m/s), so the crawl to the gate was minutes of nothing; now the run begins as the train moves off. Short of the
   // gate, not on it, so everyone joining boards at the fortress (GDD App. D.3) until it does.
   "departShortOfGateM": 8,
+  // The fortress gates (ARCHITECTURE §8 note 847; the director's playtest of 16 Oct: "The gates to the fortress should close
+  // behind me"): a gate opens as the engine comes within openAheadM of it and shuts once the last car's shutBehindM past (the
+  // gates' sounds, AU1's place-threshold cues, go by the same), its leaves swinging for swingSeconds. Shut, its leaves stand
+  // across the passage, the wicket in one left open for a crewmate on foot. The night starts with the engine
+  // departShortOfGateM short of the gate, so the departure's is open from the first; the arrival's shuts behind the train
+  // well before it's home (homeInsideGateM).
+  "gates": { "openAheadM": 40, "shutBehindM": 3, "swingSeconds": 4 },
   // The director's decision of 6 Oct 2026 (GDD §9, ARCHITECTURE §8 note 263): until the run begins (the train through the
   // gate, above), the fortress yard is a safe space, like the ship in Lethal Company. The crew wait for friends, try on
   // outfits, walk away from the keyboard; nothing of consequence happens. Nothing spawns, the boiler and its fire hold (no
@@ -46,13 +53,15 @@
   // works the shed, its cut is open, the gantry's legs and its operator's stand in it (the roofed rooms either side keep
   // their four walls). A
   // Holdout stands as its walls with a door personDoorM wide where the crew breaches it: its occupant comes back inside it
-  // (GDD App. D.14) and walks out of the door. linesideReachM (note 371): how far out from a generated line its trees,
-  // boulders and telegraph poles stand solid (LinesideProps): where the crew and what hunts them go between the stops, whose
-  // ground is cleared further out. Past it the woods are the art's alone, as all of them were. An open village house's
+  // (GDD App. D.14) and walks out of the door. linesideReachM (notes 371, 835): how far out from a generated line what's
+  // beside it stands solid (LinesideProps): its trees, boulders and poles, the road's, the shore's and the biomes' buildings.
+  // It was 40 m, where the crew kept between the stops; then a comet fragment was put 40-90 m out (loot.json comet.offLine,
+  // note 755), and the director walked through what stood on the way to it (playtest 16 Oct, line 20). Now all of it: the
+  // furthest the biomes deal is a barn 160 m out (biomes.json's dykeland); past it the lineside deals nothing. An open village house's
   // doors (note 401; GDD §21 the Choir's "behind a closed door") hang open until a crewmate on foot holds Use at one, within
   // houseDoorReachM of its doorway, for houseDoorSeconds (a car door's 0.4 and a little: a swollen, sagging door) to shut it
   // or open it again.
-  "walls": { "wallM": 0.3, "bayDoorM": 4, "personDoorM": 1.2, "wellTopM": 0.85, "topM": 9, "linesideReachM": 40,
+  "walls": { "wallM": 0.3, "bayDoorM": 4, "personDoorM": 1.2, "wellTopM": 0.85, "topM": 9, "linesideReachM": 160,
     "houseDoorSeconds": 0.6, "houseDoorReachM": 1.2 },
   // GDD §9 (note 178): the yard dispatcher's manifest at the gate and the clerk's tally at the terminus, a line every
   // lineSeconds over the radio. Spoken (note 240), each line takes as long as it's said and pauseSeconds after (an even,
@@ -112,6 +121,108 @@
     "pourPerSecond": 12,
     "capacity": 260,
     "overfillDamagePerUnit": 0.0015
+  },
+
+  // Odd outcomes to find (queue #464, ARCHITECTURE §8 note 730; GDD §3 and App. F.6, the director, 14 Oct 2026: things that
+  // answer when poked, never in the Wiki). Note 730 is their wiki, for the team only: nothing in the game explains them. None
+  // hurts anyone or solves a creature; each is the host's and the same on every machine. Off with "enabled": false.
+  "oddities": {
+    "enabled": true,
+    // How long each happening stays on the wire (s), so a dropped snapshot doesn't lose it.
+    "keepSeconds": 4,
+    // The council house's bell rope, beside its door in a walled town: Use held holdSeconds rings it (not more often than
+    // everySeconds), and everyone in the town within earshotM stops and looks up at the cupola for lookSeconds.
+    "bell": { "holdSeconds": 1.2, "reach": 1.3, "earshotM": 90, "lookSeconds": 6, "everySeconds": 20 },
+    // A crewmate's wave (the emote) at a townsperson within reachM and coneDegrees of where they face: they wave back.
+    "wave": { "reachM": 12, "coneDegrees": 30, "seconds": 2.5 },
+    // Dave (GDD §3.2): sit with him a while (Use held holdSeconds within reach, empty-handed, while he's painting) and he gives
+    // you a painting, once a night: loot.json item `item`, worth perCar of the tier's per-car value ("a painting signed D").
+    "painting": { "holdSeconds": 10, "reach": 3, "item": "davePainting", "perCar": 0.08 },
+    // A village's well: a find or a toy in hand, Use at its mouth (within reach) drops it down, and splashSeconds later it's
+    // heard hit the water. The night's first, coinSeconds after its splash, something throws an old coin back up (coinItem,
+    // worth coinPerCar). Empty-handed and sooted, Use held washSeconds there washes the soot off.
+    "well": { "reach": 1.6, "splashSeconds": 2.8, "coinSeconds": 6, "coinItem": "oldCoin", "coinPerCar": 0.04, "washSeconds": 2 },
+    // A tin can lying on a village's road (chance a village, within nearHouseM of one of its houses): walked into faster
+    // than kickSpeed (m/s) within reach of it, it's kicked kickM metres on (least, most) and rattles; answerSeconds later
+    // (least, most) something barks back from the dark, answerM off, away from the train. Heard only by the living.
+    "can": { "chance": 0.6, "nearHouseM": 25, "reach": 0.5, "kickSpeed": 2, "kickM": [3, 6], "answerSeconds": [1.2, 2.4], "answerM": 90 },
+    // A scarecrow at a farmstead village (chance), looking out over its fields: once a crewmate's been within nearM of it, and
+    // then nobody's within turnBeyondM or looking at it (within lookDegrees of their view), it's turned to face the line.
+    "scarecrow": { "chance": 0.8, "nearM": 15, "turnBeyondM": 30, "lookDegrees": 60 },
+    // A postbox at a village (chance): by a halt's platform, else where its road comes in nearest the line. Use held
+    // holdSeconds takes out the letter nobody collected, which is read out to the one who took it and goes in the night's
+    // report. One letter a box; the night's seed picks which.
+    "postbox": {
+      "chance": 0.5,
+      "holdSeconds": 1.5,
+      "reach": 1.3,
+      "letters": [
+        { "to": "Mrs. Agnes MacNeil, the Brook Road", "text": "Don't wait up. If the lamp's still lit when we come by, we'll know. If it isn't, we'll know that too. Feed the cat. J." },
+        { "to": "The stationmaster", "text": "Sir. The 4:10 did not stop. It slowed, and the doors were open, and nobody got on or off, and then it went on. I am putting this in writing because nobody believes me when I say it." },
+        { "to": "Peggy", "text": "We found the Gillis girl's mitten on the line past the cut. Only the one. Tell her mother we're still looking. Don't tell her where." },
+        { "to": "Whoever comes next", "text": "The pump in the yard works if you pour a cup down it first. The well is good. The house at the end is not. Leave the shutters as you find them." },
+        { "to": "Father Doucet", "text": "Father, the singing has started again under the floor of the school. The children say it is only the pipes. The school has no pipes." },
+        { "to": "Mr. and Mrs. Aucoin", "text": "Your boy reached us at the junction. He's well and he's eating. He says he left the gate open behind him and he's sorry. He says to shut it." },
+        { "to": "The Company, Head Office", "text": "Gentlemen. I return the enclosed wages. There is nobody left here to pay them to. The coal is still in the bunker. Send a train for it if you dare. Chisholm, agent." },
+        { "to": "Mary", "text": "I counted them going out tonight. Eleven. I counted them coming back. Twelve. I didn't say anything. Nobody said anything. Burn this." },
+        { "to": "To the crew of the night train", "text": "If you are reading this, you stopped. Thank you for stopping. Nobody stops. There is tea in the tin behind the stove. It isn't much." }
+      ]
+    },
+    // A note left out along the line (queue #653, note 961; GDD §3.1 "Not yet": the world's story between the towns): at a
+    // village (chance), weighted by a stone on the doorstep of one of the three houses nearest the line. Use held holdSeconds
+    // picks it up, and it's read out to the one who did, goes in the night's report, and is gone from the step. The notes are
+    // dealt round the night's stops by its seed, none twice till all have been out. In the world's voice (the World Building
+    // board's Cultures and canon: the fall, Dispatch, the dead lines, the lost trains, the fees, the penal cars, the sea,
+    // the fortresses only begun, the Flooders, the trades).
+    "note": {
+      "chance": 0.6,
+      // Note 965: and out along the line between the stops, at the railway's leavings where somebody stopped a while (a
+      // lineman's hut, by its door; a camp gone cold, by its fire; a grave, at its cross; a wreck, a wheelset or a tipped
+      // trolley, beside it), each such at this chance by its stretch's own draw: three or four a frontier night. Only at a
+      // leaving that's there whole (note 979): not one in a town's ground or kept out of a board's sight, which isn't drawn
+      // (0.2 left two notes in five alone by nothing, about one-in-three of them real, at 2.2 a frontier night).
+      "lineside": 0.3,
+      "holdSeconds": 1.0,
+      "reach": 1.3,
+      "notes": [
+        { "heading": "Pencil, on the back of a ration card", "text": "Gran saw it come down. She said the sky rang like a struck rail for a week. I didn't believe her till the cows went quiet. They haven't made a sound since." },
+        { "heading": "A dispatch form, the boxes left blank", "text": "Dispatch says the line is clear to the river. Dispatch has never once been wrong. We are going anyway. If you find this, Dispatch was right." },
+        { "heading": "Chalk on a slate", "text": "Somebody threw the switch at the cut last night. We heard it go over. There's nobody out there. There hasn't been anybody out there since spring." },
+        { "heading": "A page torn from a logbook", "text": "Night mail, nine aboard. Left 9:40. Radio says she's still running. Radio says she's breathing. Radio's been saying it three nights." },
+        { "heading": "Folded small, to the clerk", "text": "Seventy-five for a body brought home. It was eighty in the summer. I'm not asking why. I'm asking who decided I'm worth five less." },
+        { "heading": "Scratched on a tin plate", "text": "Forty men and two guards a car. They let us out to work the far yard. The guards went in the cut to see what was singing. We are still waiting for them to come back and tell us to stop." },
+        { "heading": "In a child's hand", "text": "The boats came in by themselves with the nets full and nobody aboard. Mum says don't eat the fish. I ate the fish. It was fine. It was fine." },
+        { "heading": "On the back of a builder's drawing", "text": "Wall's at eight courses. Tower's at two. The Company says another month and we're a town. Something big walked past the scaffold last night and didn't stop. It will." },
+        { "heading": "Water-stained, the ink run", "text": "The water mark was a hand higher this morning. Brother Ezekiel says the comet was sent and the flood is coming. I've painted the mark anyway. Better to be counted." },
+        { "heading": "On a pit tally", "text": "Night shift came up at first light. Nobody asked what they heard down there. They told us anyway. Tipple's shut till the Company sends a priest." },
+        { "heading": "From a seed packet", "text": "Grow lamps on every bed. The plants don't know it's dark. We don't tell them. Last night the lamps went out and the beans turned to the window. There's nothing out the window." },
+        { "heading": "Left with a key on a string", "text": "Furnace is banked. The glow will carry for miles. So will everything else. Whoever finds this, the key's for the coal shed, not the house. Do not open the house." },
+        { "heading": "The section gang's book, last page", "text": "Walked the length from the cut to the culvert. Six ties gone, two rails sprung, one spike pulled out and laid neatly on the ballast beside the hole. We didn't pull it." },
+        { "heading": "Nailed inside the hut door", "text": "Lamp oil under the floorboard. Biscuits in the tin. If the tapping starts on the roof, it isn't hail. Don't open the door to look. It's never hail." },
+        { "heading": "On the back of a work ticket", "text": "Ganger says we're paid by the mile whether we come back or not. MacInnis says that's the most honest thing the Company's ever told us." },
+        { "heading": "Pencil, on a cigarette paper", "text": "Three of us went out to the points. The lamp came back on its own. It was still lit." },
+        { "heading": "Under a tin cup by the fire ring", "text": "We stopped here because the engine wouldn't. Fire's out by morning. If you're reading this, it went out sooner." },
+        { "heading": "Scrawled on a feed sack", "text": "Don't sleep facing the trees. We took turns. Hector had the last turn. Hector's boots are by the fire. That's all I'm going to say about Hector." },
+        { "heading": "A letter never sent", "text": "Mother. I'm with the night crew now. The pay's good and the food's hot and you can't hear the singing from inside the cab. Mostly you can't." },
+        { "heading": "Burned into a plank", "text": "J. ROSS. FIREMAN. HE KEPT STEAM TO THE LAST. The clerk paid seventy-five. We spent it on the cross." },
+        { "heading": "In a jar at the foot of the cross", "text": "She asked to be buried facing the line so she could see the trains go home. We did as she asked. Twice now we've come by and found her turned the other way." },
+        { "heading": "A child's drawing, folded", "text": "A train with all its windows lit, and the moon, and a tall man beside the track with his arms too long. Underneath, in another hand: we didn't let her draw any more after that." },
+        { "heading": "Tucked in a brakeman's glove", "text": "Ran the hand brakes down the whole rake and she still wouldn't stop. Something was pushing. I went back to look. I'm writing this from the last car. I can hear it breathing on the coupling." },
+        { "heading": "On a waybill, the goods crossed out", "text": "Consigned: forty sacks of seed. Received: nothing. Remarks: the car arrived sealed and empty and warm inside. Nobody signed for it." },
+        { "heading": "Wedged in a wheel's spokes", "text": "Came off at speed on the curve. Nobody hurt in the derailment. I want that understood. Nobody hurt in the derailment." },
+        { "heading": "A page from a hymn book", "text": "The hymn's been crossed through and above it, in pencil: the comet was not sent. Nothing sends anything. Stop waiting for the water. Fix the pump." },
+        { "heading": "A fortress mason's tally", "text": "Course nine laid by dark. Company man says a wall is safe at twelve courses. Company man has never seen what walked past us at nine." },
+        { "heading": "On the inside of a matchbox", "text": "Saw the Hope Tower's flame from here, forty miles off, through the fog. Means we're nearly home. Means it can see us too." },
+        { "heading": "Signed, the Clerk", "text": "Crews are reminded that the fee for a body brought home is paid on delivery of the body. A cap, a boot or a ring is not a body. The Clerk regrets." },
+        { "heading": "Stuck to the rail with tar", "text": "To whoever's driving: don't whistle past the next mile. They come to the whistle. We learned that one the hard way. Coast it." }
+      ]
+    },
+    // The coaling chute (GDD §18): anyone within reach of where the coal falls while it pours comes out of it sooted.
+    "chute": { "reach": 1.8 },
+    // A switch thrown with a crewmate stood on its blades (within bladesHalfWidth of the main line between the toe and the
+    // points' end): a harmless lurch, off their feet at speed (m/s) toward the way it's thrown, up at lift, staggered
+    // staggerSeconds.
+    "lurch": { "bladesHalfWidth": 1.0, "speed": 1.6, "lift": 1.4, "staggerSeconds": 0.5 }
   },
 
   // GDD §1 *The fantasy*, §17-18 (the director, 9 Oct 2026, ARCHITECTURE §8 note 575: "if I skip everything and just drive

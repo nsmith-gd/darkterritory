@@ -31,16 +31,24 @@ public class CreatureArtTests(CreatureArtTests.TurntableRig rig) : IClassFixture
         // Its actions come from crew_clips.glb, merged on load (note 145).
         ["crew"] = new(2500, 9000, 20, 60, ["idle", "walk", "run", "climb", "shovel", "crouch_idle", "carry", "carry_walk", "drag", "drag_fwd", "door",
             "handbrake", "hatch", "uncouple", "vent", "lever", "push", "held", "gunner", "fall", "mend", "fp_hold", "fp_walk",
-            // (Note 375's stumble; note 378's rescues by the grab; note 407's prisoner's shuffle.)
-            "stumble", "pull_mouth", "pry_off", "haul_down", "shuffle"], ["dead", "swing", "fp_swing", "jump"]),
+            // (Note 375's stumble; note 378's rescues by the grab; note 407's prisoner's shuffle; note 807's emotes for two.)
+            "stumble", "pull_mouth", "pry_off", "haul_down", "shuffle", "dance_off_cheer", "sit_edge", "lean_out", "lean_out_left",
+            // (Note 812's carry and hand-up.)
+            "fireman", "fireman_walk", "carried", "carried_walk", "hand_up",
+            // (Note 813's hook rider and flail; note 814's pump.)
+            "on_hook", "flail", "pump"],
+            // (Note 818's heave and throw off the shoulder.)
+            ["dead", "swing", "fp_swing", "jump", "high_five", "high_five_met", "fist_bump", "fist_bump_met", "dance_off", "shove", "heave", "throw_off"]),
         // The crew figure gone wrong (the Climbers and the Deadman): the crew's own rig and clips.
         ["husk"] = new(2500, 9000, 20, 60, ["idle", "walk", "run", "climb", "shovel", "crouch_idle"], ["dead"]),
-        ["switchman"] = new(2000, 9000, 20, 60, ["wait", "flee", "grip"], ["throw"]),
         ["hollow"] = new(1500, 5000, 20, 60, ["idle"], ["reach"]),
         ["soot_child"] = new(3000, 9000, 20, 60, ["huddle", "call", "drink"], ["pin"]),
         // The freed survivors (App. D.8): the crew figure redressed, on its rig, with the crew's actions merged on load.
         ["survivor_prisoner"] = new(2500, 9000, 20, 60, ["idle", "walk", "run", "climb", "shovel", "crouch_idle", "carry", "lever"], ["dead"]),
         ["survivor_wildlander"] = new(2500, 9000, 20, 60, ["idle", "walk", "run", "climb", "shovel", "crouch_idle", "carry", "lever"], ["dead"]),
+        // Dave (note 491): the crew figure in his own clothes, each waistcoat a variant; a hero's budget (GDD §27's 10k), seen
+        // close when he's talked to. His painting, his turn and his grab among the crew's actions.
+        ["dave"] = new(2500, 10000, 20, 60, ["idle", "walk", "paint", "push", "point"], ["dead"]),
         // Livestock (GDD §19): a prop's budget, packed a dozen to a car; its own small quadruped rig.
         ["sheep"] = new(600, 3000, 12, 30, ["idle", "shuffle", "bleat"], ["startle"]),
         // SK_Quad: 40-55 bones.
@@ -114,6 +122,10 @@ public class CreatureArtTests(CreatureArtTests.TurntableRig rig) : IClassFixture
         // The Waker (note 679): a large monster (GDD §27: 8-16k) drawn sixty metres tall, on its own SK_Waker: a jaw, a mouth
         // socket, the rope's end, four three-boned fingers a hand.
         ["waker"] = new(8000, 16000, 50, 60, ["lie", "walk", "run", "lift", "eat", "stand"], ["rise", "grab", "roar"]),
+        // The Mouse Moose (notes 790, 796): a beast's (GDD §27: 2-8k), one at a yard; its own rig (SK_MouseMoose: a jaw, the
+        // ears, the throat's bell, six bones down the tail); a clip for each of its modes and the dive and the scramble between
+        // them, and its flinch. Never a death: nothing kills it.
+        ["mouse_moose"] = new(4000, 8000, 30, 36, ["idle", "creep", "drag", "flee", "hide"], ["bite", "dive", "emerge", "hit"]),
     };
 
     public static TheoryData<string> Models() => [.. CreatureArt.Names];
@@ -160,7 +172,6 @@ public class CreatureArtTests(CreatureArtTests.TurntableRig rig) : IClassFixture
         // Heights and lengths from the brief (GDD §21, App. A): what makes the silhouette read at distance.
         // 1.8 m to the crown of the head, and the gas mask's flying cap and the welder's visor over it (about 1.86 m).
         Assert.InRange(Height(Get("crew")), 1.8f, 1.95f);
-        Assert.InRange(Height(Get("switchman")), 1.7f, 2.2f);
         Assert.InRange(Height(Get("hollow")), 1.95f, 2.25f);
         var hound = Get("cinder_hound");
         Assert.InRange(hound.Max.Z - hound.Min.Z, 1.25f, 1.9f); // nose to tail's root and beyond
@@ -219,6 +230,12 @@ public class CreatureArtTests(CreatureArtTests.TurntableRig rig) : IClassFixture
         // The Lodger (lodger.md): about 2.1 m stood up; the Householder tall and thin, about 1.95 m.
         Assert.InRange(Height(Get("lodger")), 2.0f, 2.2f);
         Assert.InRange(Height(Get("householder")), 1.88f, 2.02f);
+        // The Mouse Moose (mouse-moose.md): a rat the size of a dog, about half a metre at its hunched back and its little
+        // antlers just over that, a metre nose to rump and its tail as long again behind; its head forward (−Z).
+        var mouseMoose = Get("mouse_moose");
+        Assert.InRange(Height(mouseMoose), 0.5f, 0.75f);
+        Assert.InRange(mouseMoose.Max.Z - mouseMoose.Min.Z, 1.6f, 2.0f);
+        Assert.True(mouseMoose.Min.Z < -0.55f && mouseMoose.Max.Z > 1.0f, "the mouse moose's snout forward (−Z), its tail behind");
         // The Waker (GDD §8 "A titan"): modelled a man about 2.07 m tall, drawn thirty times that, at least three times the
         // greybox stand-in's 17 m; his head forward (−Z).
         var waker = Get("waker");
@@ -331,7 +348,7 @@ public class CreatureArtTests(CreatureArtTests.TurntableRig rig) : IClassFixture
     }
 
     /// <summary>
-    /// The Pickers, the Lodger and the Householder (notes 574, 583, 584): no part of one through another beyond touching in
+    /// The Pickers, the Lodger, the Householder and the Mouse Moose (notes 574, 583, 584, 796): no part of one through another beyond touching in
     /// any clip (Clearance.Mesh, as the demo's), and a distance copy two fifths or so of it on the same bones (a group of
     /// Pickers is eight at once).
     /// </summary>
@@ -339,6 +356,7 @@ public class CreatureArtTests(CreatureArtTests.TurntableRig rig) : IClassFixture
     [InlineData("picker")]
     [InlineData("lodger")]
     [InlineData("householder")]
+    [InlineData("mouse_moose")]
     public void TheYardAndHouseCreaturesStayOutOfThemselvesAndHaveADistanceCopy(string name)
     {
         var full = Get(name);
@@ -352,8 +370,9 @@ public class CreatureArtTests(CreatureArtTests.TurntableRig rig) : IClassFixture
     }
 
     /// <summary>
-    /// Every mode the sim gives a Picker, the Lodger and the Householder has a clip of its own (CreatureArt.PickerClip,
-    /// LodgerClip, HouseholderClip), and is drawn from the enemy's own state; a Picker down its drain isn't drawn.
+    /// Every mode the sim gives a Picker, the Lodger, the Householder and the Mouse Moose has a clip of its own
+    /// (CreatureArt.PickerClip, LodgerClip, HouseholderClip, MouseMooseClip), and is drawn from the enemy's own state; a Picker
+    /// down its drain isn't drawn.
     /// </summary>
     [Fact]
     public void TheYardAndHouseCreaturesDrawEveryModeFromTheSimsState()
@@ -371,6 +390,21 @@ public class CreatureArtTests(CreatureArtTests.TurntableRig rig) : IClassFixture
                 Assert.Contains(CreatureArt.LodgerClip(mode, t, 3).Clip, Get("lodger").ClipNames);
         foreach (var mode in Enum.GetValues<HouseholderMode>())
             Assert.Contains(CreatureArt.HouseholderClip(mode, 0.5).Clip, Get("householder").ClipNames);
+        // The Mouse Moose (note 796): out of its hole it scrambles, into it (from a bolt, or with the casting) it dives, then
+        // peers out; stood still creeping, it sniffs; the drag's heaves come quicker dragging away.
+        var mouseMoose = Get("mouse_moose");
+        foreach (var mode in Enum.GetValues<MouseMooseMode>())
+            foreach (MouseMooseMode? was in Enum.GetValues<MouseMooseMode>().Select(m => (MouseMooseMode?)m).Append(null))
+                foreach (double t in new[] { 0.0, 0.2, 3.0 })
+                    foreach (float pace in new[] { 0f, 0.15f, 0.5f, 1.2f, 5f })
+                        Assert.Contains(CreatureArt.MouseMooseClip(mode, was, t, pace).Clip, mouseMoose.ClipNames);
+        Assert.Equal("emerge", CreatureArt.MouseMooseClip(MouseMooseMode.Creep, MouseMooseMode.Hide, 0.1, 1.2f).Clip);
+        Assert.Equal("creep", CreatureArt.MouseMooseClip(MouseMooseMode.Creep, MouseMooseMode.Hide, 1.0, 1.2f).Clip);
+        Assert.Equal("dive", CreatureArt.MouseMooseClip(MouseMooseMode.Hide, MouseMooseMode.Flee, 0.2, 0).Clip);
+        Assert.Equal("dive", CreatureArt.MouseMooseClip(MouseMooseMode.Hide, MouseMooseMode.Drag, 0.2, 0).Clip);
+        Assert.Equal(("hide", 0.0, true), CreatureArt.MouseMooseClip(MouseMooseMode.Hide, MouseMooseMode.Flee, CreatureArt.MouseMooseDiveSeconds, 0));
+        Assert.Equal("hide", CreatureArt.MouseMooseClip(MouseMooseMode.Hide, null, 0.2, 0).Clip);
+        Assert.True(CreatureArt.MouseMooseClip(MouseMooseMode.Drag, null, 1, 0.5f).Time > CreatureArt.MouseMooseClip(MouseMooseMode.Drag, null, 1, 0.15f).Time);
 
         var mesh = new MeshBuilder();
         var model = Matrix4x4.CreateTranslation(0, 0, -6);
@@ -397,6 +431,12 @@ public class CreatureArtTests(CreatureArtTests.TurntableRig rig) : IClassFixture
             var h = new Householder(3);
             h.Restore(SpinePhase.Alert, 0.6, 1, Enemy.Loose, default, 0, 0, (double)mode, -1, 0);
             Assert.True(Drawn(h) > 0, $"householder {mode}");
+        }
+        foreach (var mode in Enum.GetValues<MouseMooseMode>())
+        {
+            var mm = new MouseMoose(4);
+            mm.Restore(SpinePhase.Telegraph, 0.6, 1, Enemy.Loose, default, 0, 0, (double)mode, 0, 0);
+            Assert.True(Drawn(mm) > 0, $"mouse moose {mode}");
         }
     }
 
@@ -559,7 +599,7 @@ public class CreatureArtTests(CreatureArtTests.TurntableRig rig) : IClassFixture
         var line = Sim.Rail.RailLine.Load(Path.Combine(Content, "lines", "test-loop.json"));
         var train = new Sim.Train.TrainOnLine(new Sim.Train.TrainDynamics(Sim.Train.Consist.Uniform(tuning, 6, 1)), line, 1200);
         var living = Staging.Threats(train);
-        var dead = living.First(e => e.Kind == EnemyKind.Switchman);
+        var dead = living.First(e => e.Kind == EnemyKind.Gaunt);
         living.Remove(dead);
         var eye = dead.WorldPosition(train) + new Double3(3, 1.6, 2);
         int Drawn(double age, bool kill)
@@ -569,7 +609,7 @@ public class CreatureArtTests(CreatureArtTests.TurntableRig rig) : IClassFixture
                 scene.Killed(dead, Staging.StrikeTick, new Vector3(1, 0, 0));
             var mesh = new MeshBuilder();
             scene.Build(mesh, train, eye);
-            return mesh.Instances.Count(i => i.Asset.Name.Contains("switchman", StringComparison.OrdinalIgnoreCase));
+            return mesh.Instances.Count(i => i.Asset.Name.Contains("gaunt", StringComparison.OrdinalIgnoreCase));
         }
         Assert.Equal(0, Drawn(0.6, kill: false));
         Assert.True(Drawn(0.6, kill: true) > 0, "going over");
@@ -685,7 +725,6 @@ public class CreatureArtTests(CreatureArtTests.TurntableRig rig) : IClassFixture
     [InlineData(EnemyKind.CinderHound, "cinder_hound", true)]
     [InlineData(EnemyKind.Ribbit, "ribbit", false)]
     [InlineData(EnemyKind.Gaunt, "gaunt", false)]
-    [InlineData(EnemyKind.Switchman, "switchman", false)]
     [InlineData(EnemyKind.Gannet, "gannet", true)]
     // The night things going to ground at dawn (note 642), and any of these let go of otherwise.
     [InlineData(EnemyKind.Brakeman, "brakeman", true)]
@@ -871,7 +910,7 @@ public class CreatureArtTests(CreatureArtTests.TurntableRig rig) : IClassFixture
         var line = Sim.Rail.RailLine.Load(Path.Combine(Content, "lines", "test-loop.json"));
         var train = new Sim.Train.TrainOnLine(new Sim.Train.TrainDynamics(Sim.Train.Consist.Uniform(tuning, 6, 1)), line, 1200);
         int car = 4;
-        var fire = CarFire.In(24, train, car, 1.5, new CarFireTuning());
+        var fire = CarFire.In(24, train, car, 1.5, new CarFireTuning(), FireCause.Set);
         fire.Restore(SpinePhase.Punish, 5, 1, car, fire.Local, 0, 0, 0, 0.7, 0);
         var eye = train.Frames[car].ToWorld(new Double3(-6, 3, 0));
         var staged = new List<Enemy> { fire };
@@ -900,6 +939,51 @@ public class CreatureArtTests(CreatureArtTests.TurntableRig rig) : IClassFixture
             Assert.True(after > none && later > none, $"cut loose: {after}, then {later}, against {none}");
         else
             Assert.Equal(none, later);
+    }
+
+    /// <summary>
+    /// The Whistler seen at its whistle (note 759; the director, 14 Oct, `docs/playtest/2026-10-14.md` line 11: "I'm not
+    /// actually seeing our sneaky guy who's doing the horn ... we got to be able to see it"). Blowing, it stands on the
+    /// coupler's head with its front and siphon up over the roofs, its breath jetting out of the siphon: straight up from
+    /// the roofs, leant out past the cars' side toward whoever's beside the train. Folded in its gap, none of that.
+    /// </summary>
+    [Fact]
+    public void TheWhistlerBlowingStandsOverTheRoofsBreathingAndLeansOutToWhoeversBesideTheTrain()
+    {
+        var tuning = DataFile.Load<Sim.Train.TrainTuning>(Path.Combine(Content, Sim.Train.TrainTuning.File));
+        var line = Sim.Rail.RailLine.Load(Path.Combine(Content, "lines", "test-loop.json"));
+        var train = new Sim.Train.TrainOnLine(new Sim.Train.TrainDynamics(Sim.Train.Consist.Uniform(tuning, 6, 1)), line, 1200);
+        var whistler = Staging.Threats(train).OfType<Whistler>().Single();
+        var car = train.Frames[whistler.Attached];
+        var gap = car.ToWorld(whistler.Local);
+        double roof = car.Shape.RoofHeight;
+        List<(Vector3 Lip, Vector3 Out)> Breaths(string mode, Double3 eye)
+        {
+            var scene = new GreyboxScene { Look = Look, Time = 0.6, Enemies = Staging.Whistler([whistler], mode, train) };
+            scene.Build(new MeshBuilder(), train, eye);
+            return [.. Look.Art.Creatures!.Breaths];
+        }
+        // From the next car's roof, looking back down the roofs at it: straight up over them, blowing up at the sky.
+        var fromRoof = car.ToWorld(new Double3(0, roof + 1.65, -car.Shape.HalfLength + 2));
+        var (lip, @out) = Assert.Single(Breaths("whistle", fromRoof));
+        var local = car.ToLocal(fromRoof + new Double3(lip.X, lip.Y, lip.Z));
+        Assert.True(local.Y > roof + 0.5, $"its siphon {local.Y - roof:0.00} m over the roofs");
+        Assert.InRange(local.X, -0.6, 0.6);
+        Assert.True(@out.Y > 0.5f, $"blowing up: {@out}");
+        // From the ground off its left side: leant out past the cars' side toward them.
+        var fromLeft = car.ToWorld(new Double3(-car.Shape.HalfWidth - 6, 1.65, car.Shape.HalfLength));
+        (lip, _) = Assert.Single(Breaths("whistle", fromLeft));
+        local = car.ToLocal(fromLeft + new Double3(lip.X, lip.Y, lip.Z));
+        Assert.True(local.X < -car.Shape.HalfWidth, $"its siphon {local.X:0.00} m across, past the side at {-car.Shape.HalfWidth:0.00}");
+        Assert.True(local.Y > roof, $"its siphon {local.Y - roof:0.00} m over the roofs");
+        // And off its right, the other way.
+        var fromRight = car.ToWorld(new Double3(car.Shape.HalfWidth + 6, 1.65, car.Shape.HalfLength));
+        (lip, _) = Assert.Single(Breaths("whistle", fromRight));
+        Assert.True(car.ToLocal(fromRight + new Double3(lip.X, lip.Y, lip.Z)).X > car.Shape.HalfWidth);
+        // Folded in its gap, or watching after, there's no breath to see.
+        Assert.Empty(Breaths("fold", fromLeft));
+        Assert.Empty(Breaths("watch", fromLeft));
+        Assert.True((gap - fromLeft).Length < 12);
     }
 
     [Fact]
@@ -1246,7 +1330,7 @@ public class CreatureArtTests(CreatureArtTests.TurntableRig rig) : IClassFixture
         // more models than it looks.)
         var mesh = new MeshBuilder();
         EnemyKind[] kinds = [.. Enumerable.Repeat(EnemyKind.CinderHound, 4), EnemyKind.Ribbit, EnemyKind.Ribbit, EnemyKind.CarHugger,
-            EnemyKind.Gaunt, EnemyKind.Switchman, EnemyKind.Sleepers, EnemyKind.SootChildren, EnemyKind.TrackDoll];
+            EnemyKind.Gaunt, EnemyKind.Sleepers, EnemyKind.SootChildren, EnemyKind.TrackDoll];
         void Frame(double t)
         {
             mesh.Clear();
@@ -1296,8 +1380,8 @@ public class CreatureArtTests(CreatureArtTests.TurntableRig rig) : IClassFixture
     [Fact]
     public void TheLightsAreLights()
     {
-        // The crew's chest lamp, the Switchman's lantern glass and the Hollow's eyes are pure light; hound embers glow.
-        foreach (var (name, clip) in new[] { ("crew", "idle"), ("switchman", "wait"), ("hollow", "idle") })
+        // The crew's chest lamp and the Hollow's eyes are pure light; hound embers glow.
+        foreach (var (name, clip) in new[] { ("crew", "idle"), ("hollow", "idle") })
         {
             var mesh = new MeshBuilder();
             Art.Draw(mesh, name, clip, 0, true, Matrix4x4.Identity);
