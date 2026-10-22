@@ -351,7 +351,7 @@ FIRST_CHOICE = {"place-town.fire": "drum", "place-town.murmur": "masks",  # note
                 "up-forge.hearth": "coals", "up-forge.anvil": "ring", "up-forge.bellows": "leather", "up-forge.quench": "hiss",
                 "up-bbq.light": "whump", "up-bbq.grill": "sausages", "up-bbq.turn": "tongs", "up-bbq.cooler": "lid",
                 "up-bbq.can": "crack", "up-bbq.cheers": "clink", "up-bbq.chair": "creak", "up-bbq.eat": "bite",
-                "up-lounge.hammock": "ropes", "up-lounge.sway": "creak", "up-lounge.tub-in": "splash", "up-lounge.tub": "seethe",
+                "up-lounge.hammock": "ropes", "up-lounge.sway": "creak", "up-lounge.tub-in": "splash", "up-lounge.tub": "seethe", "up-lounge.bench": "plank",
                 "up-fishing.cast": "reel", "up-fishing.line": "lap", "up-fishing.catch": "trout",
                 # The modelled one: the real fizz and cloth crackle carry clicks past the car-fire tell's band (note 833).
                 "crew-scorch.sizzle": "singe",
@@ -676,6 +676,7 @@ CUE_DEF = {
     "up-lounge.sway": {"tier": 6, "minDistance": 1, "maxDistance": 10, "rolloff": 1.0},
     "up-lounge.tub-in": {"minDistance": 1.5, "maxDistance": 25, "rolloff": 1.0},
     "up-lounge.tub": {"tier": 6, "minDistance": 1, "maxDistance": 12, "rolloff": 1.0},
+    "up-lounge.bench": {"minDistance": 1, "maxDistance": 12, "rolloff": 1.0},
     "up-fishing.cast": {"minDistance": 1, "maxDistance": 25, "rolloff": 1.0},
     "up-fishing.line": {"minDistance": 1, "maxDistance": 10, "rolloff": 1.0},
     "up-fishing.catch": {"minDistance": 1.5, "maxDistance": 35, "rolloff": 1.0},

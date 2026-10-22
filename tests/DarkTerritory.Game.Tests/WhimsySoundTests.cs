@@ -362,6 +362,40 @@ public class WhimsySoundTests
     }
 
     [Fact]
+    public void TheBigCabsBenchesAreHeardSatOnAndGotUpFrom()
+    {
+        // Note 984 (note 905): a seat on one of the cab's side benches taken and left is the plank on its brackets, once each
+        // way, where the sitter is; standing in front of it is nothing.
+        var (world, audio) = Night([], "up-lounge.bench", "up-lounge.hammock", "up-lounge.tub-in");
+        var train = world.Train;
+        var seat = train.Frames[0].Shape.Lounges.First(l => l.Kind == LoungeKind.Bench);
+        PlayerState On(Double3 at, bool sat) => new()
+        {
+            Parent = 0,
+            Position = at,
+            Health = 100,
+            Flags = sat ? PlayerFlags.Lounging : PlayerFlags.None,
+        };
+        var ears = new Ears(audio, world);
+        var ear = train.Frames[0].ToWorld(seat.At + new Double3(0, 1.6, -1));
+        var stand = seat.At + new Double3(0, 0, -0.5);
+        audio.CrewStates = [(1, On(stand, false))];
+        ears.Tick(ear, 3);
+        Assert.Equal(0, ears.Count("up-lounge.bench"));
+        audio.CrewStates = [(1, On(seat.At, true))];
+        ears.Tick(ear, 3);
+        var sat = Assert.Single(ears.Started, x => x.Name == "up-lounge.bench");
+        Assert.True((sat.Position - train.Frames[0].ToWorld(seat.At + Double3.Up * 0.5)).Length < 0.01);
+        ears.Tick(ear, SimConstants.TickRate);
+        Assert.Equal(1, ears.Count("up-lounge.bench"));
+        audio.CrewStates = [(1, On(stand, false))];
+        ears.Tick(ear, 3);
+        Assert.Equal(2, ears.Count("up-lounge.bench"));
+        Assert.Equal(0, ears.Count("up-lounge.hammock"));
+        Assert.Equal(0, ears.Count("up-lounge.tub-in"));
+    }
+
+    [Fact]
     public void TheAnglersOwnCastAndLineAreHeardOffTheirUseAndEveryoneHearsTheCatch()
     {
         // Note 831 (note 744): the cast as Use goes down with a line to put in the water, the line held while Use is; a fish
