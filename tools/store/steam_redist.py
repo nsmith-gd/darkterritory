@@ -1,13 +1,16 @@
 #!/usr/bin/env python3
-"""Valve's Steam library into external/steam/ from the STEAM_REDIST_URL secret (note 976).
+"""Valve's Steam library into external/steam/: from the STEAM_REDIST_URL secret, else Steamworks.NET's release (note 976).
 
 Tonight's build (.github/workflows/tonight.yml) runs it before packaging, so the director's playtest builds carry
 `steam_api64.dll` (Windows) and `libsteam_api.so` (Linux) and a Steam friend night needs nothing copied by hand (queue #269's
 first real Steam evening). DarkTerritory.App copies whatever is in external/steam/ beside the game (external/steam/README.md).
 
-The zip is a private link to Valve's redistributables: those two files alone, or the Steamworks SDK's zip whole, where the
-64-bit ones are taken (`win64/`, `linux64/`; the SDK has a 32-bit `libsteam_api.so` too). Without the secret, or when the
-link fails, it does nothing and says so, with what to set and where: a build without it still plays (LAN, direct IP, EOS).
+The secret is a private link to Valve's redistributables: those two files alone, or the Steamworks SDK's zip whole, where
+the 64-bit ones are taken (`win64/`, `linux64/`; the SDK has a 32-bit `libsteam_api.so` too). Without the secret it takes
+them from the public Steamworks.NET 2024.8.0 release (the wrapper the game builds against, `Ballast.Online.csproj`), whose
+Standalone zip carries Valve's SDK 1.60 builds of both (`Windows-x64/`, `OSX-Linux-x64/`); the zip is pinned by its
+SHA-256, so a changed or tampered file is refused. When neither can be had it does nothing and says so, with what to set
+and where: a build without it still plays (LAN, direct IP, EOS).
 
     STEAM_REDIST_URL=... python3 tools/store/steam_redist.py [--out external/steam] [--plan out/tonight/TEST-PLAN.md]
     python3 tools/store/steam_redist.py --offline-test
@@ -17,12 +20,19 @@ the same section goes to the run's step summary when there is one ($GITHUB_STEP_
 """
 
 import argparse
+import hashlib
 import io
 import os
 import sys
 import tempfile
 import urllib.request
 import zipfile
+
+# Steamworks.NET's release (MIT wrapper; the zip also carries Valve's redistributable libraries, which ship with games).
+# Its version matches Ballast.Online's Steamworks.NET package, built against Steamworks SDK 1.60 (external/steam/README.md).
+PUBLIC_URL = ("https://github.com/rlabrecque/Steamworks.NET/releases/download/2024.8.0/"
+              "Steamworks.NET-Standalone_2024.8.0.zip")
+PUBLIC_SHA256 = "08094d1372c6d793d6b5b87c59f1362a10fe8580acb1db6bfaf081a511f6758c"
 
 # The library each platform's game loads, and the SDK folder its 64-bit build is in.
 WANTED = {"steam_api64.dll": "win64", "libsteam_api.so": "linux64"}
@@ -68,14 +78,15 @@ def extract(data, out):
     return sorted(chosen)
 
 
-def section(have, why=None):
+def section(have, why=None, source="the zip at `STEAM_REDIST_URL`"):
     """The plan's "A Steam night" section: whether the build has the library, and how to run a friend night."""
     t = ["## A Steam night", ""]
     if len(have) == len(WANTED):
-        t.append("Valve's Steam library is in both builds (`steam_api64.dll` for Windows, `libsteam_api.so` for Linux).")
+        t.append("Valve's Steam library is in both builds (`steam_api64.dll` for Windows, `libsteam_api.so` for Linux), "
+                 f"from {source}.")
     elif have:
         missing = sorted(set(WANTED) - set(have))
-        t.append(f"Only {', '.join(f'`{n}`' for n in have)} is in the builds: the zip at `STEAM_REDIST_URL` has no "
+        t.append(f"Only {', '.join(f'`{n}`' for n in have)} is in the builds: {source} has no "
                  f"{', '.join(f'`{n}`' for n in missing)} (or more than one and none in a 64-bit folder).")
     else:
         t.append(f"Valve's Steam library is **not** in these builds: {why}. {SECRET_HELP}")
@@ -88,18 +99,31 @@ def fetch(url):
         return r.read()
 
 
-def run(url, out, plan=None, summary=None, get=fetch):
+def run(url, out, plan=None, summary=None, get=fetch, public=(PUBLIC_URL, PUBLIC_SHA256)):
     have, why = [], None
-    if not url:
-        why = "the repository has no `STEAM_REDIST_URL` secret"
-    else:
+    if url:
+        source = "the zip at `STEAM_REDIST_URL`"
         try:
             have = extract(get(url), out)
             if not have:
                 why = "the zip at `STEAM_REDIST_URL` has neither library in it"
         except Exception as e:  # a bad link or a bad zip skips the library, never the build
             why = f"the zip at `STEAM_REDIST_URL` couldn't be read ({type(e).__name__})"
-    text = section(have, why)
+    else:
+        # No secret: Steamworks.NET's public release, refused unless it is byte for byte the zip pinned here.
+        public_url, public_sha = public
+        source = "Steamworks.NET 2024.8.0's release (no `STEAM_REDIST_URL` secret)"
+        try:
+            data = get(public_url)
+            if hashlib.sha256(data).hexdigest() != public_sha:
+                why = "Steamworks.NET's release zip isn't the one pinned in tools/store/steam_redist.py (its SHA-256 differs)"
+            else:
+                have = extract(data, out)
+                if not have:
+                    why = "Steamworks.NET's release zip has neither library in it"
+        except Exception as e:  # no network, a moved file: the build goes on without it
+            why = f"Steamworks.NET's release couldn't be fetched ({type(e).__name__}), and there's no `STEAM_REDIST_URL` secret"
+    text = section(have, why, source)
     for path in (plan, summary):
         if path:
             with open(path, "a") as f:
@@ -145,13 +169,34 @@ def offline_test():
         have = run("u", out2, get=lambda _: zipped(["steam_api64.dll", "libsteam_api.so"]))
         expect(have == ["libsteam_api.so", "steam_api64.dll"], "a zip of the two files alone")
 
-        plan3 = os.path.join(tmp, "unset.md")
-        have = run("", os.path.join(tmp, "unset"), plan3, get=lambda _: 1 / 0)
+        # No secret: the public release, its layout (Windows-x64/, OSX-Linux-x64/), pinned by its SHA-256.
+        swnet = zipped(["Windows-x64/steam_api64.dll", "Windows-x86/steam_api.dll", "OSX-Linux-x64/libsteam_api.so",
+                        "OSX-Linux-x64/Steamworks.NET.dll", "Windows-x64/Steamworks.NET.dll"])
+        pin = ("https://example.invalid/swnet.zip", hashlib.sha256(swnet).hexdigest())
+        plan3 = os.path.join(tmp, "public.md")
+        have = run("", os.path.join(tmp, "public"), plan3, get=lambda _: swnet, public=pin)
         with open(plan3) as f:
             md = f.read()
-        expect(have == [] and not os.path.exists(os.path.join(tmp, "unset")), "no secret: nothing fetched, nothing made")
-        expect("**not** in these builds" in md and "New repository secret" in md and "`STEAM_REDIST_URL`" in md,
-               "no secret: the plan says what to set and where")
+        expect(have == ["libsteam_api.so", "steam_api64.dll"], f"no secret: both from the public release ({have})")
+        expect("in both builds" in md and "Steamworks.NET 2024.8.0" in md, "no secret: the plan names where they came from")
+
+        plan5 = os.path.join(tmp, "tampered.md")
+        have = run("", os.path.join(tmp, "tampered"), plan5, get=lambda _: swnet + b"x", public=pin)
+        with open(plan5) as f:
+            md = f.read()
+        expect(have == [] and not os.path.exists(os.path.join(tmp, "tampered")) and "SHA-256 differs" in md
+               and "New repository secret" in md, "no secret, a zip that isn't the pinned one: refused, and says what to set")
+
+        def offline(_):
+            raise OSError("no network")
+        plan6 = os.path.join(tmp, "offline.md")
+        have = run("", os.path.join(tmp, "offline"), plan6, get=offline, public=pin)
+        with open(plan6) as f:
+            md = f.read()
+        expect(have == [] and "couldn't be fetched (OSError)" in md, "no secret, no network: the build goes on, and says so")
+
+        expect(len(PUBLIC_SHA256) == 64 and PUBLIC_URL.endswith("Steamworks.NET-Standalone_2024.8.0.zip"),
+               "the public release is pinned to 2024.8.0 by its SHA-256")
 
         def broken(_):
             raise OSError("404")

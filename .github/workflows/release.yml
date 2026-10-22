@@ -33,10 +33,13 @@ jobs:
         env:
           STEAM_REDIST_URL: ${{ secrets.STEAM_REDIST_URL }}
         run: |
-          # Without it an itch build still works (and a Steam upload refuses, saying why).
+          # The secret when it's set, and a broken link stops the release (note 976). Without it, Steamworks.NET 2024.8.0's
+          # public release, pinned by its SHA-256; without either an itch build still works (and a Steam upload refuses, saying why).
           if [ -n "$STEAM_REDIST_URL" ]; then
             curl -fsSL "$STEAM_REDIST_URL" -o "$RUNNER_TEMP/redist.zip"
             unzip -oj "$RUNNER_TEMP/redist.zip" '*steam_api64.dll' '*libsteam_api.so' -d external/steam || [ $? = 11 ]  # 11: one of them isn't in it
+          else
+            python3 tools/store/steam_redist.py
           fi
       - name: Epic's EOS SDK and the game's EOS credentials (note 896)
         env:
