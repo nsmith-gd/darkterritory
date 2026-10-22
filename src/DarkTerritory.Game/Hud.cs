@@ -564,18 +564,25 @@ public static partial class Hud
     /// <summary>Note 549: the host's, while its upload can't carry the crew: what it's sending, so the figure can be taken to a router.</summary>
     public static string StrainedLine(double upKbps) => $"YOUR UPLOAD CAN'T CARRY THE CREW: {upKbps:0} KBIT/S OUT";
 
+    /// <summary>
+    /// Where the link's lines start at the top right (the ping, a crewmate's bad link, this machine holding the crew back).
+    /// A developer build's mark (DEV and its commit, F8 NOTE · F9 SAY) is drawn there too, so the app moves them below it
+    /// (note 985: the two overlapped on the director's own build).
+    /// </summary>
+    public static float LinkTop { get; set; } = 5;
+
     static void Link(Overlay o, int width, IPlaySession s)
     {
         if (s.Link is not { } link)
             return;
-        float k = Fine, right = width - 6;
+        float k = Fine, right = width - 6, top = LinkTop;
         int line = o.Font.LineHeight;
         bool yard = s.World.Run is null or { Phase: Sim.Run.RunPhase.Yard };
         if (link.Lost)
         {
-            o.TextRight(right, 5, "NO LINK", Red, 1);
+            o.TextRight(right, top, "NO LINK", Red, 1);
             if (LinkLine(link) is { } how)
-                UiStyle.Keyed(o, Overlay.Snap(right - UiStyle.MeasureKeyed(o, how, k), k), 5 + line + 2 * k, how, link.Attempt > 0 ? Amber : Red, k);
+                UiStyle.Keyed(o, Overlay.Snap(right - UiStyle.MeasureKeyed(o, how, k), k), top + line + 2 * k, how, link.Attempt > 0 ? Amber : Red, k);
             return;
         }
         if (link.PingMs is not { } ping)
@@ -584,7 +591,7 @@ public static partial class Hud
             // has every crewmate's). Nobody else knows: the host's the one who can wait for them, or warn them.
             if (!yard)
             {
-                float y = 5;
+                float y = top;
                 foreach (var (text, ink) in BadLinks(link, s.Roster()))
                 {
                     o.TextRight(right, y, text, ink, k);
@@ -606,16 +613,16 @@ public static partial class Hud
         if (yard)
         {
             // Just the milliseconds at the big size: "PING 100 MS" ran into the route strip at 1280 wide (the 4 Oct rehearsal).
-            o.TextRight(right, 5, $"{ping:0} MS", colour, scale: 2);
-            o.TextRight(right, 5 + 2 * line + 1, "PING TO HOST", Dim, k);
+            o.TextRight(right, top, $"{ping:0} MS", colour, scale: 2);
+            o.TextRight(right, top + 2 * line + 1, "PING TO HOST", Dim, k);
             // Note 534: what's getting through and how, under it, so a joiner sees a bad link before the night starts.
             if (QualityLine(link) is { } quality)
-                o.TextRight(right, 5 + 2 * line + 1 + (line + 1) * k, quality, link.Loss is { } l ? LossInk(l) : Dim, k);
+                o.TextRight(right, top + 2 * line + 1 + (line + 1) * k, quality, link.Loss is { } l ? LossInk(l) : Dim, k);
         }
         else
         {
             // Out on the line, only what's gone bad (note 285): the ping, the loss, or both.
-            float y = 5;
+            float y = top;
             if (ping >= Tuning.PingWarnMs)
             {
                 o.TextRight(right, y, $"PING {ping:0} MS", colour, k);
