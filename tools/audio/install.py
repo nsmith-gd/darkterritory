@@ -271,6 +271,8 @@ FIRST_CHOICE = {**{f"voice-bot.{c}": "radio" for c in ("fire", "controls", "loot
                 # Note 429: the quick river over its stones, the deep one a candidate; the Atlantic's shingle beaches drag
                 # their stones back, the rocky ledges' surf a candidate.
                 "world-water.river": "run", "world-water.surf": "shingle",
+                # Note 990: the bog by its gas and seep, the salt marsh by its creeks (the deeper pools and the flood tide candidates).
+                "world-water.marsh": "peat", "world-water.saltmarsh": "creeks",
                 # Note 431: the joint's crack, short and hard under 2 kHz; the old clack and the battered joint candidates.
                 "bed-wheel-rail.joint": "crack",
                 # Note 444: the truss Dragger's whole weight on the roof (limbs, lighter, a candidate).
@@ -557,6 +559,8 @@ CUE_DEF = {
     "world-water.lake": {"minDistance": 3, "maxDistance": 50, "rolloff": 1.0},
     "world-water.surf": {"minDistance": 15, "maxDistance": 400, "rolloff": 0.6},
     "world-water.tide": {"minDistance": 10, "maxDistance": 250, "rolloff": 0.7},
+    "world-water.marsh": {"minDistance": 4, "maxDistance": 60, "rolloff": 1.0},
+    "world-water.saltmarsh": {"minDistance": 8, "maxDistance": 200, "rolloff": 0.8},
     # Note 444: a truss Dragger's fall into the ballast, heard from the train drawing away from it.
     "cs-draggers.fall": {"minDistance": 4, "maxDistance": 150, "rolloff": 0.8},
     # The capstan winch (note 468): the drum and its stall heard across the yard from the cranks (GameAudio.WinchReach),
