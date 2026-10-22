@@ -228,12 +228,13 @@ public static class WorldKit
 
     /// <summary>
     /// A boulder: an icosahedron split once (80 facets), each point pushed in or out by a few broad swells round it so
-    /// it's lumped and fractured rather than a cut gem; flat-shaded, wet dark rock, squat and sunk into the ground.
+    /// it's lumped and fractured rather than a cut gem; flat-shaded, wet dark rock, squat and sunk into the ground. In
+    /// <paramref name="texture"/>: a town's granite is lichened (note 989).
     /// </summary>
-    public static MeshAsset Rock(Look? look, int variant, float size)
+    public static MeshAsset Rock(Look? look, int variant, float size, string texture = "rock_cliff")
     {
         var k = new Kit(look, 500 + variant);
-        k.Use("rock_cliff", Palette.Charcoal, 0.6f, 0.1f, tile: 1.5f);
+        k.Use(texture, Palette.Charcoal, 0.6f, 0.1f, tile: 1.5f);
         float t = (1 + MathF.Sqrt(5)) / 2;
         Vector3[] ico =
         [
@@ -269,7 +270,7 @@ public static class WorldKit
             k.Tri(CA, BC, C);
             k.Tri(AB, BC, CA);
         }
-        return k.Build($"rock-{variant}");
+        return k.Build(texture == "rock_cliff" ? $"rock-{variant}" : $"{texture}-rock-{variant}");
     }
 
     static float Frac(float x) => x - MathF.Floor(x);

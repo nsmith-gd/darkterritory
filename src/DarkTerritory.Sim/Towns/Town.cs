@@ -635,6 +635,12 @@ public sealed class Town
                 else
                     yield return Box(f.S, f.D, turned ? f.SolidD : f.SolidS, turned ? f.SolidS : f.SolidD, Math.Max(1, f.Height));
             }
+        // What stands between the houses (note 989): its sheds, traps, rocks and fences.
+        foreach (var p in Plan.Between)
+        {
+            var (hs, hd, height) = p.Solid;
+            yield return Box(p.S, p.D, hs, hd, height);
+        }
         // Not the people: they go about their rounds (note 353), so a wall of their own would be in a different place on
         // every machine that's stopped somebody to talk.
         foreach (var h in Plan.Houses)

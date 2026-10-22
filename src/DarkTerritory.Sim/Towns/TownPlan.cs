@@ -68,6 +68,9 @@ public sealed record TownPlan(
     /// each side's first row, open where a way goes through (Run.Fortresses.WardHalf, WardHeight).
     /// </summary>
     public IReadOnlyList<(double S0, double D0, double S1, double D1)> Wards { get; init; } = [];
+
+    /// <summary>What stands between its houses (note 989): fish sheds, stacks of lobster traps, granite and lot-line fences.</summary>
+    public IReadOnlyList<TownPiece> Between { get; init; } = [];
 }
 
 /// <summary>

@@ -124,6 +124,13 @@ public static class ArtCatalog
         list.Add(new("tuft", SmallProp, () => WorldKit.Tuft(look, 0, weed: false)));
         list.Add(new("brass-weed", SmallProp, () => WorldKit.Tuft(look, 0, weed: true)));
         list.Add(new("rock", SmallProp, () => WorldKit.Rock(look, 0, 1)));
+        // What stands between a town's houses (note 989): the fish shed at its biggest, hung, its door ajar; the tallest stack
+        // of traps with its coil; the granite; the longest fence of each kind.
+        list.Add(new("between-shed", SmallProp, () => BetweenKit.Shed(look, 2.0f, 1.5f, 3.3f, 2, true, true)));
+        list.Add(new("between-traps", SmallProp, () => BetweenKit.Traps(look, 11)));
+        list.Add(new("between-granite", SmallProp, () => BetweenKit.Granite(look, 0)));
+        foreach (int v in new[] { 0, 1, 2 })
+            list.Add(new($"between-fence-{v}", SmallProp, () => BetweenKit.Fence(look, v, 12, 1.15f)));
         list.Add(new("debris-tree", LargeProp, () => DebrisKit.Of(look, 0)));
         list.Add(new("debris-rocks", LargeProp, () => DebrisKit.Of(look, 1)));
         list.Add(new("debris-tangle", LargeProp, () => DebrisKit.Of(look, 2)));

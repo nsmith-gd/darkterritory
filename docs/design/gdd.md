@@ -325,7 +325,7 @@ Use talks to someone, and Use again hears their next line. They turn to face you
 **Everything is solid and safe.** The square, the houses (an open one through its doors), their furniture and the people stand where they're drawn, and the fortress's walls step back round the square. The yard is a safe space until the gate (§9).
 
 **Not yet** (for the next passes):
-- fish sheds, fences, granite and lobster traps between the houses;
+- ~~fish sheds, fences, granite and lobster traps between the houses~~ *(in: note 989, #689)*;
 - buying, upgrading and turning loot into scrip in the town itself, not the menu;
 - faces of their own for the townspeople (they wear the crew's model; they move about on their rounds since note 353, #389);
 - upstairs in the open houses;
