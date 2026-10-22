@@ -250,7 +250,24 @@ public sealed class FrontEnd
     /// The public games for the join screen (T116; the user's playtest, "I see active lobbies I can join and then what my
     /// ping is"): the app's <see cref="LobbyBrowser"/> sets them each frame, nearest first.
     /// </summary>
-    public IReadOnlyList<ListedGame> Games { get; set; } = [];
+    public IReadOnlyList<ListedGame> Games
+    {
+        get => _games;
+        set
+        {
+            // Note 985 (a friend's first join, headless): the join screen opened before the host's game was heard, so the
+            // selection sat on MOOD under the list, and Enter changed the mood. The first game you can join that turns up
+            // takes the selection, until you've moved it yourself.
+            bool had = _games.Any(Joinable);
+            _games = value;
+            if (Screen == Screen.Join && _joinUntouched && !had && value.Any(Joinable))
+                Show(Screen.Join);
+        }
+    }
+    IReadOnlyList<ListedGame> _games = [];
+    // The join screen's selection is still where it opened (note 985).
+    bool _joinUntouched;
+    bool Joinable(ListedGame g) => g.Protocol == Protocol && !g.Full;
     /// <summary>
     /// The derailment's music for the credits screen (GDD v1.4 App. E.6: "the credits screen lists every performer"; note
     /// 194): the manifest's tracks, which the app loads from content/audio/music. Empty, the screen says there's none.
@@ -794,6 +811,7 @@ public sealed class FrontEnd
         Editing = null;
         Screen = screen;
         Selected = 0;
+        _joinUntouched = screen == Screen.Join;
         _scroll = 0;
         _follow = true;
         // Skip to the first item you can do something with.
@@ -1272,6 +1290,7 @@ public sealed class FrontEnd
         if (item < 0 || item >= entries.Count || !entries[item].Item.Enabled)
             return;
         Selected = item;
+        _joinUntouched = false;
         Cue?.Invoke(UiCue.Move);
     }
 
@@ -1326,6 +1345,7 @@ public sealed class FrontEnd
         if (entries.Count == 0)
             return;
         int was = Selected;
+        _joinUntouched = false;
         // Moving off a field ends typing in it (the text's kept).
         if (Editing is not null)
         {
@@ -1347,6 +1367,7 @@ public sealed class FrontEnd
 
     void Adjust(int by)
     {
+        _joinUntouched = false;
         var entries = Entries();
         if (Selected >= entries.Count || entries[Selected].Adjust is not { } adjust)
             return;

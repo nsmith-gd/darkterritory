@@ -703,6 +703,32 @@ public sealed class FrontEndTests : IDisposable
     }
 
     [Fact]
+    public void AGameHeardAfterTheJoinScreenOpensIsWhatEnterJoins()
+    {
+        // Note 985 (a friend's first join, headless): the screen opened before the host's beacon was heard, so the selection
+        // sat on MOOD under the list and Enter changed the mood. The first game you can join takes it, till you move it.
+        var m = Menu();
+        static Ballast.Net.LanGame Lan(string ip, int protocol) =>
+            new(new System.Net.IPEndPoint(System.Net.IPAddress.Parse(ip), 27450), "nick", "FRONTIER:7, 6 CARS, IN THE YARD", 1, protocol, "darkterritory")
+            { Name = "NICK'S RUN", Max = 8, Tier = "Frontier" };
+        Choose(m, "JOIN");
+        Assert.StartsWith("MOOD", m.Items[m.Selected].Label);
+        // Another version's is no game to join: the selection stays.
+        m.Games = ListedGame.Merge([Lan("192.168.1.30", m.Protocol + 1)], [], "");
+        Assert.StartsWith("MOOD", m.Items[m.Selected].Label);
+        m.Games = ListedGame.Merge([Lan("192.168.1.20", m.Protocol)], [], "");
+        Assert.Equal(new Launch.Join("192.168.1.20:27450"), m.Select());
+
+        // Moved by hand first, it's left where it was put.
+        var moved = Menu();
+        Choose(moved, "JOIN");
+        moved.Down();
+        string there = moved.Items[moved.Selected].Label;
+        moved.Games = ListedGame.Merge([Lan("192.168.1.20", moved.Protocol)], [], "");
+        Assert.Equal(there, moved.Items[moved.Selected].Label);
+    }
+
+    [Fact]
     public void AGameOnTheNetworkAndOnSteamIsListedOnce()
     {
         var lan = new Ballast.Net.LanGame(new System.Net.IPEndPoint(System.Net.IPAddress.Loopback, 27450), "nick", "", 1, 1, "darkterritory") { Lobby = "77", PingMs = 1 };
