@@ -15,15 +15,19 @@ namespace DarkTerritory.Game.Sound;
 /// its valley (a river shore), a lake lapping at the shore nearest the ear (<see cref="LinePlan.Lakes"/>), the sea's surf
 /// at its waterline and Fundy's tide out on its flats (<see cref="LinePlan.Shores"/>). The lake and the sea louder with
 /// the night's wind. Nothing in a tunnel or down the mine. A town type's own water (note 692: a harbour's basin, a tidewater
-/// town's channels, a dykeland's marsh) laps as a lake does, the nearer of the two heard (queue #526, note 799).
+/// town's channels, a dykeland's marsh) laps as a lake does, the nearer of the two heard (queue #526, note 799). A bog's
+/// standing water either side of its causeway (the plan's marsh water) and a dykeland's salt marsh out past its dyke (a
+/// <see cref="ShoreKind.Dyke"/> shore), which lay silent, each their own (queue #690, note 990).
 /// </summary>
 public sealed partial class GameAudio
 {
     // How far from its water each is listened for (each cue's maxDistance, install.py CUE_DEF), and how often the nearest
     // water's looked up again (the water doesn't move; the ear does, at the train's speed at most).
-    const double RiverReach = 120, LakeReach = 50, SurfReach = 400, TideReach = 250, WaterLook = 0.25;
+    const double RiverReach = 120, LakeReach = 50, SurfReach = 400, TideReach = 250, MarshReach = 60, SaltReach = 200, WaterLook = 0.25;
     // A river under its span: how far either side of the line its course is heard from (a river runs across the corridor).
     const double RiverAcross = 25;
+    // A bog by its causeway: its water from this far out either side (the causeway's bank between), to the corridor's edge.
+    const double MarshFrom = 12;
 
     readonly List<(string Cue, Double3 At, double Level)> _waterNear = [];
     double _waterLookAt = double.NegativeInfinity;
@@ -117,21 +121,28 @@ public sealed partial class GameAudio
             var p = t.Position + Double3.Cross(t.Tangent, Double3.Up).Normalized * across;
             return p with { Y = y };
         }
-        Double3? river = null, surf = null, tide = null;
+        Double3? river = null, surf = null, tide = null, marsh = null, salt = null;
         void Nearest(ref Double3? best, Double3 at, double reach)
         {
             if ((at - ear).Length <= reach && (best is null || (at - ear).Length < (best.Value - ear).Length))
                 best = at;
         }
+        // Along a stretch of the line, as near the ear as it goes. Either way round: a tidal river's span can come out of the
+        // plan with its ends reversed (local:40's, note 990), which Math.Clamp throws on.
+        static double Along(double s, double a, double b) => Math.Clamp(s, Math.Min(a, b), Math.Max(a, b));
         // A river under its span: where its course crosses the line, as near the ear as its banks go.
         foreach (var w in plan.Water)
             if (w.Edge == "main" && w.Type is "river" or "tidal")
-                Nearest(ref river, OnMain(Math.Clamp(earMain, w.S0, w.S1), Math.Clamp(lateral, -RiverAcross, RiverAcross), w.LevelM), RiverReach);
+                Nearest(ref river, OnMain(Along(earMain, w.S0, w.S1), Math.Clamp(lateral, -RiverAcross, RiverAcross), w.LevelM), RiverReach);
+            else if (w.Edge == "main" && w.Type is "marsh" or "contaminatedMarsh")
+                // A bog's water either side of its causeway: on the ear's side, off the bank, as near as the corridor goes.
+                Nearest(ref marsh, OnMain(Along(earMain, w.S0, w.S1),
+                    (lateral < 0 ? -1 : 1) * Math.Clamp(Math.Abs(lateral), MarshFrom, Math.Max(MarshFrom, w.WidthM)), w.LevelM), MarshReach);
         foreach (var sh in plan.Shores)
         {
             if (sh.Edge != "main")
                 continue;
-            double s = Math.Clamp(earMain, sh.S0, sh.S1);
+            double s = Along(earMain, sh.S0, sh.S1);
             double edge = terrain.ShoreEdge(sh, s);
             switch (sh.Kind)
             {
@@ -146,6 +157,10 @@ public sealed partial class GameAudio
                     // Out on the flats, the tide's wash beyond them and the mud seeping across them.
                     Nearest(ref tide, OnMain(s, sh.Side * (edge + sh.FlatM / 2), sh.LevelM), TideReach);
                     break;
+                case ShoreKind.Dyke:
+                    // Out on the salt marsh between the dyke and the water, its creeks at the tide's level.
+                    Nearest(ref salt, OnMain(s, sh.Side * (sh.DykeM + edge) / 2, sh.LevelM), SaltReach);
+                    break;
             }
         }
         if (river is { } r)
@@ -154,5 +169,9 @@ public sealed partial class GameAudio
             _waterNear.Add(("world-water.surf", u, 0.7 + 0.3 * Math.Clamp(wind, 0, 1)));
         if (tide is { } t)
             _waterNear.Add(("world-water.tide", t, 0.85));
+        if (marsh is { } b)
+            _waterNear.Add(("world-water.marsh", b, 1));
+        if (salt is { } sm)
+            _waterNear.Add(("world-water.saltmarsh", sm, 0.7 + 0.3 * Math.Clamp(wind, 0, 1)));
     }
 }

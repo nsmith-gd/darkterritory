@@ -253,3 +253,118 @@ def tide_flats(rng, k):
                               for t in W.poisson(TIDE, 9, rng)]))
     y = mix(far * 0.4, pops * 0.45, seep * 0.3, channel * 0.18, ticks * 0.12)
     return W.seamless(W.cfilter(y, lambda f: (f / 40) / (1 + (f / 40) ** 2) ** 0.5 / (1 + (f / 9000) ** 4)))
+
+
+# ---- A bog beside its causeway, and the salt marsh past a dyke (queue #690, note 990) ---------------------------------
+#
+# The two marshes the line had in silence (the checklist's "Not yet: marshes and dykes"): a bog's standing water either
+# side of a causeway (the plan's marsh water, PlanWater "marsh"/"contaminatedMarsh") and a dykeland's salt marsh out past
+# its dyke (a Dyke shore). Neither may sound like the Marsh's own tell, "reeds rustling, surging" (tell-marsh): no grass
+# or reeds at all, nothing that surges; nor the Ribbits' bubbling croak (no voiced, pitched bubbles in a run) nor the
+# Debris' wet writhing (no slither). Still water, heard by its bubbles and drips; the salt marsh by its creeks running.
+
+BOG = 16.0
+
+
+def blup(rng, f):
+    """Marsh gas come up through the peat: one big, slow bubble breaking the surface (a low Minnaert ring rising as it
+    goes, and the film's tiny burst), alone."""
+    b = synth.bubble(f, rise=rng.uniform(0.6, 1.2))
+    film = synth.bubble(f * rng.uniform(5, 8), rise=0.1) * 0.25
+    out = np.zeros(max(len(b), len(film) + samples(0.03)), np.float32)
+    out[:len(b)] += b
+    out[samples(0.03):samples(0.03) + len(film)] += film
+    return out
+
+
+@recipe(L, "marsh", "peat",
+        "A bog's still water by its causeway: marsh gas blupping up through the peat, the moss seeping, a drip",
+        """A bog's standing water at night either side of the causeway, all but still: marsh gas coming up through the
+        peat now and then, one big slow bubble at a time breaking the surface (100-280 Hz, a second or three apart, never
+        in a run), the sphagnum seeping as it holds the water (a sparse, faint fizz of small bubbles, 1.2-4 kHz), a drip
+        off the causeway's edge (a small plop) and the open water's faint air. No reeds, nothing surging (the Marsh's tell
+        is reeds rustling), no croak. A 16 s loop.""",
+        sources=[], loop=True, takes=1, lufs=-32, seconds=BOG)
+def marsh_peat(rng, k):
+    n = samples(BOG)
+    gas = []
+    t = rng.uniform(0, 1)
+    while t < BOG:
+        gas.append((t, blup(rng, np.exp(rng.uniform(np.log(100), np.log(280)))), rng.uniform(0.5, 1.0)))
+        t += rng.uniform(1.2, 3.5)
+    gas = W.norm(stream(n, gas))
+    seep = W.norm(fizz(rng, n, 25, 1200, 4000, rise=(0.1, 0.5), gain=(0.15, 0.6)))
+    drips = W.norm(stream(n, [(t, synth.bubble(rng.uniform(700, 1300), rise=rng.uniform(0.3, 0.7)), rng.uniform(0.4, 1.0))
+                              for t in W.poisson(BOG, 0.4, rng)]))
+    air = W.norm(wash(rng, n, 120, 900, tilt=1.3)) * np.clip(0.6 + 0.25 * W.slow(n, 0.1, rng), 0.2, 1)
+    y = mix(gas * 0.7, seep * 0.22, drips * 0.3, air * 0.08)
+    return W.seamless(W.cfilter(y, lambda f: (f / 60) / (1 + (f / 60) ** 2) ** 0.5 / (1 + (f / 7000) ** 4)))
+
+
+@recipe(L, "marsh", "pools",
+        "A bog's still water, its pools darker and deeper: slower marsh gas, the peat ticking, hardly a drip",
+        """The same bog darker and deeper: the gas rising slower and lower (80-200 Hz, two to five seconds apart, now and
+        then two together), the peat ticking as it settles (faint dry clicks, 2-4 kHz), the moss's seep thinner, hardly a
+        drip, and the water's air low and close. No reeds, nothing surging, no croak. A 16 s loop.""",
+        sources=[], loop=True, takes=1, lufs=-32, seconds=BOG)
+def marsh_pools(rng, k):
+    n = samples(BOG)
+    gas = []
+    t = rng.uniform(0, 1)
+    while t < BOG:
+        gas.append((t, blup(rng, np.exp(rng.uniform(np.log(80), np.log(200)))), rng.uniform(0.6, 1.0)))
+        if rng.uniform() < 0.25:
+            gas.append((t + rng.uniform(0.15, 0.4), blup(rng, rng.uniform(140, 260)), rng.uniform(0.3, 0.6)))
+        t += rng.uniform(2.0, 5.0)
+    gas = W.norm(stream(n, gas))
+    seep = W.norm(fizz(rng, n, 12, 1200, 3500, rise=(0.1, 0.5), gain=(0.15, 0.5)))
+    ticks = W.norm(stream(n, [(t, synth.click(rng.uniform(2000, 4000), q=5, length=0.008, rng=rng), rng.uniform(0.2, 1.0))
+                              for t in W.poisson(BOG, 3, rng)]))
+    air = W.norm(wash(rng, n, 80, 600, tilt=1.4)) * np.clip(0.6 + 0.25 * W.slow(n, 0.1, rng), 0.2, 1)
+    y = mix(gas * 0.75, seep * 0.15, ticks * 0.1, air * 0.1)
+    return W.seamless(W.cfilter(y, lambda f: (f / 50) / (1 + (f / 50) ** 2) ** 0.5 / (1 + (f / 6000) ** 4)))
+
+
+SALT = 16.0
+
+
+@recipe(L, "saltmarsh", "creeks",
+        "The salt marsh past a dyke: the tide running in its creeks, a drain gurgling at the dyke, the bay far out",
+        """A dykeland's salt marsh at night, heard from the dyke: the tide running in and out of the marsh's creeks (thin
+        streams of small bubbles, 1.5-6 kHz, swelling and easing slowly as the water moves), a creek gurgling where it
+        drains toward the dyke's sluice (a knot of big bubbles every few seconds, 300-800 Hz), the red mud at the creeks'
+        edges ticking and popping, and far out past the marsh the bay's wash over the flats (low, slow-swelling). No grass
+        rustling, nothing surging (the Marsh's tell is reeds rustling). A 16 s loop.""",
+        sources=[], loop=True, takes=1, lufs=-30, seconds=SALT)
+def saltmarsh_creeks(rng, k):
+    n = samples(SALT)
+    creeks = sum(W.norm(fizz(rng, n, 180, 1500, 6000, rise=(0.05, 0.3), gain=(0.2, 0.8)))
+                 * np.clip(0.55 + 0.35 * W.slow(n, 0.08, rng), 0.1, 1.1) for _ in range(2))
+    times, t = [], rng.uniform(0, 2)
+    while t < SALT:
+        times.append(t)
+        t += rng.uniform(2.5, 5.5)
+    gurgle = W.norm(W.place(n, [(t, burble(rng, 300, 800, (4, 10), 0.4), rng.uniform(0.5, 1.0)) for t in times]))
+    mud = W.norm(fizz(rng, n, 5, 100, 350, rise=(0.03, 0.2), gain=(0.4, 1.0)))
+    ticks = W.norm(stream(n, [(t, synth.click(rng.uniform(2500, 5000), q=6, length=0.008, rng=rng), rng.uniform(0.2, 1.0))
+                              for t in W.poisson(SALT, 6, rng)]))
+    far = W.norm(wash(rng, n, 70, 700, tilt=1.2)) * np.clip(0.6 + 0.35 * W.slow(n, 0.1, rng), 0.1, 1.1)
+    y = mix(W.norm(creeks) * 0.35, gurgle * 0.4, mud * 0.25, ticks * 0.08, far * 0.3)
+    return W.seamless(W.cfilter(y, lambda f: (f / 40) / (1 + (f / 40) ** 2) ** 0.5 / (1 + (f / 9000) ** 4)))
+
+
+@recipe(L, "saltmarsh", "sluice",
+        "The salt marsh past a dyke, the tide coming in: the creeks filling, water pushing at the sluice, the bay nearer",
+        """The same marsh with the tide on the make: the creeks filling (their small-bubble streams thicker and lower,
+        1-4 kHz, rising over the loop's length and easing back), the water pushing through the dyke's sluice in a steady
+        low gurgle (big bubbles, 250-600 Hz, close together), the bay's wash nearer and fuller, hardly any mud showing.
+        No grass rustling, nothing surging. A 16 s loop.""",
+        sources=[], loop=True, takes=1, lufs=-30, seconds=SALT)
+def saltmarsh_sluice(rng, k):
+    n = samples(SALT)
+    fill = np.clip(0.6 + 0.3 * np.sin(2 * np.pi * np.arange(n) / n), 0.2, 1).astype(np.float32)
+    creeks = W.norm(fizz(rng, n, 260, 1000, 4000, rise=(0.05, 0.35), gain=(0.2, 0.8))) * fill
+    sluice = W.norm(fizz(rng, n, 6, 250, 600, rise=(0.2, 0.8), gain=(0.4, 1.0))) * np.clip(0.7 + 0.2 * W.slow(n, 0.2, rng), 0.3, 1)
+    far = W.norm(wash(rng, n, 80, 1000, tilt=1.1)) * np.clip(0.65 + 0.3 * W.slow(n, 0.1, rng), 0.2, 1.1)
+    y = mix(creeks * 0.35, sluice * 0.35, far * 0.45)
+    return W.seamless(W.cfilter(y, lambda f: (f / 40) / (1 + (f / 40) ** 2) ** 0.5 / (1 + (f / 8000) ** 4)))
