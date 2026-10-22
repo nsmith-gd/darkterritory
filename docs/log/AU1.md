@@ -511,4 +511,4 @@ The director asked for the last three friendslop features to be heard. Two were 
 
 ## 22 Oct, ~04:00 UTC: #688 ready
 
-- Note 988: `crew-cold`'s need reworded and its shiver marked cut (its own need); the Switchman's previews out of `assets.json`, his and the forward cannon's lines out of the Voice Booth (page and script); the forward cannon's three phrases out of `clerk.py` and the clerk's bank (and `ClerkVoiceTests`' list of blames); note 829 names `tell-soot-children`. Goes up when the claim (#1613) has merged.
+- Note 988: `crew-cold`'s need reworded and its shiver marked cut (its own need); the Switchman's previews out of `assets.json`, his and the forward cannon's lines out of the Voice Booth (page and script); the forward cannon's three phrases out of `clerk.py` and the clerk's bank (and `ClerkVoiceTests`' list of blames); note 829 names `tell-soot-children`. The claim merged ([#1613](https://github.com/nsmith-gd/darkterritory/pull/1613)); up as [#1614](https://github.com/nsmith-gd/darkterritory/pull/1614), row #688 done in it, merging on green.
