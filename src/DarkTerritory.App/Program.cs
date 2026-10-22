@@ -72,6 +72,9 @@ var crashes = CrashReports.Install(crashesDir, logs: logsDir);
 #if DEVTOOLS
 // A developer build's tools (note 514): reached only here and under the other DEVTOOLS hooks; a player's build has none of it.
 var dev = DarkTerritory.Dev.DevTools.Start(args, crashes, logsDir);
+// Note 985: the mark's two lines are at the top right, where the HUD says the link; that goes below them.
+if (dev.Marked)
+    DarkTerritory.Game.Hud.LinkTop = 24;
 // The creature gym (GDD §34.1, note 676): the night it's on, while it's on.
 DarkTerritory.Dev.Gym.CreatureGym? gym = null;
 #endif
