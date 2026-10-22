@@ -76,6 +76,11 @@ public static class ArtCatalog
         // The boiler's tear and the plate bolted over it once mended (note 991).
         list.Add(new("rupture-tear", SmallProp, () => TrainKit.RuptureTear(look)));
         list.Add(new("rupture-patch", SmallProp, () => TrainKit.RupturePatch(look)));
+        // A house's cellar and loose boards, shut and searched (note 991).
+        list.Add(new("cellar-hatch", SmallProp, () => TownKit.CellarHatch(look)));
+        list.Add(new("cellar-open", SmallProp, () => TownKit.CellarOpen(look)));
+        list.Add(new("loose-boards", SmallProp, () => TownKit.LooseBoards(look)));
+        list.Add(new("underfloor-open", SmallProp, () => TownKit.UnderFloorOpen(look)));
         list.Add(new("hatch-lid", SmallProp, () => TrainKit.HatchLid(look, new System.Numerics.Vector3(1.4f, 0.15f, 2.4f))));
         list.Add(new("utility-fit", MediumProp, () => TrainKit.UtilityFit(look, cargo)));
         list.Add(new("damage-1", MediumProp, () => DamageKit.Car(look, cargo, 1, 3)));

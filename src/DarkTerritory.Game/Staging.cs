@@ -2010,6 +2010,9 @@ public static partial class Staging
         return at with { Y = Sim.Player.PlayerMotor.GroundAt(at, train.Line, ref hint) };
     }
 
+    /// <summary>The staged Grumbler over its crane's id (note 991).</summary>
+    public const int GrumblerId = 991;
+
     // How far off the second car's side the staged Grumbler is (m): in front of crewmate 4, a lunge from them.
     const double GrumblerOut = 3.3;
 

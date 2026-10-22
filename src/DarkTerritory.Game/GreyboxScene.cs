@@ -323,6 +323,8 @@ public sealed partial class GreyboxScene
     public bool Onlook { get; set; } = true;
     /// <summary>For a still frame (<c>dt screenshot</c>), how fast staged enemies are going (m/s, by id): one frame can't measure it (Pace).</summary>
     public IReadOnlyDictionary<int, float>? StagedPaces { get; set; }
+    /// <summary>Note 991: a staged Grumbler's way over its crane, by id (its back and its up; dt screenshot --grumbler climb|girder).</summary>
+    public IReadOnlyDictionary<int, (Double3 Back, Double3 Up)>? StagedClambers { get; set; }
     /// <summary>How each branch's switch is set (true: for the branch), for its stand's lamp. Unset, all read main.</summary>
     public Func<int, bool>? Diverging { get; set; }
     /// <summary>
@@ -970,7 +972,8 @@ public sealed partial class GreyboxScene
                         wakerArt.WakerIn = WakerIn(titan, line, frames, eye);
                     DrawEnemy(mesh, line, frames, e, eye, from, to, Look?.Art.Creatures, bite, prey, room,
                         e.Kind is EnemyKind.Gaunt or EnemyKind.Grumbler or EnemyKind.Moose || outside ? Pace(e) : 0, Flinch(e), HitAge(e),
-                        modeSeconds: modeSeconds, place: e is Sim.Enemies.TowerJaw { Mode: Sim.Enemies.TowerJawMode.Wreck } ? TowerPlace(line, e.Local) : StoodBack(e, after?.Feet));
+                        modeSeconds: modeSeconds, place: e is Sim.Enemies.TowerJaw { Mode: Sim.Enemies.TowerJawMode.Wreck } ? TowerPlace(line, e.Local) : StoodBack(e, after?.Feet),
+                        clamber: Clamber(e));
                     if (e.Kind == EnemyKind.Waker && Look?.Art.Creatures is { } drawnWaker)
                         drawnWaker.WakerIn = default;
                     // A Waker getting up (note 599): the earth it throws off rising, and the dust it raises on the move.
@@ -2634,7 +2637,8 @@ public sealed partial class GreyboxScene
         if (dt <= 0)
             return was.Pace;
         var d = e.Local - was.Local;
-        float now = (float)(Math.Sqrt(d.X * d.X + d.Z * d.Z) / dt);
+        // (A Grumbler's up and down the crane's legs too, note 991.)
+        float now = (float)((e.Kind == EnemyKind.Grumbler ? d.Length : Math.Sqrt(d.X * d.X + d.Z * d.Z)) / dt);
         float pace = was.Pace + (now - was.Pace) * (float)(1 - Math.Exp(-dt / PaceEasing));
         _paces[e.Id] = (e.Attached, e.Local, Time, pace);
         return pace;
@@ -2642,6 +2646,56 @@ public sealed partial class GreyboxScene
 
     // Seconds a pace takes to come round to a new speed (the sim moves things in tick steps; this smooths them out).
     const double PaceEasing = 0.25;
+
+    // Note 991: each Grumbler going over its crane, where it was last drawn, the way it was going (its back and its up), and
+    // when it last moved.
+    readonly Dictionary<int, (Double3 Local, Double3 Back, Double3 Up, double Time)> _clambers = new();
+
+    /// <summary>
+    /// Note 991: a gnawing Grumbler off its casting and over its crane (Sim's Grumbler.CraneTrip), turned the way it's going:
+    /// along the ground and the rail girder, and on a leg stood up along it, its belly to the column. Null when it's still (on
+    /// its casting) or not on that trip.
+    /// </summary>
+    (Double3 Back, Double3 Up)? Clamber(Enemy e)
+    {
+        if (StagedClambers is { } staged && staged.TryGetValue(e.Id, out var given))
+            return given;
+        if (e.Kind != EnemyKind.Grumbler || e.Phase != SpinePhase.Telegraph || e.Extra2 > 0.5 || e.Attached != Enemy.Loose
+            || Run?.Sites.SelectMany(s => s?.Cranes ?? []).MinBy(c => ((c.HookAt - e.Local) with { Y = 0 }).Length) is not { } crane)
+        {
+            _clambers.Remove(e.Id);
+            return null;
+        }
+        if (!_clambers.TryGetValue(e.Id, out var was) || Time < was.Time)
+        {
+            _clambers[e.Id] = (e.Local, default, Double3.Up, Time);
+            return null;
+        }
+        var d = e.Local - was.Local;
+        if (d.Length < 1e-4)
+            return Time - was.Time < ClamberStill && was.Back != default ? (was.Back, was.Up) : null;
+        var way = d.Normalized;
+        Double3 back, up;
+        if (Math.Abs(way.Y) > 0.6)
+        {
+            // On a leg: its back out from the column, its head the way it's climbing.
+            var leg = Enumerable.Range(0, 4).Select(i => crane.Corner(i / 2, i % 2)).MinBy(c => ((c - e.Local) with { Y = 0 }).Length);
+            var off = (e.Local - leg) with { Y = 0 };
+            up = off.Length > 1e-6 ? off.Normalized : new Double3(1, 0, 0);
+            back = way.Y > 0 ? Double3.Up * -1 : Double3.Up;
+        }
+        else
+        {
+            var flat = way with { Y = 0 };
+            up = Double3.Up;
+            back = flat.Length > 1e-6 ? flat.Normalized * -1 : was.Back;
+        }
+        _clambers[e.Id] = (e.Local, back, up, Time);
+        return back == default ? null : (back, up);
+    }
+
+    // How long a Grumbler on its crane's trip keeps its heading between the sim's steps (s).
+    const double ClamberStill = 0.4;
 
     // The bearing each woken Gaunt was last drawn on round its waker, and when (note 823).
     readonly Dictionary<int, (double Bearing, double Time)> _stoodBack = new();
@@ -2878,7 +2932,7 @@ public sealed partial class GreyboxScene
     static void DrawEnemy(MeshBuilder mesh, RailLine line, IReadOnlyList<CarFrame> frames, Enemy e, Double3 eye, double from, double to, Art.CreatureArt? creatures = null,
         Art.Bite bite = default, Art.CreatureArt.Prey? prey = null, Art.CreatureArt.Room? room = null, float pace = 0,
         (Vector3 Push, Quaternion Tip) flinch = default, double hitAge = -1, bool dying = false, float roll = 0, double modeSeconds = -1,
-        (Double3 Origin, Double3 Right)? place = null)
+        (Double3 Origin, Double3 Right)? place = null, (Double3 Back, Double3 Up)? clamber = null)
     {
         // A basis for the enemy: its car's, or the line's at its distance.
         Double3 origin, right, up = Double3.Up, back;
@@ -2979,6 +3033,12 @@ public sealed partial class GreyboxScene
             right = Double3.Cross(t.Tangent, Double3.Up).Normalized;
             back = t.Tangent * -1;
             origin = t.Position + right * e.Lateral + Double3.Up * e.Height;
+        }
+        // A Grumbler over its crane (note 991): the way it's going, and up a leg, stood up along it.
+        if (clamber is { } going)
+        {
+            (back, up) = going;
+            right = Double3.Cross(up, back).Normalized;
         }
         var o = V(origin, eye);
         var (r, u, b) = (ToF(right), ToF(up), ToF(back));
@@ -4810,17 +4870,24 @@ public sealed partial class GreyboxScene
                         mesh.Instances.Add(new MeshInstance(drawer, new Matrix4x4(side.X, side.Y, side.Z, 0, 0, 1, 0, 0, into.X, into.Y, into.Z, 0, corner.X, corner.Y, corner.Z, 1)));
                         break;
                     }
-                case Sim.Stops.ContainerKind.Cellar:
-                    // The hatch (1 m square, flush) gone: a black hole, and the lid stood up on its back edge.
-                    mesh.Box(At(0, 0.056f), side, up, into, new Vector3(0.46f, 0.004f, 0.46f), dark);
-                    mesh.Box(At(-0.52f, 0.5f), side, up, into, new Vector3(0.5f, 0.5f, 0.025f), Palette.SootBlack * 0.8f + wood * 0.3f);
-                    break;
-                case Sim.Stops.ContainerKind.UnderFloor:
-                    // The boards lifted out and laid beside the gap they came from.
-                    mesh.Box(At(0, 0.004f), side, up, into, new Vector3(0.3f, 0.004f, 0.55f), dark);
-                    for (int i = 0; i < 3; i++)
-                        mesh.Box(At(-0.15f + i * 0.17f, 0.02f + i * 0.004f, 0.75f + (i % 2) * 0.05f), side, up, into, new Vector3(0.08f, 0.015f, 0.55f), wood);
-                    break;
+                case Sim.Stops.ContainerKind.Cellar when Look is not null:
+                    {
+                        // The trapdoor (TownKit.CellarHatch, note 991) open: the dark of the hole and the ladder's top over the shut
+                        // one, and its lid swung up past square on its hinges at the back edge, leaning toward the wall.
+                        var laid = new Matrix4x4(side.X, side.Y, side.Z, 0, 0, 1, 0, 0, into.X, into.Y, into.Z, 0, 0, 0, 0, 1) * Matrix4x4.CreateTranslation(At(0, 0));
+                        mesh.Instances.Add(new MeshInstance(Look.Art.Piece("cellar-open", () => Art.TownKit.CellarOpen(Look)), laid));
+                        var swung = Matrix4x4.CreateTranslation(0, 0, Art.TownKit.HatchHalf) * Matrix4x4.CreateRotationX(-100 * MathF.PI / 180)
+                            * Matrix4x4.CreateTranslation(0, Art.TownKit.HatchThick, -Art.TownKit.HatchHalf);
+                        mesh.Instances.Add(new MeshInstance(Look.Art.Piece("cellar-lid", () => Art.TownKit.CellarLid(Look)), swung * laid));
+                        break;
+                    }
+                case Sim.Stops.ContainerKind.UnderFloor when Look is not null:
+                    {
+                        // The loose boards (TownKit.LooseBoards, note 991) lifted out and laid beside the gap, the joists across it.
+                        var laid = new Matrix4x4(side.X, side.Y, side.Z, 0, 0, 1, 0, 0, into.X, into.Y, into.Z, 0, 0, 0, 0, 1) * Matrix4x4.CreateTranslation(At(0, 0));
+                        mesh.Instances.Add(new MeshInstance(Look.Art.Piece("underfloor-open", () => Art.TownKit.UnderFloorOpen(Look)), laid));
+                        break;
+                    }
                 case Sim.Stops.ContainerKind.Bench:
                     // An open shed's workbench (note 417): its drawer pulled out under the top, the slot dark, a tin knocked to the floor.
                     mesh.Box(At((float)Sim.Run.StopWalls.BenchDepth + 0.005f, 0.72f), side, up, into, new Vector3(0.3f, 0.06f, 0.005f), dark);

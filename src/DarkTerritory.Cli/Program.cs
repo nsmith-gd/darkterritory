@@ -1561,6 +1561,28 @@ static object Screenshot(TrainTuning t, string content, string[] args)
         int side = arrival.Plan.Square.Side == 0 ? 1 : arrival.Plan.Square.Side;
         camera = Ballast.Render.Camera.LookAt(arrival.World(fightAt - 14, side * 30, 16), arrival.World(fightAt, 0, 1), 60);
     }
+    // --grumbler climb|girder with --site --crane (note 991): a Grumbler off its casting and over the crane, on the sim's
+    // own way (Grumbler.CraneTrip): climbing the leg nearest its casting, or along the rail girder; the camera on the ground
+    // off it, up at it.
+    (Double3 At, Double3 Back, Double3 Up)? clamber = null;
+    if (Str(args, "--grumbler", "") is "climb" or "girder" && site?.Crane is { } gantry)
+    {
+        var grumblerTuning = DataFile.Load<DarkTerritory.Sim.Enemies.EnemyTuning>(Path.Combine(content, DarkTerritory.Sim.Enemies.EnemyTuning.File)).Grumbler;
+        var trip = DarkTerritory.Sim.Enemies.Grumbler.CraneTrip(gantry, gantry.Castings[^1].At + Double3.Up * 0.8, grumblerTuning.RoamRun);
+        bool climb = Str(args, "--grumbler", "") == "climb";
+        var (legFrom, legTo) = climb ? (trip[1], trip[2]) : (trip[3], trip[4]);
+        var perch = Double3.Lerp(legFrom, legTo, Opt(args, "--along", climb ? 0.55 : 0.5));
+        var way = (legTo - legFrom).Normalized;
+        var (legEnd, legSide) = Enumerable.Range(0, 4).Select(i => (End: i / 2, Side: i % 2)).MinBy(c => ((gantry.Corner(c.End, c.Side) - perch) with { Y = 0 }).Length);
+        var leg = gantry.Corner(legEnd, legSide);
+        var off = ((perch - leg) with { Y = 0 }).Normalized;
+        clamber = climb ? (perch, Double3.Up * -1, off) : (perch, (way with { Y = 0 }).Normalized * -1, Double3.Up);
+        // From the ground across the span, under the far leg on the track's side (the stack's side has its shed behind it).
+        var across = (gantry.Corner(legEnd, 1 - legSide) - leg) with { Y = 0 };
+        var stand = climb ? perch with { Y = leg.Y + 1.7 } + across * 0.45
+            : perch with { Y = leg.Y + 2.5 } + across * 0.3 - (way with { Y = 0 }).Normalized * 4;
+        camera = Camera.LookAt(stand, perch + Double3.Up * 0.3, (float)Opt(args, "--fov", 50));
+    }
     // --cam s,lateral,height --target s,lateral,height: place the camera anywhere by line coordinates.
     if (Str(args, "--cam", "") is { Length: > 0 } cam)
     {
@@ -1773,6 +1795,10 @@ static object Screenshot(TrainTuning t, string content, string[] args)
             // --operator: through the crane operator's eyes at the controls (note 707), the hook where --hook puts it.
             else if (site.Crane is { } operated && args.Contains("--operator"))
                 camera = DarkTerritory.Game.Eyes.Operator(operated);
+            // --grumbler climb|girder (note 991): its own camera, set above.
+            else if (clamber is not null)
+            {
+            }
             else if (site.Crane is { } crane && !args.Contains("--crank"))
             {
                 // High on the near side of the track, past the gantry's end, looking down across the train at the hook and castings.
@@ -2007,8 +2033,16 @@ static object Screenshot(TrainTuning t, string content, string[] args)
     // it and to one side at a crewmate's eye (with --searched, as it's left once searched; --lantern for a hand lamp).
     if (Opt(args, "--kept", -1) is var keptAt and >= 0 && generated is not null)
     {
+        // --floor cellar|underfloor (note 991): that kind of spot in the floor instead, the camera looking down at it.
+        string floorKind = Str(args, "--floor", "");
+        var kinds = floorKind switch
+        {
+            "cellar" => new[] { DarkTerritory.Sim.Stops.ContainerKind.Cellar },
+            "underfloor" => [DarkTerritory.Sim.Stops.ContainerKind.UnderFloor],
+            _ => [DarkTerritory.Sim.Stops.ContainerKind.Cupboard, DarkTerritory.Sim.Stops.ContainerKind.Cabinet],
+        };
         var pieces = generated.Features.Where(f => f.Stop is not null)
-            .SelectMany(f => f.Stop!.Containers.Where(c => c.Kind is DarkTerritory.Sim.Stops.ContainerKind.Cupboard or DarkTerritory.Sim.Stops.ContainerKind.Cabinet
+            .SelectMany(f => f.Stop!.Containers.Where(c => kinds.Contains(c.Kind)
                 && c.Building >= 0 && f.Stop.Buildings[c.Building].Open && DarkTerritory.Sim.Run.StopWalls.Walled(f.Stop, c.Building)).Select(c => (Feature: f, Container: c))).ToList();
         if (pieces.Count == 0)
             return Print(new { error = $"{Str(args, "--route", "")} has no cupboards" });
@@ -2016,7 +2050,9 @@ static object Screenshot(TrainTuning t, string content, string[] args)
         var b = f.Stop!.Buildings[c.Building];
         var (x, y, fx, fy) = DarkTerritory.Sim.Run.StopWalls.Kept(b, c.Kind, c.Index);
         Double3 At(double px, double py, double up) => DarkTerritory.Sim.Run.Run.StopWorld(line, f, DarkTerritory.Sim.Run.StopWalls.InHouse(b, px, py), up);
-        camera = Camera.LookAt(At(x + fx * 2.1 - fy * 0.7, y + fy * 2.1 + fx * 0.7, 1.65), At(x, y, 0.95), 70);
+        camera = floorKind.Length > 0
+            ? Camera.LookAt(At(x + fx * 1.5 - fy * 0.6, y + fy * 1.5 + fx * 0.6, 1.65), At(x, y, 0.2), 70)
+            : Camera.LookAt(At(x + fx * 2.1 - fy * 0.7, y + fy * 2.1 + fx * 0.7, 1.65), At(x, y, 0.95), 70);
     }
     // --gun-laid yaw,pitch (degrees): every gun turned and elevated so, as a seated gunner lays it (T112).
     if (Str(args, "--gun-laid", "") is { Length: > 0 } laid)
@@ -2452,6 +2488,14 @@ static object Screenshot(TrainTuning t, string content, string[] args)
     // --moose graze|listen|warn|squareup|charge|wheel|snag|search|pin: the staged Moose (note 339; Staging.Moose) off the
     // engine's left up the line, with --threats or alone; riled, at crewmate 4 out in front of the engine. The moose view
     // stages it warning unless told otherwise, moosecharge charging.
+    if (clamber is { } clambering)
+    {
+        var g = new DarkTerritory.Sim.Enemies.Grumbler(Staging.GrumblerId);
+        g.Restore(DarkTerritory.Sim.Enemies.SpinePhase.Telegraph, 2, 6, DarkTerritory.Sim.Enemies.Enemy.Loose, clambering.At, 0, 0, 0, -1, 0);
+        scene.Enemies = [.. (scene.Enemies ?? []).Where(e => e is not DarkTerritory.Sim.Enemies.Grumbler), g];
+        scene.StagedPaces = new Dictionary<int, float>(scene.StagedPaces ?? new Dictionary<int, float>()) { [g.Id] = 1.8f };
+        scene.StagedClambers = new Dictionary<int, (Double3, Double3)> { [g.Id] = (clambering.Back, clambering.Up) };
+    }
     if (Str(args, "--moose", view switch { "moose" => "warn", "moosecharge" => "charge", "moosepin" => "pin", _ => "" }) is { Length: > 0 } mooseMode)
     {
         scene.Enemies = Staging.Moose(scene.Enemies is List<DarkTerritory.Sim.Enemies.Enemy> others ? others : [], train, mooseMode);
@@ -2970,6 +3014,13 @@ static object Screenshot(TrainTuning t, string content, string[] args)
         var night = new DarkTerritory.Game.PrototypeSession(content, generated, cars, enemies: false);
         int drawn = WallsOverlay.Draw(mesh, night.World.Train.Walls!, night.Train.Line, camera.Position, Opt(args, "--walls", 60));
         Console.Error.WriteLine($"walls: {drawn} of {night.World.Train.Walls!.All.Count} drawn");
+    }
+    // A Grumbler staged over its crane (note 991): a hand lamp held up at it from 2.5 m off, as a crewmate would.
+    if (clamber is { } lit)
+    {
+        var toward = (camera.Position - lit.At).Normalized;
+        var lamp = lit.At + toward * 2.5 - camera.Position;
+        mesh.PointLights.Add(new PointLight(new System.Numerics.Vector3((float)lamp.X, (float)lamp.Y, (float)lamp.Z), DarkTerritory.Game.Palette.LampAmber * 2f, 8));
     }
     // --lantern: a hand lamp held just under the eye (the scene is eye-relative), the light you'd have in a dark car.
     if (args.Contains("--lantern") || Staging.IsHouseView(view))
