@@ -123,6 +123,16 @@ public static partial class Staging
         var centre = plan.Fixtures[0];
         var board = plan.Fixtures.First(f => f.Kind == "board");
         var hall = plan.Buildings.First(b => b.Kind == "hall");
+        // "folk", "folk2"...: the townspeople the lookbook dresses for their job (note 694), the nth of them by their id, from
+        // a few metres off at head height, where they are on their round now.
+        if (where.StartsWith("folk", StringComparison.Ordinal)
+            && plan.People.Where(p => Art.LookbookKit.For(p.Role, p.Id) is not null).OrderBy(p => p.Id).ToList() is { Count: > 0 } dressed)
+        {
+            int nth = where.Length > 4 && int.TryParse(where[4..], out int n) ? Math.Clamp(n - 1, 0, dressed.Count - 1) : 0;
+            var now = town.Now(dressed[nth]);
+            var at = now.Feet + now.Facing * 3.2 + Double3.Up * 1.55;
+            return Ballast.Render.Camera.LookAt(at, now.Feet + Double3.Up * 1.0, 55);
+        }
         // Inside the town's gate, looking out at it (note 963, `--town gatein --clock 60`): the restless stood at it looking out
         // down the line, a watcher at the wall beside it, on their slot away from their posts.
         if (where == "gatein" && plan.Bounds is { } walls)
@@ -1777,6 +1787,33 @@ public static partial class Staging
 
     /// <summary>A point on the ground <paramref name="ahead"/> m up the line from the engine's front and <paramref name="lateral"/>
     /// m off it (its right +), wherever the line bends.</summary>
+    /// <summary>
+    /// The townsfolk lookbook stood in a row beside the line (note 694; <c>dt screenshot --lookbook all|top|bottom|id,id</c>):
+    /// 9 m out on the right, 1.3 m apart along it, facing the line; and a camera on them from the line, framing them all.
+    /// </summary>
+    public static (List<(string Id, Double3 Feet, Double3 Facing)> Row, Ballast.Render.Camera Camera) Lookbook(TrainOnLine train, IReadOnlyList<string> ids,
+        bool closeup = false, double turn = 0)
+    {
+        const double Out = 9, Ahead = 24;
+        double Apart = closeup ? 0.55 : 1.3;
+        var row = new List<(string, Double3, Double3)>();
+        double first = Ahead - (ids.Count - 1) * Apart / 2;
+        for (int i = 0; i < ids.Count; i++)
+        {
+            // Left to right as the camera sees them, as the lookbook reads.
+            double along = first + (ids.Count - 1 - i) * Apart;
+            var feet = Lineside(train, along, Out);
+            var toward = ((Lineside(train, along, 0) - feet) with { Y = 0 }).Normalized;
+            double c = Math.Cos(turn * Math.PI / 180), s = Math.Sin(turn * Math.PI / 180);
+            row.Add((ids[i], feet, new Double3(toward.X * c - toward.Z * s, 0, toward.X * s + toward.Z * c)));
+        }
+        var mid = Lineside(train, Ahead, Out);
+        var from = (Lineside(train, Ahead, 0) - mid) with { Y = 0 };
+        double distance = closeup ? 0.5 + ids.Count * 0.42 : 2.2 + ids.Count * 1.05;
+        var camera = Ballast.Render.Camera.LookAt(mid + from.Normalized * distance + Double3.Up * (closeup ? 1.62 : 1.25), mid + Double3.Up * (closeup ? 1.6 : 0.95), 40);
+        return (row, camera);
+    }
+
     public static Double3 Lineside(TrainOnLine train, double ahead, double lateral)
     {
         var t = train.Line.Sample(train.Dynamics.Distance + ahead);

@@ -36,6 +36,8 @@ public sealed partial class SceneArt(Look look)
     public NickiKit Nicki { get; } = new(look);
     /// <summary>Jacob's things: his cap, shades, beard, flannel and chain; his rod, pail and lantern (note 572).</summary>
     public JacobKit Jacob { get; } = new(look);
+    /// <summary>The townsfolk lookbook's characters' things (note 694).</summary>
+    public LookbookKit Lookbook { get; } = new(look);
     /// <summary>The house creatures' houses: the Householder's table, chair and stove, the Hanger's ceiling (notes 584, 586).</summary>
     public HouseholdKit Household { get; } = new(look);
 

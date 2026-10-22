@@ -114,7 +114,13 @@
     "occlusion": 1.0,
     "occlusionRadius": 0.6,
     "occlusionIntensity": 2.0,
-    "occlusionFar": 60
+    "occlusionFar": 60,
+    // The people (the townsfolk, the survivors: CreatureArt.Person; note 694): the light wrapped round them past where it
+    // turns away (a face and a coat's folds turn from it softly, not flat), a rim of the night's air round their
+    // silhouettes (they stand out of the fog), and the shader's grime kept off their baked textures (theirs is baked in).
+    "figureWrap": 0.45,
+    "figureRim": 0.6,
+    "figureGrime": 0.1
   },
   // The night's light and air (§28: "cool ambient night, deep shadow pockets, headlamp and lantern cones").
   "atmosphere": {

@@ -516,15 +516,17 @@ public sealed partial class CreatureArt
         contentRoot ??= look.TextureRoot is { } t ? Path.GetDirectoryName(Path.GetDirectoryName(t)) : null;
         contentRoot ??= DataFile.FindContentRoot();
         ContentRoot = contentRoot!;
-        foreach (var name in Names)
+        // (The townsfolk lookbook's modelled figures, note 694, where they've been baked: a character without one is dressed.)
+        foreach (var name in Names.Concat(LookbookKit.Characters.Select(c => c.Modelled)))
         {
             if (Figure(ContentRoot, name, look.Tuning.ClusteredLodMetres > 0 ? look.Tuning.ClusteredLodCell : null) is not { } figure)
                 continue;
             var (model, authored, far) = figure;
             float wear = WearOf.GetValueOrDefault(name, 0.5f);
-            _models[name] = new Entry(model, [.. model.Materials.Select(m => Resolve(m, wear))])
+            bool person = Person(name);
+            _models[name] = new Entry(model, [.. model.Materials.Select(m => Resolve(m, wear, person))])
             {
-                Lod = far is null ? null : new Entry(far, [.. far.Materials.Select(m => Resolve(m, wear))]),
+                Lod = far is null ? null : new Entry(far, [.. far.Materials.Select(m => Resolve(m, wear, person))]),
                 // (The Waker's drawn thirty times his size: his distance copy from thirty times as far, note 679.)
                 LodFrom = (authored ? look.Tuning.CreatureLodMetres : look.Tuning.ClusteredLodMetres) * (name == "waker" ? WakerGait.Scale : 1),
             };
@@ -532,6 +534,9 @@ public sealed partial class CreatureArt
         Dress(DaveKit.Figure, DaveKit.Clothes);
         Dress(NickiKit.Figure, NickiKit.Clothes, NickiKit.Shape);
         Dress(JacobKit.Figure, JacobKit.Clothes, growths: JacobKit.Growths);
+        // The townsfolk lookbook's ten (note 694).
+        foreach (var c in LookbookKit.Characters)
+            Dress(c.Figure, c.Clothes, c.Shape, c.Growths);
     }
 
     public Look Look { get; }
@@ -548,7 +553,13 @@ public sealed partial class CreatureArt
             return;
         var model = Redress.Of(figure.Model, name, clothes, shape, growths);
         float wear = WearOf.GetValueOrDefault("survivor_prisoner", 0.5f);
-        _models[name] = new Entry(model, [.. model.Materials.Select(m => Resolve(m, wear))]);
+        // Its distance copy as the survivors' is made (note 479): a town's lookbook people (note 694) are many.
+        var far = Look.Tuning.ClusteredLodMetres > 0 ? ModelLod.Clustered(model, Look.Tuning.ClusteredLodCell) : null;
+        _models[name] = new Entry(model, [.. model.Materials.Select(m => Resolve(m, wear, true))])
+        {
+            Lod = far is null ? null : new Entry(far, [.. far.Materials.Select(m => Resolve(m, wear, true))]),
+            LodFrom = Look.Tuning.ClusteredLodMetres,
+        };
         _dressed.Add(name);
     }
 
@@ -571,9 +582,11 @@ public sealed partial class CreatureArt
             return null;
         // Clips authored apart from the baked mesh (tools/blender/crew_clips.py: the crew's actions), on the same skeleton.
         var extra = Path.Combine(contentRoot, Folder, name + "_clips.glb");
-        // The survivors and Dave are the crew figure redressed: the crew's actions are theirs too (his painting's there).
+        // The survivors, Dave and the townsfolk (note 694) are the crew figure redressed: the crew's actions are theirs too
+        // (his painting's there).
         var crewClips = Path.Combine(contentRoot, Folder, "crew_clips.glb");
-        bool crews = name.StartsWith("survivor_", StringComparison.Ordinal) || name == DaveArt.Figure;
+        bool crews = name.StartsWith("survivor_", StringComparison.Ordinal) || name.StartsWith("townsfolk_", StringComparison.Ordinal)
+            || name == DaveArt.Figure;
         var lodPath = Path.Combine(contentRoot, Folder, name + ".lod1.glb");
         string stamp = string.Join("|", new[] { path, extra, crews ? crewClips : null, lodPath }.Select(f =>
             f is not null && File.Exists(f) ? $"{File.GetLastWriteTimeUtc(f).Ticks}:{new FileInfo(f).Length}" : "-"));
@@ -644,6 +657,10 @@ public sealed partial class CreatureArt
     /// <summary>A loaded model by name, or null.</summary>
     public Model? Get(string name) => _models.TryGetValue(name, out var m) ? m.Model : null;
 
+    /// <summary>The figure a lookbook character's drawn as (note 694): their modelled one (tools/models/recipes/townsfolk_*)
+    /// when it's been baked, else the survivors' dressed in their colours.</summary>
+    public string FigureFor(TownCharacter c) => _models.ContainsKey(c.Modelled) ? c.Modelled : c.Figure;
+
     /// <summary>
     /// Where a model's joints are, in its own frame, at <paramref name="time"/> into a clip: what `dt art reel` frames a
     /// clip on (the skin's posed on the GPU, so the bones are what the CPU has). Empty when the model or clip isn't there.
@@ -690,13 +707,21 @@ public sealed partial class CreatureArt
         }
     }
 
-    MaterialLook Resolve(ModelMaterial m, float wear)
+    MaterialLook Resolve(ModelMaterial m, float wear, bool person = false)
     {
         int layer = string.IsNullOrEmpty(m.Texture) ? -1 : Look.Layer(m.Texture);
         return layer >= 0
-            ? new MaterialLook(layer, m.Tint, m.Emissive, m.Shine, wear)
-            : new MaterialLook(-1, m.BaseColour, Math.Max(m.Emissive, m.Glow), m.Shine, wear);
+            ? new MaterialLook(layer, m.Tint, m.Emissive, m.Shine, wear, person)
+            : new MaterialLook(-1, m.BaseColour, Math.Max(m.Emissive, m.Glow), m.Shine, wear, person);
     }
+
+    /// <summary>
+    /// The people met in the Territory, drawn with the look's figure lighting (look.json post figureWrap, figureRim,
+    /// figureGrime; note 694): the townsfolk, the survivors, and those dressed from them (Dave, Nicki, Jacob, the lookbook's).
+    /// Not the crew (the players' own look) nor the creatures.
+    /// </summary>
+    public static bool Person(string name) =>
+        name.StartsWith("townsfolk_", StringComparison.Ordinal) || name.StartsWith("survivor_", StringComparison.Ordinal);
 
     /// <summary>A basis like GreyboxScene.DrawEnemy's: axes as rows (model +X right, +Y up, +Z back), origin camera-relative.</summary>
     public static Matrix4x4 Basis(Vector3 origin, Vector3 right, Vector3 up, Vector3 back) => new(
@@ -1107,6 +1132,34 @@ public sealed partial class CreatureArt
         mesh.Instances.Add(new MeshInstance(piece, m.Pose.Skin[b] * model));
         return true;
     }
+
+    /// <summary>
+    /// Appends <paramref name="piece"/> held in a fist of the figure last drawn as <paramref name="figure"/> at
+    /// <paramref name="model"/> (note 694: the townsfolk's poles, flags, knives and flasks): made with its grip at its origin,
+    /// <paramref name="upright"/> it stands on the figure's own axes from the fist (a staff, a lamp on a pole, a pot hung
+    /// from it), else it rides the hand's socket (its +Y out of the thumb side, as the crew's tools do). False when that
+    /// figure isn't built.
+    /// </summary>
+    public bool Hold(MeshBuilder mesh, MeshAsset piece, in Matrix4x4 model, string figure, bool left = false, bool upright = false)
+    {
+        if (!_models.TryGetValue(figure, out var m))
+            return false;
+        // Drawn where it is, as what they wear is (an instance, not rebuilt into the frame's soup: RetainedSceneTests, note 694).
+        var socket = Skinner.Socket(m.Model, m.Pose, left ? "hand_l_prop" : "hand_r_weapon", model);
+        if (!upright)
+        {
+            mesh.Instances.Add(new MeshInstance(piece, socket));
+            return true;
+        }
+        var at = model with { M41 = 0, M42 = 0, M43 = 0, M44 = 1 };
+        at.Translation = socket.Translation;
+        mesh.Instances.Add(new MeshInstance(piece, at));
+        return true;
+    }
+
+    /// <summary>Where a fist of the figure last drawn as <paramref name="figure"/> at <paramref name="model"/> is (the draw's space), or null.</summary>
+    public Vector3? HoldAt(in Matrix4x4 model, string figure, bool left = false) =>
+        _models.TryGetValue(figure, out var m) ? Skinner.Socket(m.Model, m.Pose, left ? "hand_l_prop" : "hand_r_weapon", model).Translation : null;
 
     /// <summary>Where <paramref name="bind"/> (a point of the figure's bind pose, carried by <paramref name="bone"/>) is on the
     /// figure last drawn as <paramref name="figure"/> at <paramref name="model"/>: a hose's ends, one on the head and one on the back.</summary>

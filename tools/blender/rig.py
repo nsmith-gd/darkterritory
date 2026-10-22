@@ -1052,6 +1052,13 @@ class Clip:
         return max(k[0] for k in self.keys)
 
 
+def fcurves(act):
+    """An action's curves: Blender 4's flat list, or Blender 5's (layered actions: each layer's strips' channel bags)."""
+    if hasattr(act, "fcurves"):
+        return list(act.fcurves)
+    return [fc for layer in act.layers for strip in layer.strips for bag in strip.channelbags for fc in bag.fcurves]
+
+
 def bake(skeleton: Skeleton, clips, plant=None):
     """Turns each clip into a Blender action stashed on the rig (so the exporter writes one glTF animation per
     clip). Every deform bone is keyed at every key (unlisted: at rest), so no clip inherits another's pose.
@@ -1098,7 +1105,7 @@ def bake(skeleton: Skeleton, clips, plant=None):
                     pb.keyframe_insert("location", frame=frame, group=n)
         # Per-key interpolation.
         interps = {k[0]: k[2] for k in clip.keys}
-        for fc in act.fcurves:
+        for fc in fcurves(act):
             for kp in fc.keyframe_points:
                 kp.interpolation = interps.get(int(round(kp.co.x)), "BEZIER")
                 kp.handle_left_type = kp.handle_right_type = "AUTO_CLAMPED"
