@@ -479,3 +479,7 @@ The director asked for the last three friendslop features to be heard. Two were 
 ## 22 Oct, ~00:25 UTC: #683, the dining car's bar heard
 
 - Claimed queue #683, note 983 (Hazel's handoff in note 959: "AU1's glass and the bar's bell"): a drink poured at the counter with its bell, and drunk from a glass, not the beer's can.
+
+## 22 Oct, ~01:30 UTC: #683 ready
+
+- The claim merged ([#1595](https://github.com/nsmith-gd/darkterritory/pull/1595)). `up-dining` (note 983): `recipes/dining.py` (the counter's bell and a pour, a glass's sip, glasses clinked; real and modelled), installed, hooked in `GameAudio.Bbq` (the pour off the car's drinks left at the counter's top, the Drink body's sip and clink in place of the can and cheers), captioned, a test. The checklist row at L1, in review.

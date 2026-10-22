@@ -359,7 +359,9 @@ FIRST_CHOICE = {"place-town.fire": "drum", "place-town.murmur": "masks",  # note
                 # barrel, the air release, the metal click).
                 "up-flare.shot": "pop", "up-flare.burn": "fizz", "up-flare.click": "hammer",
                 # Note 980: a pin working loose, from the packs' real slams and rings (the casting modelled beside it).
-                "state-coupling-loose.warn": "clang"}
+                "state-coupling-loose.warn": "clang",
+                # Note 983: the dining car's bar from the packs' real bell, water and glass (and the beer's real swig).
+                "up-dining.pour": "bell", "up-dining.sip": "glass", "up-dining.clink": "tumblers"}
 
 
 # A first choice for one surface of a cue (note 419): the car roof's tin rebuilt, the old boots kept beside it. Note 667: the
@@ -682,6 +684,10 @@ CUE_DEF = {
     "up-flare.shot": {"minDistance": 3, "maxDistance": 500, "rolloff": 0.8},
     "up-flare.burn": {"minDistance": 4, "maxDistance": 300, "rolloff": 0.8},
     "up-flare.click": {"minDistance": 0.5, "maxDistance": 8, "rolloff": 1.0},
+    # The dining car's bar (note 983): inside the car, heard down its length and a little past its doors.
+    "up-dining.pour": {"minDistance": 1.5, "maxDistance": 25, "rolloff": 1.0},
+    "up-dining.sip": {"minDistance": 0.8, "maxDistance": 12, "rolloff": 1.0},
+    "up-dining.clink": {"minDistance": 1, "maxDistance": 18, "rolloff": 1.0},
     # A pin working loose (note 980; note 865, the director: "hella telegraphing"): an alarm, as the train's are (tier 3), heard
     # the length of the train (a twenty-car rake is 300 m) over its wind and wheels.
     "state-coupling-loose.warn": {"tier": 3, "minDistance": 10, "maxDistance": 400, "rolloff": 0.45},

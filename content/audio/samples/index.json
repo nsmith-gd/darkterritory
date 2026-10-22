@@ -19291,6 +19291,92 @@
   "takes": 3,
   "sha": "752e1847cb0214b2"
  },
+ "up-dining/clink": {
+  "cue": "up-dining.clink",
+  "surface": null,
+  "picked": "first",
+  "candidates": [
+   {
+    "label": "Glasses touched: two tumblers' bright clink, a glass's ring, never a can",
+    "key": "tumblers",
+    "sources": [
+     "kenney_impact-sounds:impactGlass_light_000",
+     "kenney_impact-sounds:impactGlass_light_001",
+     "kenney_impact-sounds:impactGlass_light_002",
+     "kenney_impact-sounds:impactGlass_light_003",
+     "kenney_impact-sounds:impactGlass_light_004",
+     "sfx_100_v2:glass_01",
+     "sfx_100_v2:glass_04"
+    ],
+    "licence": "CC0"
+   }
+  ],
+  "takes": 2,
+  "sha": "80b5169c4684cc83"
+ },
+ "up-dining/pour": {
+  "cue": "up-dining.pour",
+  "surface": null,
+  "picked": "first",
+  "candidates": [
+   {
+    "label": "A drink poured at the bar: the counter's bell, a bottle's glugs into a tumbler, the glass slid over",
+    "key": "bell",
+    "sources": [
+     "kenney_impact-sounds:impactBell_heavy_000",
+     "kenney_impact-sounds:impactBell_heavy_001",
+     "kenney_impact-sounds:impactBell_heavy_002",
+     "kenney_impact-sounds:impactBell_heavy_003",
+     "kenney_impact-sounds:impactBell_heavy_004",
+     "sfx_100_v2:loop_machine_02",
+     "sfx_100_v2:loop_water_02",
+     "kenney_impact-sounds:impactGlass_light_000",
+     "kenney_impact-sounds:impactGlass_light_001",
+     "kenney_impact-sounds:impactGlass_light_002",
+     "kenney_impact-sounds:impactGlass_light_003",
+     "kenney_impact-sounds:impactGlass_light_004",
+     "sfx_100_v2:glass_01",
+     "sfx_100_v2:glass_04",
+     "kenney_impact-sounds:impactWood_light_000",
+     "kenney_impact-sounds:impactWood_light_001",
+     "kenney_impact-sounds:impactWood_light_002",
+     "kenney_impact-sounds:impactWood_light_003",
+     "kenney_impact-sounds:impactWood_light_004"
+    ],
+    "licence": "CC0"
+   }
+  ],
+  "takes": 3,
+  "sha": "5420721392074953"
+ },
+ "up-dining/sip": {
+  "cue": "up-dining.sip",
+  "surface": null,
+  "picked": "first",
+  "candidates": [
+   {
+    "label": "A drink drunk from a glass: its rim at the teeth, a sip, a swallow or two",
+    "key": "glass",
+    "sources": [
+     "kenney_impact-sounds:impactGlass_light_000",
+     "kenney_impact-sounds:impactGlass_light_001",
+     "kenney_impact-sounds:impactGlass_light_002",
+     "kenney_impact-sounds:impactGlass_light_003",
+     "kenney_impact-sounds:impactGlass_light_004",
+     "sfx_100_v2:glass_01",
+     "sfx_100_v2:glass_04",
+     "sfx_100_v2:footstep_wet_01",
+     "sfx_100_v2:footstep_wet_02",
+     "sfx_100_v2:footstep_wet_03",
+     "sfx_100_v2:loop_machine_02",
+     "sfx_100_v2:misc_05"
+    ],
+    "licence": "CC0"
+   }
+  ],
+  "takes": 3,
+  "sha": "65e09285fb326144"
+ },
  "up-fishing/cast": {
   "cue": "up-fishing.cast",
   "surface": null,
