@@ -1156,6 +1156,13 @@ CUES = {
         L("line", "A line in the water: the shore lapping, the reel's clicker now and then as it's twitched"),
         O("catch", "A fish on: the reel screaming, a splash, wound in, a trout flapping on the ground", vars=3),
     ],
+    # The dining car's bar (Hazel's note 959; queue #683, note 983): a drink poured at the counter, drunk from a glass, and
+    # glasses touched.
+    "up-dining": [
+        O("pour", "A drink poured at the bar: the counter's bell, a bottle's glugs into a tumbler, the glass slid over", vars=3),
+        O("sip", "A drink drunk from a glass: its rim at the teeth, a sip, a swallow or two", vars=3),
+        O("clink", "Glasses touched: two tumblers' bright clink, a glass's ring, never a can", vars=2),
+    ],
     # The flare pistol (n1-w3's queue #598, note 871; queue #675, note 975): its shot off the shooter's own Fire (heard where
     # the flare first flies by everyone else), the flare burning where it lands for its minute, and an empty pistol's click.
     "up-flare": [
