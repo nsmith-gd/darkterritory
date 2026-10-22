@@ -1146,4 +1146,5 @@ written here instead is moved out by `tools/coord/notes.py split`; the Coordinat
 - [986. The 22 Oct morning playtest build checked: a 2–4 crew night on main after the 21 Oct merges (n1-Q1, nathaniel1; queue #686)](notes/986.md)
 - [987. A bot's answer to a ping spoken (AU1, queue #687; Finn's note 936)](notes/987.md)
 - [988. Rowan's note 858 audio tidy-ups: the shiver cut, the Switchman's and the forward cannon's leftovers, a row's name (AU1, queue #688)](notes/988.md)
+- [989. Fish sheds, fences, granite and lobster traps between a town's houses (n1-T1, nathaniel1; queue #689; GDD §3.1 "Not yet")](notes/989.md)
 <!-- end of the notes index -->
