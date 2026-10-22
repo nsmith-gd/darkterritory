@@ -1,0 +1,5 @@
+// Note 970: the bots stand at the halts (#634, note 934), as in f1-halt and its control, so a halt's own can come.
+{
+  "$patch": true,
+  "crew": { "haltStandSeconds": 60 }
+}

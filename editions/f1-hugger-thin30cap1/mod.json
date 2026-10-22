@@ -1,0 +1,2 @@
+// Note 981: the Car Hugger at a share of its low stretches (stretchChance 0.3), at most one a night (director.perNight). Measurement only.
+{ "id": "edition-f1-hugger-thin30cap1", "name": "f1-hugger-thin30cap1", "version": "1.0.0", "description": "note 981", "order": -1000 }

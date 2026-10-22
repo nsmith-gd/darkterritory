@@ -68,8 +68,9 @@ public class CarHuggerPlacesTests
         Assert.Equal(world.Train.Dynamics.RearDistance + 1, CarHugger.Spot(world, on));
         // Moving: none (the spots ahead are the ones for a moving train).
         Assert.Null(CarHugger.StoodSpot(WorldAt(route, line, 2_000, speed: 5), on));
-        // Off: none.
-        Assert.Null(CarHugger.StoodSpot(world, E.CarHugger));
+        // Off (stood, or the low ground): none.
+        Assert.Null(CarHugger.StoodSpot(world, on with { LowGround = on.LowGround with { Stood = new() } }));
+        Assert.Null(CarHugger.StoodSpot(world, on with { LowGround = on.LowGround with { On = false } }));
 
         // A crewmate on the ground beside the rear car: watched, none. 30 m off on its right: a spot, on its left.
         var n = new Night(4, speed: 0, enemies: E with { CarHugger = on });
@@ -87,6 +88,39 @@ public class CarHuggerPlacesTests
         n.Run(0.1);
         Assert.NotNull(CarHugger.StoodSpot(n.World, on));
         Assert.Equal(-1, CarHugger.FarSide(n.World));
+    }
+
+    [Fact]
+    public void TheStretchChanceKeepsThatShareOfTheLowStretchesTheSameEveryTime()
+    {
+        // Note 981: the marsh stretches thinned by a chance per stretch, by the line's seed and where it starts.
+        var all = E.CarHugger.LowGround with { On = true, StretchChance = 1 };
+        var plans = Enumerable.Range(1, 24).Select(s => Routes.Generate(Content, $"frontier:{s}", 4).Plan!).ToList();
+        var stretches = plans.SelectMany(p => p.Biomes.Where(b => b.Edge == "main" && all.Biomes.Contains(b.Biome)).Select(b => (p.Seed, b.S0))).ToList();
+        Assert.True(stretches.Count >= 20, $"{stretches.Count} low stretches");
+        Assert.All(stretches, s => Assert.True(all.Keeps(s.Seed, s.S0)));
+        var third = all with { StretchChance = 1.0 / 3 };
+        int kept = stretches.Count(s => third.Keeps(s.Seed, s.S0));
+        Assert.InRange(kept, stretches.Count * 0.15, stretches.Count * 0.5);
+        // The same stretch, the same answer; nothing at 0.
+        Assert.All(stretches, s => Assert.Equal(third.Keeps(s.Seed, s.S0), third.Keeps(s.Seed, s.S0)));
+        Assert.DoesNotContain(stretches, s => (all with { StretchChance = 0 }).Keeps(s.Seed, s.S0));
+        // A thinner chance's stretches are among a thicker one's.
+        var half = all with { StretchChance = 0.5 };
+        Assert.All(stretches.Where(s => third.Keeps(s.Seed, s.S0)), s => Assert.True(half.Keeps(s.Seed, s.S0)));
+    }
+
+    [Fact]
+    public void TheShippingHuggerIsOnAtTheMeasuredSetting()
+    {
+        // The director's "on" (21 Oct 2026, n1-B3-car-hugger-low-ground), at exactly what note 981 measured at 30 seeds:
+        // its low ground, the plan's places and a stood train's far side, a third of the marsh stretches, one a night.
+        var low = E.CarHugger.LowGround;
+        Assert.True(low.On);
+        Assert.NotEmpty(low.Tags);
+        Assert.True(low.Stood.On);
+        Assert.Equal(0.3, low.StretchChance);
+        Assert.Equal(1, E.Director.PerNight["carHugger"]);
     }
 
     [Theory]
