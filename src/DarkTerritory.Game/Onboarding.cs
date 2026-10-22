@@ -33,7 +33,7 @@ public static class Onboarding
     public static bool FirstNight(Data d, Settings settings, int nightsOver) => settings.FirstNights && nightsOver < d.FirstNights;
 
     /// <summary>
-    /// The card's rows: the core controls, each in the prompts' form ("TALK : HOLD [V]") with the player's own keys. The
+    /// The card's rows: the core controls, each in the prompts' form ("CROUCH : HOLD [LEFT CTRL]") with the player's own keys. The
     /// cab's own, the gun's and the rest are said where you are, as ever (note 285's corner).
     /// </summary>
     public static IReadOnlyList<string> Card(Settings keys)
@@ -45,7 +45,9 @@ public static class Onboarding
         [
             $"MOVE : {K(Control.Forward)}{K(Control.Left)}{K(Control.Back)}{K(Control.Right)}   RUN : {K(Control.Run)}   JUMP : {K(Control.Jump)}   CROUCH : {Hold(Control.Crouch)}{K(Control.Crouch)}",
             $"USE : {K(Control.Use)}   SWING : {K(Control.Swing)}   LADDER : {K(Control.Ladder)}",
-            $"TALK : {Hold(Control.Talk)}{K(Control.Talk)}   RADIO : {Hold(Control.Radio)}{K(Control.Radio)}",
+            // Note 985 (the TBM, before the director's multiplayer try): the mic's open unless PUSH TO TALK's on, and a card
+            // saying HOLD [V] had friends holding a key that does nothing.
+            $"TALK : {(keys.PushToTalk ? $"{Hold(Control.Talk)}{K(Control.Talk)}" : "JUST TALK")}   RADIO : {Hold(Control.Radio)}{K(Control.Radio)}",
             $"CREW : {Hold(Control.Roster)}{K(Control.Roster)}   ROUTE CARD : {K(Control.RouteCard)}   SUPPLIES : {K(Control.Supplies)}",
             $"MENU : [ESC]",
         ];

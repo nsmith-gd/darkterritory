@@ -322,7 +322,8 @@ CUES = {
     "crew-cold": [
         O("breath-in", "A cold breath in", vars=4),
         O("breath-out", "A breath out", vars=4),
-        L("shiver", "Shivering, as the cold takes hold"),
+        # Cut with the cold's onset (#1238, note 852): played nowhere; its file stays for a mod (Rowan's note 858; note 988).
+        L("shiver", "Shivering, as the cold takes hold", need="Cut: the deep cold is out of gameplay (#1238, note 852), so the shiver plays nowhere. Its file stays in content/audio for a mod."),
     ],
     # The funny ones (the director's call, 3 Oct): where the crew does it to themselves, or the world shrugs. Real sounds
     # with comic timing, never on a tell, a lure, an alarm or a monster's kill.
@@ -434,6 +435,9 @@ CUES = {
         O("jump-brake", "Jumped by a run-in: the slack slamming in down the train and the pin jumping in its knuckle", vars=3),
         O("jump-coupled", "Jumped by a hard coupling: a coupler's clash and the pin knocked up in its knuckle", vars=3),
         O("jump-bend", "Jumped on a bend: the cars lurching, a frame's groan and the pin jumping", vars=3),
+        # A pin working loose before it jumps (note 865, #592; queue #680, note 980): the warning, heard the length of the
+        # train, fired three to ten a second as it comes to jumping.
+        O("warn", "A pin working loose: struck hard in its knuckle, the coupler ringing out the length of the train", vars=4),
     ],
     "state-derail": [
         L("flange-scream", "Flanges screaming on a curve taken too fast (the warning)"),
@@ -660,6 +664,18 @@ CUES = {
     ],
     "voice-callout": [
         O("bang", "Banging on the walls of a Holdout from inside", vars=4, cand={"_": [old("audio/voice-callout--banging.mp3")]}),
+    ],
+    # A bot's answer to a ping spoken (queue #687, note 987; Finn's note 936): the crewmate bot who takes a ping says so over
+    # the radio, each answer a cue (Pings.Answer's), its takes the bots' voices in order (a bot keeps its voice: GameAudio.Pings).
+    "voice-bot": [
+        O("fire", "A bot taking a fire pinged: \"On the fire!\" over the radio, in its own voice", vars=4),
+        O("controls", "A bot taking the controls pinged: \"I've got the controls.\"", vars=4),
+        O("loot", "A bot taking loot pinged: \"I'll fetch it.\"", vars=4),
+        O("crane", "A bot taking the crane pinged: \"On the crane.\"", vars=4),
+        O("town", "A bot taking a town's house pinged: \"Sure, I'll go search it.\"", vars=4),
+        O("spur", "A bot taking a spur's points pinged: \"The spur? On it.\"", vars=4),
+        O("points", "A bot taking the points pinged: \"Throwing the points.\"", vars=4),
+        O("cargo", "A bot taking the cargo pinged: \"Loading her up.\"", vars=4),
     ],
 
     # ---- Creature sounds ------------------------------------------------------------------------------------------------
@@ -1140,6 +1156,7 @@ CUES = {
         L("sway", "Lying in the hammock as the van rocks it: the ropes' slow creak at each end of the swing"),
         O("tub-in", "Getting into or out of the hot tub: hot water heaving and slopping over the rim, a contented 'ahh'", vars=3),
         L("tub", "The hot tub on the engine's hood: hot water bubbling where the steam comes in, lapping at the staves"),
+        O("bench", "Sitting down on one of the big cab's thin side benches or getting up: the plank on its iron brackets, the back on the rail", vars=3),
     ],
     # Burned at a fire's edge (C1's note 821, the director's 14 Oct playtest line 25; queue #561, note 833): held on whoever
     # the fire's heat reaches, from its first tick, louder the hotter, as the HUD's heat glow.
@@ -1152,6 +1169,20 @@ CUES = {
         O("cast", "The rod cast: its swish, the reel paying out, the weight's plop out on the water", vars=3),
         L("line", "A line in the water: the shore lapping, the reel's clicker now and then as it's twitched"),
         O("catch", "A fish on: the reel screaming, a splash, wound in, a trout flapping on the ground", vars=3),
+    ],
+    # The dining car's bar (Hazel's note 959; queue #683, note 983): a drink poured at the counter, drunk from a glass, and
+    # glasses touched.
+    "up-dining": [
+        O("pour", "A drink poured at the bar: the counter's bell, a bottle's glugs into a tumbler, the glass slid over", vars=3),
+        O("sip", "A drink drunk from a glass: its rim at the teeth, a sip, a swallow or two", vars=3),
+        O("clink", "Glasses touched: two tumblers' bright clink, a glass's ring, never a can", vars=2),
+    ],
+    # The flare pistol (n1-w3's queue #598, note 871; queue #675, note 975): its shot off the shooter's own Fire (heard where
+    # the flare first flies by everyone else), the flare burning where it lands for its minute, and an empty pistol's click.
+    "up-flare": [
+        O("shot", "The flare pistol fired: the hollow pop of a wide signal pistol, the flare hissing up and away", vars=3),
+        L("burn", "A flare burning where it came down: a fierce magnesium hiss and sputter, a minute long, heard across a village"),
+        O("click", "The flare pistol empty: a dry click on Fire", vars=2),
     ],
     # U1's whimsies (#967, note 715; queue #534, note 806; U1's ask on #1040): the canary in car one, whose silence is the
     # tell; the steam calliope's note on the whistle's pull (one note, pitched by the game to the tune's); the gramophone

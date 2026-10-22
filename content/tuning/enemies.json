@@ -246,7 +246,18 @@
     // A trial (note 915, #612; "test creature spawn first"): App. B.3's "low ground", never laid (note 875: its spot held 1.4%
     // of an ordinary night, under 0.1% on frontier:7). On, the line plan's main-line stretches of these biomes are spots
     // too (the first level point every step m), and lurkAheadMax replaces the block's own. Off until measured and confirmed.
-    "lowGround": { "on": false, "biomes": ["marsh", "dykeland", "contaminatedMarsh"], "lurkAheadMax": 1500, "step": 50 }
+    // Note 970 (the director, 21 Oct 2026: "We need more situations the Hugger can pop up, not just marshes"), behind the same
+    // switch: tags, the line plan's director tags on the main line that are spots too (a cutting's wet floor, a culvert's
+    // water crossing, low ground, the woods' edge, a blind curve's exit), searched like the biomes; stood, the far side of a
+    // train stood under `below` m/s, at its rear car, with no living crewmate within unseenM of it.
+    // On (the director, 21 Oct 2026: "on", in more places than marshes; measured at 30 seeds with stretchChance 0.3 and one a
+    // night, note 981: 4.7 Huggers in 10 four-crew nights, deaths .9 -> 1.07, delivered .9 kept).
+    "lowGround": { "on": true, "biomes": ["marsh", "dykeland", "contaminatedMarsh"], "lurkAheadMax": 1500, "step": 50,
+      "tags": ["low_ground", "water_crossing", "cutting", "dark_forest", "blind_curve_exit"],
+      "stood": { "on": true, "below": 0.5, "unseenM": 20 },
+      // Note 981: the share of the low (biome) stretches kept as its ground, each by the line's seed and where it starts
+      // (not the director's dice). 1: all, as before.
+      "stretchChance": 0.3 }
   },
 
   // WHISTLER · absence · flank (App. A.4, B.4). Boards at a stop; whistleAfterStop s into the next stop it blows the
@@ -512,8 +523,8 @@
     "placeWithin": 500, "forgetPast": 800,
     // A stop on the run in to the terminus (the line's terminus_safe stretch or route.json's final approach, where nothing
     // else new comes) has its houses' own only with inHomeStretch (note 912; note 887 found they always did). The director's
-    // call (the inbox): false, the default taken, keeps the houses there empty.
-    "inHomeStretch": false
+    // call (the inbox, 21 Oct 2026, n1-B1-houses-on-the-home-stretch: "yes"; note 970): true, its houses have their own.
+    "inHomeStretch": true
   },
   // THE LODGER · sound · outside (note 583; docs/design/creatures/lodger.md). Folded in the house's darkest corner (the spot
   // furthest from its doors, hideInset m off the walls), breathing. Someone in its house noticeSeconds, or within
@@ -839,6 +850,11 @@
     // A trial (note 915, #612; note 887's find): the night's curve's free Climbers want minSpeed too, as their rule does (a
     // moving train's gaps, boarding-first), not only a gap: they came to a train stood on the open line. Off until measured.
     "freeNeedsSpeed": false,
+    // The director's answer (21 Oct 2026, note 970: "Allow them to get on at certain speeds, lower third of the speed limit"):
+    // on, the free Climbers come only to a train moving at `moving` m/s or more and at most `fraction` of its tier's line
+    // speed (linegen tiers.json lineSpeed, copied here: 6 m/s on the Frontier). Replaces freeNeedsSpeed's minSpeed when on.
+    // On: measured with the day's other picks (note 970: alone, 9 of 10 4x8 nights as before).
+    "freeSpeed": { "on": true, "fraction": 0.3333, "moving": 0.5, "lineSpeed": { "local": 20, "frontier": 18, "deadLines": 16, "deepTerritory": 14 } },
     // A trial (note 930; #613's final sweep, n1-A2's causes and n1-H1's note 955): a group of three Climbers reaching the cab
     // of a slow train at a yard took a lone driver (frontier:10 solo at 225 s; 2 crew at 230 and 259 s; 8 crew seed 8), a
     // small crew's early pressure send. With smallCrew on, a crew of crewUpTo or fewer meets at most packMax of them (the
@@ -1369,7 +1385,7 @@
     // names in "costs"; a kind not named has no cap and is always about. Note 635, the director, the inbox, 12 Oct 2026, of
     // the Knotter: "They should show up once or twice a run. Sometimes never. We need more monster variety." Every kind's
     // chance is the director's roster on the Creature Tweaker (note 652, 13 Oct).
-    "perNight": { "knotter": 2 },
+    "perNight": { "knotter": 2, "carHugger": 1 },
     // The most of any kind perNight doesn't name (note 654): null, no cap. For the director's D1-roster-piles-up: with few
     // kinds about on a night (nightChance), those about come again and again (note 652); this holds each to a few.
     "perNightDefault": null,
@@ -1415,8 +1431,9 @@
     // on false: none, as before.
     // specials (note 912; note 887 found the aftermath held only the director's decisions): the hound run (a new one, or its
     // next pair) and the truss drops wait it out too; a left-behind crewmate's hunts are theirs and don't. The director's call
-    // (the inbox): true, the default taken.
-    "aftermath": { "on": true, "seconds": 12, "events": ["death", "carLost", "rescue", "holdoutFreed"], "specials": true },
+    // (the inbox, 21 Oct 2026, n1-B1-aftermath-specials: "keep"; note 970): false, the hound run and the truss Draggers
+    // don't wait it out.
+    "aftermath": { "on": true, "seconds": 12, "events": ["death", "carLost", "rescue", "holdoutFreed"], "specials": false },
     // The encounter pacing (the spawn director overhaul, docs/design/spawn-director-overhaul.md §3; the plan, note 874).
     "encounters": {
       // The encounter rate (spec B.10 "The encounter rate"; the director's brief, docs/design/spawn-director-overhaul.md §1 and
@@ -1539,8 +1556,8 @@
       // A halt's own (note 895; GDD D.15 question 3, the director 9 Oct: "Needs a dedicated response"; 20 Oct: "What's best
       // for gameplay?"): stood on the main line at an abandoned village's halt, lullSeconds after stopping there, one
       // encounter (whatever the night's curve could send, rule-met or free) if the stop's own haven't put one there; counted
-      // as the stop's. Off until measured ("test creature spawn first").
-      "halt": { "on": false, "lullSeconds": 15 }
+      // as the stop's. On (the director, 21 Oct 2026, n1-A3-halt-own-creature; measured with the day's other picks, note 970).
+      "halt": { "on": true, "lullSeconds": 15 }
     },
     // GDD App. B.1 "Post-event cooldown" (design decision, 2026-10): the least trough after a spawn; the pressure's relief
     // makes the rest of it, and well past the threshold (pressAt) it gives way.

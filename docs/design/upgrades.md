@@ -146,7 +146,7 @@ Each needs its art (C1, E1); the moose head's temper is one multiplier in the Si
 | **Grab irons** | small, Frontier | A ladder caught from the ground at a third more speed (player.json `ladder.grabMaxRelativeSpeed`) | The player's tuning in the night's loadout (Sim) |
 | **Rear searchlight** | small, Frontier | A lamp on the guard van facing back, for the rear gunner | Its light and what it reveals (Sim, render) |
 | **Flare pistol** | stores, Frontier | A flare lights a village for 60 s, and the Fire Flies follow it away from the train | The flare (Sim, art, audio) |
-| **Speaking tubes** | small, Dead lines | Voice carries between neighbouring cars as in one | Voice routing (N1, the audio chat) |
+| **Speaking tubes** | small, Dead lines | Voice carries between neighbouring cars as in one | Built (note 978): campaign.json `speakingTubes`, a horn in every car with a room joined to the next car's either way, as well as the cab's to the van's (`SpeakingTube`); its sound is note 720's tube voice (AU1 may give the car-to-car horns their own pipe note) |
 | **Armoured cab** | major, Deep territory | The cab's windows plated to slits: what comes over the tender is slowed at the glass | The cab (C1), the Climbers' way in (Sim) |
 | **Armour II and III** | major, Dead lines / Deep | A second and third car plated (the conversion repeatable) | Ranks on the conversion (Sim). Built: campaign.json `armouredCar2`, `armouredCar3` (note 959) |
 
@@ -415,9 +415,10 @@ vision should get blurry ... [it should] make you sort of tip over a bit. Of cou
 - **Feedback**: the drinker sees it; the crew see the drinker's head loll (the art's); the tally reads "Bar: eight
   drinks. Repairs: one window."
 - **Built** (note 959): `diningCar` in campaign.json, the car behind the crew cars, its bar's eight drinks
-  (train.json `composition.dining`), the blur and the lean (look.json `tipsy`). Note 974: the room modelled (the table
-  laid for eight, its chairs, the chandelier and candelabra, the counter, its bell and the back bar), and the crew seeing
-  a drinker's head loll (look.json `tipsy` `loll*`). The tally line is #672's.
+  (train.json `composition.dining`), the blur and the lean (look.json `tipsy`). The clerk's "Bar: drinks, 8." (note 972: the
+  tally lines read the night's counts; note 982: in the catalogue's words, the clerk's bank built with them). Note 974: the
+  room modelled (the table laid for eight, its chairs, the chandelier and candelabra, the counter, its bell and the back
+  bar), and the crew seeing a drinker's head loll (look.json `tipsy` `loll*`).
 
 ### 8.6 Bumper stickers: all puns
 

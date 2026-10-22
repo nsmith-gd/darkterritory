@@ -3214,46 +3214,6 @@
   "url": "/_blob/f61babfd2586e7a8d5dd613173e64c83",
   "sha": "1dd8461d543bb71e"
  },
- "previews/cs-switchman--death--lamp.mp4": {
-  "id": "3adf2adec26bd548575a84a097abe69f",
-  "url": "/_blob/3adf2adec26bd548575a84a097abe69f",
-  "sha": "32258424933e595b"
- },
- "previews/cs-switchman--death--split.mp4": {
-  "id": "7de7757409109955bac1eea512779a54",
-  "url": "/_blob/7de7757409109955bac1eea512779a54",
-  "sha": "8b78f15262bebe83"
- },
- "previews/cs-switchman--flicker--breath.mp4": {
-  "id": "c61b24d6c70a5d1e29c923cc725cfd47",
-  "url": "/_blob/c61b24d6c70a5d1e29c923cc725cfd47",
-  "sha": "7b22e029696241db"
- },
- "previews/cs-switchman--flicker--gutter.mp4": {
-  "id": "83a99051001077351a4e98cfa0a0f25a",
-  "url": "/_blob/83a99051001077351a4e98cfa0a0f25a",
-  "sha": "fd9e83e057b93322"
- },
- "previews/cs-switchman--hit--chimney.mp4": {
-  "id": "21167ce4f83000d17b926a2db49e3aaf",
-  "url": "/_blob/21167ce4f83000d17b926a2db49e3aaf",
-  "sha": "a646b8d36acaf8b8"
- },
- "previews/cs-switchman--hit--glass.mp4": {
-  "id": "5bc01cee0ad2cca4977badd50039f803",
-  "url": "/_blob/5bc01cee0ad2cca4977badd50039f803",
-  "sha": "a38f977c31d9a319"
- },
- "previews/cs-switchman--throw--grip.mp4": {
-  "id": "49dc5835754f8e549a06eff25e268ff0",
-  "url": "/_blob/49dc5835754f8e549a06eff25e268ff0",
-  "sha": "6b0a185ab6c1e5fd"
- },
- "previews/cs-switchman--throw--strain.mp4": {
-  "id": "414933b0c2ba3de55ea687c5a429654c",
-  "url": "/_blob/414933b0c2ba3de55ea687c5a429654c",
-  "sha": "6d217ecefbc4dd31"
- },
  "previews/cs-tippy--struggle--pinned.mp4": {
   "id": "a557048842dfa304245857ef358d538d",
   "url": "/_blob/a557048842dfa304245857ef358d538d",
@@ -4158,6 +4118,16 @@
   "id": "6daa61e107beb90b2ca78434df03567a",
   "url": "/_blob/6daa61e107beb90b2ca78434df03567a",
   "sha": "852699d918c00920"
+ },
+ "previews/state-coupling-loose--warn--casting.mp4": {
+  "id": "c85443cd8de92bbac95bbb82f22e0993",
+  "url": "/_blob/c85443cd8de92bbac95bbb82f22e0993",
+  "sha": "532f14b80e5f11c4"
+ },
+ "previews/state-coupling-loose--warn--clang.mp4": {
+  "id": "6dd0e2e27e7fd56480faf1fe97e1dc9f",
+  "url": "/_blob/6dd0e2e27e7fd56480faf1fe97e1dc9f",
+  "sha": "ef2dd1421779c9ed"
  },
  "previews/state-derail--climb--flange.mp4": {
   "id": "37ddf2f2ef38318d8ea1e74a87383851",
@@ -5224,6 +5194,36 @@
   "url": "/_blob/71f82a5420fc6bbe28f48f7352250d02",
   "sha": "d60be01971fbe1ba"
  },
+ "previews/up-dining--clink--rung.mp4": {
+  "id": "01e3b8ad6f7899f3056aad8f415acd69",
+  "url": "/_blob/01e3b8ad6f7899f3056aad8f415acd69",
+  "sha": "adc19d5d89260b44"
+ },
+ "previews/up-dining--clink--tumblers.mp4": {
+  "id": "d233db99fd12d0799641264fd6aed4f4",
+  "url": "/_blob/d233db99fd12d0799641264fd6aed4f4",
+  "sha": "865d3ce1998562bb"
+ },
+ "previews/up-dining--pour--bell.mp4": {
+  "id": "33aa8df4ec0a4dd9dc590d1e3fd13ecf",
+  "url": "/_blob/33aa8df4ec0a4dd9dc590d1e3fd13ecf",
+  "sha": "279abbb764df1055"
+ },
+ "previews/up-dining--pour--brass.mp4": {
+  "id": "096b0f8c30e84719ef440bb4a980692a",
+  "url": "/_blob/096b0f8c30e84719ef440bb4a980692a",
+  "sha": "8c8612e6cd189831"
+ },
+ "previews/up-dining--sip--glass.mp4": {
+  "id": "155b83b9d824cfc6035232c28ffc9ed8",
+  "url": "/_blob/155b83b9d824cfc6035232c28ffc9ed8",
+  "sha": "65725de75629bb68"
+ },
+ "previews/up-dining--sip--throat.mp4": {
+  "id": "1d72892b563ba31cfce17b39aca3fee2",
+  "url": "/_blob/1d72892b563ba31cfce17b39aca3fee2",
+  "sha": "a5a1607535e2661d"
+ },
  "previews/up-fishing--cast--pawl.mp4": {
   "id": "d18373ca39433be92316d2ceb20a96e7",
   "url": "/_blob/d18373ca39433be92316d2ceb20a96e7",
@@ -5253,6 +5253,36 @@
   "id": "bce66de3df40aab27c82f40ca97239a3",
   "url": "/_blob/bce66de3df40aab27c82f40ca97239a3",
   "sha": "ca317f272f642d4c"
+ },
+ "previews/up-flare--burn--fizz.mp4": {
+  "id": "a0f86fdb8ef5fe22a139f54b73cf0fb0",
+  "url": "/_blob/a0f86fdb8ef5fe22a139f54b73cf0fb0",
+  "sha": "efa67bab6d0ade67"
+ },
+ "previews/up-flare--burn--torch.mp4": {
+  "id": "026ac75f2525e1ab6df88cf3e3dce376",
+  "url": "/_blob/026ac75f2525e1ab6df88cf3e3dce376",
+  "sha": "1e782dbf3e81377a"
+ },
+ "previews/up-flare--click--hammer.mp4": {
+  "id": "9c63a38e052b84dc13fcedd5a066613d",
+  "url": "/_blob/9c63a38e052b84dc13fcedd5a066613d",
+  "sha": "5c1b27aa8eb49af2"
+ },
+ "previews/up-flare--click--tick.mp4": {
+  "id": "c3e97b87ff0cef8a79d51cc8ebb4791c",
+  "url": "/_blob/c3e97b87ff0cef8a79d51cc8ebb4791c",
+  "sha": "ae72f647fcdc056a"
+ },
+ "previews/up-flare--shot--bore.mp4": {
+  "id": "e3b74a4851194d63cd806198e5a0e482",
+  "url": "/_blob/e3b74a4851194d63cd806198e5a0e482",
+  "sha": "c464f6d20bfdd49a"
+ },
+ "previews/up-flare--shot--pop.mp4": {
+  "id": "5ad2d5657930ffa5bcb311c0e10e5c54",
+  "url": "/_blob/5ad2d5657930ffa5bcb311c0e10e5c54",
+  "sha": "dc572a7f5b2ad0cc"
  },
  "previews/up-forge--anvil--modal.mp4": {
   "id": "db50c78f542228fd7eaefbcf8e7e5d0b",
@@ -5333,6 +5363,16 @@
   "id": "7869f60fe0ceb2638ecb7968993b4c5b",
   "url": "/_blob/7869f60fe0ceb2638ecb7968993b4c5b",
   "sha": "113337055d19bca1"
+ },
+ "previews/up-lounge--bench--board.mp4": {
+  "id": "31bc691700f5e9ed3d7113248b62da02",
+  "url": "/_blob/31bc691700f5e9ed3d7113248b62da02",
+  "sha": "d5473fb254a8a5b7"
+ },
+ "previews/up-lounge--bench--plank.mp4": {
+  "id": "5621419f8ebb167c8b7cb3dac7cca5c6",
+  "url": "/_blob/5621419f8ebb167c8b7cb3dac7cca5c6",
+  "sha": "71623f665f52c517"
  },
  "previews/up-lounge--hammock--hemp.mp4": {
   "id": "eece60fce7fa13b114b6b0925ba56279",
@@ -5503,6 +5543,86 @@
   "id": "33ba14debdca58fdfb0e16ba2f0c09e4",
   "url": "/_blob/33ba14debdca58fdfb0e16ba2f0c09e4",
   "sha": "24c87337d8033e87"
+ },
+ "previews/voice-bot--cargo--plain.mp4": {
+  "id": "e329c2662c803dd0856fdb08c489a5c1",
+  "url": "/_blob/e329c2662c803dd0856fdb08c489a5c1",
+  "sha": "7bb74677bc175cf7"
+ },
+ "previews/voice-bot--cargo--radio.mp4": {
+  "id": "80bb3a43311d5dfa7bef41f5721d4e0c",
+  "url": "/_blob/80bb3a43311d5dfa7bef41f5721d4e0c",
+  "sha": "6be85620d64592a0"
+ },
+ "previews/voice-bot--controls--plain.mp4": {
+  "id": "358e330290ff5f17116fee2e1e4a5f67",
+  "url": "/_blob/358e330290ff5f17116fee2e1e4a5f67",
+  "sha": "e6193efbcfed2be3"
+ },
+ "previews/voice-bot--controls--radio.mp4": {
+  "id": "07d482683d66e1efd4d7de7ffcf2e5c7",
+  "url": "/_blob/07d482683d66e1efd4d7de7ffcf2e5c7",
+  "sha": "7e7b7fec0f82df8b"
+ },
+ "previews/voice-bot--crane--plain.mp4": {
+  "id": "80fc16f9e3e6a1ce86160fbfb713f71a",
+  "url": "/_blob/80fc16f9e3e6a1ce86160fbfb713f71a",
+  "sha": "e34d4a8ae4d3195e"
+ },
+ "previews/voice-bot--crane--radio.mp4": {
+  "id": "ad1627880ff3fdee696e3d8178862676",
+  "url": "/_blob/ad1627880ff3fdee696e3d8178862676",
+  "sha": "a47895f476ebcdbb"
+ },
+ "previews/voice-bot--fire--plain.mp4": {
+  "id": "42a99845d84b4a579ba2b483de8af893",
+  "url": "/_blob/42a99845d84b4a579ba2b483de8af893",
+  "sha": "bc10e3d5d9a43203"
+ },
+ "previews/voice-bot--fire--radio.mp4": {
+  "id": "f7f00695478982a7944dce972d704b9f",
+  "url": "/_blob/f7f00695478982a7944dce972d704b9f",
+  "sha": "b95a544fb56c1f7a"
+ },
+ "previews/voice-bot--loot--plain.mp4": {
+  "id": "b10d41372fbc88be44ea99f65e2a9984",
+  "url": "/_blob/b10d41372fbc88be44ea99f65e2a9984",
+  "sha": "fc45193dd6e61025"
+ },
+ "previews/voice-bot--loot--radio.mp4": {
+  "id": "e1d5ae6ef84abd3f54190e8a5f2b665a",
+  "url": "/_blob/e1d5ae6ef84abd3f54190e8a5f2b665a",
+  "sha": "8afa05e41fd34c62"
+ },
+ "previews/voice-bot--points--plain.mp4": {
+  "id": "ff1062bc201af2075801835729a16083",
+  "url": "/_blob/ff1062bc201af2075801835729a16083",
+  "sha": "9c149f21613d7ec2"
+ },
+ "previews/voice-bot--points--radio.mp4": {
+  "id": "194a37357bbd7b05205272c2b3b26bea",
+  "url": "/_blob/194a37357bbd7b05205272c2b3b26bea",
+  "sha": "deb608ae028e19e8"
+ },
+ "previews/voice-bot--spur--plain.mp4": {
+  "id": "ec09eac120873c0393038f3552da633d",
+  "url": "/_blob/ec09eac120873c0393038f3552da633d",
+  "sha": "ce2d10d680e7175d"
+ },
+ "previews/voice-bot--spur--radio.mp4": {
+  "id": "0d5211bc9ed6a6557eb650606e763e40",
+  "url": "/_blob/0d5211bc9ed6a6557eb650606e763e40",
+  "sha": "60b54ca2662837c4"
+ },
+ "previews/voice-bot--town--plain.mp4": {
+  "id": "df885654a964b374a07083192125928e",
+  "url": "/_blob/df885654a964b374a07083192125928e",
+  "sha": "491b5245833fbb46"
+ },
+ "previews/voice-bot--town--radio.mp4": {
+  "id": "c0f4effcf178137b5276ca5683b613e1",
+  "url": "/_blob/c0f4effcf178137b5276ca5683b613e1",
+  "sha": "5351e1336cb93b10"
  },
  "previews/voice-callout--bang--door.mp4": {
   "id": "e8de5772e33f6fbae291ea4add4e5806",

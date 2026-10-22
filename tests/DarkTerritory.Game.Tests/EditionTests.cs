@@ -55,6 +55,18 @@ public sealed class EditionTests : IDisposable
     }
 
     [Fact]
+    public void ThePlaytestEditionHasTheGannetAt12AndTheShippingGameDoesnt()
+    {
+        // Note 970 (the director on n1-B3-gannet-12: "playtest only"): baked into the dev and playtest builds (tools/package.sh).
+        var shipping = DataFile.Load<EnemyTuning>(Path.Combine(Content, EnemyTuning.File)).Gannet.LowArrive;
+        Assert.False(shipping.On);
+        var playtest = DataFile.Load<EnemyTuning>(Path.Combine(Mods.Bake(Content, "playtest", Path.Combine(_dir, "content")), EnemyTuning.File));
+        Assert.True(playtest.Gannet.LowArrive.On);
+        Assert.Equal(12, playtest.Gannet.LowArrive.ArriveAbove);
+        Assert.Equal(shipping.StallBelow, playtest.Gannet.LowArrive.StallBelow);
+    }
+
+    [Fact]
     public void TheDemosFrontEndHasAQuickNightOnTheFrontierAndNoCampaign()
     {
         var demo = Mods.Bake(Content, "demo", Path.Combine(_dir, "content"));

@@ -68,9 +68,9 @@ public sealed class HoldLatchTests : IDisposable
     [Fact]
     public void ThePromptsSayAPressNotAHold()
     {
-        var hold = Onboarding.Card(new Settings());
+        var hold = Onboarding.Card(new Settings { PushToTalk = true });
         Assert.Contains(hold, r => r.Contains("TALK : HOLD [V]", StringComparison.Ordinal));
-        var toggle = Onboarding.Card(new Settings { ToggleHolds = true });
+        var toggle = Onboarding.Card(new Settings { ToggleHolds = true, PushToTalk = true });
         Assert.Contains(toggle, r => r.Contains("TALK : [V]", StringComparison.Ordinal) && r.Contains("RADIO : [RIGHT MOUSE]", StringComparison.Ordinal));
         Assert.Contains(toggle, r => r.Contains("CREW : [Q]", StringComparison.Ordinal));
         Assert.DoesNotContain(toggle, r => r.Contains("HOLD", StringComparison.Ordinal));

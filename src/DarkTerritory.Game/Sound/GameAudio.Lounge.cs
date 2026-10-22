@@ -8,10 +8,11 @@ namespace DarkTerritory.Game.Sound;
 
 /// <summary>
 /// U1's second whimsies heard (queue #559, note 831; U1's #967, note 744): the hammock in the guard van and the hot tub on the
-/// engine's hood got into and out of, the hammock's ropes creaking while anyone lies in it, the tub bubbling while the boiler
-/// feeds it, a sausage or a grilled fish bitten while it's eaten, and the fishing rod: the angler's own cast and line (off
-/// this machine's own Use, as the listener's own swing: the host keeps when a line went in to itself, so no one else's is
-/// on the wire) and everyone's catch, as the fish lands at the angler's feet.
+/// engine's hood got into and out of (and the big cab's benches sat on, queue #684, note 984), the hammock's ropes creaking
+/// while anyone lies in it, the tub bubbling while the boiler feeds it, a sausage or a grilled fish bitten while it's eaten,
+/// and the fishing rod: the angler's own cast and line (off this machine's own Use, as the listener's own swing: the host
+/// keeps when a line went in to itself, so no one else's is on the wire) and everyone's catch, as the fish lands at the
+/// angler's feet.
 /// </summary>
 public sealed partial class GameAudio
 {
@@ -50,12 +51,12 @@ public sealed partial class GameAudio
         int bathers = 0;
         foreach (var (id, s) in CrewStates)
         {
-            // (Not the big cab's benches, note 905: sat on in silence, for now; AU1's to give a sound.)
-            var now = s.Alive && Bbq.LoungingIn(s, train) is { Kind: not LoungeKind.Bench } lounge ? lounge : (Lounge?)null;
+            // The big cab's benches too (note 905; queue #684, note 984): the plank on its brackets sat on or got up from.
+            var now = s.Alive && Bbq.LoungingIn(s, train) is { } lounge ? lounge : (Lounge?)null;
             var was = _loungeWas.GetValueOrDefault(id);
             if (primed && now?.Kind != was && (now?.Kind ?? was) is { } kind && At(train, s) is { } feet)
-                Cue(kind == LoungeKind.Hammock ? "up-lounge.hammock" : "up-lounge.tub-in", feet + Double3.Up * 0.5,
-                    Occlusion(PlayerMotor.Space(s, train)));
+                Cue(kind switch { LoungeKind.Hammock => "up-lounge.hammock", LoungeKind.Bench => "up-lounge.bench", _ => "up-lounge.tub-in" },
+                    feet + Double3.Up * 0.5, Occlusion(PlayerMotor.Space(s, train)));
             _loungeWas[id] = now?.Kind;
             if (now is { Kind: LoungeKind.Hammock } hammock)
                 lying.Add((s.Parent, hammock.At));

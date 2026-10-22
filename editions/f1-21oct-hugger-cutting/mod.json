@@ -1,0 +1,2 @@
+// Note 970, the director's option (a): the Car Hugger at fewer places (marshes and cuttings), measured against f1-control-21oct. Measurement only.
+{ "id": "edition-f1-21oct-hugger-cutting", "name": "f1-21oct-hugger-cutting", "version": "1.0.0", "description": "note 970 option (a)", "order": -1000 }

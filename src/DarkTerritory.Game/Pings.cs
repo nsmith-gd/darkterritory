@@ -85,7 +85,7 @@ public static class PingMarks
         _ => "ON IT",
     };
 
-    static bool Spur(PingEvent p, World? world) =>
+    internal static bool Spur(PingEvent p, World? world) =>
         world is null || p.Target < 0 || p.Target >= world.Train.Line.Branches.Count || world.Train.Line.Branches[p.Target].Kind == Sim.Rail.BranchKind.Spur;
 
     /// <summary>

@@ -1138,6 +1138,33 @@ static object Screenshot(TrainTuning t, string content, string[] args)
     var consist = Consist.Uniform(t, cars, 1);
     DarkTerritory.Sim.Run.Run? run = null;
     double at = Opt(args, "--at", 1200);
+    // --odd (the oddities view, below): the night's odd things, every chance of one taken, and none left in a fortress's
+    // ground, where the lineside isn't drawn (note 979), as the night has them. A note out along the line (--lineside, note
+    // 965) stands the train just past it, so the leaving it was left at is built round the camera.
+    var oddKind = Str(args, "--odd", view == "oddities" ? "scarecrow" : "");
+    DarkTerritory.Sim.Run.Oddities? oddities = null;
+    double oddAlong = double.NaN;
+    if (oddKind.Length > 0 && generated is not null)
+    {
+        var rt = DataFile.Load<DarkTerritory.Sim.Run.RunTuning>(Path.Combine(content, DarkTerritory.Sim.Run.RunTuning.File));
+        var ot = rt.Oddities;
+        oddities = DarkTerritory.Sim.Run.Oddities.Of(ot with
+        {
+            Enabled = true,
+            Can = ot.Can with { Chance = 1 },
+            Scarecrow = ot.Scarecrow with { Chance = 1 },
+            Postbox = ot.Postbox with { Chance = 1 },
+            Note = ot.Note with { Chance = 1 },
+        }, generated, line, DarkTerritory.Sim.Run.Fortresses.Of(generated, line, generated.GateOr(RouteTuning.Load(content).YardLength), rt.TerminusZone));
+        if (args.Contains("--lineside") && !args.Contains("--at")
+            && oddities?.Things.FirstOrDefault(x => x.Kind == DarkTerritory.Sim.Run.OddThingKind.Note && x.Feature < 0) is { } far)
+        {
+            double hint = Enumerable.Range(0, (int)(line.Length / 25) + 1).Select(i => i * 25.0).MinBy(s => ((line.Sample(s).Position - far.At) with { Y = 0 }).Length);
+            line.Nearest(far.At, ref hint);
+            oddAlong = hint;
+            at = Math.Min(hint + 30, line.Length - 20);
+        }
+    }
     // --waker wall (note 599; the wakerwall view): the train home inside the terminus, a Waker stopped stopShort out.
     if ((Str(args, "--waker", "") == "wall" || view == "wakerwall") && generated is not null && !args.Contains("--at"))
         at = Math.Min((generated.Plan?.Terminus.GateM ?? line.Length - 600) + 260, line.Length - 20);
@@ -1548,19 +1575,9 @@ static object Screenshot(TrainTuning t, string content, string[] args)
     }
     // --odd well|can|scarecrow|postbox|note (the oddities view: a scarecrow, on deadLines:9): the night's first odd thing of that
     // oddThing at a stop (note 730), every chance of one taken, the camera stood off its front looking at it; --turned, a
-    // scarecrow found turned to the line.
-    DarkTerritory.Sim.Run.Oddities? oddities = null;
-    if (Str(args, "--odd", view == "oddities" ? "scarecrow" : "") is { Length: > 0 } oddKind && generated is not null)
+    // scarecrow found turned to the line. (The odd things are dealt above, with the train.)
+    if (oddKind.Length > 0 && generated is not null)
     {
-        var ot = DataFile.Load<DarkTerritory.Sim.Run.RunTuning>(Path.Combine(content, DarkTerritory.Sim.Run.RunTuning.File)).Oddities;
-        oddities = DarkTerritory.Sim.Run.Oddities.Of(ot with
-        {
-            Enabled = true,
-            Can = ot.Can with { Chance = 1 },
-            Scarecrow = ot.Scarecrow with { Chance = 1 },
-            Postbox = ot.Postbox with { Chance = 1 },
-            Note = ot.Note with { Chance = 1 },
-        }, generated, line);
         var oddThing = Enum.Parse<DarkTerritory.Sim.Run.OddThingKind>(oddKind, ignoreCase: true);
         // --lineside (note 965): a note out along the line, at a hut, a camp, a grave or a wreck, not at a village.
         if (oddities?.Things.FirstOrDefault(x => x.Kind == oddThing && (!args.Contains("--lineside") || x.Feature < 0)) is not { } thing)
@@ -1575,6 +1592,16 @@ static object Screenshot(TrainTuning t, string content, string[] args)
         double back = can ? 1.6 : oddThing == DarkTerritory.Sim.Run.OddThingKind.Well ? 6 : 4.2;
         camera = Camera.LookAt(thing.At + front * back + aside * (back * 0.35) + Double3.Up * (can ? 0.9 : 1.6),
             thing.At + Double3.Up * (can ? 0.05 : 1.1), (float)Opt(args, "--fov", 55));
+        // A note out along the line (note 979), as a crewmate walking the line comes on it: from back down the line a little
+        // further out, over the verge's grass, with what it was left at beside it.
+        if (args.Contains("--lineside") && !double.IsNaN(oddAlong))
+        {
+            var t0 = line.Sample(oddAlong);
+            double lateral = Double3.Dot(thing.At - t0.Position, Double3.Cross(t0.Tangent, Double3.Up).Normalized);
+            var t1 = line.Sample(Math.Max(oddAlong - 7, 0));
+            var eye = t1.Position + Double3.Cross(t1.Tangent, Double3.Up).Normalized * (lateral + Math.Sign(lateral) * 2);
+            camera = Camera.LookAt(eye with { Y = thing.At.Y + 2.4 }, thing.At + Double3.Up * 0.3, (float)Opt(args, "--fov", 55));
+        }
     }
     // --tower (with --coaling): the coaling tower from across the track, along it a way, up at its chute where it pours
     // (note 422); --tower side: from out past the tower on its own side, the trestle and the bunker.
@@ -3701,8 +3728,12 @@ static (DarkTerritory.Game.FrontEnd Menu, DarkTerritory.Game.Screen Screen) Demo
         PlaytestBake(Path.Combine(dir, "playtest-build"), Str(args, "--cohort", ""));
     menu.Kit = DarkTerritory.Game.Telemetry.PlaytestKit.Load(Path.Combine(dir, args.Contains("--cohort") ? "playtest-build" : "no-playtest-build"), telemetryDir);
     // Note 946: a playtest build's (--cohort) is on from the start, and its first run is the notice, not the question.
-    menu.Playtest = DarkTerritory.Game.Telemetry.PlaytestConsent.Load(telemetryDir, defaultOn: args.Contains("--dev"),
-        onByNotice: !args.Contains("--dev") && args.Contains("--cohort"));
+    // Note 968: the notice's firstBootLine makes it on in every build, and the title's shot is a first boot, its line under the menu.
+    bool casual = menu.PlaytestNotice.Casual;
+    menu.Playtest = DarkTerritory.Game.Telemetry.PlaytestConsent.Load(telemetryDir, defaultOn: args.Contains("--dev") || casual,
+        onByNotice: casual || !args.Contains("--dev") && args.Contains("--cohort"));
+    if (casual && screen == DarkTerritory.Game.Screen.Title)
+        menu.OpenPlaytest();
     if (screen == DarkTerritory.Game.Screen.Survey)
     {
         if (!args.Contains("--cohort"))

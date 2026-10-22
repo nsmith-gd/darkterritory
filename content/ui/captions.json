@@ -52,6 +52,9 @@
     "up-bbq.grill": "A GRILL SIZZLING",
     "up-bbq.can": "A CAN CRACKED OPEN",
     "up-bbq.cheers": "CANS CLINKED",
+    "up-dining.pour": "A BELL, A DRINK POURED",
+    "up-dining.sip": "A SIP FROM A GLASS",
+    "up-dining.clink": "GLASSES CLINKING",
     "toy-squeaker": "A TOY SQUEAKING",
     "toy-musicbox": "A MUSIC BOX",
     "toy-drummer": "A TOY DRUM",
@@ -264,6 +267,10 @@
     "crew-cannonball.whoop": "A WHOOP, SOMEONE FLYING",
     "crew-cannonball.land": "A THUMP, A ROLL AND AN OOF",
     "up-fishing.catch": "A REEL SCREAMING, A FISH LANDED",
+    // The flare pistol (note 975): its shot, the flare burning where it lands, and a dry click on none left.
+    "up-flare.shot": "A POP AND A HISS, A FLARE GOING UP",
+    "up-flare.burn": "A FLARE HISSING",
+    "up-flare.click": "A DRY CLICK",
     // Big finds (note 783): the bell's ring and the fragile finds breaking (the lock's the wrench's own).
     "loot-jackpot.bell": "A BELL'S DULL RING",
     "loot-fragile.glass": "GLASS BREAKING",
@@ -276,6 +283,8 @@
     "state-coupling-loose.jump-brake": "COUPLINGS SLAMMING, A PIN JUMPING",
     "state-coupling-loose.jump-coupled": "A COUPLER CLASHING, A PIN JUMPING",
     "state-coupling-loose.jump-bend": "CARS LURCHING, A PIN JUMPING",
+    // A pin working loose before it jumps (note 980): its own harder knock, quickening.
+    "state-coupling-loose.warn": "IRON CLANGING AT A COUPLING, FASTER",
     "tell-house.creak": "BOARDS CREAKING INSIDE",
     "tell-householder.shift": "A CHAIR SHIFTING",
     "world-bell.far": "A BELL, FAR OFF",
