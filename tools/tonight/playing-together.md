@@ -34,7 +34,8 @@ in that section.
       the yard, that can wait for the train's next stop).
 - [ ] Drop and rejoin: a friend quits the game (or pulls the network cable), starts again and joins the same way within
       3 minutes. They're back in their own place on the train, with their kit.
-- [ ] Voice: the mic is open by default (Settings, **VOICE**; push to talk is **V**). Talk aloud near each other.
+- [ ] Voice: the mic is open by default (Settings, **VOICE**; push to talk is **V**), so you needn't hold V, whatever the
+      first-nights card says. Talk aloud standing near each other; voices fade with distance.
 - [ ] The radio: hold the right mouse button with a radio on your belt; the whole train hears.
 - [ ] A full night to the terminus, then the next night together.
 - [ ] Anything odd: **F8** to type a note, or hold **F9** to say one.
