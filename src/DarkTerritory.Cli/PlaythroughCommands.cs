@@ -83,6 +83,7 @@ static class PlaythroughCommands
             scene.Derailed = world.Derailed;
             scene.FireDoorOpen = train.Boiler.FireDoorOpen;
             scene.Ruptured = train.Boiler.Ruptured;
+            scene.Patched = train.Boiler.Patched;
             // Every break to mend, called out (note 301).
             var breaks = RepairCallouts.Of(train);
             Couplings.Callouts(train, breaks);

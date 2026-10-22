@@ -322,6 +322,7 @@ static class FilmCommands
         scene.SafetyValve = train.Boiler.SafetyValveLifting;
         scene.Flare = train.BoilerTuning is { } flt ? (float)flt.FlareLook(train.Boiler) : 0;
         scene.Ruptured = train.Boiler.Ruptured;
+        scene.Patched = train.Boiler.Patched;
         scene.DriversLocked = scene.Ruptured && train.BoilerTuning is { } rt && train.Dynamics.Speed > rt.RuptureCoastBelow;
         scene.Controls = session.Controls;
         if (session.Watching >= 0)

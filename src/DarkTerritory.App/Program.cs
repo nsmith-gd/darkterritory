@@ -2031,6 +2031,7 @@ CampaignState? Play(IPlaySession session, CampaignState? campaign)
         scene.SafetyValve = session.Train.Boiler.SafetyValveLifting;
         scene.Flare = session.Train.BoilerTuning is { } flt ? (float)flt.FlareLook(session.Train.Boiler) : 0;
         scene.Ruptured = session.Train.Boiler.Ruptured;
+        scene.Patched = session.Train.Boiler.Patched;
         // Every break the crew can mend, called out where it is, and the ones a wrench is at (note 301).
         // And the loose couplings, called out alike (note 356).
         var breaks = DarkTerritory.Sim.Train.RepairCallouts.Of(session.Train);

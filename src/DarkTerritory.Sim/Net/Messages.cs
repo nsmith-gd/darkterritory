@@ -136,7 +136,8 @@ public static class Protocol
     //     held one's yaw and place are left out, each machine putting it at its carrier's hands.
     // 86: the dining car's bar (note 959): the body kind Drink (26), a drink poured at the bar; the dining car's drinks left
     //     ride in its vehicle record's cooler field (the 33rd), as the BBQ deck's beers do.
-    public const int Version = 86;
+    // 87: a mended rupture's patch (note 991): the boiler record's flags bit 7, Patched.
+    public const int Version = 87;
 }
 
 public enum MessageType : byte
