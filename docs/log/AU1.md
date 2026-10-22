@@ -502,3 +502,4 @@ The director asked for the last three friendslop features to be heard. Two were 
 ## 22 Oct, ~03:05 UTC: #687 ready
 
 - The claim merged ([#1606](https://github.com/nsmith-gd/darkterritory/pull/1606)). `voice-bot` (note 987): `recipes/bot_voice.py` (each of the bots' answers said in four LibriTTS voices, through the radio or plain; on the checklist), installed with the TTS credit, `GameAudio.Pings` says a bot's answer over the radio as it takes a ping, in the voice its id picks, once. `PingVoiceTests`.
+- Up as [#1608](https://github.com/nsmith-gd/darkterritory/pull/1608); row #687 done in it, merging on green.
