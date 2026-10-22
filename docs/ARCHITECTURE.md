@@ -1136,6 +1136,7 @@ written here instead is moved out by `tools/coord/notes.py split`; the Coordinat
 - [972. The clerk's tally of the silly upgrades (Hazel, queue #672; note 959's leftover)](notes/972.md)
 - [973. A houseboat's ladder climbed (queue #673, B2; the director's playtest of 16 Oct, line 28, its open half: "they have little ladders to go up…](notes/973.md)
 - [974. The dining car modelled (C1, queue #674; the art pass over #656's greybox, note 959)](notes/974.md)
+- [977. A brake thrown leant out of the cab's doorway (A1, queue #677; the director, 14 Oct, `docs/playtest/2026-10-14.md` line 9)](notes/977.md)
 - [975. The flare pistol heard: the shot, the flare burning, an empty click (AU1, queue #675; the Audio Checklist's `up-flare` line)](notes/975.md)
 - [976. The playtest builds carry Valve's Steam library (B3, queue #676; #269's groundwork)](notes/976.md)
 - [978. Speaking tubes between neighbouring cars (T2, queue #678; #410's leftover, upgrades.md §6: "Voice carries between neighbouring cars as in…](notes/978.md)
