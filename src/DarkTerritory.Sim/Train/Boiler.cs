@@ -116,6 +116,11 @@ public struct Boiler
     /// <summary>Seconds the fire has been below <see cref="BoilerTuning.LowFireFraction"/>.</summary>
     public double LowFireSeconds;
     public bool Ruptured;
+    /// <summary>
+    /// Note 991: a rupture's been mended on this engine: the plate bolted over the tear stays for the rest of the night
+    /// (what every machine draws there once <see cref="Ruptured"/> clears).
+    /// </summary>
+    public bool Patched;
 
     /// <summary>The safety valve lifted this tick: loud, visible, and the gauge is in the red.</summary>
     public bool SafetyValveLifting;
@@ -165,6 +170,7 @@ public struct Boiler
     public void Repair()
     {
         Ruptured = false;
+        Patched = true;
         Pressure = 0;
         Firebox = Green = Catching = 0;
         AtMaxSeconds = 0;

@@ -1362,6 +1362,16 @@ public sealed partial class SceneArt(Look look)
             * FrameMatrix(engine, eye)));
     }
 
+    /// <summary>Note 991: the tear mended, a plate bolted over it (TrainKit.RupturePatch where the tear was, at its size).</summary>
+    public void RupturePatch(MeshBuilder mesh, in CarFrame engine, Double3 eye)
+    {
+        if (engine.Shape.Cab is null || (engine.Origin - eye).Length > 300)
+            return;
+        mesh.Instances.Add(new MeshInstance(Piece("rupture-patch", () => TrainKit.RupturePatch(Look)),
+            Matrix4x4.CreateScale(TrainKit.RuptureSize(engine.Shape)) * Matrix4x4.CreateTranslation(TrainKit.RuptureSeam(engine.Shape))
+            * FrameMatrix(engine, eye)));
+    }
+
     /// <summary>
     /// The firebox door shut (the boiler's FireDoorOpen false; the Stoker's "keep it hot, keep it shut"): two iron leaves
     /// over the firehole, strapped and handled, meeting in the middle, the fire's light only at the seam between them and

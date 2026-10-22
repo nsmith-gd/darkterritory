@@ -529,6 +529,147 @@ public static partial class TownKit
         return k.Build("dresser-inside");
     }
 
+    // The cellar's hatch and the loose boards (note 991), each in its own frame: x across, y up off the boards' top, z out into
+    // the room the way the spot faces (its back, toward the wall it's nearest, at −z). The hatch's hinges are on its back
+    // edge, so a searched one stands up against the wall side. Not design numbers: a farmhouse's trapdoor and floorboards.
+    public const float HatchHalf = 0.47f, HatchThick = 0.035f, HatchFrame = 0.05f, BoardWidth = 0.12f, BoardGap = 0.008f, BoardsHalf = 0.55f;
+    static readonly Vector3 Oak = new(0.55f, 0.42f, 0.3f), Deal = new(0.62f, 0.5f, 0.38f);
+
+    /// <summary>
+    /// Note 991: the cellar's trapdoor on its own, shut (flat, its top up): five planks, their grain along it, a little apart;
+    /// two battens under them; a pair of strap hinges from its back edge; an iron ring pull lying in its staple at the front.
+    /// The scene stands it up on its hinges once the cellar's searched (GreyboxScene.SearchedSpots).
+    /// </summary>
+    public static MeshAsset CellarLid(Look? look) => CellarLid(new Kit(look, 63)).Build("cellar-lid");
+
+    static Kit CellarLid(Kit k)
+    {
+        const int planks = 5;
+        float w = 2 * HatchHalf / planks;
+        for (int i = 0; i < planks; i++)
+        {
+            k.Use("wood_floor", Oak, 0.9f, 0.03f, tile: 1.4f).Tint = Oak * (i % 2 == 0 ? 0.92f : 1.05f) * (i == 3 ? 0.85f : 1);
+            float x0 = -HatchHalf + i * w + 0.004f, x1 = x0 + w - 0.008f;
+            k.Box(new Vector3(x0, 0, -HatchHalf), new Vector3(x1, HatchThick, HatchHalf));
+        }
+        k.Use("wood_grey", Oak, 0.9f, 0.02f, tile: 2).Tint = Oak * 0.75f;
+        foreach (float z in new[] { -0.28f, 0.28f })
+            k.Box(new Vector3(-HatchHalf + 0.06f, -0.03f, z - 0.05f), new Vector3(HatchHalf - 0.06f, 0, z + 0.05f));
+        // The strap hinges, rusted: a strap from the knuckle at the back edge in across the planks, a nail at each end.
+        k.Use("rust_heavy", Palette.RustRed, 0.8f, 0.3f, tile: 1).Tint = new Vector3(0.6f, 0.45f, 0.4f);
+        foreach (float x in new[] { -0.28f, 0.28f })
+        {
+            k.Box(new Vector3(x - 0.025f, HatchThick, -HatchHalf - 0.01f), new Vector3(x + 0.025f, HatchThick + 0.006f, -0.08f));
+            k.Cylinder(new Vector3(x - 0.04f, HatchThick * 0.5f, -HatchHalf - 0.012f), new Vector3(x + 0.04f, HatchThick * 0.5f, -HatchHalf - 0.012f), 0.016f, 6);
+        }
+        // The ring pull, lying flat in its staple, toward the front.
+        k.Use("iron_smokebox", Palette.IronGrey, 0.7f, 0.5f).Tint = new Vector3(1.6f, 1.55f, 1.5f);
+        var ring = new Vector3(0, HatchThick + 0.008f, HatchHalf - 0.13f);
+        for (int i = 0; i < 8; i++)
+        {
+            float a0 = i * MathF.Tau / 8, a1 = (i + 1) * MathF.Tau / 8;
+            k.Rod(ring + new Vector3(MathF.Cos(a0), 0, MathF.Sin(a0)) * 0.05f, ring + new Vector3(MathF.Cos(a1), 0, MathF.Sin(a1)) * 0.05f, 0.006f, 4);
+        }
+        k.Box(new Vector3(-0.012f, HatchThick, ring.Z - 0.07f), new Vector3(0.012f, HatchThick + 0.016f, ring.Z - 0.045f));
+        return k;
+    }
+
+    /// <summary>Note 991: the cellar shut, as the cooked house has it: its trapdoor in an oak frame let into the floor.</summary>
+    public static MeshAsset CellarHatch(Look? look)
+    {
+        var k = new Kit(look, 64);
+        k.Use("wood_grey", Oak, 0.85f, 0.04f, tile: 2).Tint = Oak * 0.7f;
+        float o = HatchHalf + HatchFrame;
+        k.Box(new Vector3(-o, 0, -o), new Vector3(o, 0.012f, -HatchHalf));
+        k.Box(new Vector3(-o, 0, HatchHalf), new Vector3(o, 0.012f, o));
+        k.Box(new Vector3(-o, 0, -HatchHalf), new Vector3(-HatchHalf, 0.012f, HatchHalf));
+        k.Box(new Vector3(HatchHalf, 0, -HatchHalf), new Vector3(o, 0.012f, HatchHalf));
+        CellarLid(k);
+        return k.Build("cellar-hatch");
+    }
+
+    /// <summary>
+    /// Note 991: the cellar opened (drawn over the shut hatch once it's searched): the dark of the hole down, its frame's lip
+    /// round it, and the top of the ladder down into it, its stiles out over the floor.
+    /// </summary>
+    public static MeshAsset CellarOpen(Look? look)
+    {
+        var k = new Kit(look, 65);
+        k.Use("paint_black", Inside, 1, 0).Tint = Vector3.One * 0.2f;
+        k.Box(new Vector3(-HatchHalf, -0.4f, -HatchHalf), new Vector3(HatchHalf, HatchThick + 0.02f, HatchHalf), top: true, bottom: false);
+        // The ladder, its foot down on the cellar's floor at the back, leant out to the hole's front edge.
+        k.Use("wood_grey", Deal, 0.9f, 0.02f, tile: 2).Tint = Deal * 0.8f;
+        foreach (float x in new[] { -0.2f, 0.2f })
+            k.Rod(new Vector3(x, -0.4f, -0.05f), new Vector3(x, 0.55f, HatchHalf - 0.08f), 0.024f, 4);
+        foreach (float y in new[] { 0.15f, 0.42f })
+            k.Rod(new Vector3(-0.2f, y, -0.05f + (y + 0.4f) / 0.95f * (HatchHalf - 0.03f)), new Vector3(0.2f, y, -0.05f + (y + 0.4f) / 0.95f * (HatchHalf - 0.03f)), 0.014f, 4);
+        return k.Build("cellar-open");
+    }
+
+    /// <summary>
+    /// Note 991: loose floorboards over something kept under them, as the cooked house has them: five short lengths of deal
+    /// let into the floor across the grain of its boards, darker and a little proud, their nails drawn, the fourth sprung up
+    /// at its front end.
+    /// </summary>
+    public static MeshAsset LooseBoards(Look? look)
+    {
+        var k = new Kit(look, 66);
+        for (int i = 0; i < 5; i++)
+        {
+            float x0 = (i - 2.5f) * (BoardWidth + BoardGap) + BoardGap / 2, x1 = x0 + BoardWidth;
+            k.Use("wood_floor", Deal, 0.9f, 0.03f, tile: 1.6f).Tint = Deal * (0.62f + 0.06f * (i % 3));
+            if (i == 3)
+            {
+                // Sprung: its back end on the joist, its front end up 4 cm.
+                k.Quad(new Vector3(x0, 0.012f, -BoardsHalf), new Vector3(x1, 0.012f, -BoardsHalf), new Vector3(x1, 0.052f, BoardsHalf), new Vector3(x0, 0.052f, BoardsHalf));
+                k.Quad(new Vector3(x0, 0, BoardsHalf), new Vector3(x1, 0, BoardsHalf), new Vector3(x1, 0.052f, BoardsHalf), new Vector3(x0, 0.052f, BoardsHalf), twoSided: true);
+                k.Quad(new Vector3(x0, 0, -BoardsHalf), new Vector3(x0, 0, BoardsHalf), new Vector3(x0, 0.052f, BoardsHalf), new Vector3(x0, 0.012f, -BoardsHalf), twoSided: true);
+                k.Quad(new Vector3(x1, 0, -BoardsHalf), new Vector3(x1, 0, BoardsHalf), new Vector3(x1, 0.052f, BoardsHalf), new Vector3(x1, 0.012f, -BoardsHalf), twoSided: true);
+                continue;
+            }
+            k.Box(new Vector3(x0, 0, -BoardsHalf), new Vector3(x1, 0.012f, BoardsHalf));
+        }
+        // The gaps between them dark, and a nail head left at either end of the shut ones.
+        k.Use("paint_black", Inside, 1, 0).Tint = Vector3.One * 0.3f;
+        k.Box(new Vector3(-2.5f * (BoardWidth + BoardGap), 0, -BoardsHalf), new Vector3(2.5f * (BoardWidth + BoardGap), 0.004f, BoardsHalf));
+        k.Use("iron_smokebox", Palette.IronGrey, 0.7f, 0.5f).Tint = new Vector3(1.4f, 1.35f, 1.3f);
+        for (int i = 0; i < 5; i++)
+            if (i != 3)
+                foreach (float z in new[] { -BoardsHalf + 0.05f, BoardsHalf - 0.05f })
+                {
+                    float x = (i - 2) * (BoardWidth + BoardGap);
+                    k.Box(new Vector3(x - 0.008f, 0.012f, z - 0.008f), new Vector3(x + 0.008f, 0.016f, z + 0.008f));
+                }
+        return k.Build("loose-boards");
+    }
+
+    /// <summary>
+    /// Note 991: the loose boards lifted (drawn over them once searched): the dark under the floor where the middle three were,
+    /// the joists across it, and the three laid beside the gap on the floor, one leant on the next.
+    /// </summary>
+    public static MeshAsset UnderFloorOpen(Look? look)
+    {
+        var k = new Kit(look, 67);
+        float half = 1.5f * (BoardWidth + BoardGap);
+        k.Use("paint_black", Inside, 1, 0).Tint = Vector3.One * 0.2f;
+        k.Box(new Vector3(-half, -0.25f, -BoardsHalf), new Vector3(half, 0.056f, BoardsHalf), top: true, bottom: false);
+        // The joists under it, seen across the gap, and the dust between them a shade off the dark.
+        k.Use("wood_grey", Deal, 0.95f, 0, tile: 2).Tint = Deal * 0.2f;
+        foreach (float z in new[] { -0.32f, 0.3f })
+            k.Box(new Vector3(-half, 0.056f, z - 0.05f), new Vector3(half, 0.06f, z + 0.05f));
+        // The boards lifted out, beside the gap.
+        for (int i = 0; i < 3; i++)
+        {
+            k.Use("wood_floor", Deal, 0.9f, 0.03f, tile: 1.6f).Tint = Deal * (0.62f + 0.06f * i);
+            float x0 = half + 0.12f + i * (BoardWidth + 0.03f);
+            float lift = i == 2 ? 0.06f : 0;
+            k.Quad(new Vector3(x0, 0.024f, -BoardsHalf + 0.05f * i), new Vector3(x0 + BoardWidth, 0.024f + lift, -BoardsHalf + 0.05f * i),
+                new Vector3(x0 + BoardWidth, 0.024f + lift, BoardsHalf + 0.05f * i), new Vector3(x0, 0.024f, BoardsHalf + 0.05f * i));
+            k.Box(new Vector3(x0, 0, -BoardsHalf + 0.05f * i), new Vector3(x0 + BoardWidth, 0.024f, BoardsHalf + 0.05f * i), top: false);
+        }
+        return k.Build("underfloor-open");
+    }
+
     /// <param name="clutter">What a ransack left about it (StopWalls.ClutterOf).</param>
     /// <param name="nest">Where the Gaunt nests in it, if it does (StopWalls.Nest).</param>
     public static void OpenHouse(Kit k, Sim.Stops.StopBuilding b, IEnumerable<Sim.Stops.StopContainer> kept,
@@ -722,6 +863,15 @@ public static partial class TownKit
             }
         }
 
+        // A spot's own piece laid on the boards at (x, y), its z out the way it faces (TownKit.CellarHatch's frame).
+        Matrix4x4 Laid(double x, double y, double faceX, double faceY)
+        {
+            var into = Vector3.Normalize(K(faceX, faceY, 0));
+            var side = Vector3.Cross(Vector3.UnitY, into);
+            var at = K(x, y, Floor);
+            return new Matrix4x4(side.X, side.Y, side.Z, 0, 0, 1, 0, 0, into.X, into.Y, into.Z, 0, at.X, at.Y, at.Z, 1);
+        }
+
         // What the finds are kept in, each where the sim puts its find (its thin side to the wall it stands against).
         foreach (var c in kept)
         {
@@ -740,16 +890,12 @@ public static partial class TownKit
                         Sideboard(piece.X, piece.Y, faceX, faceY);
                     break;
                 case Sim.Stops.ContainerKind.Cellar:
-                    k.Use("wood_grey", Palette.SootBlack, 0.9f, 0, tile: 1);
-                    Box(x, y, 0.5, 0.5, Floor, Floor + 0.05f);
-                    k.Use("rust_heavy", Palette.RustRed, 0.6f, 0.4f, tile: 1);
-                    Box(x, y + 0.3, 0.06, 0.06, Floor + 0.05f, Floor + 0.08f);
+                    // Its trapdoor let into the floor, hinged on the wall's side (note 991).
+                    k.Append(CellarHatch(k.Look), Laid(x, y, faceX, faceY));
                     break;
                 case Sim.Stops.ContainerKind.UnderFloor:
-                    // A run of boards prised up, standing proud of the floor.
-                    k.Use("wood_grey", Palette.DeepBrown, 0.9f, 0, tile: 1);
-                    for (int i = 0; i < 3; i++)
-                        Box(x + (endOn ? 0 : (i - 1) * 0.18), y + (endOn ? (i - 1) * 0.18 : 0), endOn ? 0.55 : 0.08, endOn ? 0.08 : 0.55, Floor, Floor + 0.03f + i * 0.03f);
+                    // A short run of loose boards, one sprung (note 991).
+                    k.Append(LooseBoards(k.Look), Laid(x, y, faceX, faceY));
                     break;
             }
         }

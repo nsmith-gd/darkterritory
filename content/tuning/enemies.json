@@ -351,7 +351,12 @@
   "grumbler": {
     "health": 6, "regenPerSecond": 1.5, "gangSeconds": 5, "huntSpeed": 3.5, "reach": 1.4, "biteDamage": 35, "biteEvery": 3,
     "grabBelowHealth": 35, "maulSeconds": 8, "cargoPerSecond": 0.004, "foodWeight": 2,
-    "drivenOff": true, "gangRadius": 3, "outnumberedSeconds": 2, "fleeSeconds": 8
+    "drivenOff": true, "gangRadius": 3, "outnumberedSeconds": 2, "fleeSeconds": 8,
+    // Note 991 (GDD §21 "scuttles like a spider over the crane"): gnawing on a stacked casting at a crane, every
+    // roamEvery s it scuttles off it at roamPace m/s, up the gantry's nearest leg and along its rail girder up to roamRun m
+    // (short of the bridge), and back down onto its casting. Rigged or hooked meanwhile, it hurries back at roamHurry m/s.
+    // Struck up there, it drops to the ground under it. roamEvery 0: it never leaves the crates.
+    "roamEvery": 25, "roamPace": 1.8, "roamHurry": 3.5, "roamRun": 9
   },
 
   // THE CHOIR's swarm (App. A.7): ghosts come when the meter's gathered (combat.json "choir"). Each seizes anyone outside

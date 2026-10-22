@@ -266,6 +266,61 @@ public sealed class Grumbler(int id) : Enemy(id)
     public static Grumbler OnCrates(int id, Double3 world, int casting, GrumblerTuning t, Crane? crane = null) =>
         new(id) { Attached = Loose, Local = world, Extra = casting, Health = t.Health, _crane = crane };
 
+    // Note 991: its trip over the crane (the host's; every machine sees where it is): the way, how far along it it's gone,
+    // how long it's gnawed since the last, and the ground under the gantry, to drop to when it's struck up there.
+    List<Double3>? _trip;
+    double _tripGone, _gnawing, _ground;
+
+    /// <summary>Up on its crane, on a trip off its casting (note 991).</summary>
+    public bool Roaming => _trip is not null;
+
+    // How far out from a leg's column it climbs (m: the column's 0.24 and its own belly), and how far short of the bridge's
+    // end trucks it turns back on the girder.
+    const double LegFace = 0.4, BridgeClear = 1.6;
+
+    /// <summary>
+    /// Note 991 (GDD §21: "scuttles like a spider over the crane"): the way a Grumbler gnawing at <paramref name="from"/>
+    /// goes over <paramref name="crane"/>: off its casting to the foot of the gantry's nearest leg, up the leg's face, onto
+    /// the rail girder's flange, along it up to <paramref name="run"/> m (short of the bridge), and back the same way to the
+    /// leg's foot. The last stretch, onto its casting wherever that is by then, is <see cref="Along"/>'s.
+    /// </summary>
+    public static List<Double3> CraneTrip(Crane crane, Double3 from, double run)
+    {
+        var (end, side) = Enumerable.Range(0, 4).Select(i => (End: i / 2, Side: i % 2))
+            .MinBy(c => ((crane.Corner(c.End, c.Side) - from) with { Y = 0 }).Length);
+        var corner = crane.Corner(end, side);
+        var toward = (from - corner) with { Y = 0 };
+        toward = toward.Length > 1e-6 ? toward.Normalized : new Double3(1, 0, 0);
+        var foot = corner + toward * LegFace;
+        var high = foot with { Y = corner.Y + crane.Top - 0.45 };
+        double start = end == 0 ? 0.3 : crane.Length - 0.3, way = end == 0 ? 1 : -1;
+        double stop = start + way * run, bridge = crane.BridgeAlong;
+        if (way * (bridge - start) > 0)
+            stop = way > 0 ? Math.Min(stop, bridge - BridgeClear) : Math.Max(stop, bridge + BridgeClear);
+        if (way * (stop - start) < 0)
+            stop = start;
+        var onTop = crane.OnRail(side, start);
+        return [from, foot, high, onTop, crane.OnRail(side, stop), onTop, high, foot];
+    }
+
+    /// <summary>
+    /// Where <paramref name="gone"/> m along <paramref name="trip"/> is, the trip ending on <paramref name="home"/> (its casting
+    /// now); null once it's back on it.
+    /// </summary>
+    public static Double3? Along(IReadOnlyList<Double3> trip, Double3 home, double gone)
+    {
+        for (int i = 0; i < trip.Count; i++)
+        {
+            var a = trip[i];
+            var b = i + 1 < trip.Count ? trip[i + 1] : home;
+            double length = (b - a).Length;
+            if (gone < length)
+                return a + (b - a) * (gone / length);
+            gone -= length;
+        }
+        return null;
+    }
+
     protected override void Tick(EnemyContext ctx)
     {
         var t = ctx.Tuning.Grumbler;
@@ -288,6 +343,30 @@ public sealed class Grumbler(int id) : Enemy(id)
                     if ((_crane ?? ctx.World.Run?.CurrentSite?.Crane) is { } crane && Casting >= 0 && Casting < crane.Castings.Length)
                     {
                         var c = crane.Castings[Casting];
+                        var home = crane.Where(c, train.Frames) is { } h ? h + Double3.Up * 0.8 : (Double3?)null;
+                        // Note 991: over the crane, and back onto its casting; rigged or lifted meanwhile, it hurries back to it
+                        // (onto a car with it, if it's craned aboard first).
+                        if (_trip is { } trip && home is { } back)
+                        {
+                            _tripGone += (c.State == CastingState.Stacked ? t.RoamPace : t.RoamHurry) * SimConstants.TickSeconds;
+                            if (Along(trip, back, _tripGone) is { } on)
+                            {
+                                Local = on;
+                                return;
+                            }
+                        }
+                        _trip = null;
+                        if (t.RoamEvery > 0 && c.State == CastingState.Stacked && !crane.Wrecked && home is not null)
+                        {
+                            _gnawing += SimConstants.TickSeconds;
+                            if (_gnawing >= t.RoamEvery)
+                            {
+                                _gnawing = 0;
+                                _tripGone = 0;
+                                _ground = crane.Corner(0, 0).Y;
+                                _trip = CraneTrip(crane, home.Value, t.RoamRun);
+                            }
+                        }
                         if (c.State == CastingState.Loaded && c.Car >= 0 && c.Car < train.Frames.Count)
                         {
                             // C.9's Grumbler row (note 190): aboard, and who ran the crane for that lift.
@@ -404,6 +483,12 @@ public sealed class Grumbler(int id) : Enemy(id)
     {
         _hits.Add((by, ctx.Tick));
         Extra2 = 1; // FERAL
+        // Struck up on the crane (note 991): it drops, to the ground under it.
+        if (_trip is not null)
+        {
+            Local = Local with { Y = _ground };
+            _trip = null;
+        }
         if (ctx.Tuning.Grumbler.DrivenOff)
             Coordinated(ctx, by, damage);
         else

@@ -337,6 +337,11 @@ public sealed record GrumblerTuning
     public double GangRadius { get; init; } = 3;
     public double OutnumberedSeconds { get; init; } = 2;
     public double FleeSeconds { get; init; } = 8;
+    /// <summary>Note 991: its trips over the crane between bouts of gnawing (enemies.json's grumbler, roam*).</summary>
+    public double RoamEvery { get; init; }
+    public double RoamPace { get; init; } = 1.8;
+    public double RoamHurry { get; init; } = 3.5;
+    public double RoamRun { get; init; } = 9;
 }
 
 /// <summary>The Choir's swarm (v1.1 App. A.7): the ghosts it sends. Field docs live in enemies.json.</summary>

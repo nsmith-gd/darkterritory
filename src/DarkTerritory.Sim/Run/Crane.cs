@@ -91,6 +91,17 @@ public sealed class Crane
     public double Top => _t.Height + 0.6;
     /// <summary>The ends of the bridge where it is now, at the top.</summary>
     public Double3 BridgeEnd(int side) => _at(Bridge, _t.Span[side], Top);
+    /// <summary>How far over <see cref="Top"/> the rail girders' top flange is (m; tools/models depot_modules crane_girder).</summary>
+    public const double RailFlange = 0.32;
+    /// <summary>
+    /// A point on a rail girder's top flange (note 991: what the Grumbler scuttles along), <paramref name="along"/> m from
+    /// the gantry's first end on <paramref name="side"/>.
+    /// </summary>
+    public Double3 OnRail(int side, double along) => _at(_t.Along - 0.5 * _t.Length + along, _t.Span[side], Top + RailFlange);
+    /// <summary>The gantry's length along the line (m): its rail girders'.</summary>
+    public double Length => _t.Length;
+    /// <summary>Where the bridge stands along the rail girders, from the first end (m).</summary>
+    public double BridgeAlong => Bridge - (_t.Along - 0.5 * _t.Length);
     /// <summary>Where the hook is (world).</summary>
     public Double3 HookAt => _at(Bridge, Trolley, Hook);
     /// <summary>The control stand, at the foot of the near leg at the gantry's first end.</summary>

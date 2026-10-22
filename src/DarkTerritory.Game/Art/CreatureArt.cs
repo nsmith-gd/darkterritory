@@ -2644,7 +2644,8 @@ public sealed partial class CreatureArt
                         SpinePhase.Grab or SpinePhase.Punish => "maul",
                         SpinePhase.Commit => pace > Going ? "scuttle" : "bite",
                         SpinePhase.BreakOff => "scuttle",
-                        _ => feral ? "bite" : "gnaw",
+                        // Off its casting and over its crane (note 991), it scuttles.
+                        _ => feral ? "bite" : pace > Going ? "scuttle" : "gnaw",
                     };
                     return Draw(mesh, "grumbler", clip, t, true, model, seed: 61);
                 }

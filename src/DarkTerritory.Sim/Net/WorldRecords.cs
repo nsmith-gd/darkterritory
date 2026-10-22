@@ -196,7 +196,7 @@ public static class WorldRecords
             Q(b.Pressure, Fine), Q(b.Firebox, Fine), Q(b.Tender, Fine), Q(b.AtMaxSeconds, Fine), Q(b.LowFireSeconds, Fine),
             // (The deep cold's efficiency came out of the record with the cold, note 852; protocol 78.)
             Q(b.ExternalHeat, Fine),
-            (b.Ruptured ? 1 : 0) | (b.SafetyValveLifting ? 2 : 0) | (b.SafetyValveJammed ? 4 : 0) | (b.FireDoorOpen ? 8 : 0) | (b.Vented ? 16 : 0) | (b.WrenchOut ? 32 : 0) | (b.ShovelOut ? 64 : 0),
+            (b.Ruptured ? 1 : 0) | (b.SafetyValveLifting ? 2 : 0) | (b.SafetyValveJammed ? 4 : 0) | (b.FireDoorOpen ? 8 : 0) | (b.Vented ? 16 : 0) | (b.WrenchOut ? 32 : 0) | (b.ShovelOut ? 64 : 0) | (b.Patched ? 128 : 0),
             // The door's swing-shut clock: without it the host's own snap back onto the grid zeroed it every tick, and the
             // door never shut.
             Q(Math.Min(b.SinceShovel, 60), Fine),
@@ -512,6 +512,7 @@ public static class WorldRecords
                         FireDoorOpen = (f[6] & 8) != 0,
                         WrenchOut = (f[6] & 32) != 0,
                         ShovelOut = (f[6] & 64) != 0,
+                        Patched = (f[6] & 128) != 0,
                         Vented = (f[6] & 16) != 0,
                         SinceShovel = f.Length > 7 ? D(f[7], Fine) : 0,
                         Green = f.Length > 9 ? D(f[8], Fine) : 0,
