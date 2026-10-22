@@ -250,7 +250,8 @@ TAKE_SPLITS = {"tell-brakeman.step": {"good": (0, 2), "bad": (1, 3)}}
 # first squeal dropped out most of its loop (`dt audio render --scenario bend`: -42 dB in the cab at the bend's board).
 # Gameplay foley is the real thing where there's a choice: the wind-up drummer from real tin over the modelled one; the
 # lamp guttering from its flame over cloth whooshes.
-FIRST_CHOICE = {"place-town.fire": "drum", "place-town.murmur": "masks",  # note 415: the square's barrels; the folk about
+FIRST_CHOICE = {**{f"voice-bot.{c}": "radio" for c in ("fire", "controls", "loot", "crane", "town", "spur", "points", "cargo")},
+                "place-town.fire": "drum", "place-town.murmur": "masks",  # note 415: the square's barrels; the folk about
                 # Note 826: the Hope Tower's Flame by its coal bed and its weight, the roar a town hears.
                 "place-town.flame": "basket",
                 # Note 827: the night market, its boiler, its counter of clocks, steel needles, a stallholder's cry.
@@ -474,16 +475,20 @@ SWAP_GAIN_DB = {"boiler-tick": -4, "cannon-impact": -1, "cannon-splash": -4, "do
 SETS_LINES = {"voice-prisoner-sets"}
 # Folders a full install leaves alone: the clerk's word bank (clerk.py), which the checklist doesn't pick.
 KEEP_SAMPLES = {"voice-clerk", "band"}
-# Voices read by Piper's LibriTTS model (recipes/voices.py, children.py; clerk.py): not CC0, they carry its credit.
-TTS_CUES = {("voice-prisoner-sets", "call"), ("voice-prisoner-sets", "shout"), ("tell-soot-children", "call")}
+# Voices read by Piper's LibriTTS model (recipes/voices.py, children.py, bot_voice.py; clerk.py): not CC0, they carry its credit.
+TTS_CUES = {("voice-prisoner-sets", "call"), ("voice-prisoner-sets", "shout"), ("tell-soot-children", "call"),
+            # A bot's answer to a ping (recipes/bot_voice.py, note 987).
+            *{("voice-bot", c) for c in ("fire", "controls", "loot", "crane", "town", "spur", "points", "cargo")}}
 TTS_LICENCE = "CC BY 4.0: LibriTTS, Zen et al. 2019"
 # A prisoner calling from a Holdout (D.7): heard to 60 m with normal falloff and occlusion, on the voice tier.
-VOICE_LINES = {"voice-prisoner-sets", "voice-callout"}
+VOICE_LINES = {"voice-prisoner-sets", "voice-callout", "voice-bot"}
 
 
 # Cue -> layer extras: a curve on a param the game drives (GameAudio sets it on the playing instance).
 # ui-prompts.hold: the hold-to-interact loop hurries as the held action gets there (GameAudio.Ui.cs sets "progress", 0-1).
 LAYER_EXTRAS = {
+    # A bot's answer (note 987): its takes are the bots' voices in order, picked by the bot (GameAudio.Pings); a voice as said.
+    **{f"voice-bot.{c}": {"pitchJitter": 0, "gainJitter": 0} for c in ("fire", "controls", "loot", "crane", "town", "spur", "points", "cargo")},
     "ui-prompts.hold": {"rate": {"param": "progress", "points": [[0, 1], [1, 1.4]]}},
     # The calliope's one pipe (note 806), recorded at C5, played at the tune's note an octave down: GameAudio.Calliope sets
     # "pitch" (the rate); no jitter, a tune's notes stay in tune (the takes waver a little of their own).
@@ -512,6 +517,9 @@ LAYER_EXTRAS = {
 # heard as far, as the Whistler's tell is: spec A.4); the livestock are the world's, out along the train; the casting's bong
 # carries across a yard.
 CUE_DEF = {
+    # A bot's answer over the radio (note 987): the set in every hand, flat as the radio's own voices are, tier 2 with them;
+    # one at a time a bot.
+    **{f"voice-bot.{c}": {"flat": True, "maxInstances": 4} for c in ("fire", "controls", "loot", "crane", "town", "spur", "points", "cargo")},
     # Note 409: a house door shut is heard across the village street, from inside the house and out (the Choir's rule).
     "crew-house-door.shut": {"maxDistance": 60, "gainDb": 3},
     "crew-mishaps.whistle-wheeze": {"tier": 1, "minDistance": 20, "maxDistance": 1500, "rolloff": 0.45, "gainDb": 2},

@@ -5584,6 +5584,86 @@
   "url": "/_blob/33ba14debdca58fdfb0e16ba2f0c09e4",
   "sha": "24c87337d8033e87"
  },
+ "previews/voice-bot--cargo--plain.mp4": {
+  "id": "e329c2662c803dd0856fdb08c489a5c1",
+  "url": "/_blob/e329c2662c803dd0856fdb08c489a5c1",
+  "sha": "7bb74677bc175cf7"
+ },
+ "previews/voice-bot--cargo--radio.mp4": {
+  "id": "80bb3a43311d5dfa7bef41f5721d4e0c",
+  "url": "/_blob/80bb3a43311d5dfa7bef41f5721d4e0c",
+  "sha": "6be85620d64592a0"
+ },
+ "previews/voice-bot--controls--plain.mp4": {
+  "id": "358e330290ff5f17116fee2e1e4a5f67",
+  "url": "/_blob/358e330290ff5f17116fee2e1e4a5f67",
+  "sha": "e6193efbcfed2be3"
+ },
+ "previews/voice-bot--controls--radio.mp4": {
+  "id": "07d482683d66e1efd4d7de7ffcf2e5c7",
+  "url": "/_blob/07d482683d66e1efd4d7de7ffcf2e5c7",
+  "sha": "7e7b7fec0f82df8b"
+ },
+ "previews/voice-bot--crane--plain.mp4": {
+  "id": "80fc16f9e3e6a1ce86160fbfb713f71a",
+  "url": "/_blob/80fc16f9e3e6a1ce86160fbfb713f71a",
+  "sha": "e34d4a8ae4d3195e"
+ },
+ "previews/voice-bot--crane--radio.mp4": {
+  "id": "ad1627880ff3fdee696e3d8178862676",
+  "url": "/_blob/ad1627880ff3fdee696e3d8178862676",
+  "sha": "a47895f476ebcdbb"
+ },
+ "previews/voice-bot--fire--plain.mp4": {
+  "id": "42a99845d84b4a579ba2b483de8af893",
+  "url": "/_blob/42a99845d84b4a579ba2b483de8af893",
+  "sha": "bc10e3d5d9a43203"
+ },
+ "previews/voice-bot--fire--radio.mp4": {
+  "id": "f7f00695478982a7944dce972d704b9f",
+  "url": "/_blob/f7f00695478982a7944dce972d704b9f",
+  "sha": "b95a544fb56c1f7a"
+ },
+ "previews/voice-bot--loot--plain.mp4": {
+  "id": "b10d41372fbc88be44ea99f65e2a9984",
+  "url": "/_blob/b10d41372fbc88be44ea99f65e2a9984",
+  "sha": "fc45193dd6e61025"
+ },
+ "previews/voice-bot--loot--radio.mp4": {
+  "id": "e1d5ae6ef84abd3f54190e8a5f2b665a",
+  "url": "/_blob/e1d5ae6ef84abd3f54190e8a5f2b665a",
+  "sha": "8afa05e41fd34c62"
+ },
+ "previews/voice-bot--points--plain.mp4": {
+  "id": "ff1062bc201af2075801835729a16083",
+  "url": "/_blob/ff1062bc201af2075801835729a16083",
+  "sha": "9c149f21613d7ec2"
+ },
+ "previews/voice-bot--points--radio.mp4": {
+  "id": "194a37357bbd7b05205272c2b3b26bea",
+  "url": "/_blob/194a37357bbd7b05205272c2b3b26bea",
+  "sha": "deb608ae028e19e8"
+ },
+ "previews/voice-bot--spur--plain.mp4": {
+  "id": "ec09eac120873c0393038f3552da633d",
+  "url": "/_blob/ec09eac120873c0393038f3552da633d",
+  "sha": "ce2d10d680e7175d"
+ },
+ "previews/voice-bot--spur--radio.mp4": {
+  "id": "0d5211bc9ed6a6557eb650606e763e40",
+  "url": "/_blob/0d5211bc9ed6a6557eb650606e763e40",
+  "sha": "60b54ca2662837c4"
+ },
+ "previews/voice-bot--town--plain.mp4": {
+  "id": "df885654a964b374a07083192125928e",
+  "url": "/_blob/df885654a964b374a07083192125928e",
+  "sha": "491b5245833fbb46"
+ },
+ "previews/voice-bot--town--radio.mp4": {
+  "id": "c0f4effcf178137b5276ca5683b613e1",
+  "url": "/_blob/c0f4effcf178137b5276ca5683b613e1",
+  "sha": "5351e1336cb93b10"
+ },
  "previews/voice-callout--bang--door.mp4": {
   "id": "e8de5772e33f6fbae291ea4add4e5806",
   "url": "/_blob/e8de5772e33f6fbae291ea4add4e5806",

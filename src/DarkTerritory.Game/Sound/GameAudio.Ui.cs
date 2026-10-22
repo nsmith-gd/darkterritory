@@ -187,6 +187,7 @@ public sealed partial class GameAudio
         _skipHold = 0;
         _heardBookmarks.Clear();
         _pingsHeard.Clear();
+        _pingTakers.Clear();
     }
 
     enum HoldKind : byte { Reload, Repair, Handbrake, Hatch, Uncouple, Breach, Restart, Rig, ClearFoul, BoardUp, StartBelt, Unjam, Clamp, Rerail }

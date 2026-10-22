@@ -498,3 +498,8 @@ The director asked for the last three friendslop features to be heard. Two were 
 
 - [#1602](https://github.com/nsmith-gd/darkterritory/pull/1602) green on Linux and Windows (package, crossplay) and merged (#684, the cab's benches), after main merged in once more (the union merge's stale copy of row #684 dropped).
 - Claimed queue #687, note 987 (Finn's note 936 left a bot's spoken answer to a ping to AU1): the bot who takes a ping says it, in a voice of its own.
+
+## 22 Oct, ~03:05 UTC: #687 ready
+
+- The claim merged ([#1606](https://github.com/nsmith-gd/darkterritory/pull/1606)). `voice-bot` (note 987): `recipes/bot_voice.py` (each of the bots' answers said in four LibriTTS voices, through the radio or plain; on the checklist), installed with the TTS credit, `GameAudio.Pings` says a bot's answer over the radio as it takes a ping, in the voice its id picks, once. `PingVoiceTests`.
+- Up as [#1608](https://github.com/nsmith-gd/darkterritory/pull/1608); row #687 done in it, merging on green.

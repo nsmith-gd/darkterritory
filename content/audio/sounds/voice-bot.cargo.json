@@ -1,0 +1,20 @@
+// A bot's answer to a ping, spoken: A bot taking the cargo pinged: "Loading her up.". Written by tools/audio/install.py from the audio checklist (first); edit the cue, not this.
+{
+ "tier": 2,
+ "loop": false,
+ "maxInstances": 4,
+ "minDistance": 2,
+ "maxDistance": 60,
+ "rolloff": 1.0,
+ "gainDb": 2,
+ "flat": true,
+ "layers": [
+  {
+   "source": "sample",
+   "sample": "voice-bot/cargo",
+   "gain": 1,
+   "pitchJitter": 0,
+   "gainJitter": 0
+  }
+ ]
+}
