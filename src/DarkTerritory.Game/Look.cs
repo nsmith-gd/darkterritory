@@ -357,6 +357,10 @@ public sealed record TipsyTuning
     public double LeanPeriod { get; init; } = 7;
     public double MostDrinks { get; init; } = 4;
     public double FadeSeconds { get; init; } = 10;
+    public double LollDegrees { get; init; } = 16;
+    public double LollEach { get; init; } = 5;
+    public double LollPeriod { get; init; } = 3.4;
+    public double LollNod { get; init; } = 0.5;
 }
 
 /// <summary>

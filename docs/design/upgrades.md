@@ -416,7 +416,9 @@ vision should get blurry ... [it should] make you sort of tip over a bit. Of cou
   drinks. Repairs: one window."
 - **Built** (note 959): `diningCar` in campaign.json, the car behind the crew cars, its bar's eight drinks
   (train.json `composition.dining`), the blur and the lean (look.json `tipsy`). The clerk's "Bar: drinks, 8." (note 972: the
-  tally lines read the night's counts; note 982: in the catalogue's words, the clerk's bank built with them). The head's loll isn't yet.
+  tally lines read the night's counts; note 982: in the catalogue's words, the clerk's bank built with them). Note 974: the
+  room modelled (the table laid for eight, its chairs, the chandelier and candelabra, the counter, its bell and the back
+  bar), and the crew seeing a drinker's head loll (look.json `tipsy` `loll*`).
 
 ### 8.6 Bumper stickers: all puns
 

@@ -1126,8 +1126,8 @@ static object Screenshot(TrainTuning t, string content, string[] args)
     var line = generated?.Build() ?? RailLine.Load(Path.Combine(content, "lines", lineName + ".json"));
     // --upgrades id[,id]: the train as the campaign's upgrades make it (note 184: crewCar, secondGuardCar, armouredCar,
     // roofHandrails...).
-    // The dining and diningbar views (note 959) fit the dining car.
-    if (Str(args, "--upgrades", view is "dining" or "diningbar" ? "diningCar" : "") is { Length: > 0 } upgrades)
+    // The dining and diningbar views (note 959), and diningtable and diningdrunk (note 974), fit the dining car.
+    if (Str(args, "--upgrades", view is "dining" or "diningbar" or "diningtable" or "diningdrunk" ? "diningCar" : "") is { Length: > 0 } upgrades)
         t = DarkTerritory.Sim.Campaign.Campaign.Apply(DataFile.Load<DarkTerritory.Sim.Campaign.CampaignTuning>(Path.Combine(content, DarkTerritory.Sim.Campaign.CampaignTuning.File)),
             upgrades.Split(','), new DarkTerritory.Sim.Campaign.Loadout(t, DataFile.Load<BoilerTuning>(Path.Combine(content, BoilerTuning.File)),
                 DataFile.Load<DarkTerritory.Sim.Combat.CombatTuning>(Path.Combine(content, DarkTerritory.Sim.Combat.CombatTuning.File)), null)).Train;
@@ -2343,6 +2343,14 @@ static object Screenshot(TrainTuning t, string content, string[] args)
     // --cannonball (note 746; with --upgrades humanCannonball): someone in the guard van's gun, its gunner behind it.
     if (args.Contains("--cannonball"))
         scene.Crew = [.. scene.Crew ?? [], .. Staging.Cannonball(train, DataFile.Load<DarkTerritory.Sim.Combat.CombatTuning>(Path.Combine(content, DarkTerritory.Sim.Combat.CombatTuning.File)).Cannonball)];
+    // --diners (note 974; the dining views): two sat at the table, one lolling, and one at the bar with a glass, lolling more.
+    if (args.Contains("--diners") && look?.Tuning.Tipsy is { } dinersTipsy && Staging.Diners(train, dinersTipsy) is var (diners, dinerBodies))
+    {
+        scene.Crew = [.. scene.Crew ?? [], .. diners];
+        scene.Bodies = [.. scene.Bodies ?? [], .. dinerBodies];
+        // (--clock: the scene's time, which the lolls sway on.)
+        scene.Time = Opt(args, "--clock", scene.Time);
+    }
     // --lounge (note 744; with --upgrades hammock,hotTub): someone in the hammock, two in the hot tub.
     if (args.Contains("--lounge") && Staging.Lounging(train) is var (loungers, loungeBodies))
     {

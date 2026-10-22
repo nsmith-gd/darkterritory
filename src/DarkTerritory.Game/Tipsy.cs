@@ -24,16 +24,31 @@ public sealed class Tipsy
     /// Watches <paramref name="me"/>'s hands at <paramref name="now"/> (the presentation's clock, s): a drink in them that's
     /// gone from the train since the last look was drunk.
     /// </summary>
-    public void Observe(World world, int me, double now, TipsyTuning t)
+    public void Observe(World world, int me, double now, TipsyTuning t) =>
+        Watch(world.Bodies.CarriedBy(me) is { Kind: BodyKind.Drink } glass ? glass.Id : -1, world.Bodies.All, now, t);
+
+    /// <summary>
+    /// Watches a drinker's hands at <paramref name="now"/>: <paramref name="glass"/> the drink in them (its body's id, or -1),
+    /// and the one they held last time drunk if it's gone from <paramref name="bodies"/> (not put down).
+    /// </summary>
+    public void Watch(int glass, IReadOnlyList<Body> bodies, double now, TipsyTuning t)
     {
-        if (world.Bodies.CarriedBy(me) is { Kind: BodyKind.Drink } glass)
+        if (glass >= 0)
         {
-            _held = glass.Id;
+            _held = glass;
             return;
         }
-        if (_held >= 0 && !world.Bodies.All.Any(b => b.Id == _held))
+        if (_held >= 0 && !Present(bodies, _held))
             Drank(now, t);
         _held = -1;
+    }
+
+    static bool Present(IReadOnlyList<Body> bodies, int id)
+    {
+        for (int i = 0; i < bodies.Count; i++)
+            if (bodies[i].Id == id)
+                return true;
+        return false;
     }
 
     /// <summary>A drink had at <paramref name="now"/>: one more counted (to <c>mostDrinks</c>), and longer to go.</summary>
@@ -54,6 +69,27 @@ public sealed class Tipsy
         Drinks(now) is var n and > 0 ? (float)Math.Clamp(Strength(now, t) * (t.Blur + t.BlurEach * (n - 1)), 0, 1) : 0;
 
     /// <summary>
+    /// How far their head lolls now as the rest of the crew see it (note 974; radians at most, 0 sober): <c>lollDegrees</c>,
+    /// <c>lollEach</c> more a drink after the first, easing off with the drinks.
+    /// </summary>
+    public double Loll(double now, TipsyTuning t) =>
+        Drinks(now) is var n and > 0 ? Strength(now, t) * (t.LollDegrees + t.LollEach * (n - 1)) * Math.PI / 180 : 0;
+
+    /// <summary>
+    /// A drinker's head as the crew see it, <paramref name="loll"/> (<see cref="Loll"/>) at <paramref name="at"/> (s, their own
+    /// clock): rolled over to one side and the other over <c>lollPeriod</c>, a slower drift under it, and dropped forward
+    /// (radians) the more it's over.
+    /// </summary>
+    public static (float Roll, float Nod) LollPose(double loll, double at, TipsyTuning t)
+    {
+        if (loll <= 0)
+            return (0, 0);
+        double w = 2 * Math.PI / Math.Max(0.5, t.LollPeriod);
+        double roll = loll * (0.8 * Math.Sin(w * at) + 0.2 * Math.Sin(w * 0.41 * at + 2.1));
+        return ((float)roll, (float)(loll * t.LollNod * (0.6 + 0.4 * Math.Abs(Math.Sin(w * at)))));
+    }
+
+    /// <summary>
     /// The view's lean now (radians, the camera's roll): the horizon swaying one way and the other over <c>leanPeriod</c>,
     /// with a slower drift under it so it never quite repeats.
     /// </summary>
@@ -65,4 +101,38 @@ public sealed class Tipsy
         double w = 2 * Math.PI / Math.Max(0.5, t.LeanPeriod);
         return Strength(now, t) * most * (0.75 * Math.Sin(w * now) + 0.25 * Math.Sin(w * 0.37 * now + 1.3));
     }
+}
+
+/// <summary>
+/// The crew's drinks as everyone else sees them (upgrades.md §8.5: "the crew see the drinker's head loll"; note 974): a
+/// <see cref="Tipsy"/> a crewmate, each watching their own hands in the bodies this machine has. Presentation only.
+/// </summary>
+public sealed class Drinkers
+{
+    readonly Dictionary<int, Tipsy> _by = new();
+
+    /// <summary>Watches each of <paramref name="crew"/>'s hands at <paramref name="now"/> (the scene's clock, s).</summary>
+    public void Observe(IReadOnlyList<Body> bodies, IEnumerable<int> crew, double now, TipsyTuning t)
+    {
+        foreach (int id in crew)
+        {
+            int glass = -1;
+            for (int i = 0; i < bodies.Count; i++)
+                if (bodies[i].Carrier == id && bodies[i].Kind == BodyKind.Drink)
+                {
+                    glass = bodies[i].Id;
+                    break;
+                }
+            if (!_by.TryGetValue(id, out var tipsy))
+            {
+                if (glass < 0)
+                    continue;
+                _by[id] = tipsy = new Tipsy();
+            }
+            tipsy.Watch(glass, bodies, now, t);
+        }
+    }
+
+    /// <summary>How far <paramref name="id"/>'s head lolls at <paramref name="now"/> (<see cref="Tipsy.Loll"/>).</summary>
+    public double Loll(int id, double now, TipsyTuning t) => _by.TryGetValue(id, out var tipsy) ? tipsy.Loll(now, t) : 0;
 }

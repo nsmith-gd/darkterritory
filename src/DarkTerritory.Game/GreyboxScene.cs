@@ -1054,10 +1054,15 @@ public sealed partial class GreyboxScene
         Extinguishing(mesh, frames, eye);
         FireGrids(mesh, frames, eye);
         HoundsOverhead(mesh, frames, eye);
+        // The bar's drinks on the drinkers (note 974): who's had one, by their hands, for their heads' loll.
+        if (Crew is not null && Bodies is not null && Look?.Tuning.Tipsy is { } tipsy)
+            _drinkers.Observe(Bodies, Crew.Select(c => (int)c.Id), Time, tipsy);
         if (Crew is not null)
             foreach (var held in Crew)
             {
                 var c = Hung(held, eye);
+                if (c.Loll == 0 && Look?.Tuning.Tipsy is { } lolls)
+                    c = c with { Loll = _drinkers.Loll(c.Id, Time, lolls) };
                 if (c.Alive && Look?.Art.Crewmate(mesh, c, eye, Time, Swung(c.Id)) != true) // the dead are drawn as their bodies
                     // A headset crewmate's body leans, crouches and turns under the head on the box figure too (note 223);
                     // without the clips there's no gait to give way to, so only an act does.
@@ -2634,6 +2639,7 @@ public sealed partial class GreyboxScene
 
     // The bearing each woken Gaunt was last drawn on round its waker, and when (note 823).
     readonly Dictionary<int, (double Bearing, double Time)> _stoodBack = new();
+    readonly Drinkers _drinkers = new();
 
     /// <summary>
     /// Where a woken Gaunt is drawn when it's out in the open after its waker (<paramref name="waker"/>'s feet), following,
