@@ -484,3 +484,8 @@ The director asked for the last three friendslop features to be heard. Two were 
 
 - The claim merged ([#1595](https://github.com/nsmith-gd/darkterritory/pull/1595)). `up-dining` (note 983): `recipes/dining.py` (the counter's bell and a pour, a glass's sip, glasses clinked; real and modelled), installed, hooked in `GameAudio.Bbq` (the pour off the car's drinks left at the counter's top, the Drink body's sip and clink in place of the can and cheers), captioned, a test. The checklist row at L1, in review.
 - Up as [#1597](https://github.com/nsmith-gd/darkterritory/pull/1597); row #683 done in it, merging on green. Next: the bench in the big cab heard (note 905).
+
+## 22 Oct, ~01:25 UTC: #683 merged; #684, the cab's benches heard
+
+- [#1597](https://github.com/nsmith-gd/darkterritory/pull/1597) green on Linux and Windows (package, crossplay) and merged (#683, the dining car's bar).
+- Claimed queue #684, note 984 (Tess's note 905 left the big cab's benches silent for AU1): a seat on a bench taken or left heard, the plank on its brackets.
