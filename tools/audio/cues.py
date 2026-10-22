@@ -1143,6 +1143,7 @@ CUES = {
         L("sway", "Lying in the hammock as the van rocks it: the ropes' slow creak at each end of the swing"),
         O("tub-in", "Getting into or out of the hot tub: hot water heaving and slopping over the rim, a contented 'ahh'", vars=3),
         L("tub", "The hot tub on the engine's hood: hot water bubbling where the steam comes in, lapping at the staves"),
+        O("bench", "Sitting down on one of the big cab's thin side benches or getting up: the plank on its iron brackets, the back on the rail", vars=3),
     ],
     # Burned at a fire's edge (C1's note 821, the director's 14 Oct playtest line 25; queue #561, note 833): held on whoever
     # the fire's heat reaches, from its first tick, louder the hotter, as the HUD's heat glow.

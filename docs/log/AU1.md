@@ -489,3 +489,7 @@ The director asked for the last three friendslop features to be heard. Two were 
 
 - [#1597](https://github.com/nsmith-gd/darkterritory/pull/1597) green on Linux and Windows (package, crossplay) and merged (#683, the dining car's bar).
 - Claimed queue #684, note 984 (Tess's note 905 left the big cab's benches silent for AU1): a seat on a bench taken or left heard, the plank on its brackets.
+
+## 22 Oct, ~01:35 UTC: #684 ready
+
+- `up-lounge.bench` (note 984): `recipes/cab_bench.py` (the plank on its brackets, a bolt's tick, the back on the rail; real and modelled), clear of every tell, on the checklist, installed, hooked in `GameAudio.Lounge` (the bench seat sat on and got up from), a test. The claim merged ([#1601](https://github.com/nsmith-gd/darkterritory/pull/1601)); up as [#1602](https://github.com/nsmith-gd/darkterritory/pull/1602), row #684 done in it, merging on green.
