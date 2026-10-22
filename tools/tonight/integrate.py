@@ -204,6 +204,11 @@ def plan(base_sha, head_sha, merged, left, run_url=None, now=None, dry=False):
     t.append(f"{what}: `tonight` at `{head_sha[:8]}`." if not dry else f"{what} (a dry run: nothing merged).")
     t.append(f"Built {now:%Y-%m-%d %H:%M} UTC" + (f" ([the run]({run_url}); the build is its artifact)." if run_url else "."))
     t.append("It's a developer build (note 514). To build it yourself: `git fetch origin tonight && git checkout FETCH_HEAD`.")
+    # Note 985 (the director, 21 Oct: "Might try a multiplayer build tomorrow"): how to play it together, in every build's plan.
+    together = os.path.join(HERE, "playing-together.md")
+    if os.path.exists(together):
+        with open(together, encoding="utf-8") as f:
+            t += [""] + f.read().rstrip().split("\n")
     t += ["", "## Merged", ""]
     if not merged:
         t += ["Nothing: tonight's build is main.", ""]
@@ -322,6 +327,8 @@ def offline_test():
     md = plan("a" * 40, "b" * 40, chosen, left, "https://example.invalid/run/1",
               now=datetime(2026, 10, 10, 9, 37, tzinfo=timezone.utc))
     expect(md.startswith("# Tonight's build\n") and "## Left out" in md and "\U0001F916" not in md, "the plan's shape, no footers in it")
+    expect("## Playing together tonight" in md and "UDP port 27450" in md and md.index("## Playing together") < md.index("## Merged"),
+           "the plan says how to play together, before what's merged (note 985)")
     for n in want["chosen"]:
         expect(f"### #{n}: " in md, f"the plan names #{n}")
     offline_merge(expect)
