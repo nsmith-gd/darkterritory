@@ -1144,4 +1144,5 @@ written here instead is moved out by `tools/coord/notes.py split`; the Coordinat
 - [984. The big cab's benches heard sat on and got up from (AU1, queue #684; Tess's note 905)](notes/984.md)
 - [985. Playing together tonight: the dev build's ways in, proved with two real copies of the game (n1-N1, nathaniel1; queue #685; the director, 21…](notes/985.md)
 - [987. A bot's answer to a ping spoken (AU1, queue #687; Finn's note 936)](notes/987.md)
+- [988. Rowan's note 858 audio tidy-ups: the shiver cut, the Switchman's and the forward cannon's leftovers, a row's name (AU1, queue #688)](notes/988.md)
 <!-- end of the notes index -->

@@ -503,3 +503,8 @@ The director asked for the last three friendslop features to be heard. Two were 
 
 - The claim merged ([#1606](https://github.com/nsmith-gd/darkterritory/pull/1606)). `voice-bot` (note 987): `recipes/bot_voice.py` (each of the bots' answers said in four LibriTTS voices, through the radio or plain; on the checklist), installed with the TTS credit, `GameAudio.Pings` says a bot's answer over the radio as it takes a ping, in the voice its id picks, once. `PingVoiceTests`.
 - Up as [#1608](https://github.com/nsmith-gd/darkterritory/pull/1608); row #687 done in it, merging on green.
+
+## 22 Oct, ~03:40 UTC: #687 merged; #688, note 858's tidy-ups
+
+- [#1608](https://github.com/nsmith-gd/darkterritory/pull/1608) green on Linux and Windows (package, crossplay) and merged (#687, a bot's answer spoken).
+- Claimed queue #688, note 988: Rowan's note 858 items 2, 3 and 14 (the cut shiver, the Switchman's and the forward cannon's leftovers, note 829's row name).
