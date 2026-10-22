@@ -209,6 +209,16 @@ public sealed record CarHuggerLowGround
     /// <summary>Along a low stretch, the first level point is looked for every this many metres.</summary>
     public double Step { get; init; } = 50;
     /// <summary>
+    /// Note 981 (note 970 found the cost is the marsh stretches': ~10 Huggers in 10 four-crew nights against ~1): the share
+    /// of a line's low stretches that are its ground, each kept or not by the line's seed and where it starts (never the
+    /// director's dice, so the nights don't fork on it). 1: every stretch, as before.
+    /// </summary>
+    public double StretchChance { get; init; } = 1;
+
+    /// <summary>Whether the low stretch starting at <paramref name="s0"/> on the line seeded <paramref name="seed"/> is ground.</summary>
+    public bool Keeps(string seed, double s0) =>
+        StretchChance >= 1 || (LineGen.Streams.Mix(LineGen.Streams.Hash(seed), "carHugger.stretch", "", (long)Math.Round(s0)) >> 11) * (1.0 / (1UL << 53)) < StretchChance;
+    /// <summary>
     /// Note 970 (the director, 21 Oct 2026: "We need more situations the Hugger can pop up, not just marshes"): the line plan's
     /// director tags on the main line that are spots too (low ground, water crossings, cuttings, the woods' edge, a blind
     /// curve's exit), searched like the low biomes. Empty: none.

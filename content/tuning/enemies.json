@@ -250,9 +250,14 @@
     // switch: tags, the line plan's director tags on the main line that are spots too (a cutting's wet floor, a culvert's
     // water crossing, low ground, the woods' edge, a blind curve's exit), searched like the biomes; stood, the far side of a
     // train stood under `below` m/s, at its rear car, with no living crewmate within unseenM of it.
-    "lowGround": { "on": false, "biomes": ["marsh", "dykeland", "contaminatedMarsh"], "lurkAheadMax": 1500, "step": 50,
+    // On (the director, 21 Oct 2026: "on", in more places than marshes; measured at 30 seeds with stretchChance 0.3 and one a
+    // night, note 981: 4.7 Huggers in 10 four-crew nights, deaths .9 -> 1.07, delivered .9 kept).
+    "lowGround": { "on": true, "biomes": ["marsh", "dykeland", "contaminatedMarsh"], "lurkAheadMax": 1500, "step": 50,
       "tags": ["low_ground", "water_crossing", "cutting", "dark_forest", "blind_curve_exit"],
-      "stood": { "on": true, "below": 0.5, "unseenM": 20 } }
+      "stood": { "on": true, "below": 0.5, "unseenM": 20 },
+      // Note 981: the share of the low (biome) stretches kept as its ground, each by the line's seed and where it starts
+      // (not the director's dice). 1: all, as before.
+      "stretchChance": 0.3 }
   },
 
   // WHISTLER · absence · flank (App. A.4, B.4). Boards at a stop; whistleAfterStop s into the next stop it blows the
@@ -1380,7 +1385,7 @@
     // names in "costs"; a kind not named has no cap and is always about. Note 635, the director, the inbox, 12 Oct 2026, of
     // the Knotter: "They should show up once or twice a run. Sometimes never. We need more monster variety." Every kind's
     // chance is the director's roster on the Creature Tweaker (note 652, 13 Oct).
-    "perNight": { "knotter": 2 },
+    "perNight": { "knotter": 2, "carHugger": 1 },
     // The most of any kind perNight doesn't name (note 654): null, no cap. For the director's D1-roster-piles-up: with few
     // kinds about on a night (nightChance), those about come again and again (note 652); this holds each to a few.
     "perNightDefault": null,

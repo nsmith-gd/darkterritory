@@ -1138,6 +1138,7 @@ written here instead is moved out by `tools/coord/notes.py split`; the Coordinat
 - [978. Speaking tubes between neighbouring cars (T2, queue #678; #410's leftover, upgrades.md §6: "Voice carries between neighbouring cars as in…](notes/978.md)
 - [979. A note out along the line is left only at a leaving that's there (queue #679, B1; found under note 965's notes at the line's leavings, 21…](notes/979.md)
 - [980. A pin working loose heard the length of the train: `state-coupling-loose.warn` (AU1, queue #680; note 865's ask)](notes/980.md)
+- [981. The Car Hugger's marsh stretches thinned (n1-B3, nathaniel1; queue #681; note 970's follow-up, for the director's ask…](notes/981.md)
 - [982. The clerk's word bank with the catalogue's words, for the silly upgrades' tally (AU1, queue #682; Hazel's note 972)](notes/982.md)
 - [983. The dining car's bar heard: a drink poured at the counter and its bell, a glass of its own (AU1, queue #683; Hazel's note 959)](notes/983.md)
 <!-- end of the notes index -->

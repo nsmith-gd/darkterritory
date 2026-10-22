@@ -26,11 +26,14 @@ public class EligibilityTrialTests
         Assert.False(et.Climbers.FreeNeedsSpeed);
         // The director's answer to it is on: the lower third of the line speed (note 970).
         Assert.True(et.Climbers.FreeSpeed.On);
-        Assert.False(et.CarHugger.LowGround.On);
+        // On, the director's "on" at the measured setting (note 981): CarHuggerPlacesTests.TheShippingHuggerIsOnAtTheMeasuredSetting.
+        Assert.True(et.CarHugger.LowGround.On);
         // Off, the numbers are spec B.13's and note 328's.
         Assert.Equal((18.0, 12.0), (et.Gannet.Arrive, et.Gannet.Stall));
         Assert.Equal(et.Director.Run.FromSpeed, et.Director.Run.FromSpeedOn(RouteTier.Frontier));
-        Assert.Equal(et.CarHugger.LurkAheadMax, et.CarHugger.LurkAheadFar);
+        // The Hugger's reach off is its own lurkAheadMax; on (as shipped, note 981), the low ground's.
+        Assert.Equal(et.CarHugger.LurkAheadMax, (et.CarHugger with { LowGround = et.CarHugger.LowGround with { On = false } }).LurkAheadFar);
+        Assert.Equal(et.CarHugger.LowGround.LurkAheadMax, et.CarHugger.LurkAheadFar);
     }
 
     [Fact]
@@ -93,7 +96,9 @@ public class EligibilityTrialTests
     {
         var et = Tuning.Enemies;
         // The spots ahead (note 970's stood train's rear is CarHuggerPlacesTests'; these trains stand, so it's left out).
-        var on = et.CarHugger with { LowGround = et.CarHugger.LowGround with { On = true, Stood = new() } };
+        // Every low stretch (stretchChance 1: the dial is CarHuggerPlacesTests'), against it off (the shipping game has it on).
+        var on = et.CarHugger with { LowGround = et.CarHugger.LowGround with { On = true, Stood = new(), StretchChance = 1 } };
+        var off = et.CarHugger with { LowGround = et.CarHugger.LowGround with { On = false } };
         // A line with a low stretch on its main line.
         var route = Enumerable.Range(1, 12).Select(s => Routes.Generate(Content, $"deadLines:{s}", 4))
             .First(r => r.Plan?.Biomes.Any(b => b.Edge == "main" && on.LowGround.Biomes.Contains(b.Biome)) == true);
@@ -103,7 +108,7 @@ public class EligibilityTrialTests
         {
             var world = new World(new TrainOnLine(new TrainDynamics(Consist.Uniform(Tuning.Train, 4, 1)), line, at), Tuning.Combat);
             world.EnableEnemies(et, route, 1, 2, authority: true);
-            var was = CarHugger.Spot(world, et.CarHugger);
+            var was = CarHugger.Spot(world, off);
             var now = CarHugger.Spot(world, on);
             offSpots += was is null ? 0 : 1;
             onSpots += now is null ? 0 : 1;
