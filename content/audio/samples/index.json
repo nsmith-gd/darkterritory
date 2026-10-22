@@ -20078,6 +20078,126 @@
   "takes": 2,
   "sha": "42836cf8272d67c1"
  },
+ "voice-bot/cargo": {
+  "cue": "voice-bot.cargo",
+  "surface": null,
+  "picked": "first",
+  "candidates": [
+   {
+    "label": "A bot's answer over the radio: \"Loading her up.\"",
+    "key": "radio",
+    "sources": [],
+    "licence": "CC BY 4.0: LibriTTS, Zen et al. 2019"
+   }
+  ],
+  "takes": 4,
+  "sha": "1d9733ea477267ee"
+ },
+ "voice-bot/controls": {
+  "cue": "voice-bot.controls",
+  "surface": null,
+  "picked": "first",
+  "candidates": [
+   {
+    "label": "A bot's answer over the radio: \"I've got the controls.\"",
+    "key": "radio",
+    "sources": [],
+    "licence": "CC BY 4.0: LibriTTS, Zen et al. 2019"
+   }
+  ],
+  "takes": 4,
+  "sha": "991a06cc6aab8ce5"
+ },
+ "voice-bot/crane": {
+  "cue": "voice-bot.crane",
+  "surface": null,
+  "picked": "first",
+  "candidates": [
+   {
+    "label": "A bot's answer over the radio: \"On the crane.\"",
+    "key": "radio",
+    "sources": [],
+    "licence": "CC BY 4.0: LibriTTS, Zen et al. 2019"
+   }
+  ],
+  "takes": 4,
+  "sha": "7218348aca8148ef"
+ },
+ "voice-bot/fire": {
+  "cue": "voice-bot.fire",
+  "surface": null,
+  "picked": "first",
+  "candidates": [
+   {
+    "label": "A bot's answer over the radio: \"On the fire!\"",
+    "key": "radio",
+    "sources": [],
+    "licence": "CC BY 4.0: LibriTTS, Zen et al. 2019"
+   }
+  ],
+  "takes": 4,
+  "sha": "15e1ae95c4f43f12"
+ },
+ "voice-bot/loot": {
+  "cue": "voice-bot.loot",
+  "surface": null,
+  "picked": "first",
+  "candidates": [
+   {
+    "label": "A bot's answer over the radio: \"I'll fetch it.\"",
+    "key": "radio",
+    "sources": [],
+    "licence": "CC BY 4.0: LibriTTS, Zen et al. 2019"
+   }
+  ],
+  "takes": 4,
+  "sha": "8463bf656d29550a"
+ },
+ "voice-bot/points": {
+  "cue": "voice-bot.points",
+  "surface": null,
+  "picked": "first",
+  "candidates": [
+   {
+    "label": "A bot's answer over the radio: \"Throwing the points.\"",
+    "key": "radio",
+    "sources": [],
+    "licence": "CC BY 4.0: LibriTTS, Zen et al. 2019"
+   }
+  ],
+  "takes": 4,
+  "sha": "9b77a5b495a76138"
+ },
+ "voice-bot/spur": {
+  "cue": "voice-bot.spur",
+  "surface": null,
+  "picked": "first",
+  "candidates": [
+   {
+    "label": "A bot's answer over the radio: \"The spur? On it.\"",
+    "key": "radio",
+    "sources": [],
+    "licence": "CC BY 4.0: LibriTTS, Zen et al. 2019"
+   }
+  ],
+  "takes": 4,
+  "sha": "f34db9764c7d7127"
+ },
+ "voice-bot/town": {
+  "cue": "voice-bot.town",
+  "surface": null,
+  "picked": "first",
+  "candidates": [
+   {
+    "label": "A bot's answer over the radio: \"Sure, I'll go search it.\"",
+    "key": "radio",
+    "sources": [],
+    "licence": "CC BY 4.0: LibriTTS, Zen et al. 2019"
+   }
+  ],
+  "takes": 4,
+  "sha": "5d74fc133bde62cc"
+ },
  "voice-callout/bang": {
   "cue": "voice-callout.bang",
   "surface": null,

@@ -664,6 +664,18 @@ CUES = {
     "voice-callout": [
         O("bang", "Banging on the walls of a Holdout from inside", vars=4, cand={"_": [old("audio/voice-callout--banging.mp3")]}),
     ],
+    # A bot's answer to a ping spoken (queue #687, note 987; Finn's note 936): the crewmate bot who takes a ping says so over
+    # the radio, each answer a cue (Pings.Answer's), its takes the bots' voices in order (a bot keeps its voice: GameAudio.Pings).
+    "voice-bot": [
+        O("fire", "A bot taking a fire pinged: \"On the fire!\" over the radio, in its own voice", vars=4),
+        O("controls", "A bot taking the controls pinged: \"I've got the controls.\"", vars=4),
+        O("loot", "A bot taking loot pinged: \"I'll fetch it.\"", vars=4),
+        O("crane", "A bot taking the crane pinged: \"On the crane.\"", vars=4),
+        O("town", "A bot taking a town's house pinged: \"Sure, I'll go search it.\"", vars=4),
+        O("spur", "A bot taking a spur's points pinged: \"The spur? On it.\"", vars=4),
+        O("points", "A bot taking the points pinged: \"Throwing the points.\"", vars=4),
+        O("cargo", "A bot taking the cargo pinged: \"Loading her up.\"", vars=4),
+    ],
 
     # ---- Creature sounds ------------------------------------------------------------------------------------------------
     "cs-track-doll": [
