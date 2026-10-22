@@ -492,4 +492,4 @@ The director asked for the last three friendslop features to be heard. Two were 
 
 ## 22 Oct, ~01:35 UTC: #684 ready
 
-- `up-lounge.bench` (note 984): `recipes/cab_bench.py` (the plank on its brackets, a bolt's tick, the back on the rail; real and modelled), clear of every tell, on the checklist, installed, hooked in `GameAudio.Lounge` (the bench seat sat on and got up from), a test. Goes up when the claim (#1601) has merged.
+- `up-lounge.bench` (note 984): `recipes/cab_bench.py` (the plank on its brackets, a bolt's tick, the back on the rail; real and modelled), clear of every tell, on the checklist, installed, hooked in `GameAudio.Lounge` (the bench seat sat on and got up from), a test. The claim merged ([#1601](https://github.com/nsmith-gd/darkterritory/pull/1601)); up as [#1602](https://github.com/nsmith-gd/darkterritory/pull/1602), row #684 done in it, merging on green.
