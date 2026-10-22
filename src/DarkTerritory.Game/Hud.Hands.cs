@@ -286,6 +286,10 @@ public static partial class Hud
             // Note 267: the brake and the vent, one key each, held.
             if (train.BoilerTuning is not null)
                 lines.Add("VENT : HOLD [VENT]");
+            // Note 977 (the director, 14 Oct playtest line 9: a brake thrown looking down the side, to spot a car): at the cab's
+            // doorway the lean is offered, and the brake still works leant out; only a step stands you back up.
+            if (EmoteRules.LeanAt(p, train, world.EmoteTuning) is not null && !world.Emotes.Any(e => e.By == s.PlayerId && e.Kind == Emote.LeanOut))
+                lines.Add("LEAN OUT : HOLD [J]");
             lines.Add(world.LampOutSeconds > 0 ? "LAMP SMASHED" : $"LAMP {(world.LampLit ? "OFF" : "ON")} : [L]");
             // The speed stays a figure (the director, 7 Oct: "keep speed numbers"): it's read against the boards.
             string speed = $"{Math.Abs(train.Dynamics.Speed) * 3.6:0} KM/H";
