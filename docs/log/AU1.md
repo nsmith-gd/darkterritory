@@ -493,3 +493,8 @@ The director asked for the last three friendslop features to be heard. Two were 
 ## 22 Oct, ~01:35 UTC: #684 ready
 
 - `up-lounge.bench` (note 984): `recipes/cab_bench.py` (the plank on its brackets, a bolt's tick, the back on the rail; real and modelled), clear of every tell, on the checklist, installed, hooked in `GameAudio.Lounge` (the bench seat sat on and got up from), a test. The claim merged ([#1601](https://github.com/nsmith-gd/darkterritory/pull/1601)); up as [#1602](https://github.com/nsmith-gd/darkterritory/pull/1602), row #684 done in it, merging on green.
+
+## 22 Oct, ~02:25 UTC: #684 merged; #687, a bot's answer spoken
+
+- [#1602](https://github.com/nsmith-gd/darkterritory/pull/1602) green on Linux and Windows (package, crossplay) and merged (#684, the cab's benches), after main merged in once more (the union merge's stale copy of row #684 dropped).
+- Claimed queue #687, note 987 (Finn's note 936 left a bot's spoken answer to a ping to AU1): the bot who takes a ping says it, in a voice of its own.
