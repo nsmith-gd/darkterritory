@@ -256,6 +256,32 @@ public class EmotesForTwoTests
     }
 
     [Fact]
+    public void LeantOutOfTheCabsDoorwayTheDriverStillBrakesAndStaysLeant()
+    {
+        // Note 977 (the director, 14 Oct playtest line 9: "another brake I could throw at the sides of the train so that I
+        // could actually look at the side and see my position and then throw the brake when I feel like I'm sort of lined up
+        // with a car"): leant out of the cab's doorway, looking back along the train at the car under the chute, the brake
+        // key brakes, and holding it doesn't stand you up (only a move or a jump does).
+        var n = Night(speed: 2);
+        var engine = n.Train.Frames[0].Shape;
+        var cab = engine.Cab!.Value;
+        var steps = engine.Ladders.First(l => l.Foot.X > 0);
+        n.Players[1] = PlayerMotor.StandUp(n.Train, 0, new Double3(cab.Max.X - 0.35, cab.Min.Y + 0.1, steps.Foot.Z), n.Train.Cars[0].FrontDistance, P) with { Yaw = -1.2 };
+        n.Run(0.1, Pick(1, Emote.LeanOut));
+        Assert.Equal(Emote.LeanOut, n.Of(1)?.Kind);
+        var brake = new PlayerIntent { Buttons = PlayerButtons.Brake };
+        Assert.False(EmoteRules.StandsUp(Emote.LeanOut, n.Players[1], brake, n.Train, E));
+        n.Run(1.0, (id, _) => id == 1 ? brake : default);
+        Assert.Equal(Emote.LeanOut, n.Of(1)?.Kind);
+        Assert.True(CabControls.CanDrive(n.Players[1], n.Train));
+        var controls = new TrainControls { Reverser = 1 };
+        CabControls.Apply(ref controls, brake, n.Players[1], n.Train);
+        Assert.Equal(1, controls.Brake);
+        // A step back in stands them up, as any move does.
+        Assert.True(EmoteRules.StandsUp(Emote.LeanOut, n.Players[1], new PlayerIntent { MoveZ = 1 }, n.Train, E));
+    }
+
+    [Fact]
     public void ALiftTakesASitterOffTheEdgeAndTheCarriedCantEmote()
     {
         var n = Night();
