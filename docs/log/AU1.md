@@ -508,3 +508,7 @@ The director asked for the last three friendslop features to be heard. Two were 
 
 - [#1608](https://github.com/nsmith-gd/darkterritory/pull/1608) green on Linux and Windows (package, crossplay) and merged (#687, a bot's answer spoken).
 - Claimed queue #688, note 988: Rowan's note 858 items 2, 3 and 14 (the cut shiver, the Switchman's and the forward cannon's leftovers, note 829's row name).
+
+## 22 Oct, ~04:00 UTC: #688 ready
+
+- Note 988: `crew-cold`'s need reworded and its shiver marked cut (its own need); the Switchman's previews out of `assets.json`, his and the forward cannon's lines out of the Voice Booth (page and script); the forward cannon's three phrases out of `clerk.py` and the clerk's bank (and `ClerkVoiceTests`' list of blames); note 829 names `tell-soot-children`. Goes up when the claim (#1613) has merged.

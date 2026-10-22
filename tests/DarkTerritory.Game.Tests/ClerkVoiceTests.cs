@@ -181,8 +181,8 @@ public class ClerkVoiceTests
         ];
         string[] blames =
         [
-            "Throttle: {actor}.", "Nobody on the throttle.", "Forward cannon crewed by {actor}.", "Forward cannon not crewed.",
-            "No forward cannon on the consist.", "Firebox last tended: {actor}, unattended 40 s.", "Nobody had tended the firebox.",
+            // (Not the forward cannon's three: no card says them any more, and the bank let them go, note 988.)
+            "Throttle: {actor}.", "Nobody on the throttle.", "Firebox last tended: {actor}, unattended 40 s.", "Nobody had tended the firebox.",
         ];
         foreach (string cause in causes)
             foreach (string blame in blames)
