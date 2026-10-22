@@ -475,3 +475,7 @@ The director asked for the last three friendslop features to be heard. Two were 
 ## 22 Oct, ~00:20 UTC: #680 and #682 merged
 
 - [#1584](https://github.com/nsmith-gd/darkterritory/pull/1584) merged (#680, the pin's warn). [#1592](https://github.com/nsmith-gd/darkterritory/pull/1592) green on Linux and Windows; row #682 done in it and merged (#682, the clerk's words). Next: the dining car's bar heard (note 959: a pour and the counter's bell, a glass of its own).
+
+## 22 Oct, ~00:25 UTC: #683, the dining car's bar heard
+
+- Claimed queue #683, note 983 (Hazel's handoff in note 959: "AU1's glass and the bar's bell"): a drink poured at the counter with its bell, and drunk from a glass, not the beer's can.
