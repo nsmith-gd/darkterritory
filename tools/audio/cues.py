@@ -494,6 +494,10 @@ CUES = {
         L("lake", "A lake lapping at its stony shore"),
         L("surf", "The sea's surf breaking on the shore, the shingle dragged back"),
         L("tide", "Fundy's tide far out over the mud, the flats seeping and trickling"),
+        # Queue #690 (note 990; the checklist's "Not yet: marshes and dykes"): a bog's water by its causeway, and the salt
+        # marsh past a dykeland's dyke. Never the Marsh's tell (reeds rustling, surging).
+        L("marsh", "A bog's still water either side of the causeway: marsh gas blupping up through the peat, the moss seeping"),
+        L("saltmarsh", "The salt marsh past a dyke: the tide running in its creeks, a drain gurgling at the sluice, the bay far out"),
     ],
     "world-bridges": [
         L("iron-drum", "Wheels drumming on an iron bridge"),

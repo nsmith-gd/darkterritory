@@ -675,9 +675,11 @@ public class WorldSoundTests
     [InlineData("frontier:271", "world-water.tide", "fundy")]
     [InlineData("local:15", "world-water.river", "tidal")]
     [InlineData("frontier:7", "world-water.lake", "lake")]
+    [InlineData("local:40", "world-water.saltmarsh", "dyke")]
+    [InlineData("frontier:2", "world-water.marsh", "marsh")]
     public void TheLinesWaterIsHeardWhereItsWaterIs(string id, string cue, string kind)
     {
-        // Note 429: each kind of the plan's water, by an ear beside it, held on its water (the terrain has water there, of
+        // Note 429 (and note 990's bog and salt marsh): each kind of the plan's water, by an ear beside it, held on its water (the terrain has water there, of
         // that kind); and nothing of it a kilometre up.
         var route = Sim.LineGen.Routes.Generate(Content, id, 4);
         double gate = route.GateOr(RouteTuning.Load(Content).YardLength);
@@ -698,10 +700,11 @@ public class WorldSoundTests
             double x = lake.X + r + 15;
             ear = new Double3(x, terrain.Height(x, lake.Z) + 1.6, lake.Z);
         }
-        else if (kind == "tidal")
+        else if (kind is "tidal" or "marsh")
         {
-            var river = plan.Water.First(w => w.Type == "tidal");
-            ear = OnLine((river.S0 + river.S1) / 2);
+            // On the span, or on the causeway across the bog (note 990).
+            var water = plan.Water.First(w => w.Edge == "main" && w.Type == kind);
+            ear = OnLine((water.S0 + water.S1) / 2);
         }
         else
         {
