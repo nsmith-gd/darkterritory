@@ -650,7 +650,9 @@ public static partial class TownGenerator
             Moles = form?.Moles ?? [],
             Quarrels = Quarrels(t.Quarrels, townsfolk, Rng("quarrels")),
         };
-        return Remember(plan, site.Burnt, w, Rng("remember"));
+        plan = Remember(plan, site.Burnt, w, Rng("remember"));
+        // What stands between the houses (note 989), last, on a stream of its own: nothing else in the town moves for it.
+        return plan with { Between = TownBetween.Lay(plan, t.Between, Rng("between")) };
     }
 
     /// <summary>

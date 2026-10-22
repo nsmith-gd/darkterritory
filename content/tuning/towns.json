@@ -128,6 +128,32 @@
   "reach": { "talk": 2.6, "read": 2.0, "lookDegrees": 28, "closeBeyond": 4.0 },
   // A line types out at this many characters a second (the radio card's pace), and stays this long once it's out.
   "typePerSecond": 45,
+  // What stands between the houses (GDD §3.1's "fish sheds, fences, granite and lobster traps between the houses"; note 989;
+  // the director's references of 7 Oct: Peggy's Cove's houses on the granite above the fish sheds, Blue Rocks' shingled
+  // shacks). perHouse pieces a house and perHectare a hectare inside the wall over the town's free ground (at most "most";
+  // a shed or traps within "near" m of a house, granite anywhere), drawn by mix: fish sheds (a door ajar one
+  // in "open", floats hung on one in "hung"; a stack of traps by the door shedTraps of them), stacks of lobster traps, and
+  // granite (a rock or two more beside one "rocks" of the time); byForm a town type's own ("" the street town). A fence
+  // down the gap between "fences" of the neighbouring lots on a street where they're fenceGap m apart or more, fenceRun m
+  // long (shortened till it's clear), "broken" of them gone over. Each keeps clear, in m: line of the line, street of a
+  // street, lane or way, front of a house's front (its door's approach), things of the yard things and each other, places
+  // of the square's, green's, works' and yard's ground and their fixtures and buildings, wall of the wall, people of
+  // anyone's post; step, the free ground's grid.
+  "between": { "enabled": true, "perHouse": 0.8, "perHectare": 3, "most": 180, "near": 30,
+    "mix": { "fishShed": 3, "traps": 3, "granite": 4 },
+    "byForm": {
+      "harbour": { "perHouse": 0.6, "mix": { "fishShed": 5, "traps": 5, "granite": 3 } },
+      "tidewater": { "mix": { "fishShed": 4, "traps": 4, "granite": 3 } },
+      "salt": { "mix": { "fishShed": 4, "traps": 4, "granite": 2 } },
+      "quarry": { "perHouse": 0.6, "mix": { "fishShed": 1, "traps": 1, "granite": 8 } },
+      "crag": { "mix": { "fishShed": 1, "traps": 1, "granite": 6 } },
+      "glasshouse": { "perHouse": 0.35, "mix": { "fishShed": 2, "traps": 1, "granite": 3 } },
+      "furnace": { "perHouse": 0.35, "mix": { "fishShed": 1, "traps": 1, "granite": 4 } }
+    },
+    "shedTraps": 0.6, "rocks": 0.5, "open": 0.35, "hung": 0.5,
+    "fences": 0.5, "fenceGap": 0.4, "fenceRun": [4, 12], "broken": 0.3,
+    "step": 4.5, "line": 12, "street": 1.5, "front": 6, "things": 1.0, "places": 3, "wall": 4, "people": 2 },
+
   // Households that argue (note 971; docs/design/townsfolk.md, "Not yet": "a lapsed lodger in a zealous house could say so"):
   // a house whose two most at odds on one of lines' traits are gap or more apart (traits run -1..1) has that trait's quarrel,
   // overheard within hear m of its front for lasts s of every every s, a line each lineSeconds. Its lines go back and forth,

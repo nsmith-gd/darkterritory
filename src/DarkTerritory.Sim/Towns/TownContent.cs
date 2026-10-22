@@ -45,6 +45,8 @@ public sealed record TownTuning
     public double TypePerSecond { get; init; } = 45;
     /// <summary>Note 971: households that argue where the crew can overhear them (towns.json <c>quarrels</c>).</summary>
     public QuarrelTuning Quarrels { get; init; } = new();
+    /// <summary>Note 989: what stands between the houses (towns.json <c>between</c>).</summary>
+    public BetweenTuning Between { get; init; } = new();
     /// <summary>
     /// Note 971: what somebody says in place of the custom's line once it's been told in their town (towns.json <c>told</c>,
     /// by temperament; "plain" for anyone else).

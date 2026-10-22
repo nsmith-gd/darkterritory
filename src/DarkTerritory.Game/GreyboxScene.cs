@@ -4050,6 +4050,8 @@ public sealed partial class GreyboxScene
                 Look.Art.World.Forms(mesh, line, eye, town, from, to, Time, Route);
                 Lap(mesh, "town form");
                 Look.Art.World.Houses(mesh, line, eye, town, from, to);
+                // What stands between the houses (note 989).
+                Look.Art.World.Between(mesh, line, eye, town, from, to);
                 if (town == Arrival)
                     HouseFires(mesh, eye, town);
                 Lap(mesh, "town houses");

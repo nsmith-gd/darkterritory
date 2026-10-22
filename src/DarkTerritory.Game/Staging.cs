@@ -148,6 +148,20 @@ public static partial class Staging
             return Ballast.Render.Camera.LookAt(front + town.Direction(fs, 0, -house.Side) * 18 + town.Direction(fs, 1, 0) * 10 + Double3.Up * 3,
                 front + Double3.Up * (where == "fires" ? 5 : 1.5), 62);
         }
+        // What stands between the houses (note 989): "between" a fish shed (the nearest the square's middle that has a stack
+        // of traps by it, else any), from a few steps out in front of it and to one side; "betweenover" from higher and further
+        // back over it, its neighbours round it.
+        if (where is "between" or "betweenover" && plan.Between.Where(p => p.Kind == Sim.Towns.BetweenKind.FishShed)
+            .OrderBy(p => plan.Between.Any(q => q.Kind == Sim.Towns.BetweenKind.Traps && Math.Abs(q.S - p.S) < 4 && Math.Abs(q.D - p.D) < 4) ? 0 : 1)
+            .ThenBy(p => Math.Abs(p.S - mid) + Math.Abs(p.D)).FirstOrDefault() is { } shed)
+        {
+            var at = town.World(shed.S, shed.D);
+            var out_ = town.Direction(shed.S, 0, shed.Face);
+            var along = town.Direction(shed.S, 1, 0);
+            return where == "between"
+                ? Ballast.Render.Camera.LookAt(at + out_ * 6.5 + along * 3 + Double3.Up * 1.7, at + Double3.Up * 1.3, 62)
+                : Ballast.Render.Camera.LookAt(at + out_ * 26 + along * 18 + Double3.Up * 14, at + Double3.Up * 1, 62);
+        }
         // A walled town (queue #74): from over the gate looking back over its roofs, down its first street, and from
         // outside the gate as the train leaves, its front wall either side of the gatehouse.
         // Down the first street on the line's other side from the square, among its houses (note 815: whether they look alike).

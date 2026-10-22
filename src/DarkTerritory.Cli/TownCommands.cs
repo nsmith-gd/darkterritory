@@ -61,6 +61,8 @@ static class TownCommands
             plan.Former,
             plan.Character,
             houses = plan.Houses.GroupBy(h => h.Kind).ToDictionary(g => g.Key.ToString(), g => g.Count()),
+            // What stands between the houses (note 989), by kind.
+            between = plan.Between.GroupBy(p => p.Kind).OrderBy(g => g.Key).ToDictionary(g => g.Key.ToString(), g => g.Count()),
             // Nothing ruled straight (note 490): how many stand off true and how far, and the row across the green's far
             // street, turned to it (along the line from the green's middle, degrees).
             turned = new

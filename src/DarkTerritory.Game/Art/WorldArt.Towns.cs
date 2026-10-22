@@ -85,6 +85,26 @@ public sealed partial class WorldArt
     }
 
     /// <summary>
+    /// What stands between a town's houses (note 989): its fish sheds, stacks of traps, granite and lot-line fences, each
+    /// where the plan stands it, facing the way it does (<see cref="BetweenKit"/>); the small things not past a street's
+    /// length, the sheds and rocks further.
+    /// </summary>
+    public void Between(MeshBuilder mesh, RailLine line, Double3 eye, Town town, double from, double to)
+    {
+        foreach (var p in town.Plan.Between)
+        {
+            if (p.S < from - 20 || p.S > to + 20)
+                continue;
+            var at = town.World(p.S, p.D);
+            double far = (at - eye).Length;
+            if (far > (p.Kind is BetweenKind.FishShed or BetweenKind.Granite ? 300 : 140))
+                continue;
+            var m = BetweenKit.Scale(p) * Place(line, eye, at, p.S, 0, p.Face);
+            mesh.Instances.Add(new MeshInstance(Piece(BetweenKit.Key(p), () => BetweenKit.Piece(_look, p)), m));
+        }
+    }
+
+    /// <summary>
     /// A walled town's works (queue #90, note 353): each piece where the plan stands it, a facility's modelled piece
     /// (<see cref="WorksKit.Prop"/>) on its fixture's footprint, else the kit's; their lights; the works' cinder ground.
     /// </summary>
