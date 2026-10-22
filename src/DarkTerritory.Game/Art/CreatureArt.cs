@@ -64,6 +64,9 @@ public enum CrewPose
     // (CrewActs.HeavePhase); and a friend thrown off the shoulder (note 723), a drive up onto the toes pushing them off,
     // played once from the knock.
     Heave, ThrowOff,
+    // A charge for a gun's rack (note 374; note 992): the powder bag hugged in both hands low against the belly, stood and
+    // walking (crew_clips' powder, powder_walk); it was the crate's carry.
+    Powder, PowderWalk,
 }
 
 /// <summary>
@@ -945,6 +948,8 @@ public sealed partial class CreatureArt
         CrewPose.Pump => "pump",
         CrewPose.Heave => "heave",
         CrewPose.ThrowOff => "throw_off",
+        CrewPose.Powder => "powder",
+        CrewPose.PowderWalk => "powder_walk",
         _ => "idle",
     };
 
@@ -968,7 +973,8 @@ public sealed partial class CreatureArt
     public bool Crewmate(MeshBuilder mesh, in Matrix4x4 model, CrewPose pose, double time, int variant,
         Vector3? left = null, Vector3? right = null, Vector3 leftPole = default, Vector3 rightPole = default, MeshAsset? inHand = null,
         MeshAsset? hanging = null, string figure = "crew", VrBodyPose? body = null, MeshAsset? carried = null, bool sooted = false,
-        MaskLook mask = default, EmoteDetail emote = default, MeshAsset? fist = null, (float Roll, float Nod) loll = default)
+        MaskLook mask = default, EmoteDetail emote = default, MeshAsset? fist = null, (float Roll, float Nod) loll = default,
+        MeshAsset? hugged = null)
     {
         if (!_models.ContainsKey(figure))
             figure = "crew";
@@ -1059,6 +1065,8 @@ public sealed partial class CreatureArt
             Hung(mesh, m, hanging, model);
         if (carried is not null)
             Handled(mesh, m, carried, model);
+        if (hugged is not null)
+            Hugged(mesh, m, hugged, model);
         // A can or a sausage in the fist (note 791): up the socket's own axes, its middle in the grip.
         if (fist is not null)
             mesh.Append(fist, Matrix4x4.CreateTranslation(0, -HandleOf(fist) / 2, 0) * Skinner.Socket(m.Model, m.Pose, "hand_r_weapon", model));
@@ -1082,6 +1090,20 @@ public sealed partial class CreatureArt
         var at = Matrix4x4.CreateRotationY(MathF.PI / 2) * (model with { M41 = 0, M42 = 0, M43 = 0, M44 = 1 });
         at.Translation = fist - up * (HandleOf(carried) - HandleIn);
         mesh.Append(carried, at);
+        LastCarried = at.Translation;
+    }
+
+    /// <summary>
+    /// <paramref name="hugged"/> held in both hands (a powder charge, note 992; tools/models powder_bag: its origin at its
+    /// foot): its middle between the two hands' grips, upright, turned with the body. Where it is is <see cref="LastCarried"/>.
+    /// </summary>
+    void Hugged(MeshBuilder mesh, Entry m, MeshAsset hugged, in Matrix4x4 model)
+    {
+        var between = (Skinner.Socket(m.Model, m.Pose, "hand_r_weapon", model).Translation + Skinner.Socket(m.Model, m.Pose, "hand_l_prop", model).Translation) / 2;
+        var up = Vector3.Normalize(new Vector3(model.M21, model.M22, model.M23));
+        var at = model with { M41 = 0, M42 = 0, M43 = 0, M44 = 1 };
+        at.Translation = between - up * (HandleOf(hugged) / 2);
+        mesh.Append(hugged, at);
         LastCarried = at.Translation;
     }
 

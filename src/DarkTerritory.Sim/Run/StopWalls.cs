@@ -431,6 +431,53 @@ public sealed partial class StopWalls
     }
 
     /// <summary>
+    /// A prison car Holdout's van (note 992; note 387's not-yet): it stands up off its siding as the art draws it
+    /// (WorldArt.PrisonCar), so the sim stands it too: its floor a wall's top (note 817) <see cref="VanFloor"/> over the
+    /// ground, its plate sides and ends up to its roof, its door a gap <see cref="VanDoorHalf"/> each way of the middle of
+    /// the side the crew breach it from (as every prison car's door is, StopGenerator.DoorOf), and three steps up to it out
+    /// across the shell's doorway, each under player.json's stepUp. Its occupant comes back on its floor (Holdouts), not
+    /// on the siding's ground under it. Boxes in its own frame (middles and half sizes) with their tops over the ground;
+    /// none for any other building.
+    /// </summary>
+    public static IEnumerable<(double X, double Y, double HalfX, double HalfY, double Top)> Van(StopLayout stop, int building)
+    {
+        var b = stop.Buildings[building];
+        if (b.Kind != BuildingKind.PrisonCar || stop.Holdouts.FirstOrDefault(h => h.Building == building) is not { } holdout)
+            yield break;
+        // The art's door side: towards the breach (its +y when the door's off an end, as WorldArt.Entrance hangs it).
+        int door = Plan.Local(holdout.Door, b).Y < 0 ? -1 : 1;
+        const double L = VanHalfLength, W = VanHalfWidth, P = VanWall / 2, Roof = VanRoof;
+        yield return (0, 0, L, W, VanFloor);
+        yield return (0, -door * (W - P), L, P, Roof);
+        foreach (int end in new[] { -1, 1 })
+        {
+            yield return (end * (L - P), 0, P, W, Roof);
+            // The door's side, either side of its gap.
+            yield return (end * (L + VanDoorHalf) / 2, door * (W - P), (L - VanDoorHalf) / 2, P, Roof);
+        }
+        for (int i = 1; i <= VanSteps; i++)
+            yield return (0, door * (W + (VanSteps - i + 0.5) * VanTread), VanStepHalf, VanTread / 2, i * VanRise);
+    }
+
+    /// <summary>
+    /// The prison van as WorldArt.PrisonCar draws it (note 992), not design numbers: its body's half length and half width,
+    /// its floor's top over the siding's ground (the art's 1.2 m over a frame sunk 0.15 m), its roof's, its door's half width
+    /// (the leaf's 2 m), and the sim's plate walls' thickness (thicker than the art's 8 cm plate, so nobody's through one
+    /// in a tick; stood inward from the art's outside faces).
+    /// </summary>
+    public const double VanHalfLength = 7, VanHalfWidth = 1.5, VanFloor = 1.05, VanRoof = 3.45, VanDoorHalf = 1.0, VanWall = 0.2;
+
+    /// <summary>
+    /// The van's steps up to its door (note 992): <see cref="VanSteps"/> treads <see cref="VanTread"/> deep, each
+    /// <see cref="VanRise"/> up (under player.json's stepUp 0.35; the last onto the floor less), as wide as a Holdout's door
+    /// (run.json personDoorM 1.2). Not design numbers: a carriage's steps.
+    /// </summary>
+    public const int VanSteps = 3;
+
+    /// <inheritdoc cref="VanSteps"/>
+    public const double VanTread = 0.3, VanRise = 0.3, VanStepHalf = 0.6;
+
+    /// <summary>
     /// Where yard gantries' runways cut through a shed (zone S, their legs either side), as the art lays them, in order and
     /// merged; none if none does. A shed with a crane bay of a runway's in it, and (note 869; the director's playtest of 19
     /// Oct line 9: "Crane overlap inside a building is a bug", the hook and its load hanging inside a shed, the bridge through
@@ -549,7 +596,7 @@ public sealed partial class StopWalls
                 int index = i;
                 IEnumerable<(double X, double Y, double HalfX, double HalfY, double Top)> boxes = !Walled(stop, i)
                     ? Shelled(stop, i) ? Shell(stop, i, t).Select(w => (w.Part.X, w.Part.Y, w.Part.Length / 2, w.Part.Width / 2, w.Top))
-                        .Concat(Benches(stop, i).Select(x => (x.X, x.Y, x.HalfX, x.HalfY, t.TopM))) : []
+                        .Concat(Benches(stop, i).Select(x => (x.X, x.Y, x.HalfX, x.HalfY, t.TopM))).Concat(Van(stop, i)) : []
                     : b.Open
                         ? OpenWalls(b).Concat(Furniture(b, stop.Containers.Where(c => c.Building == index)).Select(x => (x.X, x.Y, x.HalfX, x.HalfY)))
                             .Concat(ClutterOf(stop, index).Where(x => x.Solid).Select(x => (x.X, x.Y, x.Box.HalfX, x.Box.HalfY)))

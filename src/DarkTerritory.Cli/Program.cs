@@ -3533,6 +3533,8 @@ static object ArtReel(string content, string[] args)
             // The crate held in front (Bodies.Carry), between the hands.
             var crate = name == "crew" && clipName is "carry" or "carry_walk" ? props.Get("stores_crate") : null;
             float crateTop = crate?.Vertices.Max(v => v.Position.Y) ?? 0;
+            // A powder charge hugged in both hands (note 992), drawn where the game draws it (CreatureArt.Hugged).
+            var charge = name == "crew" && clipName is "powder" or "powder_walk" ? props.Get("powder_bag") : null;
             // A ladder for the climbs, its rungs (TrainKit.RungPitch) running down past them at the climb's pace, so the
             // hands and feet are seen on them (crew_clips.py: two rungs a 40-frame cycle, the hand on its rung at the start).
             float? rungAt = name == "crew" ? clipName is "climb" or "climb_carry" ? 1.94f : null : null;
@@ -3592,7 +3594,7 @@ static object ArtReel(string content, string[] args)
                 mesh.PointLights.Add(new PointLight(anchor + toEye * 0.8f - right * (float)(dist * 0.8) + new System.Numerics.Vector3(0, (float)dist * 0.2f, 0), new System.Numerics.Vector3(0.35f, 0.42f, 0.56f), reach));
                 mesh.PointLights.Add(new PointLight(anchor - toEye * 0.8f + new System.Numerics.Vector3(0, (float)dist * 0.6f, 0), new System.Numerics.Vector3(0.5f, 0.56f, 0.7f), reach));
                 if (act is { } pose)
-                    art.Crewmate(mesh, System.Numerics.Matrix4x4.CreateTranslation(-e), pose, time, 0, inHand: held, hanging: lamp);
+                    art.Crewmate(mesh, System.Numerics.Matrix4x4.CreateTranslation(-e), pose, time, 0, inHand: held, hanging: lamp, hugged: charge);
                 if (crate is not null && handL >= 0 && handR >= 0)
                 {
                     var js = art.Joints(name, clipName, time, loop).ToArray();

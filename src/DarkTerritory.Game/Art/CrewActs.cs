@@ -812,6 +812,8 @@ public static class CrewActs
                 BodyKind.RepairKit when s.ActionProgress > 0 && CrewActions.AtTheRupture(s, train) => CrewPose.Mend,
                 // Otherwise the kit by its handle at the side, a toolbox (note 513), not held out in front like a crate.
                 BodyKind.RepairKit => CrewPose.Toolbox,
+                // A charge for a gun's rack hugged low in both hands (note 992), not held out as a crate is.
+                BodyKind.Powder => CrewPose.Powder,
                 _ => CrewPose.Carry,
             };
         // Lifting the handcar off the guard van or onto it (note 729), hands free: heaving it (note 818; Heaving draws it).
