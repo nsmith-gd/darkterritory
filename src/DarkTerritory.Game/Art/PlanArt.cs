@@ -442,25 +442,19 @@ public sealed partial class WorldArt
             }
             bool dead = prop.Dead, corrupted = prop.Corrupted;
             string kind = prop.Species;
-            // Under the big forests' canopy the trees stand in each other's shade (note 1006). There, three times the trees a
-            // cell, they're drawn as instances of the kit's pieces, not baked into the cell's mesh: `dt perf --ride` uploaded
-            // 98 MB a cell baked (main's 29 MB), a 0.6 s hitch.
+            // Under the big forests' canopy the trees stand in each other's shade (note 1006). There, with three times the
+            // trees a cell, only the first rank is modelled (DeepModelledM) and the rest are the crossed cards, behind it:
+            // all modelled, `dt perf --ride` uploaded 98 MB a cell (main's 29 MB), a 0.6 s hitch; as instances, 1,800 draws.
             float under = 1 - 0.5f * p.ShadeAt(along);
-            bool deepWoods = p.Woods.Depth(along) > 0;
-            void Put(MeshAsset piece, Matrix4x4 at, Vector3 tint)
-            {
-                if (deepWoods)
-                    mesh.Instances.Add(new MeshInstance(piece, at, Tint: tint));
-                else
-                    mesh.Append(piece, at, tint);
-            }
+            bool modelled = Math.Abs(offset) < (p.Woods.Depth(along) > 0 ? DeepModelledM : NearSpruce);
+            void Put(MeshAsset piece, Matrix4x4 at, Vector3 tint) => mesh.Append(piece, at, tint);
             var (m, _) = Place(along, offset, yaw, height / 12, 0.15f);
             // Its form and lean (note 395), from a stream of its own off its art seed, so the draws below are as they were.
             var (form, lean) = Form(prop.Seed, p.Biome(along));
             // The Corruption's trees (note 696): one of its eight kinds, as its biome grows them, modelled near the line and
             // its cards further out; a little lighter or darker each, leant as any tree is.
             if (corrupted && CorruptedTreeArt.Pick(prop.Seed, p.Biome(along)) is var (blight, bv)
-                && _props.Get(CorruptedTreeArt.Prop(blight, bv, far: Math.Abs(offset) >= CorruptedTreeArt.ModelledWithinM)) is { } blighted)
+                && _props.Get(CorruptedTreeArt.Prop(blight, bv, far: !modelled || Math.Abs(offset) >= CorruptedTreeArt.ModelledWithinM)) is { } blighted)
             {
                 var (cm, _) = Place(along, offset, yaw, height / CorruptedTreeArt.BuiltHeight, 0.15f);
                 if (lean.Angle > 0)
@@ -470,7 +464,7 @@ public sealed partial class WorldArt
             }
             MeshAsset piece = dead
                 ? rng.Next(2) == 0 ? Piece($"ghost-{variant}", () => NovaKit.GhostSpruce(_look, variant)) : Piece($"dead-{variant % 2}", () => WorldKit.DeadTree(_look, variant % 2, 10))
-                : Tree(kind, variant, Math.Abs(offset) < NearSpruce, form);
+                : Tree(kind, variant, modelled, form);
             float scale = height / 12;
             if (dead)
                 (m, _) = Place(along, offset, yaw, scale = height / (piece.Name.StartsWith("ghost") ? 8 + variant * 2.5f : 10) * 0.9f, 0.15f);
@@ -1118,6 +1112,8 @@ public sealed partial class WorldArt
 
     // How far off the line the spruce is modelled (WorldKit.Spruce), not crossed cards: as WorldArt's NearTrees for its pines.
     const double NearSpruce = 40;
+    /// <summary>In the big forests (note 1006), how far out the spruce is modelled; past it, its cards (the wall's first rank is what's seen).</summary>
+    const double DeepModelledM = 14;
 
     /// <summary>How far out from the line the forest floor's pieces start (m): past the walk beside the train.</summary>
     const double FloorNear = 7;
