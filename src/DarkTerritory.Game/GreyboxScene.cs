@@ -3115,57 +3115,9 @@ public sealed partial class GreyboxScene
                     break;
                 }
             case EnemyKind.HeadWaiter:
-                {
-                    // THE HEAD WAITER (note 1008; docs/design/creatures/head-waiter.md §3): too tall, thin, in a black waistcoat and
-                    // a long white apron, a white face; a silver tray up on its fingertips with a covered plate, a glass in its
-                    // other hand. Stood behind the seat it's come to wait on, facing the way the seat does (down the car): ringing,
-                    // the glass up and glinting; waiting, bent at the waist over them; clearing, both arms down to them.
-                    var mode = e is Sim.Enemies.HeadWaiter hw ? hw.Mode : Sim.Enemies.HeadWaiterMode.Wait;
-                    var (fr, fb) = (r, b);
-                    bool bowing = mode is Sim.Enemies.HeadWaiterMode.Wait or Sim.Enemies.HeadWaiterMode.Dismissed or Sim.Enemies.HeadWaiterMode.Clear;
-                    float lean = mode == Sim.Enemies.HeadWaiterMode.Clear ? 0.45f : bowing ? 0.22f : 0;
-                    Vector3 W(float x, float y, float z) => o + fr * x + u * y + fb * (z - lean * MathF.Max(0, y - 1.1f));
-                    // Plain colour, not the greybox's grain (its white would read as stonework).
-                    var style = mesh.Style;
-                    void Part(float x, float y, float z, float hx, float hy, float hz, Vector3 colour)
-                    {
-                        mesh.Style = null;
-                        mesh.Box(W(x, y, z), fr, u, fb, new Vector3(hx, hy, hz), colour);
-                        mesh.Style = style;
-                    }
-                    var black = Palette.SootBlack * 0.8f;
-                    var white = new Vector3(0.86f, 0.84f, 0.78f);
-                    var silver = new Vector3(0.7f, 0.72f, 0.74f);
-                    foreach (float x in new[] { -0.09f, 0.09f })
-                        Part(x, 0.5f, 0, 0.055f, 0.5f, 0.06f, black);
-                    Part(0, 0.75f, -0.09f, 0.17f, 0.42f, 0.02f, white);
-                    Part(0, 1.4f, 0, 0.16f, 0.32f, 0.1f, black);
-                    Part(0, 1.48f, -0.1f, 0.05f, 0.16f, 0.005f, white);
-                    Part(0, 1.85f, -0.03f, 0.09f, 0.13f, 0.1f, white);
-                    Part(0, 1.8f, -0.135f, 0.05f, 0.006f, 0.006f, black);
-                    if (mode == Sim.Enemies.HeadWaiterMode.Clear)
-                    {
-                        foreach (float x in new[] { -0.2f, 0.2f })
-                            Part(x, 1.05f, -0.35f, 0.035f, 0.035f, 0.32f, black);
-                        break;
-                    }
-                    // The tray, up on its left fingertips (the arm bent up), its cover on it; the napkin over the right arm.
-                    Part(-0.24f, 1.45f, 0, 0.035f, 0.22f, 0.035f, black);
-                    Part(-0.3f, 1.72f, -0.08f, 0.2f, 0.01f, 0.2f, silver);
-                    Part(-0.3f, 1.79f, -0.08f, 0.11f, 0.06f, 0.11f, silver * 0.9f);
-                    Part(0.24f, 1.3f, -0.12f, 0.035f, 0.035f, 0.22f, black);
-                    Part(0.24f, 1.26f, -0.06f, 0.05f, 0.08f, 0.04f, white);
-                    // The glass in its right hand, the spoon to it; ringing, it's raised and catches the light.
-                    bool ringing = mode == Sim.Enemies.HeadWaiterMode.Serve;
-                    float gy = ringing ? 1.62f : 1.3f;
-                    if (ringing)
-                        mesh.Emissive = 0.6f + 0.4f * pulse;
-                    Part(0.26f, gy, -0.34f, 0.025f, 0.06f, 0.025f, white * 1.1f);
-                    mesh.Emissive = 0;
-                    if (ringing)
-                        Part(0.2f, gy + 0.03f, -0.36f, 0.06f, 0.004f, 0.004f, silver);
-                    break;
-                }
+                // (Its boxes, until it's modelled: CreatureArt.HeadWaiter.cs.)
+                Art.CreatureArt.HeadWaiterStandIn(mesh, o, r, u, b, e is Sim.Enemies.HeadWaiter hw ? hw.Mode : Sim.Enemies.HeadWaiterMode.Wait, pulse);
+                break;
             case EnemyKind.MouseMoose:
                 {
                     // A dog-sized grey-brown rat with a little pair of antlers (note 790). Down its hole: nothing.
