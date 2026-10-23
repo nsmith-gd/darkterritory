@@ -47,6 +47,9 @@
   // stream of its own, so every other find a seed deals is as it was). Note 718: it used to draw this many times more of
   // the stop's budget.
   "outlierDraws": 2,
+  // Note 1005 (the director, 23 Oct: "going in that basement should feel like high risk, high reward"): a find kept down in a
+  // house's basement is drawn this many times and the worthiest kept, one up its stairs likewise (on a stream of their own).
+  "levelDraws": { "basement": 3, "upstairs": 2 },
   // Note 738 (B4; the director, 14 Oct: "smaller bits of loot"): the small things lying on a village's floors
   // (stops.json village.loose, `kinds.loose`) are finds like any other, worth what their kind is (note 718), on top of the
   // village's kept finds. Taken at once: they aren't searched.

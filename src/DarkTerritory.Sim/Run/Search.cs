@@ -65,10 +65,12 @@ public sealed partial class Run
                 if (!Hides(t, stop, c))
                     continue;
                 var b = stop.Buildings[c.Building];
-                var (x, y, fx, fy) = StopWalls.Kept(b, c.Kind, c.Index);
-                var kept = StopWorld(line, f, StopWalls.InHouse(b, x, y));
-                var facing = (StopWorld(line, f, StopWalls.InHouse(b, x + fx, y + fy)) - kept) with { Y = 0 };
-                _spots.Add(new HidingSpot(k, c, StopWorld(line, f, StopWalls.FindAt(stop, c)), search.Of(c.Kind)!.Value, kept, facing.Normalized));
+                var (x, y, fx, fy) = StopWalls.Kept(b, c.Kind, c.Index, c.Level);
+                // (On its floor: a storeyed house's basement, upstairs or raised ground floor, note 1005.)
+                double up = StopWalls.FindUp(stop, c);
+                var kept = StopWorld(line, f, StopWalls.InHouse(b, x, y), up);
+                var facing = (StopWorld(line, f, StopWalls.InHouse(b, x + fx, y + fy)) - StopWorld(line, f, StopWalls.InHouse(b, x, y))) with { Y = 0 };
+                _spots.Add(new HidingSpot(k, c, StopWorld(line, f, StopWalls.FindAt(stop, c), up), search.Of(c.Kind)!.Value, kept, facing.Normalized));
             }
         }
     }
@@ -141,12 +143,13 @@ public sealed partial class Run
             return;
         var (f, _, stop, finds, _, toys) = _stopLoot[k];
         var put = StopWalls.FindAt(stop, c);
+        double up = StopWalls.FindUp(stop, c);
         if (finds.Any(x => x.Container == c.Index))
-            bodies.SpawnLoot(StopWorld(line, f, put), f.Start + put.S, LootOwner(k, c.Index), t.Radius);
+            bodies.SpawnLoot(StopWorld(line, f, put, up), f.Start + put.S, LootOwner(k, c.Index), t.Radius);
         // A toy with it (note 264), beside the find.
         foreach (var toy in toys)
             if (toy.Container == c.Index)
-                bodies.SpawnItem(StopWorld(line, f, put + new Pt(-0.4, 0.3)), f.Start + put.S, Physics.BodyKind.Toy).Noise = toy.Noise;
+                bodies.SpawnItem(StopWorld(line, f, put + new Pt(-0.4, 0.3), up), f.Start + put.S, Physics.BodyKind.Toy).Noise = toy.Noise;
     }
 
     /// <summary>

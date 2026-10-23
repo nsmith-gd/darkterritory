@@ -21,6 +21,11 @@ public sealed record LootTuning
     public Dictionary<string, double> FindsByTier { get; init; } = new();
     /// <summary>An outlier house's container (level-design P11) draws its find this many times and keeps the worthiest (note 718).</summary>
     public int OutlierDraws { get; init; } = 1;
+    /// <summary>
+    /// Note 1005: a find kept in a house's basement or upstairs is drawn this many times and the worthiest kept (by the
+    /// container's level: "basement", "upstairs"). Looked up, never iterated; 1 where unlisted.
+    /// </summary>
+    public Dictionary<string, int> LevelDraws { get; init; } = new();
     public required double SettleSeconds { get; init; }
     public required double Radius { get; init; }
     /// <summary>By container kind, in loot.json's camelCase (looked up, never iterated).</summary>
@@ -247,6 +252,8 @@ public static class StopLoot
             var outlier = new Ballast.Pcg32(StopSeed.Of(StopSeed.Of(routeSeed, StopSeed.Outlier, (ulong)feature), stop.Seed));
             // The jackpot house's better draws (note 719), likewise.
             var better = new Ballast.Pcg32(StopSeed.Of(StopSeed.Of(routeSeed, StopSeed.Better, (ulong)feature), stop.Seed));
+            // A basement's and an upstairs' better draws (note 1005), likewise.
+            var deeper = new Ballast.Pcg32(StopSeed.Of(StopSeed.Of(routeSeed, StopSeed.Deeper, (ulong)feature), stop.Seed));
             finds.AddRange(containers.Select(c =>
             {
                 var kind = t.Of(c.Kind);
@@ -260,6 +267,13 @@ public static class StopLoot
                 for (int draw = 1; locked >= 0 && c.Building == locked && draw < (t.JackpotHouse?.Draws ?? 1); draw++)
                 {
                     string other = kind.Items[(int)(better.NextDouble() * kind.Items.Length)];
+                    if (t.WorthOf(other, perCar) > t.WorthOf(item, perCar))
+                        item = other;
+                }
+                int levelDraws = c.Level == 0 ? 1 : t.LevelDraws.GetValueOrDefault(c.Level < 0 ? "basement" : "upstairs", 1);
+                for (int draw = 1; draw < levelDraws; draw++)
+                {
+                    string other = kind.Items[(int)(deeper.NextDouble() * kind.Items.Length)];
                     if (t.WorthOf(other, perCar) > t.WorthOf(item, perCar))
                         item = other;
                 }

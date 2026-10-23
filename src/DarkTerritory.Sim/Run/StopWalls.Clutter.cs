@@ -77,14 +77,15 @@ public sealed partial class StopWalls
         var rng = new Ballast.Pcg32(StopSeed.Of(stop.Seed, ClutterStream, (ulong)building));
         var o = Outline(b);
         double t = WallThickness;
-        var kept = stop.Containers.Where(c => c.Building == building).ToList();
+        // (A storeyed house's ransack is its ground floor's, note 1005: what's kept upstairs or down in the basement isn't in its way.)
+        var kept = stop.Containers.Where(c => c.Building == building && c.Level == 0).ToList();
         // What's to be kept clear: the finds and the spot in front of each (where a crewmate stands to search), what they're
         // kept in, each door's inside, and the nest.
         var clear = new List<(double X, double Y, double R)>();
         foreach (var c in kept)
         {
-            var (fx, fy) = InsideLocal(b, c.Kind, c.Index);
-            var (_, _, nx, ny) = Kept(b, c.Kind, c.Index);
+            var (fx, fy) = InsideLocal(b, c.Kind, c.Index, c.Level);
+            var (_, _, nx, ny) = Kept(b, c.Kind, c.Index, c.Level);
             clear.Add((fx, fy, 0.75));
             clear.Add((fx + nx * 0.45, fy + ny * 0.45, 0.75));
         }
@@ -99,6 +100,8 @@ public sealed partial class StopWalls
         if (Nest(stop, building) is { } nest)
             clear.Add((nest.X, nest.Y, 1.5));
         var boxes = Furniture(b, kept).Select(f => (f.X, f.Y, f.HalfX, f.HalfY)).ToList();
+        if (Storeyed(b))
+            boxes.AddRange(KeepClear(b));
         var pieces = new List<Clutter>();
 
         // A box (axis-aligned in the house's frame) clear of the walls' insides, the furniture, the other pieces and the clear spots.
