@@ -269,9 +269,12 @@ public static class Calls
     /// </summary>
     static string BruinCall(World world, Double3 you, EnemyTuning t)
     {
+        // The gym's train stands empty at its yard: any car with a room will do to meet it.
         int car = Bruin.CarFor(world.Train);
         if (car < 0)
-            return "no car with cargo to climb into";
+            car = world.Train.Dynamics.Consist.Vehicles.Where(v => v.Id != 0 && world.Train.Frames[v.Id].Shape.Interior is not null).Select(v => v.Id).DefaultIfEmpty(-1).First();
+        if (car < 0)
+            return "no car with a room to climb into";
         // Out of the trees on the side away from you, so you see it come round to the car.
         var frame = world.Train.Frames[car];
         int side = Double3.Dot(you - frame.Origin, frame.Right) > 0 ? -1 : 1;
