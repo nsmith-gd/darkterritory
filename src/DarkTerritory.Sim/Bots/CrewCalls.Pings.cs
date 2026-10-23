@@ -106,7 +106,7 @@ public sealed partial class CrewCalls
         var at = PlayerMotor.WorldPosition(self, world.Train);
         foreach (var p in world.Pings.OrderBy(p => p.Tick).ThenBy(p => p.Id))
         {
-            if (_pingsTaken.Contains(p.Id) || !can(me, p.Kind) || OrderDone(world, p.Kind, p.Target, Was(world, p.Kind, p.Target))
+            if (_pingsTaken.Contains(p.Id) || !can(me, p.Kind) || !Workable(world, p.Kind, p.Target) || OrderDone(world, p.Kind, p.Target, Was(world, p.Kind, p.Target))
                 || _pingHands.GetValueOrDefault(p.Id) >= Hands(p.Kind))
                 continue;
             double mineAway = (at - p.At).Length;
@@ -125,6 +125,21 @@ public sealed partial class CrewCalls
             return;
         }
     }
+
+    /// <summary>
+    /// Note 1010 (the director's playtest of 23 Oct, line 8: "I pinged one of the towns and Dunmore said, I'll go fetch it ...
+    /// and then he starts manning the cab"): whether a ping's job can be worked where the train is, so a bot only takes (and
+    /// answers) one it can go and do. A find, the crane and the cargo are worked at a stop the train stands at (a hand's
+    /// <see cref="StopHand"/> works them from the stop's plan), and the town at its own stop: a village pinged on the way in
+    /// waits up for the train to stand there (<see cref="PingTuning.TownAheadSeconds"/>). Before, the lone driver took a find
+    /// pinged from the line, stood the train for it, and then had nothing it could do but sit in the cab.
+    /// </summary>
+    public static bool Workable(World world, PingKind kind, int target) => kind switch
+    {
+        PingKind.Loot or PingKind.Crane or PingKind.Cargo => world.Run?.CurrentSite is not null,
+        PingKind.Town => world.Run is { CurrentSite: { } site } run && run.StopOf(site.Feature).Stop == target,
+        _ => true,
+    };
 
     /// <summary>Note 936: how the pinged points lay when the ping was taken (thrown over is the job), for a points ping.</summary>
     static bool Was(World world, PingKind kind, int target) =>

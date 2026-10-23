@@ -2489,12 +2489,14 @@ public sealed partial class ConductorBot(CrewCalls? calls = null, int member = 0
         // #613: and not once the dawn's about to catch the train (the same reckoning that calls a stop's loading done, and leaves
         // anyone still on the ground there, note 935): the 120 s stood for frontier:4 seed 4's gunner, stuck by the switch, put
         // the dawn on the train 6.6 km in.
-        var behind = atAStop || Crewmates is null || Stops?.LateHere(world) == true ? null : Crewmates
+        // Note 995 (the director's playtest of 23 Oct, line 4: "I fell off the train. Is he going to stop for me? He's not going
+        // to stop for me"): someone playing is fetched whatever the dawn; only the crew's bots are left to it.
+        var behind = atAStop || Crewmates is null ? null : (Stops?.LateHere(world) == true ? Players ?? [] : Crewmates)
             .Where(c => c.Alive && (c.Parent == PlayerState.World && c.Surface == Surface.Ground || train.OnHandcar(c.Parent)))
             .Select(c => (c, along: AlongTheTrain(train, PlayerMotor.WorldPosition(c, train))))
             .Where(x => x.along < d.Distance + 5 && d.RearDistance - x.along < SetBackFor)
             .OrderBy(x => d.RearDistance - x.along).Select(x => ((PlayerState c, double along)?)x).FirstOrDefault();
-        if (behind is not { } them || _waitedForBoarder > 120)
+        if (behind is not { } them || _waitedForBoarder > (Players?.Contains(them.c) == true ? PeopleLeftSeconds(world) : 120))
         {
             if (behind is null)
                 _waitedForBoarder = 0;
@@ -2906,6 +2908,8 @@ public sealed partial class ConductorBot(CrewCalls? calls = null, int member = 0
     double _boardWait;
     /// <summary>How long the driver waits at the gate for the crew to climb aboard (T102) before it goes anyway.</summary>
     const double AllAboardSeconds = 120;
+    /// <summary>Note 995: how long it waits for someone playing who's afoot (facilities.json crew.peopleLeftSeconds).</summary>
+    static double PeopleLeftSeconds(World world) => world.Run?.FacilityTuning?.Crew.PeopleLeftSeconds ?? new Run.StopCrewTuning().PeopleLeftSeconds;
     /// <summary>At the controls: the driver, or a fireman who's had to take them (not while someone playing has them).</summary>
     public bool Driving => (!Fireman || _driving) && !HandedOver;
 
@@ -3100,8 +3104,12 @@ public sealed partial class ConductorBot(CrewCalls? calls = null, int member = 0
         var lamp = Lamp(world);
         // All aboard (T102): standing at the gate, the driver waits on the brake for whoever's still down beside the train, or
         // still on a ladder, to climb on, for so long.
+        // Note 995 (the director's playtest of 23 Oct, line 2: "The train left without me. While I was exploring the town"):
+        // someone playing who's off it, out in the town, is waited on for crew.peopleLeftSeconds, not the bots' two minutes.
         if (world.Run is { Phase: Run.RunPhase.Yard } && PlayerMotor.InCab(self, train) && train.Dynamics.Speed < 0.1
-            && _boardWait < AllAboardSeconds && Crewmates?.Any(c => c.Alive && (c.Parent == PlayerState.World || c.Surface == Surface.Ladder)) == true)
+            && Crewmates?.Any(c => c.Alive && (c.Parent == PlayerState.World || c.Surface == Surface.Ladder)) == true
+            && _boardWait < (Players?.Any(p => p.Alive && (p.Parent == PlayerState.World || p.Surface == Surface.Ladder)) == true
+                ? PeopleLeftSeconds(world) : AllAboardSeconds))
         {
             _boardWait += SimConstants.TickSeconds;
             return new PlayerIntent { Buttons = PlayerButtons.Brake, ThrottleNotch = -4, Lamp = lamp };

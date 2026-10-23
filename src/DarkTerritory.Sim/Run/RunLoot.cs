@@ -331,6 +331,18 @@ public sealed partial class Run
         return (-1, -1);
     }
 
+    /// <summary>
+    /// The stop (its place in <see cref="Stops"/>) at the route's feature <paramref name="feature"/> (its place in the route's
+    /// features, as the houses' <c>OpenHouse.Feature</c> has it), or −1 (note 1010: a village pinged from the line).
+    /// </summary>
+    public int StopAt(int feature)
+    {
+        for (int k = 0; k < _stopLoot.Count; k++)
+            if (_stopLoot[k].Index == feature)
+                return k;
+        return -1;
+    }
+
     /// <summary>Note 719: the jackpot house's building at the route's feature <paramref name="feature"/>, or −1.</summary>
     public int LockedAt(int feature)
     {

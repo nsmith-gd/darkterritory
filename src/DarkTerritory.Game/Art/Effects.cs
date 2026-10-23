@@ -9,7 +9,8 @@ namespace DarkTerritory.Game.Art;
 /// The train's effects (GDD §31 "VFX supports readability": steam venting, sparks, smoke trails, cinders, furnace
 /// flare, drifting fog; "mechanical first, supernatural second"). Every one is worked out from the time and the train's
 /// state, not simulated: puff <c>i</c> left the stack at a known time and has drifted since, so a screenshot is
-/// repeatable, a client draws what the host would, and nothing needs replicating.
+/// repeatable, a client draws what the host would, and nothing needs replicating. (The stack's smoke also keeps where the
+/// stack has been over a puff's life, so each puff stays in the world's frame; a single frame works that back as before, note 997.)
 /// </summary>
 public sealed partial class Effects(Look look)
 {
@@ -23,6 +24,65 @@ public sealed partial class Effects(Look look)
     static float Frac(float x) => x - MathF.Floor(x);
 
     static Vector3 F(Double3 d) => new((float)d.X, (float)d.Y, (float)d.Z);
+
+    /// <summary>The most puffs the stack has in the air at once: its quickest rate (a shovelful flaring at full work) for a puff's life.</summary>
+    const int MaxPuffs = 160;
+
+    /// <summary>The stack's way through the world (note 997), a sample a frame: where it was, and how many puffs it had given by then.</summary>
+    readonly record struct StackSample(double Time, Double3 At, Double3 Velocity, double Puffs, double Rate);
+    readonly List<StackSample> _stack = [];
+
+    /// <summary>
+    /// Adds this frame's sample of the stack. Before the first sample (a screenshot's one frame, or after a jump) the stack
+    /// is worked back from it as if she'd held her speed and line, so a single frame draws as it always did and stays repeatable.
+    /// </summary>
+    void TrackStack(double time, Double3 at, Double3 velocity, double rate, double life)
+    {
+        if (_stack.Count > 0)
+        {
+            var last = _stack[^1];
+            double dt = time - last.Time;
+            // Time gone back (a replay), a gap longer than a puff lives, or the stack somewhere she couldn't have got to (another
+            // train drawn by the same look, a seek, a respawn): start again from here.
+            if (dt < 0 || dt > life || (last.At + last.Velocity * dt - at).Length > 5 + 0.2 * dt * last.Velocity.Length)
+                _stack.Clear();
+            else if (dt == 0)
+                return;   // drawn again this frame (a photograph, a still): the same stack
+        }
+        double puffs = _stack.Count == 0 ? time * rate : _stack[^1].Puffs + rate * (time - _stack[^1].Time);
+        _stack.Add(new StackSample(time, at, velocity, puffs, rate));
+        while (_stack.Count > 2 && _stack[1].Time < time - life - 0.5)
+            _stack.RemoveAt(0);
+    }
+
+    /// <summary>When puff <paramref name="index"/> left the stack, and where the stack was then; <paramref name="cursor"/> walks back as the index does.</summary>
+    (double Born, Double3 At) Puff(double index, ref int cursor)
+    {
+        while (cursor > 0 && _stack[cursor - 1].Puffs >= index)
+            cursor--;
+        if (cursor == 0 || _stack[cursor].Puffs < index)
+        {
+            var s = _stack[0];
+            double born = s.Time - (s.Puffs - index) / s.Rate;
+            return (born, s.At - s.Velocity * (s.Time - born));
+        }
+        var (a, b) = (_stack[cursor - 1], _stack[cursor]);
+        double f = (index - a.Puffs) / (b.Puffs - a.Puffs);
+        return (a.Time + (b.Time - a.Time) * f, Double3.Lerp(a.At, b.At, f));
+    }
+
+    /// <summary>Where the stack was at <paramref name="time"/>.</summary>
+    Double3 StackAt(double time)
+    {
+        for (int j = _stack.Count - 1; j > 0; j--)
+            if (_stack[j - 1].Time <= time)
+            {
+                var (a, b) = (_stack[j - 1], _stack[j]);
+                return Double3.Lerp(a.At, b.At, Math.Clamp((time - a.Time) / (b.Time - a.Time), 0, 1));
+            }
+        var first = _stack[0];
+        return first.At - first.Velocity * (first.Time - time);
+    }
 
     /// <summary>
     /// The engine's: smoke and cinders from the stack, steam from the cylinder cocks when she's working slow, sparks at
@@ -52,7 +112,8 @@ public sealed partial class Effects(Look look)
         var velocity = F(engine.Velocity);
         float speed = velocity.Length();
         var stackBox = shape.Solids.FirstOrDefault(s => s.Part == PartKind.Stack).Box;
-        var stackTop = engine.ToWorld(new Double3(0, stackBox.Max.Y, stackBox.Centre.Z)).RelativeTo(eye);
+        var stackWorld = engine.ToWorld(new Double3(0, stackBox.Max.Y, stackBox.Centre.Z));
+        var stackTop = stackWorld.RelativeTo(eye);
         var up = F(engine.Up);
         var back = F(engine.Back);
         var right = F(engine.Right);
@@ -65,18 +126,26 @@ public sealed partial class Effects(Look look)
         work = Math.Max(work, Math.Min(1, kick));
         float rate = 3.5f + 7f * work + 4f * kick;
         const float life = 5.5f;
-        int count = (int)(rate * life);
-        double emitted = Math.Floor(time * rate);
+        // Each puff from where the stack was when it left (note 997), drifting in the world's frame from there: not strung
+        // out behind wherever she is now, which swung the whole plume round with the engine on a bend (and so with the view
+        // of anyone riding her) and stretched or shrank it the moment she sped up or slowed.
+        TrackStack(time, stackWorld, engine.Velocity, rate, life);
+        double emitted = Math.Floor(_stack[^1].Puffs);
         var wind = new Vector3(0.7f, 0, 0.4f);
-        for (int k = 0; k < count; k++)
+        int cursor = _stack.Count - 1;
+        for (int k = 0; k < MaxPuffs; k++)
         {
             double index = emitted - k;
-            float age = (float)(time - index / rate);
-            if (age < 0 || age > life)
+            var (born, from) = Puff(index, ref cursor);
+            float age = (float)(time - born);
+            if (age > life)
+                break;
+            if (age < 0)
                 continue;
             float h = Hash((float)(index * 0.618));
             float t = age / life;
-            var drift = -velocity * age + wind * age + up * (2.2f * MathF.Pow(age, 0.6f) * (1 + work)) + (right * (h - 0.5f) + back * (Hash((float)index + 3.3f) - 0.5f)) * (0.4f + age * 0.5f);
+            var drift = from.RelativeTo(eye) - stackTop + wind * age + Vector3.UnitY * (2.2f * MathF.Pow(age, 0.6f) * (1 + work))
+                + (Vector3.UnitX * (h - 0.5f) + Vector3.UnitZ * (Hash((float)index + 3.3f) - 0.5f)) * (0.4f + age * 0.5f);
             float size = (0.9f + 3.6f * MathF.Sqrt(t) * (0.8f + 0.4f * h)) * (1 + 0.35f * kick);
             float alpha = MathF.Min(0.9f, 0.6f * MathF.Pow(1 - t, 1.4f) * MathF.Min(1, age * 6) * (0.6f + 0.4f * work) * (1 + 0.4f * kick) * (dead ? 0.18f : 1));
             var soot = dead ? new Vector3(0.2f, 0.2f, 0.21f) : new Vector3(0.05f, 0.046f, 0.044f);
@@ -90,7 +159,8 @@ public sealed partial class Effects(Look look)
                 float h = Hash(k * 7.13f);
                 float period = 1.2f + h;
                 float age = (float)((time + h * 5) % period);
-                var p = stackTop - velocity * age + up * (3.5f * age - 2.2f * age * age) + (right * (Hash(k + 1.1f) - 0.5f) + back * (Hash(k + 2.2f) - 0.5f)) * age * 2.5f;
+                var p = StackAt(time - age).RelativeTo(eye) + Vector3.UnitY * (3.5f * age - 2.2f * age * age)
+                    + (Vector3.UnitX * (Hash(k + 1.1f) - 0.5f) + Vector3.UnitZ * (Hash(k + 2.2f) - 0.5f)) * age * 2.5f;
                 float a = (1 - age / period) * (work - 0.5f) * 2;
                 mesh.Billboard(p, 0.12f, 0, new Vector4(1.0f, 0.45f, 0.12f, a), _spark, FxBlend.Additive, k % 4, 2);
             }

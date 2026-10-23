@@ -172,6 +172,17 @@ public sealed partial class Run
         return (searched, under);
     }
 
+    /// <summary>Host: the kind of container <paramref name="playerId"/> is searching now, or null (note 999: a cellar alone).</summary>
+    public Stops.ContainerKind? SearchingIn(int playerId)
+    {
+        if (!_searching.TryGetValue(playerId, out var at))
+            return null;
+        foreach (var spot in _spots)
+            if (spot.Key == at.Key)
+                return spot.Container.Kind;
+        return null;
+    }
+
     /// <summary>Whether a stop's search goes on the wire: its loot is out, and it has hiding spots.</summary>
     public bool Searchable(int stop) => Stocked(stop) && _spots.Any(s => s.Stop == stop);
 

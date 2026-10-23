@@ -60,7 +60,7 @@ Every key rebinds in **Settings > Controls**. The defaults:
 | 1-4 · Mouse wheel | The hotbar's slots: pick one · step through them (not rebindable) |
 | 1-9 · Enter | Dead, with a ballot: pick a creature · cast it (the same number again casts it too) (not rebindable) |
 | Space | Dead: your live mic to the living, on or off; at the run's end, give the commendation the arrows picked (not rebindable) |
-| F1 | The HUD, off or on (not rebindable) |
+| F1 | The HUD, off or on; dead and watching, every word and the UI off for the picture alone (not rebindable) |
 | F2 | Invite Steam friends (not rebindable) |
 | F4 | Hide the first nights' card (not rebindable) |
 | F5 | Reconnect, when the link to the host is gone (not rebindable) |

@@ -156,6 +156,17 @@ public sealed class LookbookKit(Look? look)
         return common[(int)((who * 40503u >> 3) % (uint)common.Count)];
     }
 
+    /// <summary>
+    /// The role of one of the characters who go about a town (<c>anyone</c>), by <paramref name="who"/> (the same every night):
+    /// for folk with no job of their own to be dressed for, the fort's (note 1002; the director's 23 Oct playtest, line 23:
+    /// "Some of these people's faces are terrifying"), so <see cref="For"/> gives them that character.
+    /// </summary>
+    public static string AnyoneRole(int who)
+    {
+        var common = Characters.Where(c => c.Roles.Contains("anyone")).ToList();
+        return common[(int)((uint)who * 40503u >> 3) % common.Count].Roles[0];
+    }
+
     /// <summary>What each wears, on which bone.</summary>
     static (string Piece, string Bone)[] Worn(string id) => id switch
     {

@@ -61,10 +61,13 @@ public class LeftBehindTests
     /// late for it (the reckoning that calls a stop's loading done), the driver goes on. frontier:4 seed 4's driver stood 120 s
     /// for a gunner stuck by a switch, and the dawn caught the train 6.6 km in. With the dawn far off it sets back as ever.
     /// </summary>
+    /// <para>Note 995 (the director's playtest of 23 Oct, line 4: "I fell off the train. Is he going to stop for me? He's not
+    /// going to stop for me"): only a bot is left to the dawn; someone playing is fetched whatever it.</para>
     [Theory]
-    [InlineData(60, false)]
-    [InlineData(3000, true)]
-    public void TheStandForSomeoneLeftBehindYieldsToTheDawn(double dawn, bool setsBack)
+    [InlineData(60, false, false)]
+    [InlineData(400, true, true)]
+    [InlineData(3000, false, true)]
+    public void TheStandForSomeoneLeftBehindYieldsToTheDawn(double dawn, bool person, bool setsBack)
     {
         var route = RouteGenerator.Generate(Tuning.Route, RouteTier.Frontier, 7) with { DawnSeconds = dawn };
         var line = route.Build();
@@ -78,9 +81,12 @@ public class LeftBehindTests
         var them = PlayerMotor.SpawnOnGround(line.Sample(RailLine.MainPath, at).Position + new Ballast.Double3(3, 0, 0), line, at, P);
         var c = new TrainControls { Reverser = 1 };
         double slowest = double.MaxValue;
+        // Out past the gate (the run's Yard phase holds the train for whoever's afoot, note 995's line 2).
+        world.StepRun([driver, them]);
         for (int i = 0; i < 150 * SimConstants.TickRate; i++)
         {
             bot.Crewmates = [them];
+            bot.Players = person ? [them] : [];
             var intent = bot.Decide(driver, world, world.Tick, out _);
             if (CabControls.CanDrive(driver, train) && CabControls.Clears(c, train, CabControls.ReleasesBrake(intent, driver, train)))
                 c.Brake = 0;
@@ -91,7 +97,7 @@ public class LeftBehindTests
             PlayerMotor.Step(ref driver, intent, train, P, Tuning.Train, SimConstants.TickSeconds, applyLook: false);
             slowest = Math.Min(slowest, train.Dynamics.Velocity);
         }
-        Assert.Equal(setsBack, bot.Stops!.LateHere(world) is false);
+        Assert.Equal(dawn < 1000, bot.Stops!.LateHere(world));
         if (setsBack)
             Assert.True(slowest < -0.5, $"never set back (slowest {slowest:0.0} m/s, at {train.Dynamics.Velocity:0.0} m/s, their gap {train.Dynamics.RearDistance - at:0} m)");
         else
