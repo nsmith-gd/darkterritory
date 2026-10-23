@@ -1870,9 +1870,12 @@ public sealed class FrontEnd
             {
                 var c = offers[i];
                 int contract = i;
-                // GDD §9 "choose a route" (note 637: a contract is just a route): the train leaves empty, and its cars are paid
-                // by what its stops load, about the tier's car-load each.
-                list.Add(new(new($"TONIGHT: {Name(c.Tier)} {c.Seed}, ABOUT {c.PerCar:0} A CAR-LOAD", $"Whatever its stops load. Up to about {c.PerCar * s.Cars:0} on {s.Cars} cars."),
+                // GDD §9 "choose a route" (note 637: a contract is just a route): the train leaves empty and is paid for what it
+                // brings in (Run.Tally: each car's freight at its cargo's rate, the finds, the mail, a child home). Not "a
+                // car-load" (the director's playtest of 23 Oct, line 15, note 994: "we're not doing this by the carload"): a
+                // full train of goods is the yardstick, said as the most the freight alone comes to.
+                list.Add(new(new($"TONIGHT: {Name(c.Tier)} {c.Seed}, PAID ON WHAT YOU BRING IN",
+                        $"The freight its stops load (a full train of goods, about {c.PerCar * s.Cars:0} on {s.Cars} cars), the finds, the mail, and anyone you bring home."),
                     () => new Launch.CampaignNight(s.Slot, contract, Resume: false, _host) { Bots = _bots, Crew = RodeWith(s) }));
             }
         }
