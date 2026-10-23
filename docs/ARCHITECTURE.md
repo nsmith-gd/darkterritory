@@ -1157,6 +1157,7 @@ written here instead is moved out by `tools/coord/notes.py split`; the Coordinat
 - [996. The Tower Jaw's felled tower never ends a run, and its fall is a real threat (n1-B3, nathaniel1; queue #696; the director's playtest of 23…](notes/996.md)
 - [995. Nobody left behind: the bot driver waits for someone playing who's afoot, and fetches one fallen off (n1-H1, nathaniel1; queue #695; the…](notes/995.md)
 - [996. The Tower Jaw's felled tower never ends a run, and its fall is a real threat (n1-B3, nathaniel1; queue #696; the director's playtest of 23…](notes/996.md)
+- [997. 997. **Run 56's effects and art lines: the stack's smoke in the world's frame, your own radio not drawn in first person,](notes/997.md)
 - [998. Bridges as tunnels for the roof, the gates open to leave, trees clear of the walls, the statue's coins (Owen, queue #698)](notes/998.md)
 - [999. Pressure by state and by player: the director reads whether the train runs or stands, what each crewmate is doing, and sends its threats at…](notes/999.md)
 - [1000. More creatures, made to be composed: the roster mapped by where it presses players, and nine new creatures proposed for the gaps (Moth,…](notes/1000.md)
