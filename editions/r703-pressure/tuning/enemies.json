@@ -1,0 +1,10 @@
+// pressure by state and by player (#703, note 999): both flags on
+{
+  "$patch": true,
+  "director": {
+    "encounters": {
+      "stance": { "on": true },
+      "target": { "on": true }
+    }
+  }
+}

@@ -618,6 +618,11 @@
     "notice": 10, "lungeWithin": 3, "threatSeconds": 1.5, "bite": 35,
     "driveOffBlows": 4, "driveOffSeconds": 15, "awaySeconds": 120, "awayTo": 40, "lope": 4, "health": 12,
     "crush": 45, "crushRadius": 3.5, "clearCrewSeconds": 30, "clearReach": 4, "wreckHalf": 3, "safeSpeed": 1, "damagePerSpeed": 0.06,
+    // Note 996 (the director's playtest of 23 Oct, lines 1 and 26: run into the wreck, "Engine just breaks down immediately,
+    // and now we're perma-stuck"; elsewhere the fall "didn't do anything to the car"): the wreck's blow and its fall leave a
+    // car or the engine wreckLeaves of itself at the least (a dent the wrench mends, never a breakdown that strands the night
+    // at the wreck), and a car within crushRadius of where it comes down loses crushCar.
+    "wreckLeaves": 0.3, "crushCar": 0.35,
     "tierWeights": { "local": 1, "frontier": 1.5, "deadLines": 2, "deepTerritory": 2 }
   },
 
@@ -1572,7 +1577,74 @@
       // for gameplay?"): stood on the main line at an abandoned village's halt, lullSeconds after stopping there, one
       // encounter (whatever the night's curve could send, rule-met or free) if the stop's own haven't put one there; counted
       // as the stop's. On (the director, 21 Oct 2026, n1-A3-halt-own-creature; measured with the day's other picks, note 970).
-      "halt": { "on": true, "lullSeconds": 15 }
+      "halt": { "on": true, "lullSeconds": 15 },
+      // Pressure by the train's state (queue #703, note 999; the director's playtest of 23 Oct, line 35: "two gameplay states
+      // with substates ... stopped ... running ... the frequency at which that pressure is applied is what builds the
+      // difficulty curve"; line 27: "anytime we stop, monsters should be coming out of the woods"). Once a second the director
+      // reads the stance: stood under standBelow m/s, at a stop or facility (atStop), on the main line over an abandoned
+      // village (halt) or anywhere else (wilderness); moving, through a facility (throughFacility), under slowBelow m/s and
+      // slowingBy m/s slower than a second ago (slowing), or atSpeed. λ (note 877) × rate.<stance> (1 unlisted); stopped,
+      // the factor climbs from 1 to its own over rampSeconds stood, so a short stand isn't punished and a long one is. The
+      // grace, the forts, the final stretch and the bans stay held quiets (note 908): a stance never opens one.
+      "stance": { "on": false, "standBelow": 0.3, "slowBelow": 8, "slowingBy": 0.2, "rampSeconds": 45,
+        "rate": { "atSpeed": 1, "slowing": 1.1, "throughFacility": 1, "atStop": 1.4, "halt": 1.4, "wilderness": 1.6 } },
+      // Whom a threat is sent at, and for what (note 999; line 35: "targeting players specifically ... as countermeasures to
+      // the things that they are doing"). Each second every living crewmate's doing is read (note 999 §2: firing, driving,
+      // gunning, repairing, operating, carrying, looting, sprinting afoot past sprintAbove m/s, hiding in a shut car, walking
+      // the train, riding inside, afield); each scores pull.<doing> (1 unlisted) × (1 + census slack / slackScale) ×
+      // afootStopped when afoot with the train stood or aboardRunning when aboard with it running; nobody with their share
+      // of threats on them, nobody left behind. The top one (ties to the lowest id) is aimed at: in every channel's choice
+      // the kinds in answers.<their doing> weigh ×answerWeight and the rest ×offWeight. Only which kind, never when or how
+      // many; each kind's rule still decides whether and where it can come. On (note 999's sweep: frontier, 1x3 2x5 4x8 8x12,
+      // seeds 1-6: 14 of 20 bands both ways, four crew 12.9 -> 14.9 encounters a 20 min, in its 10-15); the stance stays off
+      // (with it four crew went to 15.0, out of band) until the director's call (nathaniel2-rook-wilderness-stop).
+      "target": { "on": true, "sprintAbove": 4.5, "slackScale": 120, "afootStopped": 1.5, "aboardRunning": 1.2,
+        "answerWeight": 2, "offWeight": 0.75,
+        "pull": { "firing": 1, "driving": 1, "gunning": 1.2, "repairing": 1.3, "operating": 1.3, "carrying": 1.4, "looting": 1.3,
+          "sprinting": 1.2, "hiding": 1, "walking": 1.1, "riding": 0.8, "afield": 1.1 },
+        // The countermeasure table (note 999 §3), by the names in "costs". Its gaps are Moth's (#706).
+        "answers": {
+          "firing": ["stoker", "hotbox"],
+          "driving": ["trackDoll", "stoker", "hotbox", "brakeman", "knotter"],
+          "gunning": ["cinderHounds", "climbers", "gannet"],
+          "repairing": ["whistler", "knotter", "draggers", "brakeman"],
+          "operating": ["ribbits", "towerJaw", "moose", "freightBeetle"],
+          "carrying": ["ribbits", "gaunt", "followers", "carHugger", "freightBeetle"],
+          "looting": ["gaunt", "followers", "sootChildren"],
+          "sprinting": ["moose", "cinderHounds", "ribbits"],
+          "hiding": ["tippyToesie", "passenger", "carHugger", "fireFlies", "carFire"],
+          "walking": ["gannet", "climbers", "draggers", "whistler", "fireFlies", "brakeman"],
+          "riding": ["tippyToesie", "fireFlies", "passenger", "carHugger"],
+          "afield": ["followers", "sootChildren", "grumbler", "moose", "ribbits", "towerJaw"]
+        },
+        // The behaviours the director foils (note 999 §2b; the director's playtest of 23 Oct, line 36: "track some things about
+        // player behavior ... in a performant way ... and build foils for that ... pushing players for adaptability or towards
+        // teamwork"). Read once a director second with targeting on (Behaviours; a byte a tick for the voice), host only, no
+        // draws: lootingAlone (searching a house, nobody within aloneM m, lootAloneSeconds on), cellarAlone (searching a
+        // cellar, nobody within aloneM), straggling (afoot, nobody within straggleM), gunAlone (on a gun gunAloneSeconds, nobody
+        // within aloneM), lazing (a deck chair or the band, lazeSeconds), silent and chatter (with company, the share of the
+        // last talkSeconds on the mic louder than talkAbove: at most silentShare, at least chatterShare), griefing (the
+        // horseplay's mark, note 717), oneTrick (after oneTrickAfter s on the run, oneTrickShare of it at one job, those in
+        // oneTrickExempt not counted). on: the aim's score × pull.<behaviour> for each shown, and foils.<behaviour>'s kinds
+        // answer it as answers' do. On (note 999 §2b's sweep, frontier 1x3 2x5 4x8 8x12, seeds 1-6: 14 of 20 bands, as with
+        // targeting alone; 37 encounters of 24 nights sent to foil what was shown). The reading runs with targeting either way.
+        "behaviours": { "on": true, "aloneM": 12, "straggleM": 40, "lootAloneSeconds": 10, "gunAloneSeconds": 120, "lazeSeconds": 45,
+          "talkAbove": 0.15, "talkSeconds": 120, "silentShare": 0.03, "chatterShare": 0.6, "oneTrickAfter": 600, "oneTrickShare": 0.8,
+          "oneTrickExempt": ["riding", "afield"],
+          "pull": { "lootingAlone": 1.5, "cellarAlone": 2, "straggling": 1.5, "gunAlone": 1.3, "lazing": 1.5, "silent": 1.2,
+            "chatter": 1.1, "griefing": 1.5, "oneTrick": 1.2 },
+          // The existing foils (note 999 §2b's table); Sloe's (#709) go in beside them as they land.
+          "foils": {
+            "lootingAlone": ["gaunt", "followers"],
+            "cellarAlone": ["gaunt"],
+            "straggling": ["followers", "sootChildren", "moose"],
+            "gunAlone": ["climbers", "cinderHounds", "gannet"],
+            "lazing": ["gannet"],
+            "silent": ["gaunt"],
+            "chatter": ["whistler", "sootChildren"],
+            "griefing": ["followers"],
+            "oneTrick": []
+          } } }
     },
     // GDD App. B.1 "Post-event cooldown" (design decision, 2026-10): the least trough after a spawn; the pressure's relief
     // makes the rest of it, and well past the threshold (pressAt) it gives way.

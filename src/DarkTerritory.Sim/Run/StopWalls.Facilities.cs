@@ -126,13 +126,15 @@ public sealed partial class StopWalls
     /// <summary>
     /// Note 847: opens the gates the train's at and shuts the rest (<see cref="Fortresses.Open"/>), from its front and rear along
     /// the main line. From the train's place alone, so the host and every client that has the train there stand the same
-    /// leaves. True if any gate changed.
+    /// leaves. True if any gate changed. Note 998: the gate at <paramref name="expecting"/> (the terminus's, while it's held
+    /// open for the train: <see cref="Fortresses.Expecting"/>) stands open too; NaN, none is.
     /// </summary>
-    public bool OpenGates(double front, double rear, GateTuning t)
+    public bool OpenGates(double front, double rear, GateTuning t, double expecting = double.NaN)
     {
         bool changed = false;
+        int held = double.IsNaN(expecting) ? 0 : Fortresses.GateKey(expecting);
         foreach (int key in _gates)
-            changed |= Fortresses.Open(Fortresses.GateAlong(key), front, rear, t) ? _gatesOpen.Add(key) : _gatesOpen.Remove(key);
+            changed |= key == held || Fortresses.Open(Fortresses.GateAlong(key), front, rear, t) ? _gatesOpen.Add(key) : _gatesOpen.Remove(key);
         return changed;
     }
 

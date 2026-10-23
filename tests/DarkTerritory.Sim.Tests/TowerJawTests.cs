@@ -112,6 +112,54 @@ public class TowerJawTests
         Assert.InRange(s.Train.Dynamics.Distance, along - J.WreckHalf - 0.5, along - J.WreckHalf + 0.01);
         Assert.True(s.Train.Vehicles[0].Integrity < 1);
         Assert.False(s.World.Derailed);
+        // Note 996: dented, never broken down (12 m/s took (11)² × 0.06 of it, the whole engine, before).
+        Assert.Equal(J.WreckLeaves, s.Train.Vehicles[0].Integrity, 9);
+        Assert.NotEqual(FailStage.Broken, Failing.Stage(s.Train, 0));
+    }
+
+    [Theory]
+    [InlineData(20)]
+    [InlineData(6)]
+    public void NoFallLeavesTheLineImpassable(double speed)
+    {
+        // Note 996 (the director's playtest of 23 Oct, line 1: "we ran right into a coaling tower ... Engine just breaks down
+        // immediately, and now we're perma-stuck"): run into the wreck at up to the fastest tier's line speed (20 m/s), the
+        // engine still pulls, one crewmate clears it by hand, and the train runs on past where it lay.
+        var (s, jaw) = AtTheTower(gnawed: 0.95, back: 400);
+        s.Run(0.05 * J.GnawFor(RouteTier.Frontier) + 0.5);
+        Assert.Equal(TowerJawMode.Wreck, jaw.Mode);
+        double along = jaw.Blocks!.Value;
+        s.Controls = new TrainControls { Reverser = 1, Throttle = 1 };
+        s.Train.Dynamics.Velocity = speed;
+        s.Run(120);
+        Assert.InRange(s.Train.Dynamics.Distance, along - J.WreckHalf - 0.5, along - J.WreckHalf + 0.01);
+        Assert.True(s.Train.Vehicles[0].Integrity >= J.WreckLeaves - 1e-9, $"{s.Train.Vehicles[0].Integrity}");
+        Assert.True(Failing.Power(s.Train.Dynamics.Tuning.Failing, s.Train.Vehicles[0]) > 0);
+        // One crewmate at it, Use held: clearCrewSeconds and it's gone.
+        s.Crew[1] = s.Ground(jaw.FallsAt + new Double3(1.5, 0, 0));
+        s.Run(J.ClearCrewSeconds + 1, id => new PlayerIntent { Buttons = PlayerButtons.Use });
+        Assert.True(jaw.Gone);
+        s.Crew.Clear();
+        s.Run(60);
+        Assert.True(s.Train.Dynamics.Distance > along + J.WreckHalf + 20, $"the train at {s.Train.Dynamics.Distance:0}, the wreck was at {along:0}");
+    }
+
+    [Fact]
+    public void ItsFallDentsACarStoodUnderItNeverBreaksIt()
+    {
+        // Note 996 (line 26: "it didn't do anything to the car ... an unrealized threat"): the train stood at the tower, its
+        // cars under where it comes down are dented crushCar, never below wreckLeaves; the cars clear of it untouched.
+        var probe = AtTheTower(gnawed: 0.95).Jaw;
+        double spout = probe.Blocks!.Value;
+        var s = new Stop(spout + 20);
+        var jaw = s.World.AddEnemy(id => TowerJaw.AtCoalingTower(id, s.World, s.Facility, J, 0.95));
+        s.Train.Dynamics.Velocity = 0;
+        s.Run(0.05 * J.GnawFor(RouteTier.Frontier) + 0.5, hold: 0);
+        Assert.Equal(TowerJawMode.Wreck, jaw.Mode);
+        var hit = s.Train.Vehicles.Where(v => v.Integrity < 1).ToList();
+        Assert.NotEmpty(hit);
+        Assert.All(hit, v => Assert.Equal(1 - J.CrushCar, v.Integrity, 9));
+        Assert.Contains(s.Train.Vehicles, v => v.Integrity == 1);
     }
 
     [Fact]

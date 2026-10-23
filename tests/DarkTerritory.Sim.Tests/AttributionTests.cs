@@ -108,6 +108,25 @@ public class AttributionTests
     }
 
     [Fact]
+    public void ABodyIsReadAndChargedOnce()
+    {
+        // Note 994 (the director's playtest of 23 Oct, line 12: "Body not recovered. Fee 350. Body not recovered. Fee 350 ...
+        // I should only get body not recovered once"): a death logged a second time for the same body isn't a second death.
+        var n = new Night();
+        int victim = n.Add(PlayerMotor.SpawnOnRoof(n.Train, 3, 0, P));
+        n.Add(PlayerMotor.SpawnInCab(n.Train, P));
+        n.Kill(victim, DeathCause.Eaten);
+        n.Step();
+        var death = Assert.Single(n.World.Attribution.Of(IncidentKind.Death));
+        Assert.True(death.Body >= 0);
+        n.World.Attribution.Add(death with { Seconds = death.Seconds + 1 });
+        Assert.Single(IncidentLog.Lines(n.World, 350, 263, body => false), l => l.Kind == IncidentKind.Death);
+        // Two bodies (a second death, after a Holdout freed them) are two deaths, each charged (App. D.14: no farming).
+        n.World.Attribution.Add(death with { Body = death.Body + 1000 });
+        Assert.Equal(2, IncidentLog.Lines(n.World, 350, 263, body => false).Count(l => l.Kind == IncidentKind.Death));
+    }
+
+    [Fact]
     public void TheReportReadsDeathsInTheClerksVoiceWithTheirFees()
     {
         var n = new Night();

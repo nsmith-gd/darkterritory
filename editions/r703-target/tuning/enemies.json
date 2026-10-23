@@ -1,0 +1,9 @@
+// targeting alone (#703, note 999): director.encounters.target on, the stance off
+{
+  "$patch": true,
+  "director": {
+    "encounters": {
+      "target": { "on": true }
+    }
+  }
+}
