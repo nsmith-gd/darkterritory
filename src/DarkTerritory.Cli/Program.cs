@@ -4332,6 +4332,10 @@ static object HudShot(string content, string[] args)
         Crew = crew,
         // The crew's logbook on its shelf (note 721).
         Logbook = LogbookReader.Shelf(session.Train, Hud.Remembering.Logbook),
+        // Through your own eyes, as the app has it (what you carry at your hands; your own chest radio not drawn, note 1001).
+        HeldHere = session.Watching >= 0 || !session.Player.Alive ? null
+            : (session.PlayerId, camera.Position - Double3.Up * (DarkTerritory.Game.Eyes.Height - session.World.Bodies.Hands.CarryHeight)
+                + new Double3(-Math.Sin(camera.Yaw), 0, -Math.Cos(camera.Yaw)) * session.World.Bodies.Hands.CarryForward, camera.Yaw),
     };
     // The rest of the crew, but not the one whose eyes these are (as the app draws it).
     Scene([.. session.Crew(frames, 1).Where(c => c.Id != session.Watching)]).Build(mesh, session.Train.Line, frames, session.Train.Dynamics.Distance, camera.Position);

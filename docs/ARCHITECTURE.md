@@ -1156,4 +1156,5 @@ written here instead is moved out by `tools/coord/notes.py split`; the Coordinat
 - [995. Nobody left behind: the bot driver waits for a crewmate afoot or grabbed, and hears the radio (n1-H1, nathaniel1; queue #695; the…](notes/995.md)
 - [996. The Tower Jaw's felled tower never ends a run, and its fall is a real threat (n1-B3, nathaniel1; queue #696; the director's playtest of 23…](notes/996.md)
 - [1000. More creatures, made to be composed: the roster mapped by where it presses players, and nine new creatures proposed for the gaps (Moth,…](notes/1000.md)
+- [1001. The 23 Oct playtest's drawing slips: the stack's smoke in the world's frame, your own chest radio unseen, the side doors, the statue's…](notes/1001.md)
 <!-- end of the notes index -->
