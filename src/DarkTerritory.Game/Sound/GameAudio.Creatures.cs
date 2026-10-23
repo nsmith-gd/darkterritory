@@ -252,6 +252,9 @@ public sealed partial class GameAudio
             case MouseMoose mm:
                 MouseMooseSounds(mm, was, at, occ, dt);
                 break;
+            case Bruin b:
+                BruinSounds(b, was, at, occ);
+                break;
             case Waker w:
                 WakerSounds(world, w, was, at);
                 break;

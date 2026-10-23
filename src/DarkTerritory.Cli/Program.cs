@@ -2596,6 +2596,10 @@ static object Screenshot(TrainTuning t, string content, string[] args)
             paces[id] = pace;
         scene.StagedPaces = paces;
     }
+    // --bruin out|car: the staged Bruin at the second car (note 1007; Staging.Bruin): out of the trees coming to its door (the
+    // bruin view's), risen in the car (bruincar's).
+    if (Str(args, "--bruin", view switch { "bruin" => "out", "bruincar" => "car", _ => "" }) is { Length: > 0 } bruinMode)
+        scene.Enemies = Staging.Bruin(scene.Enemies is List<DarkTerritory.Sim.Enemies.Enemy> bruinOthers ? bruinOthers : [], train, bruinMode);
     // --lodger hidden|shriek|lunge|chase|break|return: the staged Lodger off the line's left (note 583; Staging.Lodger): folded
     // in its crouch (the lodger view's), shrieking (lodgershriek's).
     if (Str(args, "--lodger", view switch { "lodger" => "hidden", "lodgershriek" => "shriek", _ => "" }) is { Length: > 0 } lodgerMode)
