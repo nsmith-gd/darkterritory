@@ -1,6 +1,6 @@
 # THE HEAD WAITER — your table is ready
 
-*Creature proposal, Sloe (queue #709, ARCHITECTURE §8 note 1004), 23 Oct 2026, for the director's rule "every creature's purpose is to foil some sort of behavior" (`docs/playtest/2026-10-23.md` line 36). **Status: a proposal for the director; nothing is built until the director approves it.** Numbers are a first pass in the roster's units.*
+*Creature proposal, Sloe (queue #709, ARCHITECTURE §8 note 1004), 23 Oct 2026, for the director's rule "every creature's purpose is to foil some sort of behavior" (`docs/playtest/2026-10-23.md` line 36). **Status: built behind a flag, off, awaiting the director's verdict (`nathaniel2-sloe-conduct-foils`)** (enemies.json `headWaiter.on`; `editions/a713-headwaiter` turns it on; note 1008, queue #713). Numbers are a first pass in the roster's units.*
 
 > **The director, 23 Oct (line 36):** "we have this whole unlock the patio with the chairs and the beers and the barbecue,
 > which I think is great. It's one of my absolute favorite cosmetics ... But if you spend too much time up there, something

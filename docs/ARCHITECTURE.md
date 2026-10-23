@@ -1155,8 +1155,9 @@ written here instead is moved out by `tools/coord/notes.py split`; the Coordinat
 - [994. Run 56's tally and UI lines (n1-U2, nathaniel1; queue #694; the director's playtest of 23 Oct, `docs/playtest/2026-10-23.md` lines 12-15)](notes/994.md)
 - [995. Nobody left behind: the bot driver waits for a crewmate afoot or grabbed, and hears the radio (n1-H1, nathaniel1; queue #695; the…](notes/995.md)
 - [996. The Tower Jaw's felled tower never ends a run, and its fall is a real threat (n1-B3, nathaniel1; queue #696; the director's playtest of 23…](notes/996.md)
-- [999. Pressure by state and by player: the director reads whether the train runs or stands, what each crewmate is doing, and sends its threats at…](notes/999.md)
 - [998. Bridges as tunnels for the roof, the gates open to leave, trees clear of the walls, the statue's coins (Owen, queue #698)](notes/998.md)
+- [999. Pressure by state and by player: the director reads whether the train runs or stands, what each crewmate is doing, and sends its threats at…](notes/999.md)
 - [1000. More creatures, made to be composed: the roster mapped by where it presses players, and nine new creatures proposed for the gaps (Moth,…](notes/1000.md)
 - [1004. Every creature foils a behaviour: the creature list again, by the director's verdicts on Moth's nine; a behaviour → foil table, the Close,…](notes/1004.md)
+- [1008. The Head Waiter, built behind a flag (Ash, nathaniel2; queue #713; Sloe's design, note 1004, `docs/design/creatures/head-waiter.md`)](notes/1008.md)
 <!-- end of the notes index -->
