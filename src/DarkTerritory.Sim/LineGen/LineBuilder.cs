@@ -149,6 +149,9 @@ sealed partial class LineBuilder
     Pcg32 Rng(string stage, string edge = "", long index = 0) => Streams.Rng(_seed, stage, edge, index);
     EdgeDraft Main => _edges["main"];
 
+    /// <summary>The arrival yard's limit (m/s): a town terminus's own (note 1009), else the yard limit's crawl.</summary>
+    double _arrivalYardSpeed;
+
     void Warn(string text)
     {
         if (!_warnings.Contains(text))
@@ -168,6 +171,7 @@ sealed partial class LineBuilder
         // A terminus that's a town has its yard as the departure's (note 600): the same town stands in it either way round.
         bool town = _t.Terminus.TownYard && _p.Tier < _t.Terminus.SilentFromTier;
         _end = _terminus + (town ? _gate : _t.Terminus.ArrivalYardM);
+        _arrivalYardSpeed = town ? _t.Terminus.TownYardLimitSpeed ?? _t.Terminus.YardLimitSpeed : _t.Terminus.YardLimitSpeed;
         _edges["main"] = new EdgeDraft { Id = "main", Role = EdgeRole.Main };
         LayBiomes();
         PlaceFacilities();

@@ -700,6 +700,9 @@
   // the crew clears the train, no longer than gateClearGiveUp s, nor once the time in hand runs out: dawn, the Wakers' run up
   // to the train's rear (wakers.riseBehind at their speeds) where it isn't in past the gate (note 940: the walls the only safety),
   // less the run in and gateClearMargin s. No time, it runs straight in: a fee beats being eaten.
+  // Note 1009 (the director's playtest of 23 Oct, line 11: "Why is he stopping outside of town? Just go into town"): and no
+  // longer than gateClearIdle s with nothing aboard struck, the stand's or the last blow's (frontier:7 seed 1's stood 188 s for
+  // a Whistler in a coupling gap that no bot went at); the Brakeman excepted, who's waited out under the train (note 610).
   // Note 615 (queue #347): from dawn, the driver stands for a Knotter, a Hotbox or its seized axle only while the Wakers' run
   // up to the train (note 607's reckoning) covers what's left of the stand, the run in through the gate at the night's cruise
   // and sixDawnMargin s; and waits for everyone aboard after only while it covers the run in. Short of that, it goes on.
@@ -715,7 +718,7 @@
     "ribbitsOutnumberedRun": true,
     "mournersWithin": 30, "mournersLeash": 20, "towerJawWithin": 25, "towerJawClearFrom": 0.9, "towerJawClearBy": 2.5,
     "wreckWithin": 250, "wreckStopShort": 15, "wreckHoldWithin": 60, "beetleWithin": 15, "ribbitWithin": 12, "brakemanStandOff": 1.5,
-    "brakemanWaitPast": 1, "standGiveUp": 240, "gateClearShort": 30, "gateClearWithin": 1500, "gateClearGiveUp": 240, "gateClearMargin": 45,
+    "brakemanWaitPast": 1, "standGiveUp": 240, "gateClearShort": 30, "gateClearWithin": 1500, "gateClearGiveUp": 240, "gateClearMargin": 45, "gateClearIdle": 30,
     "sixDawnMargin": 45, "mournersCarryWithin": 60, "mournersCarrySeconds": 60, "mouseMooseWithin": 30
   },
 
