@@ -272,15 +272,22 @@ public class AudioTests
     }
 
     [Fact]
-    public void StoodInTheBigForestsTheWoodsAreHeardAndEveryTellOverThem()
+    public void StoodInTheBigForestsTheWoodsAreHeardAndNoTellIsLostInThem()
     {
         // Note 1006 (the director, 23 Oct 2026: "some unique sound design out there in the wilds for when players stop in a
-        // forest"): the train stood in frontier:7's first deep woods, heard from the ballast. The woods' hush comes in round
-        // it, quieter than the open country's night it takes over from, and every tell is as far over it as over any bed (spec A.3).
-        var (report, _) = AudioBench.Render(Content, "woods", cars: 6, speed: 0, listenerCar: 2, seconds: 10);
-        Assert.Contains("world-woods.hush", report.StemsDb.Keys);
-        Assert.NotEmpty(report.Tells);
-        Assert.All(report.Tells, t => Assert.True(t.OverBedDb >= 6, $"{t.Sound} only {t.OverBedDb} dB over the woods"));
+        // forest"): the train stood in frontier:7's first deep woods, heard from the ballast, every demo tell staged round it.
+        // The woods' own sounds come in, and every tell is at least as clear over them as stood out of the woods on the same
+        // night, the open country's night and its gale round it (spec A.3: the woods mustn't bury a tell).
+        var (woods, _) = AudioBench.Render(Content, "woods", cars: 6, speed: 0, listenerCar: 2, seconds: 12);
+        var (open, _) = AudioBench.Render(Content, "woods-open", cars: 6, speed: 0, listenerCar: 2, seconds: 12);
+        Assert.Contains("world-woods.hush", woods.StemsDb.Keys);
+        Assert.DoesNotContain("world-woods.hush", open.StemsDb.Keys);
+        Assert.NotEmpty(woods.Tells);
+        foreach (var t in woods.Tells)
+        {
+            var there = Assert.Single(open.Tells, o => o.Sound == t.Sound);
+            Assert.True(t.OverBedDb >= there.OverBedDb - 1, $"{t.Sound}: {t.OverBedDb} dB over the woods, {there.OverBedDb} over the open night");
+        }
     }
 
     [Fact]

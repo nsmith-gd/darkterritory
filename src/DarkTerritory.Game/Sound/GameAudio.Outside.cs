@@ -401,6 +401,10 @@ public sealed partial class GameAudio
                     exposure = x.Wind;
                     break;
                 }
+        // In the big forests (note 1006) the wind's up in the canopy, 20 m over the roofs, not down among the trunks: the
+        // woods shelter the ear (the sound's alone; the sim's wind and its push on the roofs are as they were).
+        if (places.Plan is { } woodsPlan && !double.IsNaN(earMain))
+            exposure *= 1 - 0.7 * DeepWoods.Of(woodsPlan).Depth(earMain);
         double wind = weather.Wind * exposure;
         if (wind > 0.4)
             HoldLevel("world-wind.gale", 0, ear + Double3.Up, AirWalls(), Math.Clamp((wind - 0.4) / 0.5, 0.25, 1));

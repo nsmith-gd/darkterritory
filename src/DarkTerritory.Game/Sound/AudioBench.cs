@@ -134,7 +134,8 @@ public static class AudioBench
     /// working loose from half a second in, through its warning to the jump and on, the listener in the cab or up on a roof),
     /// "brought" (note 958: a creature ridden into the arrival town and fought in its yard, heard from beside it), "woods"
     /// (note 1006: the train stood in frontier:7's first big forest, the wilds' sound round it and every demo tell over it,
-    /// heard from the ballast beside car 2).</param>
+    /// heard from the ballast beside car 2), "woods-open" (the same, stood out of the woods: the open country's night, to
+    /// hold the woods against).</param>
     /// <param name="listenerCar">0 = in the cab; otherwise on that car's roof (in "feet", inside it, or the last beside it).</param>
     /// <param name="space">Hear it all as if in this space (content/audio/spaces.json); null, where the listener is.</param>
     /// <param name="track">"wreck": the music track to play (a manifest id); null, the host's draw from a fresh bag.</param>
@@ -148,13 +149,16 @@ public static class AudioBench
         // "brought" (note 958): frontier:7 drawn in to its terminus town, the train stood in the yard past the gate, hounds
         // ridden in on car 2 (Staging.Patrol, as `dt screenshot --arrival brought --patrol` has them) for the yard's fight
         // (run.json broughtIn.fightSeconds) and then gone; heard from the ground beside car 2, on the square's side.
-        bool brought = scenario == "brought", woods = scenario == "woods";
+        bool brought = scenario == "brought", open = scenario == "woods-open", woods = open || scenario == "woods";
         var route = brought || woods ? Sim.LineGen.Routes.Generate(content, "frontier:7", cars = Math.Min(cars, 6)) : null;
         var runTuning = brought || woods ? DataFile.Load<Sim.Run.RunTuning>(Path.Combine(content, Sim.Run.RunTuning.File)) : null;
         var consist = Consist.Uniform(trainTuning, cars, 1);
         var line = route?.Build() ?? RailLine.Load(Path.Combine(content, "lines", "test-loop.json"));
-        double startAt = woods && Sim.LineGen.DeepWoods.Of(route!.Plan!).Stretches is [var deep, ..]
-            ? (deep.S0 + deep.S1) / 2 + consist.LengthMetres / 2
+        var deepWoods = woods ? Sim.LineGen.DeepWoods.Of(route!.Plan!) : null;
+        double startAt = open
+            ? Enumerable.Range(0, 200).Select(i => route!.Plan!.GateM + 300 + i * 50.0).First(s => deepWoods!.Depth(s - consist.LengthMetres - 50) == 0
+                && deepWoods.Depth(s + 50) == 0 && !route!.Features.Any(f => f.Stop is not null && f.Start < s + 100 && f.End > s - consist.LengthMetres - 100))
+            : woods && deepWoods!.Stretches is [var deep, ..] ? (deep.S0 + deep.S1) / 2 + consist.LengthMetres / 2
             : route?.Plan?.Terminus is { } end ? end.GateM + (runTuning!.HomeInsideGateM ?? 0) + consist.LengthMetres + 10 : cars * 16.0 + 200;
         if (brought || woods)
             speed = 0;
@@ -178,7 +182,7 @@ public static class AudioBench
         var audio = new GameAudio(content) { SpaceOverride = space };
         // Offline: every take decodes the moment it's asked for, so a render is the same every time.
         audio.Bank.Samples.InlineBytes = long.MaxValue;
-        bool chaos = scenario is "chaos" or "chaos+band", tells = chaos || scenario is "tells" or "woods";
+        bool chaos = scenario is "chaos" or "chaos+band", tells = chaos || woods || scenario == "tells";
         // "wreck" (T117): the train comes off half a second in, heard from beside the line where the engine left it.
         bool wreck = scenario == "wreck";
         // "sound:<name>": one sound, 6 m off the listener's right, over the train (stopped, with --speed 0, for a quiet bed):
@@ -312,6 +316,10 @@ public static class AudioBench
                         v.Loose += SimConstants.TickSeconds;
                 }
                 world.Step(controls);
+                // Stood in the woods the run's under way: the host's step (the bench's world is a client's, for its staged
+                // creatures), as WorldNight and WorldWoods ask its phase.
+                if (woods)
+                    world.Run?.Step(world, [], SimConstants.TickSeconds);
                 if (train.Wreck is null)
                     train.Dynamics.Velocity = speed; // hold the moment still in speed
                 if (chaos)
