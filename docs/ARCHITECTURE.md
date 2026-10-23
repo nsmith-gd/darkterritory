@@ -1154,4 +1154,5 @@ written here instead is moved out by `tools/coord/notes.py split`; the Coordinat
 - [993. The townsfolk lookbook rebaked on today's tools (n1-L1, queue #693; note 694's next step, the Token Budget Manager, nathaniel1, 23 Oct)](notes/993.md)
 - [994. Run 56's tally and UI lines (n1-U2, nathaniel1; queue #694; the director's playtest of 23 Oct, `docs/playtest/2026-10-23.md` lines 12-15)](notes/994.md)
 - [995. Nobody left behind: the bot driver waits for a crewmate afoot or grabbed, and hears the radio (n1-H1, nathaniel1; queue #695; the…](notes/995.md)
+- [1003. The Ribbits close in and a walk doesn't outrun them; a loose coupling told again what loosened it; loose cargo off the ice (Fern, the Token…](notes/1003.md)
 <!-- end of the notes index -->
