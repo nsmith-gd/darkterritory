@@ -1148,7 +1148,8 @@ written here instead is moved out by `tools/coord/notes.py split`; the Coordinat
 - [987. A bot's answer to a ping spoken (AU1, queue #687; Finn's note 936)](notes/987.md)
 - [988. Rowan's note 858 audio tidy-ups: the shiver cut, the Switchman's and the forward cannon's leftovers, a row's name (AU1, queue #688)](notes/988.md)
 - [989. Fish sheds, fences, granite and lobster traps between a town's houses (n1-T1, nathaniel1; queue #689; GDD §3.1 "Not yet")](notes/989.md)
-- [992. Two of the Art Checklist's not-yets whose owners went quiet: the prison van's floor and the powder locker's pool (queue #692, Pax, the…](notes/992.md)
-- [991. 991. **The Art Checklist's not-yets: the Grumbler over its crane, the cellars and loose boards, the patch over a mended](notes/991.md)
 - [990. The Audio Checklist's unheard lines: a bog's water and a dykeland's salt marsh heard (Wren, nathaniel2; queue #690)](notes/990.md)
+- [991. 991. **The Art Checklist's not-yets: the Grumbler over its crane, the cellars and loose boards, the patch over a mended](notes/991.md)
+- [992. Two of the Art Checklist's not-yets whose owners went quiet: the prison van's floor and the powder locker's pool (queue #692, Pax, the…](notes/992.md)
+- [993. The townsfolk lookbook rebaked on today's tools (n1-L1, queue #693; note 694's next step, the Token Budget Manager, nathaniel1, 23 Oct)](notes/993.md)
 <!-- end of the notes index -->
