@@ -442,8 +442,18 @@ public sealed partial class WorldArt
             }
             bool dead = prop.Dead, corrupted = prop.Corrupted;
             string kind = prop.Species;
-            // Under the big forests' canopy the trees stand in each other's shade (note 1006).
+            // Under the big forests' canopy the trees stand in each other's shade (note 1006). There, three times the trees a
+            // cell, they're drawn as instances of the kit's pieces, not baked into the cell's mesh: `dt perf --ride` uploaded
+            // 98 MB a cell baked (main's 29 MB), a 0.6 s hitch.
             float under = 1 - 0.5f * p.ShadeAt(along);
+            bool deepWoods = p.Woods.Depth(along) > 0;
+            void Put(MeshAsset piece, Matrix4x4 at, Vector3 tint)
+            {
+                if (deepWoods)
+                    mesh.Instances.Add(new MeshInstance(piece, at, Tint: tint));
+                else
+                    mesh.Append(piece, at, tint);
+            }
             var (m, _) = Place(along, offset, yaw, height / 12, 0.15f);
             // Its form and lean (note 395), from a stream of its own off its art seed, so the draws below are as they were.
             var (form, lean) = Form(prop.Seed, p.Biome(along));
@@ -455,7 +465,7 @@ public sealed partial class WorldArt
                 var (cm, _) = Place(along, offset, yaw, height / CorruptedTreeArt.BuiltHeight, 0.15f);
                 if (lean.Angle > 0)
                     cm = Matrix4x4.CreateRotationZ(lean.Angle) * Matrix4x4.CreateRotationY(lean.Toward) * cm;
-                mesh.Append(blighted, CutBack(cm, blighted, height / CorruptedTreeArt.BuiltHeight, Room(along, offset)), new Vector3((0.85f + 0.3f * (float)rng.NextDouble()) * under));
+                Put(blighted, CutBack(cm, blighted, height / CorruptedTreeArt.BuiltHeight, Room(along, offset)), new Vector3((0.85f + 0.3f * (float)rng.NextDouble()) * under));
                 continue;
             }
             MeshAsset piece = dead
@@ -477,7 +487,7 @@ public sealed partial class WorldArt
             // heaped at the foot.
             if (corrupted)
                 tint = new Vector3(0.32f, 0.24f, 0.2f);
-            mesh.Append(piece, m, tint * under);
+            Put(piece, m, tint * under);
             if (corrupted)
             {
                 // Brighter than a brass field's growths, a sick glow in them: what the eye should catch in the dead wood.
