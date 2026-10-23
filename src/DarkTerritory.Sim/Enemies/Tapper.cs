@@ -53,7 +53,12 @@ public sealed class Tapper(int id) : Enemy(id)
         double z = Math.Clamp(seat.Z + behind * t.ComeFromM, -shape.HalfLength + 0.3, shape.HalfLength - 0.3);
         return new(id)
         {
-            Attached = car, Local = new Double3(0, RoofY(shape), z), Extra = gunner, Lateral = behind, Height = (double)TapperMode.Crawl, Health = t.Health,
+            Attached = car,
+            Local = new Double3(0, RoofY(shape), z),
+            Extra = gunner,
+            Lateral = behind,
+            Height = (double)TapperMode.Crawl,
+            Health = t.Health,
         };
     }
 
@@ -158,18 +163,18 @@ public sealed class Tapper(int id) : Enemy(id)
                     SetMode(TapperMode.Crawl);
                 return;
             case TapperMode.Crawl:
-            {
-                // Up behind them along the roof (the seat's in the car's frame; Lateral is which way's behind them).
-                double to = g.Position.Z + Lateral * t.TapBehindM;
-                double step = t.Crawl * dt;
-                Local = Local with { Z = Local.Z + Math.Clamp(to - Local.Z, -step, step) };
-                if (Math.Abs(to - Local.Z) <= 0.05)
                 {
-                    SetMode(TapperMode.Tap);
-                    Enter(ctx, SpinePhase.Telegraph);
+                    // Up behind them along the roof (the seat's in the car's frame; Lateral is which way's behind them).
+                    double to = g.Position.Z + Lateral * t.TapBehindM;
+                    double step = t.Crawl * dt;
+                    Local = Local with { Z = Local.Z + Math.Clamp(to - Local.Z, -step, step) };
+                    if (Math.Abs(to - Local.Z) <= 0.05)
+                    {
+                        SetMode(TapperMode.Tap);
+                        Enter(ctx, SpinePhase.Telegraph);
+                    }
+                    return;
                 }
-                return;
-            }
             case TapperMode.Tap:
                 // TAP: the telegraph; tapSeconds on (and never before the reaction window), the lift.
                 if (Phase == SpinePhase.Telegraph && _modeSeconds >= Math.Max(ctx.Tuning.MinReactionSeconds, MooseTuning.ByTier(t.TapSeconds, tier)))
