@@ -1158,5 +1158,6 @@ written here instead is moved out by `tools/coord/notes.py split`; the Coordinat
 - [998. Bridges as tunnels for the roof, the gates open to leave, trees clear of the walls, the statue's coins (Owen, queue #698)](notes/998.md)
 - [999. Pressure by state and by player: the director reads whether the train runs or stands, what each crewmate is doing, and sends its threats at…](notes/999.md)
 - [1000. More creatures, made to be composed: the roster mapped by where it presses players, and nine new creatures proposed for the gaps (Moth,…](notes/1000.md)
+- [1001. The cars' side doors (Ash, nathaniel2; queue #707; `docs/playtest/2026-10-23.md` line 20): every car's body cooked apart](notes/1001.md)
 - [1004. Every creature foils a behaviour: the creature list again, by the director's verdicts on Moth's nine; a behaviour → foil table, the Close,…](notes/1004.md)
 <!-- end of the notes index -->
