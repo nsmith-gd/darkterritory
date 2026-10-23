@@ -30,6 +30,7 @@ public sealed record SightTuning
     public double SandSeconds { get; init; } = 8;
     public double SandFadeSeconds { get; init; } = 3;
     public int StruckDamage { get; init; } = 200;
+    public double TrussClearance { get; init; } = 5.6;
     // Note 803: the mail cut for now. Mirrors sight.json (false); the callers that read the defaults (the line's prop
     // boards, the linegen map, a screenshot's boards) see the cut through it.
     public bool MailCranes { get; init; }
@@ -82,7 +83,7 @@ public enum SignKind : byte
 {
     /// <summary>A posted speed for the curve or weak bridge past it: over it, the train lurches and throws people off.</summary>
     SpeedLimit,
-    /// <summary>A tunnel ahead: its mouth takes anyone standing on a roof.</summary>
+    /// <summary>A tunnel ahead, or a through truss (note 998): its mouth, or the bracing, takes anyone standing on a roof.</summary>
     LowClearance,
     /// <summary>A mail crane ahead, and which side: someone in a car's open side door with the hook out catches its bag.</summary>
     Drop,
@@ -98,8 +99,13 @@ public sealed record Sign(int Id, SignKind Kind, double Board, double Start, dou
 {
     /// <summary>A drop board's drop.</summary>
     public Drop? Drop { get; init; }
-    /// <summary>A speed board for a weak bridge, not a bend.</summary>
+    /// <summary>A speed board for a weak bridge, not a bend; a low-clearance board for a through truss, not a tunnel.</summary>
     public bool Bridge { get; init; }
+    /// <summary>
+    /// A low-clearance board's height clear over the rail (m): a truss's bracing (sight.json <c>trussClearance</c>, note 998),
+    /// which takes a head stood up over it. 0: a tunnel's mouth, which takes anyone standing.
+    /// </summary>
+    public double Clearance { get; init; }
     /// <summary>A board's figure, as it's painted: km/h, in fives.</summary>
     public int LimitKmh => (int)(Math.Floor(Limit * 3.6 / 5) * 5);
 }
@@ -216,7 +222,7 @@ public sealed class Lineside
 
     public static IEnumerable<Sign> Boards(SightTuning t, Route route, IReadOnlyList<Drop> drops)
     {
-        var zones = new List<(SignKind Kind, double Start, double End, double Limit, bool Bridge)>();
+        var zones = new List<(SignKind Kind, double Start, double End, double Limit, bool Bridge, double Clearance)>();
         double s = 0, curveStart = -1, curveLimit = double.MaxValue;
         // Note 266: a generated line's bends are boarded by the plan (§8.5, LineBuilder.Signage: posted at √(aPost R), every bend
         // that derails under planPostBelow), and these boards carry the same figure, so the roof warning, the HUD and the
@@ -235,19 +241,23 @@ public sealed class Lineside
             }
             else if (curveStart >= 0)
             {
-                zones.Add((SignKind.SpeedLimit, curveStart, s, curveLimit, false));
+                zones.Add((SignKind.SpeedLimit, curveStart, s, curveLimit, false, 0));
                 curveStart = -1;
                 curveLimit = double.MaxValue;
             }
             s += seg.Length;
         }
         if (curveStart >= 0)
-            zones.Add((SignKind.SpeedLimit, curveStart, s, curveLimit, false));
+            zones.Add((SignKind.SpeedLimit, curveStart, s, curveLimit, false, 0));
         foreach (var b in route.Of(FeatureKind.Bridge).Where(b => b.MaxCars > 0))
-            zones.Add((SignKind.SpeedLimit, b.Start, b.End, t.WeakBridgeLimit, true));
+            zones.Add((SignKind.SpeedLimit, b.Start, b.End, t.WeakBridgeLimit, true, 0));
         foreach (var tunnel in route.Of(FeatureKind.Tunnel))
-            zones.Add((SignKind.LowClearance, tunnel.Start, tunnel.End, 0, false));
-        var boards = zones.Select(z => new Sign(0, z.Kind, Math.Max(0, z.Start - t.BoardAhead), z.Start, z.End, z.Limit) { Bridge = z.Bridge })
+            zones.Add((SignKind.LowClearance, tunnel.Start, tunnel.End, 0, false, 0));
+        // Note 998 (the director's playtest of 23 Oct, line 18: "I clipped right through the bridge top. That should be treated
+        // like ... a tunnel"): a through truss's bracing over the roofs is a low clearance, boarded and warned of the same.
+        foreach (var b in route.Of(FeatureKind.Bridge).Where(b => b.Through))
+            zones.Add((SignKind.LowClearance, b.Start, b.End, 0, true, t.TrussClearance));
+        var boards = zones.Select(z => new Sign(0, z.Kind, Math.Max(0, z.Start - t.BoardAhead), z.Start, z.End, z.Limit) { Bridge = z.Bridge, Clearance = z.Clearance })
             .Concat(drops.Select(d => new Sign(0, SignKind.Drop, Math.Max(0, d.At - t.DropBoardAhead), d.At, d.At, t.CatchMaxSpeed) { Drop = d }))
             .Append(new Sign(0, SignKind.Terminus, Math.Max(0, route.RunLength - t.TerminusBoard), route.RunLength, route.RunLength))
             // And the home signal and the platform's board, close in: the last run in has its moments too.
@@ -370,16 +380,24 @@ public sealed class Lineside
 
     /// <summary>
     /// Note 664: a player on a car's roof inside a tunnel's mouth's reach (the low clearance that takes anyone standing up
-    /// there): crouched, they stay down until it's past.
+    /// there): crouched, they stay down until it's past. Under a truss's bracing (note 998), only if standing
+    /// (<paramref name="standing"/> m tall) would put their head over its clearance.
     /// </summary>
-    public bool UnderLowClearance(in PlayerState s, TrainOnLine train)
+    public bool UnderLowClearance(in PlayerState s, TrainOnLine train, double standing = double.PositiveInfinity)
     {
         if (s.Surface != Surface.Roof || s.Parent < 0 || s.Parent >= train.Frames.Count || train.RakeOf(s.Parent).Path != RailLine.MainPath)
             return false;
         // Where along the line they stand, as Hazards has it: a car's −Z is its front.
         double along = train.Cars[s.Parent].FrontDistance - (s.Position.Z + train.Frames[s.Parent].Shape.HalfLength);
-        return _signs.Any(g => g.Kind == SignKind.LowClearance && along >= g.Start && along <= g.End);
+        double head = s.Position.Y + standing;
+        return _signs.Any(g => g.Kind == SignKind.LowClearance && along >= g.Start && along <= g.End && Strikes(g, head));
     }
+
+    /// <summary>
+    /// Whether a low clearance takes a head this high over the rail (m, in the car's frame, whose floor is the rail's): a
+    /// tunnel's mouth any, a truss's bracing (note 998) one over its <see cref="Sign.Clearance"/>.
+    /// </summary>
+    public static bool Strikes(Sign sign, double head) => sign.Clearance <= 0 || head > sign.Clearance;
 
     /// <summary>The engine's on greased rail now (what the drivers feel: they slip).</summary>
     public bool OnGrease(TrainOnLine train) =>
@@ -452,6 +470,9 @@ public sealed class Lineside
                         // Note 664 (D1 for the director: a crouch "fits the body under low clearance"): it's tuned to, crouched
                         // on the key or a headset rider's head down under crouchHead.
                         if (w.CrouchClearsMouth && (s.Has(PlayerFlags.Crouched) || s.Head > 0 && s.Head <= w.CrouchHead))
+                            continue;
+                        // Note 998: under a truss's bracing, a head that stands clear of it (unknown, it's struck, as at a mouth).
+                        if (!Strikes(sign, s.Position.Y + (world.Movement?.Height ?? double.PositiveInfinity)))
                             continue;
                         // App. A.1: no commit without its telegraph, the warning up its whole lead.
                         if (!WarnedInTime(sign.Id))

@@ -2117,7 +2117,10 @@ public static partial class Hud
             return null;
         string when = w.Metres <= 0 ? "NOW" : double.IsFinite(w.Seconds) ? $"IN {Math.Max(1, Math.Ceiling(w.Seconds)):0}S" : $"{w.Metres:0} M AHEAD";
         return w.Kind == SignKind.LowClearance
-            ? ("LOW CLEARANCE", w.Metres <= 0 ? "IN THE TUNNEL: STAY OFF THE ROOF" : $"TUNNEL MOUTH {when}: GET OFF THE ROOF")
+            ? ("LOW CLEARANCE", w.Bridge
+                // Note 998: a through truss's bracing, boarded as a tunnel's mouth.
+                ? w.Metres <= 0 ? "UNDER THE BRIDGE: STAY DOWN" : $"TRUSS BRIDGE {when}: GET OFF THE ROOF"
+                : w.Metres <= 0 ? "IN THE TUNNEL: STAY OFF THE ROOF" : $"TUNNEL MOUTH {when}: GET OFF THE ROOF")
             : (w.Bridge ? "TOO FAST FOR THE BRIDGE" : "TOO FAST FOR THE BEND", $"{w.LimitKmh} KM/H BOARD {when}: GET OFF THE ROOF");
     }
 

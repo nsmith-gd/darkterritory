@@ -38,6 +38,11 @@
   "sandFadeSeconds": 3,
   // A tunnel's mouth, to anyone standing on a roof going into it.
   "struckDamage": 200,
+  // A through truss's bracing over the roofs (note 998; the director's playtest of 23 Oct, line 18: "I clipped right through
+  // the bridge top. That should be treated like ... a tunnel"): its portals' plates hang this low over the rail (m;
+  // StructureKit.TrussSpan, 7 m chords less 1.4). Boarded and warned of as a tunnel's mouth, and it takes (struckDamage) anyone
+  // stood on a roof with their head (player.json height over their feet) above it; a crouch goes under, as at a mouth.
+  "trussClearance": 5.6,
 
   // The mail cut for now (queue #530, ARCHITECTURE §8 note 803; the director, 15 Oct 2026: "Im soft on the mail. I dont
   // like it so far. Lets cut for now."). false: no mail crane or its board on any line (Lineside.Drops places none), so
