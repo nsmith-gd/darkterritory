@@ -240,7 +240,9 @@ public class AuditTests
             Route = route,
             Run = Tuning.Run,
             Facilities = DataFile.Load<Run.FacilityTuning>(Path.Combine(Content, Run.FacilityTuning.File)),
-            Sight = DataFile.Load<Route.SightTuning>(Path.Combine(Content, Route.SightTuning.File)),
+            // (Note 998: the night's through truss, early on the line, is a low clearance now, and the bots up top get
+            // down for it; what's tested here is from before that, so the truss is left high.)
+            Sight = DataFile.Load<Route.SightTuning>(Path.Combine(Content, Route.SightTuning.File)) with { TrussClearance = 0 },
             YardLength = route.GateOr(Tuning.Route.YardLength),
             Insist = kinds,
             Look = look,
@@ -275,7 +277,9 @@ public class AuditTests
             Route = route,
             Run = Tuning.Run,
             Facilities = DataFile.Load<Run.FacilityTuning>(Path.Combine(Content, Run.FacilityTuning.File)),
-            Sight = DataFile.Load<Route.SightTuning>(Path.Combine(Content, Route.SightTuning.File)),
+            // (Note 998: the night's through truss, early on the line, is a low clearance now, and the bots up top get
+            // down for it; what's tested here is from before that, so the truss is left high.)
+            Sight = DataFile.Load<Route.SightTuning>(Path.Combine(Content, Route.SightTuning.File)) with { TrussClearance = 0 },
             YardLength = route.GateOr(Tuning.Route.YardLength),
             Insist = kinds,
             Look = look,

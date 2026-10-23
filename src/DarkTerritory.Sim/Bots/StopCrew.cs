@@ -1680,7 +1680,11 @@ public sealed class StopDriver(CrewCalls calls)
                     }
                     // Everyone with a part aboard the engine's rake, or long enough waiting that someone isn't coming (kept off
                     // it by something in a car, say: T64's Climbers): in without them, as the loading leg goes on without them.
-                    if (set && cut && (calls.Riding(OnTheTrain(train)) || Waited > HeldGiveUp + AboardGiveUp))
+                    // Note 995 (the director's playtest of 23 Oct, line 3: "I've thrown the spur ... and the train does not stop and
+                    // wait for me to get on"): nor without someone playing still on the ground (calls.Riding is the bots'), for
+                    // so long (crew.peopleLeftSeconds).
+                    if (set && cut && (calls.Riding(OnTheTrain(train)) || Waited > HeldGiveUp + AboardGiveUp)
+                        && (!PeopleOff(world) || Waited > (world.Run?.FacilityTuning?.Crew.PeopleLeftSeconds ?? new StopCrewTuning().PeopleLeftSeconds)))
                         Begin(Leg.SpurIn);
                     return Hold(world);
                 }

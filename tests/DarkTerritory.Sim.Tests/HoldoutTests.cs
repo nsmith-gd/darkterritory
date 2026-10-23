@@ -901,6 +901,9 @@ public class HoldoutTests
         }
     }
 
+    /// <summary>Note 995: how long a bot driver waits for someone playing who's afoot (facilities.json crew.peopleLeftSeconds), and a little.</summary>
+    static readonly double PeopleWait = FacilityTests.F.Crew.PeopleLeftSeconds + 120;
+
     [Fact]
     public void ALoneDriverStopsAtALitLockupBreachesItAndDrivesOnWithThemBack()
     {
@@ -960,8 +963,9 @@ public class HoldoutTests
         var back = n.Of(n.PlayerId);
         Assert.True(back.Alive);
         Assert.True((back.Position - lockup.Inside).Length < 1);
-        // And the driver's back up in the cab and away (the one playing climbs aboard as they like; it waits a while for them).
-        n.Run(300, until: () => n.Host.Train.Dynamics.Distance > outAt + 50);
+        // And the driver's back up in the cab and away (the one playing climbs aboard as they like; it waits a while for them:
+        // note 995, crew.peopleLeftSeconds for someone playing who's afoot by the train).
+        n.Run(PeopleWait, until: () => n.Host.Train.Dynamics.Distance > outAt + 50);
         Assert.True(PlayerMotor.InCab(n.Of(driverId), n.Host.Train), "back in the cab");
         Assert.False(driver.BreachingAlone);
         Assert.True(n.Host.Train.Dynamics.Distance > outAt + 50, $"drove on: {n.Host.Train.Dynamics.Distance - outAt:0} m from where it stood");
@@ -989,7 +993,7 @@ public class HoldoutTests
         Assert.True(Math.Abs(n.Lockup.Site.Stop!.Holdouts[0].Door.D) > 60);
         var freed = Assert.Single(n.Host.HoldoutEvents, e => e.Kind == HoldoutEventKind.Freed);
         Assert.Equal(driverId, freed.By);
-        n.Run(400, until: () => n.Host.Train.Dynamics.Distance > outAt + 50);
+        n.Run(PeopleWait, until: () => n.Host.Train.Dynamics.Distance > outAt + 50);
         Assert.True(PlayerMotor.InCab(n.Of(driverId), n.Host.Train), "back in the cab");
         Assert.False(driver.BreachingAlone);
         Assert.True(n.Host.Train.Dynamics.Distance > outAt + 50, $"drove on: {n.Host.Train.Dynamics.Distance - outAt:0} m from where it stood");

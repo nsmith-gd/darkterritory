@@ -37,6 +37,13 @@ public enum FeatureKind
 public sealed record RouteFeature(FeatureKind Kind, double Start, double End, int Side = 0, int MaxCars = 0, FacilityKind? Facility = null)
 {
     /// <summary>
+    /// A bridge the train runs inside (a generated line's iron through truss, linegen plan §12.3): its bracing goes over the
+    /// roofs, so it's boarded and struck like a tunnel's mouth for whoever stands up there (note 998; sight.json
+    /// <c>trussClearance</c>).
+    /// </summary>
+    public bool Through { get; init; }
+
+    /// <summary>
     /// A facility's own loading modules (T44, by name: "crates", "winch"), set by a designer in <c>dt edit</c>. Unset, it
     /// has what its kind has (facilities.json <c>kinds</c>).
     /// </summary>

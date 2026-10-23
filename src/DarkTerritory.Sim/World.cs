@@ -1043,9 +1043,17 @@ public sealed partial class World
     /// </summary>
     void StandGates()
     {
-        if (Run is { } run && Train.Walls is { Gates.Count: > 0 } gated)
-            gated.OpenGates(Train.Line.MainDistance(Train.Dynamics.Path, Train.Dynamics.Distance),
-                Train.Line.MainDistance(Train.Dynamics.Path, Train.Dynamics.RearDistance), run.Tuning.Gates);
+        if (Run is not { } run || Train.Walls is not { Gates.Count: > 0 } gated)
+            return;
+        var t = run.Tuning.Gates;
+        double rear = Train.Line.MainDistance(Train.Dynamics.Path, Train.Dynamics.RearDistance);
+        // Note 998: the terminus's gate held open for the train until it's in, or the lead Waker's at it.
+        double home = run.Route.Plan?.Terminus.GateM ?? 0, waker = double.NegativeInfinity;
+        foreach (var e in _enemies)
+            if (e is Waker { Lead: true, Gone: false } w)
+                waker = w.Holds ? double.PositiveInfinity : w.LineDistance;
+        gated.OpenGates(Train.Line.MainDistance(Train.Dynamics.Path, Train.Dynamics.Distance), rear, t,
+            home > 0 && Sim.Run.Fortresses.Expecting(home, rear, waker, t) ? home : double.NaN);
     }
 
     Sim.Run.StopWalls StopsWalls(Route.Route route)
@@ -1697,7 +1705,7 @@ public sealed partial class World
         bool down = can && (intent.Has(PlayerMoves.Crouch) || s.Head > 0 && s.Head <= p.Crouch.HeadsetBelow);
         if (down)
             s.Flags |= PlayerFlags.Crouched;
-        else if (s.Has(PlayerFlags.Crouched) && (!can || PlayerMotor.Headroom(s, Train, p) && Lineside?.UnderLowClearance(s, Train) != true))
+        else if (s.Has(PlayerFlags.Crouched) && (!can || PlayerMotor.Headroom(s, Train, p) && Lineside?.UnderLowClearance(s, Train, p.Height) != true))
             s.Flags &= ~PlayerFlags.Crouched;
     }
 
