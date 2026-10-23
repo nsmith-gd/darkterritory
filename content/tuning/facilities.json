@@ -381,6 +381,14 @@
     // time, or someone playing pings the cab (GDD §12), and it drives out itself. 0: it drives out as soon as everyone's
     // aboard, as before. A bot crew alone isn't held: there's nobody to give the seat to.
     "peopleSeatSeconds": 60,
+    // Note 1009 (the director's playtest of 23 Oct, line 6: "We didn't stop to get anything else ... these guys blew through
+    // everything and we didn't stop to actually play the game"; line 3: "I've thrown the spur"): every stop is optional
+    // (GDD §18), and the crew's to ask for. A stop's own spur set for its siding ahead of a bot driver (thrown by someone
+    // playing, or by a bot they pinged to the points: the bots throw one only at the stop's own hold, and the Switchman
+    // takes dead lines) is the crew asking for that stop. The driver makes it, whatever its reckoning of the night, unless
+    // it's already late for the dawn there (then it stands short and has it set back, as for any switch set wrong). False:
+    // a spur set ahead is a switch set wrong, as before.
+    "crewsStops": true,
     // Note 326 (GDD App. F.3: "crews decide whether to split up for more loot, or work the yard together, or the village
     // together"): once the yard's crates are in, this share of the crate hands go to search the village's open houses
     // (the rest shut the doors), each to the nearest hiding spot nobody else has taken within villageReach (m) of where it

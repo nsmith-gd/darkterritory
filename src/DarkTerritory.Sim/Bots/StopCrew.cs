@@ -249,6 +249,17 @@ public sealed partial class CrewCalls
             Heard(-1, "loading ahead", -1, ahead, () => BeforeTheLoading = ahead);
     }
 
+    /// <summary>
+    /// Note 1009: the stop's spur (its branch) the crew asked for by throwing it ahead of the train, which the driver's making:
+    /// set for its siding, it's no switch set wrong, and nobody sets it back. −1 with none.
+    /// </summary>
+    public int AskedSpur { get; private set; } = -1;
+    public void Asked(int spur)
+    {
+        if (spur != AskedSpur)
+            Heard(-1, "asked spur", -1, spur, () => AskedSpur = spur);
+    }
+
     // Note 326: the village's hiding spots claimed (by whom), and the hands out at the houses or bringing a find back.
     readonly Dictionary<int, int> _spots = new();
     readonly SortedSet<int> _out = [];
@@ -1425,6 +1436,21 @@ public sealed class StopDriver(CrewCalls calls)
     public SwitchPlan? Switch { get; private set; }
     readonly HashSet<int> _coaled = [];
     double _tenderAtStart;
+    /// <summary>
+    /// Note 1009 (the director's playtest of 23 Oct, line 6: "we didn't stop to actually play the game"): the stop whose own
+    /// track <paramref name="set"/>'s switch is set for, not made tonight, that the crew can work, if the crew's stops are on
+    /// (facilities.json crew.crewsStops) and it isn't late for the dawn there. Only the crew sets a stop's spur ahead of the
+    /// train (someone playing, or a bot on their ping: the stop's own shunter throws it at the hold, the Switchman takes dead
+    /// lines), so it's their asking for the stop, whatever the driver's reckoning of the night. Null otherwise.
+    /// </summary>
+    StopPlan? CrewsStop(World world, SwitchPlan set)
+    {
+        if (world.Run?.FacilityTuning?.Crew is not { CrewsStops: true } || set.Branch.Kind != BranchKind.Spur)
+            return null;
+        var p = StopPlan.Ahead(world, world.Train.Dynamics.Distance, _done, calls, a => a.Spur.Index == set.Branch.Index);
+        return p is not null && p.Spur.Index == set.Branch.Index && !LateAt(world, p.Hold) ? p : null;
+    }
+
     /// <summary>The speed it runs up to a stop at (the driver's cruise).</summary>
     public double CruiseSpeed { get; set; } = 14;
     /// <summary>
@@ -1463,6 +1489,8 @@ public sealed class StopDriver(CrewCalls calls)
             _legs[Doing.ToString()] = Math.Round(_legs.GetValueOrDefault(Doing.ToString()) + Waited, 1);
         Doing = leg;
         calls.LoadingAhead(leg is Leg.Approach or Leg.Held && Plan is { PickUp: false });
+        if (leg == Leg.Cruise)
+            calls.Asked(-1);
         _legStart = _ticks;
         if (leg == Leg.Loading)
         {
@@ -1497,6 +1525,18 @@ public sealed class StopDriver(CrewCalls calls)
                     }
                     if (StopPlan.NearRake(train, train.Dynamics.Distance) is not null || !train.OnMain || world.Run is not { } run)
                         return null;
+                    // Note 1009: a stop's spur set ahead by the crew is that stop asked for, and made.
+                    if (SwitchPlan.Ahead(world) is { } asked && asked.Hold <= engine.Distance + Math.Max(StoppingDistance(train), EaseDistance(world)) + 80
+                        && CrewsStop(world, asked) is { } theirs)
+                    {
+                        calls.Asked(theirs.Spur.Index);
+                        Plan = theirs;
+                        _legs.Clear();
+                        _stopStart = _ticks;
+                        _sledsAtStart = theirs.Site.SledsLeft;
+                        Begin(Leg.Approach);
+                        return Toward(world, theirs.Hold, +1, Eased(world, theirs.Hold), band: CruiseBand);
+                    }
                     // A switch lamp ahead reading wrong: stop short of its points and have it set back (App. A.7).
                     if (SwitchPlan.Ahead(world) is { } wrong && wrong.Hold <= engine.Distance + StoppingDistance(train) + 80)
                     {
@@ -3218,9 +3258,12 @@ public sealed partial class StopHand(StopJob job, CrewCalls calls, int member)
     {
         intent = null;
         var train = world.Train;
+        // Note 1009: the stop's spur the crew asked for, the driver making it, isn't set wrong (seen so before it was asked for, too).
+        if (_switch is not null && _switch.Branch.Index == calls.AskedSpur)
+            _switch = null;
         if (_switch is null)
         {
-            if (SwitchPlan.Ahead(world) is not { } plan || !plan.StandingAt(train))
+            if (SwitchPlan.Ahead(world) is not { } plan || !plan.StandingAt(train) || plan.Branch.Index == calls.AskedSpur)
                 return false;
             _switch = plan;
         }
