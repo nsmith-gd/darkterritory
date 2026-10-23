@@ -1119,6 +1119,8 @@ CampaignState? Play(IPlaySession session, CampaignState? campaign)
     var vrHud = locomotion is null ? null : new VrPanel(locomotion.Tuning.Hud);
     var vrOverlay = new Overlay();
     bool showHud = settings.Hud && !args.Contains("--no-hud");
+    // Note 994: dead and watching, F1's cinematic view (nothing on the screen but the picture).
+    bool deadView = false;
     // The card's side showing (C turns it over, and puts it away after the last); -1 put away.
     int cardPage = args.Contains("--card") ? 0 : -1, cardPages = 1;
     // The supplies aboard (the director's decision of 2026-10-06; note 264): toggled on and off, never always there.
@@ -1601,7 +1603,18 @@ CampaignState? Play(IPlaySession session, CampaignState? campaign)
             else
                 chase = !chase;
         }
-        if (Pressed(Key.F1)) showHud = !showHud;
+        // F1: the HUD off or on. Dead and watching (note 994, the director's playtest of 23 Oct, line 14: "a no text, no UI on
+        // screen button I can press when I'm dead"), it's the cinematic view: every word and the UI gone, the dead card's own
+        // hint included, till F1 again or they're alive again (a Holdout's freed them), when their HUD is back as it was.
+        if (Pressed(Key.F1))
+        {
+            if (session.Player.Alive)
+                showHud = !showHud;
+            else
+                deadView = !deadView;
+        }
+        if (session.Player.Alive)
+            deadView = false;
         if (Pressed(Key.F4)) cardHidden = !cardHidden;
         if (Pressed(Key.F2)) net?.ShowInviteDialog();
         // RECONNECT (note 253): a joiner whose link went, out of automatic tries, tries again.
@@ -2120,7 +2133,9 @@ CampaignState? Play(IPlaySession session, CampaignState? campaign)
                 sound.Mixer.Listener, now);
         else
             captions.Clear();
-        if (showHud)
+        // The HUD this frame: on, and not the dead's cinematic view (note 994).
+        bool hudOn = showHud && !deadView;
+        if (hudOn)
         {
             Hud.Build(overlay, UiWidth, UiHeight, session, stills: stills.Stills, pixels: (float)renderer.Height / UiHeight, talk: townTalk, figures: figureTalk, now: now,
                 photo: crewMemory.Photo,
@@ -2180,10 +2195,10 @@ CampaignState? Play(IPlaySession session, CampaignState? campaign)
 #if DEVTOOLS
         // A note just begun (note 516): the frame of the moment, as it's about to be shown, before the note's own box is on it.
         if (vr is null)
-            dev.Notes?.Frame(() => renderer.Render(mesh, camera, lighting, lighting.FogColor, showHud || menuShown ? overlay : null), renderer.Width, renderer.Height);
+            dev.Notes?.Frame(() => renderer.Render(mesh, camera, lighting, lighting.FogColor, hudOn || menuShown ? overlay : null), renderer.Width, renderer.Height);
         dev.Draw(overlay, UiWidth, UiHeight);
         // F1 hides it with the HUD (for filming).
-        if (gym is not null && !menuShown && showHud)
+        if (gym is not null && !menuShown && hudOn)
         {
             gym.Draw(overlay, UiWidth, UiHeight, now);
             // And the pointer to what was called (note 676, part 2), as this machine draws the world.
@@ -2192,11 +2207,11 @@ CampaignState? Play(IPlaySession session, CampaignState? campaign)
         }
 #endif
         // Note 739: the crew's pings marked on the world.
-        if (showHud && !menuShown && vr is null)
+        if (hudOn && !menuShown && vr is null)
             PingMarks.Draw(overlay, UiWidth, UiHeight, camera, session.World);
         if (vr is null)
         {
-            renderer.Prepare(mesh, showHud || menuShown ? overlay : null);
+            renderer.Prepare(mesh, hudOn || menuShown ? overlay : null);
             frameWatch.Mark("hud, upload");
             FrameCounts.Add("meshes uploaded", renderer.Uploaded);
             Present(camera, lighting);
@@ -2204,7 +2219,7 @@ CampaignState? Play(IPlaySession session, CampaignState? campaign)
         }
         // The body is the flat camera's eye point, turned to where the room faces; the head does the looking.
         VrPanelContent? onPanel = null;
-        if (vr is not null && showHud)
+        if (vr is not null && hudOn)
         {
             Hud.Build(vrOverlay, 480, 270, session, crosshair: false, stills: stills.Stills, pixels: 2, talk: townTalk, figures: figureTalk, now: now);
             if (session.World.Run?.Over == true)
@@ -2285,7 +2300,7 @@ CampaignState? Play(IPlaySession session, CampaignState? campaign)
     }
     if (capture is not null)
     {
-        var pixels = renderer.Render(mesh, camera, lighting, lighting.FogColor, showHud || frontEnd.Night is not null ? overlay : null);
+        var pixels = renderer.Render(mesh, camera, lighting, lighting.FogColor, showHud && !deadView || frontEnd.Night is not null ? overlay : null);
         PngWriter.Write(capture, pixels, renderer.Width, renderer.Height, scale: 1);
         Console.WriteLine($"captured {Path.GetFullPath(capture)}");
     }

@@ -28,6 +28,8 @@ public sealed record HudTuning
     public bool BendWarning { get; init; }
     /// <summary>After a run's delivered, how long its result and incident report stay up (s; note 837).</summary>
     public double DeliveredReportSeconds { get; init; } = 20;
+    /// <summary>How many of the incident report's lines the end screen shows: its highlights (note 994).</summary>
+    public int ReportHighlights { get; init; } = 3;
     /// <summary>The ping (ms) at which it's shown out on the line (spec E: always in the lobby).</summary>
     public double PingWarnMs { get; init; } = 150;
     /// <summary>The window (s) the link's loss is counted over (note 534).</summary>
