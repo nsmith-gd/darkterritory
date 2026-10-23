@@ -129,7 +129,7 @@ public static class Pings
             double d = to.Length;
             if (d < 1e-6 || d > t.TownRange)
                 continue;
-            double off = Math.Acos(Math.Clamp(Double3.Dot(to * (1 / d), view), -1, 1)) - Math.Atan(radius / d);
+            double off = DMath.Acos(Math.Clamp(Double3.Dot(to * (1 / d), view), -1, 1)) - DMath.Atan(radius / d);
             if (off <= coneAngle && (best is null || off < best.Value.Off))
                 best = (off, stop, middle);
         }
