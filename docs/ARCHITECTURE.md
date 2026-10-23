@@ -1157,4 +1157,5 @@ written here instead is moved out by `tools/coord/notes.py split`; the Coordinat
 - [996. The Tower Jaw's felled tower never ends a run, and its fall is a real threat (n1-B3, nathaniel1; queue #696; the director's playtest of 23…](notes/996.md)
 - [1000. More creatures, made to be composed: the roster mapped by where it presses players, and nine new creatures proposed for the gaps (Moth,…](notes/1000.md)
 - [1004. Every creature foils a behaviour: the creature list again, by the director's verdicts on Moth's nine; a behaviour → foil table, the Close,…](notes/1004.md)
+- [1006. Big forests along the line, and the wilds heard when the train stands in one (Oak, nathaniel2's Token Budget Manager worker; queue #711;…](notes/1006.md)
 <!-- end of the notes index -->
