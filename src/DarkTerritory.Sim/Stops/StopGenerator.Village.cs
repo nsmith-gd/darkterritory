@@ -25,6 +25,9 @@ public static partial class StopGenerator
         var sheds = new List<int>();
         var ends = new List<(Pt V, Pt Dir)>();
         var fit = new Fit(Gap: v.HouseGap, Rail: 6, Road: 2.5, Buffer: tt.Buffer, SMin: reach.SMin, SMax: reach.SMax);
+        // Note 1005's own dice (which lots are built on, the houses' floors, their finds up and down): off R, so what R deals
+        // the village is as it was.
+        var F = new Dice(StopSeed.Of(R.Seed, StopSeed.Forms));
 
         bool TryHouse(StopBuilding h, double maxRoad)
         {
@@ -32,7 +35,7 @@ public static partial class StopGenerator
                 return false;
             // Note 1005 (the director, 23 Oct: "we should spawn fewer of them"): a lot the form would have built on is left
             // empty at village.keep, counted as built so the form doesn't fill it again.
-            if (v.Keep < 1 && !R.Chance(v.Keep))
+            if (v.Keep < 1 && !F.Chance(v.Keep))
                 return true;
             houses.Add(g.Add(h));
             return true;
@@ -188,7 +191,7 @@ public static partial class StopGenerator
         }
 
         if (v.Forms is { } forms)
-            BuildForms(g, R, forms, houses);
+            BuildForms(g, F, forms, houses);
 
         // P12 + P14: containers only, in a share of the houses that falls with tier; the economy fills them later.
         int before = g.Containers.Count;
@@ -211,9 +214,9 @@ public static partial class StopGenerator
             // one up the stairs, besides whatever else the house keeps.
             if (v.Forms is { } f)
             {
-                if (h.Basement && R.Chance(f.BasementFind))
+                if (h.Basement && F.Chance(f.BasementFind))
                     g.Contain(ContainerKind.Cellar, StopZone.Village, h.Centre, Band(h.D), 0, hi, outlier: h.Outlier, level: -1);
-                if (h.Upstairs && R.Chance(f.UpstairsFind))
+                if (h.Upstairs && F.Chance(f.UpstairsFind))
                     g.Contain(ContainerKind.Cabinet, StopZone.Village, h.Centre, Band(h.D), 0, hi, outlier: h.Outlier, level: 1);
             }
         }

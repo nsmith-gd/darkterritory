@@ -28,13 +28,17 @@ public static class StopSeed
         // Note 718: an outlier's further draws, a stop's comet fragments, a kill's trophy.
         Outlier = 0x4f55544c, Comet = 0x434f4d54, Trophy = 0x54524f50,
         // Note 719: a stop's jackpot house, its better draws and extra finds, and its two-person jackpots.
-        Locked = 0x4c4f434b, Better = 0x42455454, Extra = 0x45585452, Jackpot = 0x4a41434b, Deeper = 0x44454550;
+        Locked = 0x4c4f434b, Better = 0x42455454, Extra = 0x45585452, Jackpot = 0x4a41434b,
+        // Note 1005: a basement's and an upstairs' finds' better draws; a village's houses kept, their floors and the finds on them.
+        Deeper = 0x44454550, Forms = 0x464f524d;
 }
 
 /// <summary>A seeded generator for one sub-system of a stop (PCG32, so the same on every machine).</summary>
 sealed class Dice(ulong seed)
 {
     Pcg32 _rng = new(seed);
+    /// <summary>What it was seeded with (a stream of its own off it, note 1005).</summary>
+    public ulong Seed => seed;
     public double F() => _rng.NextDouble();
     public double Range(double min, double max) => _rng.Range(min, max);
     public double Range(double[] r) => _rng.Range(r[0], r[1]);
