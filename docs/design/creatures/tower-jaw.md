@@ -104,6 +104,8 @@ NEVER     a bridge; it never boards the train
 | `health` | 12 | blows |
 | `crush` / `crushRadius` | 45 / 3.5 m | as the wreck heap |
 | `clearCrewSeconds` | 30 | crew-seconds of Use at the wreckage |
+| `wreckLeaves` | 0.3 | the least the wreck's blow or its fall leaves of a car or the engine: a dent, never a breakdown (note 996) |
+| `crushCar` | 0.35 | of a car within `crushRadius` of where it comes down (note 996) |
 | `cost` | 3 | |
 
 ## 10. What the harness verifies

@@ -1155,5 +1155,7 @@ written here instead is moved out by `tools/coord/notes.py split`; the Coordinat
 - [994. Run 56's tally and UI lines (n1-U2, nathaniel1; queue #694; the director's playtest of 23 Oct, `docs/playtest/2026-10-23.md` lines 12-15)](notes/994.md)
 - [995. Nobody left behind: the bot driver waits for a crewmate afoot or grabbed, and hears the radio (n1-H1, nathaniel1; queue #695; the…](notes/995.md)
 - [997. 997. **Run 56's effects and art lines: the stack's smoke in the world's frame, your own radio not drawn in first person,](notes/997.md)
+- [996. The Tower Jaw's felled tower never ends a run, and its fall is a real threat (n1-B3, nathaniel1; queue #696; the director's playtest of 23…](notes/996.md)
 - [1000. More creatures, made to be composed: the roster mapped by where it presses players, and nine new creatures proposed for the gaps (Moth,…](notes/1000.md)
+- [1004. Every creature foils a behaviour: the creature list again, by the director's verdicts on Moth's nine; a behaviour → foil table, the Close,…](notes/1004.md)
 <!-- end of the notes index -->

@@ -5,6 +5,45 @@ nothing is built until the director approves it.** Numbers are a first pass in t
 
 > **He doesn't hurt you. He tells the others where you are.**
 
+## 0. Reworked on the director's verdict (Sloe, queue #709, note 1004)
+
+> **The director, 23 Oct (line 36):** "I like what the Bellman is going for, but I don't like its delivery. It doesn't feel
+> cool. I think if we're going to have, like, monsters go for one player, it should be something like having something
+> attached to that player that you can get off of it, or having something that only that player can see. That sort of,
+> like, acts as a weight."
+
+**This section replaces §1, §4, §5 and §6 below** (kept for the record). The aim stays (one player marked, everything about
+weighted toward them); the porter pointing from a roof goes. Two deliveries, for the director's choice
+(`nathaniel2-sloe-bellman`):
+
+**A. The bell on your back (Sloe's recommendation).** The Bellman is small now: a shrivelled thing the size of a cat, a
+brass bell sewn into its chest, that drops from a stop's eaves or a car's roof onto one crewmate's back and clings there.
+- **Tell:** the bell, rung by the crewmate's own steps, 1.8–3.5 kHz, heard by everyone, louder when they run; seen, the
+  thing on their shoulders (third person, other crewmates see it plainly; first person, its hands at the edge of the view
+  and the bell's knock with each step).
+- **The weight:** while it clings, every creature about that can reach the marked player weighs them ×3 in its choice (by
+  its own rule: a Ribbit pack still won't take a group its size), and the marked player moves at 85%.
+- **The counter:** *you can't reach your own back.* A crewmate within 2 m holds Use for 3 s to tear it off (it's thrown 4
+  m and scuttles off; a blow then kills it). Alone, you can shake it only by going into water or into a fire's heat (a lit
+  stove, a burning car) for 2 s.
+- **Rule:** "get it off each other's backs."
+- **What it foils:** **min-maxing** (it drops on whoever is carrying the night: the most banked or carried this night, or
+  the one who has held one post longest) and the lone hero. It needs a friend, and the friend has to come close.
+
+**B. The one only you can see.** The Bellman is a tall porter only the marked crewmate can see, keeping pace 10 m off and
+ringing; every creature about hears the bell, and nobody else does. The marked player has to talk the crew onto it ("left,
+by the shed, he's on the roof") for a friend to hit it blind (it shows to all for 2 s when hit). Stronger horror, weaker
+counter: the crew acts on one player's word. **It suits quiet on the mic better than min-maxing**, so it's offered there as
+its own creature (the Witness, `witness.md`), and the Bellman takes A.
+
+**Cost (A):** **small–medium**, less than Moth's: the weight is one multiplier in the targeting Rook's #703 builds
+(`Targeting.cs`'s `pull`), not a rewrite of every creature's; a small rig (the Followers' kit), a cling (the Grab's
+attach), a friend's Use. About 1.5 agent-days of sim and bots, 1 of art, the bell (built for Moth's version).
+
+**Social test (A):** 1 ✔ "the bell thing on your back"; 2 ✔ only a friend can pull it off; 3 ✔ the bell now, the weight
+only matters when something comes; 4 ✔ tear it off; 5 ✔ whoever let it drop on them, and whoever wouldn't come and help;
+6 ✔ "GET IT OFF ME, GET IT OFF!"
+
 ## 1. What it is
 
 A corrupted station porter, tall and very thin in a long platform coat, a handbell in one hand. He stands somewhere high at

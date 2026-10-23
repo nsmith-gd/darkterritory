@@ -1,5 +1,7 @@
 # THE POLLARDS — the trees that move when the lamp's off them
 
+> **CUT by the director, 23 Oct 2026** (`docs/playtest/2026-10-23.md` line 36): "I also don't really like the pollards. I'm not a huge fan of keep a lamp on it." Kept here for the record (queue #709, note 1004); not to be built.
+
 *Creature proposal, Moth (queue #706, ARCHITECTURE §8 note 1000), 23 Oct 2026. **Status: a proposal for the director;
 nothing is built until the director approves it.** Numbers are a first pass in the roster's units.*
 
