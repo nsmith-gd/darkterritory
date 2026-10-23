@@ -2054,16 +2054,16 @@ static object Screenshot(TrainTuning t, string content, string[] args)
             ? Camera.LookAt(At(x + fx * 1.5 - fy * 0.6, y + fy * 1.5 + fx * 0.6, 1.65), At(x, y, 0.2), 70)
             : Camera.LookAt(At(x + fx * 2.1 - fy * 0.7, y + fy * 2.1 + fx * 0.7, 1.65), At(x, y, 0.95), 70);
     }
-    // --storey basement|upstairs|ground|outside [--house n] (note 1005): the night's nth house with floors (one with a basement
-    // for basement, with an upstairs for upstairs): down in its basement from the ladder's foot toward its deep end and its
-    // chests; upstairs from its back wall toward the stairwell; on its ground floor from inside its front door toward the
-    // flight and the hatch; or from outside, its plinth, steps and cellar windows. With --lantern, a hand lamp.
+    // --storey basement|upstairs|stairs|ground|outside [--house n] (note 1005): the night's nth house with floors (one with a
+    // basement for basement, with an upstairs for upstairs and stairs): down in its basement from the ladder's foot toward its
+    // deep end and its chests; upstairs from its back wall toward the stairwell; at the foot of its flight, up it; on its
+    // ground floor from inside its front door; or from outside, its plinth, steps and cellar windows. With --lantern, a hand lamp.
     if (Str(args, "--storey", "") is { Length: > 0 } storey && generated is not null)
     {
         var storeyed = generated.Features.Where(f => f.Stop is not null)
             .SelectMany(f => f.Stop!.Buildings.Select((b, i) => (Feature: f, Building: b, Index: i)))
             .Where(x => DarkTerritory.Sim.Run.StopWalls.Storeyed(x.Building) && DarkTerritory.Sim.Run.StopWalls.Walled(x.Feature.Stop!, x.Index)
-                && (storey != "basement" || x.Building.Basement) && (storey != "upstairs" || x.Building.Upstairs)).ToList();
+                && (storey != "basement" || x.Building.Basement) && (storey is not ("upstairs" or "stairs") || x.Building.Upstairs)).ToList();
         if (storeyed.Count == 0)
             return Print(new { error = $"{Str(args, "--route", "")} has no house with floors for --storey {storey}" });
         var (f, b, _) = storeyed[(int)Opt(args, "--house", 0) % storeyed.Count];
@@ -2078,6 +2078,9 @@ static object Screenshot(TrainTuning t, string content, string[] args)
         {
             "basement" => Camera.LookAt(At(e * (ix - 0.9), side * 0.6, Floor(-1) + 1.6), At(-e * ix, -side * 0.4, Floor(-1) + 0.5), 80),
             "upstairs" => Camera.LookAt(At(e * (ix - 0.5), -side * (iy - 0.6), Floor(1) + 1.65), At(-e * ix, side * iy * 0.5, Floor(1) + 0.4), 80),
+            // (stairs: from the ground floor at the flight's foot, up it.)
+            "stairs" when DarkTerritory.Sim.Run.StopWalls.Stair(b) is var (x0, dir, y0, y1) =>
+                Camera.LookAt(At(x0 - dir * 0.5, (y0 + y1) / 2 - side * 2.4, Floor(0) + 1.65), At(x0 + dir * 3.0, (y0 + y1) / 2, Floor(0) + 1.8), 80),
             "outside" => Camera.LookAt(At(fx * (b.Length / 2 + 7) - fy * 3, fy * (b.Width / 2 + 7) + fx * 3, 1.7), At(0, 0, Floor(0) + 1.2), 70),
             _ => Camera.LookAt(At(fx * (b.Length / 2 - 1.0), fy * (b.Width / 2 - 1.0), Floor(0) + 1.65), At(-fx * ix + e * 0.5, -fy * iy + side * 0.5, Floor(0) + 0.6), 80),
         };

@@ -1155,4 +1155,5 @@ written here instead is moved out by `tools/coord/notes.py split`; the Coordinat
 - [994. Run 56's tally and UI lines (n1-U2, nathaniel1; queue #694; the director's playtest of 23 Oct, `docs/playtest/2026-10-23.md` lines 12-15)](notes/994.md)
 - [995. Nobody left behind: the bot driver waits for a crewmate afoot or grabbed, and hears the radio (n1-H1, nathaniel1; queue #695; the…](notes/995.md)
 - [1000. More creatures, made to be composed: the roster mapped by where it presses players, and nine new creatures proposed for the gaps (Moth,…](notes/1000.md)
+- [1005. Houses with floors and dark basements (Larch, the Token Budget Manager's worker, nathaniel2; queue #710; the director's 23 Oct review,…](notes/1005.md)
 <!-- end of the notes index -->
