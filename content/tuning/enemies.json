@@ -512,6 +512,28 @@
     "tierWeights": { "local": 1, "frontier": 1.25, "deadLines": 1.5, "deepTerritory": 1.5 }
   },
 
+  // THE BRUIN · scent · outside, then interior (GDD §21; the director's playtest of 23 Oct 2026, line 36: "big, kind of scary,
+  // that come out of the trees ... kill the player pretty easily if they get grabbed ... get into cars ... relatively hard to
+  // take down. Like, stopping in the wild feels like it should feel scary"; Sloe's docs/design/creatures/bruin.md, note 1004;
+  // ARCHITECTURE §8 note 1007; spec App. A.6 "The Bruin"). Spawns (on): the train stood in the wilderness (the director's
+  // stance, note 999: no stop, halt or facility) standSeconds, with a car of cargo it can climb into; one at a time; tierWeights.
+  // It comes out of the trees comeFromM out from that car at come m/s, huffing (the telegraph: at least huffSeconds before
+  // it climbs in); the train moving off past giveUpAbove m/s before it's in, it goes back. In the car it feeds,
+  // feedPerSecond of the car's cargo a second (riding along if the train moves off), and leaves of its own accord after
+  // leaveAfter s fed by tier (negative: never) or the cargo gone. It turns (turnDegreesPerSecond) to face whoever's nearest
+  // within reach m; whoever stays within frontDegrees of its front windupSeconds it rises over and charges: within
+  // chargeReach m, the maul (a grab: dead in maulSeconds). A blow from the front does ×frontFactor and it keeps hold; from the
+  // side or behind it's staggered staggerSeconds, drops whoever it's mauling and turns on the hitter. driveOffBlows blows in
+  // its car and it leaves for the trees (gone leaveFarM from the engine or there); health gone, it's dead (the crew's kill).
+  // on: false until the director answers nathaniel2-sloe-forest-heavies (the r712-bruin edition turns it on).
+  "bruin": {
+    "on": false, "standSeconds": 45, "comeFromM": 40, "come": 4, "huffSeconds": 10, "giveUpAbove": 2, "feedPerSecond": 0.01,
+    "reach": 6, "turnDegreesPerSecond": 90, "frontDegrees": 50, "windupSeconds": 3, "chargeReach": 3, "maulSeconds": 8,
+    "health": 20, "frontFactor": 0.2, "staggerSeconds": 1.2, "driveOffBlows": 8, "leaveFarM": 150,
+    "leaveAfter": { "local": 40, "frontier": 40, "deadLines": 90, "deepTerritory": -1 },
+    "tierWeights": { "local": 0.5, "frontier": 1, "deadLines": 1.5, "deepTerritory": 2 }
+  },
+
   // THE HOUSE CREATURES (GDD §21; the director, 9 Oct 2026: "Every time I go into a house, it should feel like there could
   // be something lurking in there that wants to kill me, wants to chase me"; ARCHITECTURE §8 notes 583–586). Which of a
   // stop's open houses something lives in: "share" of them by tier, each house's own dice (the route's seed, the stop and the
@@ -1605,7 +1627,7 @@
           "hiding": ["tippyToesie", "passenger", "carHugger", "fireFlies", "carFire"],
           "walking": ["gannet", "climbers", "draggers", "whistler", "fireFlies", "brakeman"],
           "riding": ["tippyToesie", "fireFlies", "passenger", "carHugger"],
-          "afield": ["followers", "sootChildren", "grumbler", "moose", "ribbits", "towerJaw"]
+          "afield": ["followers", "sootChildren", "grumbler", "moose", "ribbits", "towerJaw", "bruin"]
         } }
     },
     // GDD App. B.1 "Post-event cooldown" (design decision, 2026-10): the least trough after a spawn; the pressure's relief
@@ -1654,7 +1676,7 @@
     "costs": { "followers": 2, "draggers": 2, "fireFlies": 2, "trackDoll": 3, "cinderHounds": 3, "climbers": 3,
       "whistler": 3, "stoker": 3, "ribbits": 3, "carHugger": 4, "tippyToesie": 4, "gaunt": 4, "sootChildren": 4, "grumbler": 4,
       "passenger": 5, "moose": 3, "gannet": 4, "freightBeetle": 1, "towerJaw": 3, "brakeman": 3, "hotbox": 2, "knotter": 3,
-      "mouseMoose": 2 },
+      "mouseMoose": 2, "bruin": 4 },
     // App. B.3/B.8 weights.
     "houndsLivestockWeight": 2.5,
     "houndsHotBoilerWeight": 1.5,

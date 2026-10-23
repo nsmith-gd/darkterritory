@@ -137,6 +137,8 @@ public static class Calls
                 return Castings(world, you, max, t);
             case EnemyKind.MouseMoose:
                 return MouseMooseCall(world, you, max, t);
+            case EnemyKind.Bruin:
+                return BruinCall(world, you, t);
             case EnemyKind.Pickers:
                 {
                     var crates = Crates(world, you, min, max, 3);
@@ -265,6 +267,19 @@ public static class Calls
     /// The Mouse Moose (note 790) after the nearest casting stacked by any crane on the line (a facility's own or a yard's),
     /// within <paramref name="max"/> of you, whether the train's in its yard or not: out of its hole past it.
     /// </summary>
+    static string BruinCall(World world, Double3 you, EnemyTuning t)
+    {
+        int car = Bruin.CarFor(world.Train);
+        if (car < 0)
+            return "no car with cargo to climb into";
+        // Out of the trees on the side away from you, so you see it come round to the car.
+        var frame = world.Train.Frames[car];
+        int side = Double3.Dot(you - frame.Origin, frame.Right) > 0 ? -1 : 1;
+        var home = Bruin.TreeLine(world, car, side, t.Bruin);
+        world.AddEnemy(n => Bruin.Out(n, home, car, t.Bruin.Health));
+        return $"out of the trees for car {car}: get round its side, never in front of it";
+    }
+
     static string MouseMooseCall(World world, Double3 you, double max, EnemyTuning t)
     {
         if (world.Run is not { } run)
