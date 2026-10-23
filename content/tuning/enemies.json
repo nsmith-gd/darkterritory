@@ -1580,8 +1580,10 @@
       // afootStopped when afoot with the train stood or aboardRunning when aboard with it running; nobody with their share
       // of threats on them, nobody left behind. The top one (ties to the lowest id) is aimed at: in every channel's choice
       // the kinds in answers.<their doing> weigh ×answerWeight and the rest ×offWeight. Only which kind, never when or how
-      // many; each kind's rule still decides whether and where it can come.
-      "target": { "on": false, "sprintAbove": 4.5, "slackScale": 120, "afootStopped": 1.5, "aboardRunning": 1.2,
+      // many; each kind's rule still decides whether and where it can come. On (note 999's sweep: frontier, 1x3 2x5 4x8 8x12,
+      // seeds 1-6: 14 of 20 bands both ways, four crew 12.9 -> 14.9 encounters a 20 min, in its 10-15); the stance stays off
+      // (with it four crew went to 15.0, out of band) until the director's call (nathaniel2-rook-wilderness-stop).
+      "target": { "on": true, "sprintAbove": 4.5, "slackScale": 120, "afootStopped": 1.5, "aboardRunning": 1.2,
         "answerWeight": 2, "offWeight": 0.75,
         "pull": { "firing": 1, "driving": 1, "gunning": 1.2, "repairing": 1.3, "operating": 1.3, "carrying": 1.4, "looting": 1.3,
           "sprinting": 1.2, "hiding": 1, "walking": 1.1, "riding": 0.8, "afield": 1.1 },

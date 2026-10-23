@@ -17,6 +17,13 @@ public class PressureByStateTests
     static readonly TargetTuning TOn = T with { On = true };
 
     [Fact]
+    public void TargetingShipsOnAndTheStanceOffAsMeasured()
+    {
+        Assert.True(T.On, "note 999's sweep: 14 of 20 bands both ways, every green one kept");
+        Assert.False(S.On, "with the stance on four crew left their band (note 999); the director's call, nathaniel2-rook-wilderness-stop");
+    }
+
+    [Fact]
     public void TheTablesNameRealKindsEveryDoingAndEveryStance()
     {
         var kinds = Enum.GetValues<EnemyKind>().Select(Director.Key).ToHashSet();
