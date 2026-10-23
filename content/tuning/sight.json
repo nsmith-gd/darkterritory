@@ -19,6 +19,9 @@
   "planPostBelow": 22,
   // A weak bridge (route.json weakBridgeChance) is posted at this.
   "weakBridgeLimit": 7,
+  // A through truss on the main is posted low clearance over its span, as a tunnel is: its portals and bracing are over a
+  // standing crewmate's head on a roof (note 1002; the director's 23 Oct playtest, line 18).
+  "trussClearance": true,
   // Over a posted speed by this much (m/s), the cars strain (integrity lost per second per m/s over: strainPerSecond) and
   // the cargo lurches about (cargo integrity, cargoDamagePerSecond); by
   // throwOver, whoever's up on the roofs goes over the side at throwSpeed outward (at speed, that's death); at derailRatio

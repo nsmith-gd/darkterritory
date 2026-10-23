@@ -4093,7 +4093,8 @@ public sealed partial class GreyboxScene
     /// built without the forts' solids), as the Sim's rule has it for where the train is.
     /// </summary>
     double GateSwing(double along) => GatesHeld ?? (_gateSwing.TryGetValue(Sim.Run.Fortresses.GateKey(along), out double open) ? open
-        : Run is { } run && Sim.Run.Fortresses.Open(along, _trainAlong.Front, _trainAlong.Rear, run.Tuning.Gates) ? 1 : 0);
+        : Run is { } run && Sim.Run.Fortresses.Open(along, _trainAlong.Front, _trainAlong.Rear, run.Tuning.Gates,
+            run.Tuning.Gates.WaitOpen && run.Route.Plan?.Terminus is { Silent: false } t && Math.Abs(along - t.GateM) < 0.5) ? 1 : 0);
 
     /// <summary>Note 847: every gate's leaves held this far open (0..1) whatever the train's doing (`dt screenshot --gates`); null, as they swing.</summary>
     public double? GatesHeld { get; set; }
@@ -4151,7 +4152,8 @@ public sealed partial class GreyboxScene
                 Lap(mesh, "town smoke");
                 foreach (var (feet, facing, variant) in Art.WorldArt.Watch(town, gateAt, Time))
                     if ((feet - eye).Length < 260)
-                        Folk(mesh, eye, feet, facing, variant, drab: 0.6f, "walk", gear: "respirator", who: variant, lamp: true);
+                        // The watch on the walls are the lookbook's watchmen (note 1002: the drab figure's faces read badly).
+                        Folk(mesh, eye, feet, facing, variant, drab: 0.6f, "walk", gear: "respirator", who: variant, lamp: true, role: "guard");
                 Lap(mesh, "town watch");
                 // The statue on the green (note 353): the survivors' figure, frozen in its pose on the plinth, cast in bronze or
                 // cut in stone; the Lamplighter's lamp lit.
@@ -4204,7 +4206,9 @@ public sealed partial class GreyboxScene
             // Its people (T100): a few about at night, in their own drab, idling on their own beat. A dark town has none.
             if (lit)
                 foreach (var (feet, facing, variant) in Art.WorldArt.FortFolk(line, eye, Math.Max(start, from - 20), Math.Min(end, to + 20), gateAt, start == 0))
-                    Folk(mesh, eye, feet, facing, variant);
+                    // The lookbook's people (note 1002; the director's 23 Oct playtest, line 23: "Some of these people's faces are
+                    // terrifying"): the gate's two its watchmen, the rest those who go about a town, not the drab figure.
+                    Folk(mesh, eye, feet, facing, variant, role: variant <= 2 ? "guard" : Art.LookbookKit.AnyoneRole(variant), who: variant);
             return;
         }
         double a = Math.Max(start, from), b = Math.Min(end, to);

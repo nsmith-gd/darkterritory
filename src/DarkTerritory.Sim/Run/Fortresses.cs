@@ -39,7 +39,18 @@ public readonly record struct FortHouse(double Width, double Depth, double Ridge
 /// me"), run.json <c>gates</c>: open while the train's going through, as its engine comes within <see cref="OpenAheadM"/> of
 /// one, shut again once its last car's <see cref="ShutBehindM"/> past; the leaves take <see cref="SwingSeconds"/> to swing.
 /// </summary>
-public sealed record GateTuning(double OpenAheadM, double ShutBehindM, double SwingSeconds);
+public sealed record GateTuning(double OpenAheadM, double ShutBehindM, double SwingSeconds)
+{
+    /// <summary>
+    /// Note 1002 (the director's 23 Oct playtest, line 19: "the gate at the beginning is open, and then it closes behind us at
+    /// dawn. And if we're not in by dawn ... it stays open expecting us until the waker ... gets too close"): the arrival's way
+    /// in stands open all night, waiting for the train, until its last car's through, or until the lead Waker is within
+    /// <see cref="WakerShutM"/> of it with the train still out. Off, it opens only as the engine comes up (note 847).
+    /// </summary>
+    public bool WaitOpen { get; init; } = true;
+    /// <summary>How near the arrival's gate the lead Waker comes before it's shut on a train not yet in (m).</summary>
+    public double WakerShutM { get; init; } = 350;
+}
 
 /// <summary>
 /// Where a fortress's walls, gun towers, gatehouse and houses stand (T100; T124 "fort buildings have no collision, and gun
@@ -175,8 +186,10 @@ public static class Fortresses
     /// through. Every other time it's shut: before the night's off, behind the train once it's through, and a town's other
     /// gate (the way in to the departure, the way on out of the arrival), which no train comes to tonight.
     /// </summary>
-    public static bool Open(double gate, double front, double rear, GateTuning t) =>
-        front >= gate - t.OpenAheadM && rear < gate + t.ShutBehindM;
+    /// <param name="waiting">The arrival's way in, kept open for the train till it's in (<see cref="GateTuning.WaitOpen"/>,
+    /// note 1002), the lead Waker not yet near it.</param>
+    public static bool Open(double gate, double front, double rear, GateTuning t, bool waiting = false) =>
+        (waiting || front >= gate - t.OpenAheadM) && rear < gate + t.ShutBehindM;
 
     // A gate's key from where it stands along the main line, to the quarter metre (a departure town's way in is behind the
     // line's start, so offset), and back. Never 0.
