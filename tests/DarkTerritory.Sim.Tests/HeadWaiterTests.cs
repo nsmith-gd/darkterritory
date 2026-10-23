@@ -143,8 +143,16 @@ public class HeadWaiterTests
         // then the director sends it, at the lounger, not the driver.
         var b = Tuning.Enemies.Director.Encounters.Target.Behaviours;
         var foils = new Dictionary<string, List<string>>(b.Foils) { ["lazing"] = ["gannet", "headWaiter"] };
-        var e = E with { Director = E.Director with { Encounters = E.Director.Encounters with {
-            Target = E.Director.Encounters.Target with { Behaviours = b with { Foils = foils } } } } };
+        var e = E with
+        {
+            Director = E.Director with
+            {
+                Encounters = E.Director.Encounters with
+                {
+                    Target = E.Director.Encounters.Target with { Behaviours = b with { Foils = foils } }
+                }
+            }
+        };
         var n = new Night(4, 15, enemies: e, trainTuning: Hammocked);
         n.Crew[1] = InTheHammock(n);
         n.Crew[2] = PlayerMotor.SpawnInCab(n.Train, P);
