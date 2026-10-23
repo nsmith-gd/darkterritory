@@ -30,6 +30,8 @@ public class NightCurveTests
             Pressure = D.Pressure with { Threshold = 1e9, Max = 1e9, PressAt = 1e9 },
             Curve = (curve ?? D.Curve) with { AfterFirst = afterFirst },
             NightChance = OnlyTheFree,
+            // Only the free: the rare kinds' trial (note 915) stands its chances in for theirs, so it's off here too.
+            NightChanceTrial = D.NightChanceTrial with { On = false },
         },
     };
 
@@ -167,7 +169,10 @@ public class NightCurveTests
     {
         Assert.True(D.Curve.Fill && D.Curve.FillPressed);
         // The pressure as it is (it spends), the free spawns of their own off: whatever comes is the fill.
-        var filling = Tuning.Enemies with { Director = D with { Curve = D.Curve with { Free = false }, NightChance = OnlyTheFree } };
+        var filling = Tuning.Enemies with
+        {
+            Director = D with { Curve = D.Curve with { Free = false }, NightChance = OnlyTheFree, NightChanceTrial = D.NightChanceTrial with { On = false } },
+        };
         var world = Plain(filling, at: 10_000);
         var d = world.Director!;
         var sent = Think(world, 600);

@@ -49,7 +49,8 @@ public sealed class Director
 
     double _spent;
 
-    public Director(DirectorTuning tuning, Route.Route? route, ulong seed, int cars, int crew)
+    /// <param name="off">The kinds whose own flag has them off tonight (<see cref="SpawnRule.Enabled"/>; note 1007), by <see cref="Key"/>.</param>
+    public Director(DirectorTuning tuning, Route.Route? route, ulong seed, int cars, int crew, IReadOnlyCollection<string>? off = null)
     {
         _t = tuning;
         _route = route;
@@ -87,6 +88,9 @@ public sealed class Director
                 _outTonight.Add(name);
                 rolls.Add((name, chance));
             }
+        // A kind that's off (its own flag, note 1007) is out tonight: never about, so it holds no variety's wait and fills no floor.
+        foreach (string name in off ?? [])
+            _outTonight.Add(name);
         Floor(tuning, tier, crew, ref about, rolls);
     }
 

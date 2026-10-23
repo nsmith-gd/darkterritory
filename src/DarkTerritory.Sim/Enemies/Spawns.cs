@@ -138,6 +138,12 @@ public sealed record SpawnRule(EnemyKind Kind, Func<SpawnContext, double?> Weigh
     /// director's free spawns, on the night's curve, send a kind this says yes to; null, it comes by its rule alone.
     /// </summary>
     public Func<SpawnContext, bool>? Free { get; init; }
+
+    /// <summary>
+    /// Whether the kind's on at all tonight (its own flag, e.g. <c>bruin.on</c>; note 1007); null, always. A kind that's off is
+    /// never sent and never counts as about tonight (the night's floor, note 868, brings others back in its place).
+    /// </summary>
+    public Func<EnemyTuning, bool>? Enabled { get; init; }
 }
 
 /// <summary>The director's spawn table: every enemy it spends on (the Stoker and the Choir come on their own conditions).</summary>
@@ -529,7 +535,8 @@ public static class Spawns
             var home = Bruin.TreeLine(c.World, car, side, c.Tuning.Bruin);
             c.Add(i => Bruin.Out(i, home, car, c.Tuning.Bruin.Health));
             return c.Placed();
-        }),
+        })
+        { Enabled = t => t.Bruin.On },
         // B.8 · The Brakeman (note 364): up at the far end of a moving train; never with a crew of one; every tier, more the
         // harder, the longer the train and with a climb ahead.
         new(EnemyKind.Brakeman, c =>

@@ -181,6 +181,8 @@
     "pickers": [[0.3, 0.3]],
     // A dog-sized rat, low to the ground (note 790).
     "mouseMoose": [[0.35, 0.3]],
+    // The Bruin (note 1007): on all fours, a man's shoulder high and long; its body, its shoulders, its head.
+    "bruin": [[0.7, 0.8], [0.6, 1.3]],
     // The house creatures (notes 583–586): the Lodger and the Householder man-sized; the Hanger's sac, up in the roof.
     "lodger": [[0.35, 0.5], [0.3, 1.2]],
     "householder": [[0.35, 0.5], [0.3, 1.3]],

@@ -501,7 +501,8 @@ public sealed partial class World
         Train.SeizedRepair = tuning.Hotbox;
         if (!authority)
             return;
-        Director = new Director(tuning.Director, route, seed, Train.Dynamics.Consist.CarCount, crew);
+        Director = new Director(tuning.Director, route, seed, Train.Dynamics.Consist.CarCount, crew,
+            [.. Spawns.Rules.Where(r => r.Enabled?.Invoke(tuning) == false).Select(r => Director.Key(r.Kind))]);
         Encounters = new EncounterLog(tuning.Director.Telemetry, tuning.Director.Threats);
         // Note 266: off unless a mod brings them back (the director's decision, 2026-10-06).
         if (route is not null && tuning.Sleepers.Enabled && Director.Allows(EnemyKind.Sleepers))
