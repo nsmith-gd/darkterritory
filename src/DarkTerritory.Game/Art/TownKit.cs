@@ -696,62 +696,62 @@ public static partial class TownKit
             OneFloor();
         void OneFloor()
         {
-        bool composite = Sim.Run.StopWalls.Composite(b);
-        var outline = composite ? Sim.Run.StopWalls.Outline(b) : null;
-        k.Use("wood_grey", Palette.DeepBrown, 0.9f, 0, tile: 1);
-        // The frame stands 0.15 m under the ground (WorldArt.Building), so the boards are just over it. An L's or a cross's
-        // floor is its outline's cells, which don't overlap.
-        if (outline is null)
-            Box(0, 0, hx - t, hy - t, -0.4f, Floor);
-        else
-            foreach (var (x0, y0, x1, y1) in outline.Cells)
-                Box((x0 + x1) / 2, (y0 + y1) / 2, (x1 - x0) / 2, (y1 - y0) / 2, -0.4f, Floor);
-        k.Use("plaster_ruin", Palette.BlueGrey, 0.9f, 0.05f, tile: 2);
-        foreach (var (x, y, wx, wy) in Sim.Run.StopWalls.OpenWalls(b))
-            Box(x, y, wx, wy, -0.4f, H);
-        // Over the doorway (each unit's).
-        double door = Sim.Run.StopWalls.DoorWidth / 2;
-        if (outline is not null)
-            foreach (var r in outline.Doors.Select(i => outline.Runs[i]))
-            {
-                double mid = (r.A + r.B) / 2, across = r.At - r.Out * t / 2;
-                if (r.AlongX)
-                    Box(mid, across, door, t / 2, Lintel, H);
-                else
-                    Box(across, mid, t / 2, door, Lintel, H);
-            }
-        else if (fx != 0)
-            Box(fx * (hx - t / 2), 0, t / 2, door, Lintel, H);
-        // And over the way through to the back room.
-        if (outline?.Partition is { } inner)
-        {
-            var (dx, dy) = inner.Doorway;
-            if (inner.AlongX)
-                Box(dx, dy, door, t / 2, Lintel, H);
+            bool composite = Sim.Run.StopWalls.Composite(b);
+            var outline = composite ? Sim.Run.StopWalls.Outline(b) : null;
+            k.Use("wood_grey", Palette.DeepBrown, 0.9f, 0, tile: 1);
+            // The frame stands 0.15 m under the ground (WorldArt.Building), so the boards are just over it. An L's or a cross's
+            // floor is its outline's cells, which don't overlap.
+            if (outline is null)
+                Box(0, 0, hx - t, hy - t, -0.4f, Floor);
             else
-                Box(dx, dy, t / 2, door, Lintel, H);
-            // Across a plain house it goes up into the gable under the ridge, so the back room's its own in the dark too.
-            if (b.Parts.Count <= 1 && !inner.AlongX)
+                foreach (var (x0, y0, x1, y1) in outline.Cells)
+                    Box((x0 + x1) / 2, (y0 + y1) / 2, (x1 - x0) / 2, (y1 - y0) / 2, -0.4f, Floor);
+            k.Use("plaster_ruin", Palette.BlueGrey, 0.9f, 0.05f, tile: 2);
+            foreach (var (x, y, wx, wy) in Sim.Run.StopWalls.OpenWalls(b))
+                Box(x, y, wx, wy, -0.4f, H);
+            // Over the doorway (each unit's).
+            double door = Sim.Run.StopWalls.DoorWidth / 2;
+            if (outline is not null)
+                foreach (var r in outline.Doors.Select(i => outline.Runs[i]))
+                {
+                    double mid = (r.A + r.B) / 2, across = r.At - r.Out * t / 2;
+                    if (r.AlongX)
+                        Box(mid, across, door, t / 2, Lintel, H);
+                    else
+                        Box(across, mid, t / 2, door, Lintel, H);
+                }
+            else if (fx != 0)
+                Box(fx * (hx - t / 2), 0, t / 2, door, Lintel, H);
+            // And over the way through to the back room.
+            if (outline?.Partition is { } inner)
             {
-                float px = (float)inner.At, w = (float)b.Width, ridge = H + w * 0.42f;
-                var (l, top, r) = (K(px, -w / 2, H), K(px, 0, ridge), K(px, w / 2, H));
-                k.Tri(l, top, r, new(-w / 2, -H), new(0, -ridge), new(w / 2, -H));
-                k.Tri(r, top, l, new(w / 2, -H), new(0, -ridge), new(-w / 2, -H));
+                var (dx, dy) = inner.Doorway;
+                if (inner.AlongX)
+                    Box(dx, dy, door, t / 2, Lintel, H);
+                else
+                    Box(dx, dy, t / 2, door, Lintel, H);
+                // Across a plain house it goes up into the gable under the ridge, so the back room's its own in the dark too.
+                if (b.Parts.Count <= 1 && !inner.AlongX)
+                {
+                    float px = (float)inner.At, w = (float)b.Width, ridge = H + w * 0.42f;
+                    var (l, top, r) = (K(px, -w / 2, H), K(px, 0, ridge), K(px, w / 2, H));
+                    k.Tri(l, top, r, new(-w / 2, -H), new(0, -ridge), new(w / 2, -H));
+                    k.Tri(r, top, l, new(w / 2, -H), new(0, -ridge), new(-w / 2, -H));
+                }
             }
-        }
-        else if (outline is null && fx == 0)
-            // (A plain house's door in its side: its lintel. Not one in its end, which has its own above: drawn here as well, it
-            // hung in the middle of the room.)
-            Box(0, fy * (hy - t / 2), door, t / 2, Lintel, H);
+            else if (outline is null && fx == 0)
+                // (A plain house's door in its side: its lintel. Not one in its end, which has its own above: drawn here as well, it
+                // hung in the middle of the room.)
+                Box(0, fy * (hy - t / 2), door, t / 2, Lintel, H);
 
-        BoardedWindows(k, b, Box);
+            BoardedWindows(k, b, Box);
 
-        // A gabled roof over each part, its ridge along the part's longer side (a plain house's along its axis).
-        if (outline is null)
-            Gabled(k, 0, 0, (float)b.Width, (float)b.Length, true, H);
-        else
-            foreach (var part in b.Parts)
-                Gabled(k, (float)part.Y, (float)-part.X, (float)Math.Min(part.Length, part.Width), (float)Math.Max(part.Length, part.Width), part.Length >= part.Width, H);
+            // A gabled roof over each part, its ridge along the part's longer side (a plain house's along its axis).
+            if (outline is null)
+                Gabled(k, 0, 0, (float)b.Width, (float)b.Length, true, H);
+            else
+                foreach (var part in b.Parts)
+                    Gabled(k, (float)part.Y, (float)-part.X, (float)Math.Min(part.Length, part.Width), (float)Math.Max(part.Length, part.Width), part.Length >= part.Width, H);
         }
 
         // What a ransack left (the director, 8 Oct): each piece where the sim has it, turned its way (its x along the house's
