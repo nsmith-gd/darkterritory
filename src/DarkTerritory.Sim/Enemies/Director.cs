@@ -614,11 +614,11 @@ public sealed class Director
         var surge = _t.Encounters.Drive.FinalSurge;
         Surge = surge.On && _route is { } surgeRoute ? surge.At(ToKeptQuiet(world.Train.Dynamics.Distance, surgeRoute, noSpawnFinal), Active) : 1;
         TrackFar(world, active);
-        Read(world);
+        Read(world, elapsed);
         var attempt = ChooseNow(world, elapsed, active, noSpawnFinal);
         Pace(world, elapsed, active);
         // Sent at someone for a reason (note 999): only a kind that answers what the aimed-at crewmate is doing.
-        if (attempt is not null && Aimed is { } aim && Targeting.Answers(aim.Doing, attempt.Kind, _t.Encounters.Target))
+        if (attempt is not null && Aimed is { } aim && Targeting.Answers(aim, attempt.Kind, _t.Encounters.Target))
             attempt = attempt with { Aim = aim };
         return attempt;
     }
@@ -630,6 +630,11 @@ public sealed class Director
     double _lastSpeed;
     /// <summary>The crewmate the director aims at this second and why (note 999), or null (targeting off, nobody to aim at).</summary>
     public Aim? Aimed { get; private set; }
+    /// <summary>The behaviours the director reads in each crewmate (note 999 §2b), with targeting on.</summary>
+    public Behaviours Behaviours { get; } = new();
+    /// <summary>Tonight's encounters placed at someone that foil a behaviour they showed (note 999 §2b), by the behaviour's name.</summary>
+    public IReadOnlyDictionary<string, int> Foiled => _foiled;
+    readonly SortedDictionary<string, int> _foiled = new(StringComparer.Ordinal);
     /// <summary>Tonight's encounters placed at someone for what they were doing (note 999), by the doing's name.</summary>
     public IReadOnlyDictionary<string, int> Targeted => _targeted;
     readonly SortedDictionary<string, int> _targeted = new(StringComparer.Ordinal);
@@ -644,7 +649,7 @@ public sealed class Director
     /// Once a second, before the choice (note 999): the train's stance and the seconds it has stood, and whom to aim at. Reads
     /// only; the choice and the rate read it back.
     /// </summary>
-    void Read(World world)
+    void Read(World world, double elapsed)
     {
         var st = _t.Encounters.Stance;
         double speed = world.Train.Dynamics.Speed;
@@ -654,10 +659,15 @@ public sealed class Director
         string name = Enemies.Stance.Name(Stance);
         _stanceSeconds[name] = _stanceSeconds.GetValueOrDefault(name) + 1;
         var tt = _t.Encounters.Target;
-        Aimed = tt.On
-            ? Targeting.Pick(Targeting.Read(world, Posts.Entries, _t.Abandoned.BehindM, _t.Orchestrator.DrivingAbove, tt),
-                Enemies.Stance.Stopped(Stance), _t.Orchestrator.PerTarget ? PerCrewmate : 0, tt)
-            : null;
+        if (!tt.On)
+        {
+            Aimed = null;
+            return;
+        }
+        var crew = Targeting.Read(world, Posts.Entries, _t.Abandoned.BehindM, _t.Orchestrator.DrivingAbove, tt, out var seen);
+        // The behaviour reader (note 999 §2b): counted out on the run as the census's slack is, past the grace and out of the forts.
+        Behaviours.Second(seen, elapsed >= Grace && !world.TrainInFort, tt.Behaviours);
+        Aimed = Targeting.Pick(crew, Enemies.Stance.Stopped(Stance), _t.Orchestrator.PerTarget ? PerCrewmate : 0, tt, Behaviours.Of);
     }
 
     SpawnAttempt? ChooseNow(World world, double elapsed, IReadOnlyList<Enemy> active, double noSpawnFinal)
@@ -2395,6 +2405,9 @@ public sealed class Director
         {
             string doing = Targeting.Name(aimed.Doing);
             _targeted[doing] = _targeted.GetValueOrDefault(doing) + 1;
+            foreach (var f in Enum.GetValues<Behaviour>())
+                if (f != Behaviour.None && (aimed.Shows & f) != 0 && Targeting.Foils(f, attempt.Kind, _t.Encounters.Target))
+                    _foiled[Enemies.Behaviours.Name(f)] = _foiled.GetValueOrDefault(Enemies.Behaviours.Name(f)) + 1;
         }
         // Placed, by whichever channel: one encounter off the night's account (#608, note 908), a pack as one.
         if (_t.Encounters.Drive.On)
