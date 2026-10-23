@@ -39,6 +39,12 @@
   // the commendations are being given.
   "deliveredReportSeconds": 20,
 
+  // The end screen's incident report: its highlights, this many lines, and the rest counted (the director's playtest of
+  // 23 Oct, line 13, note 994: "Just give like a funny image and then like a funny note, and that's about it ... Just give
+  // us the highlights. Not necessarily like every kill"). Which: the night's end, then the deaths, then what it took, in the
+  // order they happened (Hud.ReportRank). The print (the crate with the dead's caps), the best finds and the money stay.
+  "reportHighlights": 3,
+
   // Spec E: ping is shown prominently in the lobby (the yard). Out on the line, only once it's this bad (ms), or lost.
   "pingWarnMs": 150,
 

@@ -57,6 +57,16 @@ public class DeadPhaseTests
     }
 
     [Fact]
+    public void TheDeadAreToldTheKeyThatHidesEverything()
+    {
+        // Note 994 (the director's playtest of 23 Oct, line 14: "a no text, no UI on screen button I can press when I'm
+        // dead"): watching a crewmate, the view's row says F1 hides it all (the app keeps the HUD off till F1 or life again).
+        var world = Night();
+        var far = StandingAt(world.Holdouts!.All[0].Inside + new Double3(5000, 0, 0));
+        Assert.Contains(Hud.DeadCardLines(new Seat(world, 4, Dead(DeathCause.Mauled), [(2, far)])), l => l.Contains("[F1] HIDE ALL", StringComparison.Ordinal));
+    }
+
+    [Fact]
     public void CallOutIsOfferedOnlyWhereItWouldBeHeard()
     {
         // D.7: a call counts from a lit Holdout while someone living is within callOutRadius of it (the host's own test,
