@@ -139,4 +139,35 @@ public class GateClearTests
         Assert.True(seen.HoundPlaced);
         Assert.True(seen.Stood, $"never stood short of the gate (front {seen.FrontAtEnd:0} m past it)");
     }
+
+    /// <summary>
+    /// Note 1009 (the director's playtest of 23 Oct, line 11: "Why is he stopping outside of town? Just go into town"): a
+    /// Whistler put in car 2's coupling gap 600 m out, where it waits for someone to pass alone and no bot goes at it. The
+    /// driver stands short of the gate for it, but only crewBots.gateClearIdle with nothing aboard struck, not the whole of
+    /// gateClearGiveUp (frontier:7 seed 1, a crew of three: 188 s), and brings the train in.
+    /// </summary>
+    [Fact]
+    public void StoodShortOfTheGateWithNobodyClearingTheTrainTheDriverBringsItIn()
+    {
+        const int cars = 5;
+        var route = LineGen.Routes.Generate(DataFile.FindContentRoot(), "frontier:7", cars);
+        double gate = route.Plan!.Terminus.GateM;
+        var b = HoundRunTests.Quiet.CrewBots;
+        Enemy? it = null;
+        double stood = 0;
+        var report = CrewOfTwoTests.Night("frontier:7", cars, 600, null, start: gate - 1500, bots: 3, seed: 1,
+            enemies: HoundRunTests.Quiet, each: world =>
+            {
+                var train = world.Train;
+                if (it is null && gate - train.Dynamics.Distance < 600 && world.Run is { Phase: RunPhase.Underway })
+                    it = world.AddEnemy(id => Whistler.InGap(id, train, 2, HoundRunTests.Quiet.Whistler));
+                if (it is not null && train.Dynamics.Speed < 0.05 && gate - train.Dynamics.Distance is > 0 and < 200)
+                    stood += SimConstants.TickSeconds;
+            });
+        Assert.NotNull(it);
+        var run = Assert.IsType<RunReport>(report.Run);
+        Assert.True(stood > 0, "never stood short of the gate");
+        Assert.InRange(stood, b.GateClearIdle, b.GateClearIdle + 15);
+        Assert.Equal(RunEnd.Delivered, run.End);
+    }
 }

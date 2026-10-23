@@ -373,6 +373,14 @@
     // waits (or sets back for them) this long, then leaves them as a deserter (seconds). The dawn doesn't cut it short: a
     // person left behind is fetched as the crew's bots aren't once the dawn's near (#613).
     "peopleLeftSeconds": 600,
+    // Note 1009 (the director's playtest of 23 Oct, line 7: "It's sort of annoying that the bot just like takes over being the
+    // like driver right away. I feel like that's something that like should maybe default to the player"): the driver's seat
+    // is the people's first. At the gate (the yard, where the night's clock hasn't started), with someone playing in the crew,
+    // the bot driver stands in the cab on the brake and leaves the controls to them for peopleSeatSeconds, once everyone's
+    // aboard: whoever works a control has them (note 574), and the bot goes out to work the train. Nobody takes them in that
+    // time, or someone playing pings the cab (GDD §12), and it drives out itself. 0: it drives out as soon as everyone's
+    // aboard, as before. A bot crew alone isn't held: there's nobody to give the seat to.
+    "peopleSeatSeconds": 60,
     // Note 326 (GDD App. F.3: "crews decide whether to split up for more loot, or work the yard together, or the village
     // together"): once the yard's crates are in, this share of the crate hands go to search the village's open houses
     // (the rest shut the doors), each to the nearest hiding spot nobody else has taken within villageReach (m) of where it

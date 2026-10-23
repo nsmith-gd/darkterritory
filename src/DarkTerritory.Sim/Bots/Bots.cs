@@ -2906,6 +2906,25 @@ public sealed partial class ConductorBot(CrewCalls? calls = null, int member = 0
     }
     bool _driving, _sawDriver;
     double _boardWait;
+    /// <summary>Note 1009: seconds the controls have been left to someone playing at the gate; and whether that's over.</summary>
+    double _seatWait;
+    bool _seatGiven;
+
+    /// <summary>
+    /// Note 1009: whether the controls are still being left to someone playing at the gate (facilities.json
+    /// crew.peopleSeatSeconds): someone playing is in the crew, alive, and nobody's pinged the cab for a bot (GDD §12) or let
+    /// the time go by. Once it's over, it's over for the night.
+    /// </summary>
+    bool LeavingTheSeat(World world)
+    {
+        if (_seatGiven || calls is null || Express)
+            return false;
+        double seat = world.Run?.FacilityTuning?.Crew.PeopleSeatSeconds ?? 0;
+        if (seat <= 0 || Players?.Any(p => p.Alive) != true || _seatWait >= seat
+            || world.Pings.Any(p => p.Kind == Player.PingKind.Cab && !calls.IsBot(p.By)))
+            _seatGiven = true;
+        return !_seatGiven;
+    }
     /// <summary>How long the driver waits at the gate for the crew to climb aboard (T102) before it goes anyway.</summary>
     const double AllAboardSeconds = 120;
     /// <summary>Note 995: how long it waits for someone playing who's afoot (facilities.json crew.peopleLeftSeconds).</summary>
@@ -3127,6 +3146,15 @@ public sealed partial class ConductorBot(CrewCalls? calls = null, int member = 0
         {
             _boardWait += SimConstants.TickSeconds;
             return Because("all aboard", new PlayerIntent { Buttons = PlayerButtons.Brake, ThrottleNotch = -4, Lamp = lamp });
+        }
+        // Note 1009 (the director's playtest of 23 Oct, line 7: "takes over being the driver right away ... should maybe default
+        // to the player"): everyone aboard at the gate, the controls are left to someone playing for crew.peopleSeatSeconds.
+        // Whoever works one has them (note 574, TakenOver), and this hands over; a ping of the cab, or nobody taking them in
+        // that time, and it drives out.
+        if (world.Run is { Phase: Run.RunPhase.Yard } && PlayerMotor.InCab(self, train) && train.Dynamics.Speed < 0.1 && LeavingTheSeat(world))
+        {
+            _seatWait += SimConstants.TickSeconds;
+            return Because("the seat", new PlayerIntent { Buttons = PlayerButtons.Brake, ThrottleNotch = -4, Lamp = lamp });
         }
         // The Stoker in the firebox (v1.1 App. A.5): at the firebox door and club it out, brake on, whatever else is going on
         // (every blow burns: it's done while there's health to spare for it, and the brake holds the runaway meanwhile).
