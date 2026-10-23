@@ -55,6 +55,31 @@ public class RadioReadingTests
     }
 
     [Fact]
+    public void ACrewmateWhoDiedTwiceIsReadOnce()
+    {
+        // Note 994 (the director's playtest of 23 Oct, line 12: "Body not recovered. Fee 350. Body not recovered. Fee 350 ...
+        // I should only get body not recovered once"): freed from a Holdout and lost again, Nick's two bodies are one line, the
+        // fees added; Ana's is her own, and a body of Nick's brought home is read on its own line.
+        var report = new RunReport(RunEnd.Delivered, 1000, 12, 4, 1, 2, 1240, 40, 12, 30, 1158, 3, 1)
+        {
+            Lines =
+            [
+                new ReportLine(IncidentKind.Death, "Nick", "Taken by the Whistler ...", 350, 0),
+                new ReportLine(IncidentKind.Death, "Ana", "Mauled by the hounds ...", 350, 0),
+                new ReportLine(IncidentKind.Death, "Nick", "Fell at speed ...", 350, 0),
+            ],
+        };
+        var lines = Radio.Tally(report);
+        Assert.Single(lines, l => l.StartsWith("Nick. Body not recovered.", StringComparison.Ordinal));
+        Assert.Contains("Nick. Body not recovered. Fee 700.", lines);
+        Assert.Contains("Ana. Body not recovered. Fee 350.", lines);
+        Assert.True(lines.IndexOf("Nick. Body not recovered. Fee 700.") < lines.IndexOf("Ana. Body not recovered. Fee 350."));
+        var home = Radio.Tally(report with { Lines = [.. report.Lines, new ReportLine(IncidentKind.Death, "Nick", "Burned ...", 350, 263)] });
+        Assert.Contains("Nick. Body recovered. Fee 350. Refund 263.", home);
+        Assert.Contains("Nick. Body not recovered. Fee 700.", home);
+    }
+
+    [Fact]
     public void ANightInTheRedSaysWhatCostMostAndItsFiguresAddUp()
     {
         // Note 766, a night like the director's (13 Oct: "Powder and shot zero. Repairs 91 ... net negative 1607"): nothing
