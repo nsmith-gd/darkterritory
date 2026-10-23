@@ -1165,4 +1165,5 @@ written here instead is moved out by `tools/coord/notes.py split`; the Coordinat
 - [1001. The cars' side doors (Ash, nathaniel2; queue #707; `docs/playtest/2026-10-23.md` line 20): every car's body cooked apart](notes/1001.md)
 - [1004. Every creature foils a behaviour: the creature list again, by the director's verdicts on Moth's nine; a behaviour → foil table, the Close,…](notes/1004.md)
 - [1007. The Bruin: the first of the forest's heavies, a rotten bear that comes out of the trees at a train stood in the wild, climbs into the cargo…](notes/1007.md)
+- [1010. The ping: a village means search it, a ping needs line of sight, and it clears when done (Hazel, nathaniel2; queue #700; the director's…](notes/1010.md)
 <!-- end of the notes index -->

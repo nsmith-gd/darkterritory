@@ -4029,10 +4029,13 @@ static object HudShot(string content, string[] args)
             : args.Contains("--spur-stop")
             ? Staging.SpurStop(content, generated ?? DarkTerritory.Sim.LineGen.Routes.Generate(content, "frontier:7", cars), cars,
                 Array.IndexOf(args, "--spur-stop") is var sp && sp + 1 < args.Length && double.TryParse(args[sp + 1], System.Globalization.CultureInfo.InvariantCulture, out double dawnIn) ? dawnIn : 150)
+            // --ping-village pinged|answered|done|hidden (note 1010): a stop's village pinged from a roof as the train comes by.
+            : Str(args, "--ping-village", "") is { Length: > 0 } pingStage
+            ? Staging.PingVillage(content, generated ?? DarkTerritory.Sim.LineGen.Routes.Generate(content, "frontier:7", cars), cars, pingStage)
             : roofWarning.Length > 0
             ? Staging.RoofWarning(content, generated ?? DarkTerritory.Sim.LineGen.Routes.Generate(content, "deadLines:1", cars), cars, roofWarning)
             : generated is null ? new PrototypeSession(content, Str(args, "--line", "test-loop"), cars) : new PrototypeSession(content, generated, cars, enemies: args.Contains("--taut-knotter"));
-        bool setUp = roofWarning.Length > 0 || mailCrane is not null || args.Contains("--spur-stop") || args.Contains("--terminus");
+        bool setUp = roofWarning.Length > 0 || mailCrane is not null || args.Contains("--spur-stop") || args.Contains("--terminus") || args.Contains("--ping-village");
         if (!setUp)
             solo.Controls.Throttle = Opt(args, "--throttle", args.Contains("--talk") ? 0 : 0.6);
         // (--news: out of the yard and under way, where cars are lost.)
@@ -4448,7 +4451,7 @@ static object HudShot(string content, string[] args)
         Hud.LogbookPage(hud, width, height, "The Night Mail", pages, Math.Clamp(open - 1, 0, Math.Max(0, pages.Count - 1)),
             shown is { Photo.Length: > 0 } ? BookmarkAlbum.ReadPhoto(shown.Photo) : null);
     }
-    if (args.Contains("--ping"))
+    if (args.Contains("--ping") || args.Contains("--ping-village"))
         PingMarks.Draw(hud, width, height, camera, session.World);
     // --emote-wheel: the emote wheel held, the mouse leant toward the wave (note 298).
     if (args.Contains("--emote-wheel"))
