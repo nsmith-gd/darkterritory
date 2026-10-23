@@ -1606,7 +1606,34 @@
           "walking": ["gannet", "climbers", "draggers", "whistler", "fireFlies", "brakeman"],
           "riding": ["tippyToesie", "fireFlies", "passenger", "carHugger"],
           "afield": ["followers", "sootChildren", "grumbler", "moose", "ribbits", "towerJaw"]
-        } }
+        },
+        // The behaviours the director foils (note 999 §2b; the director's playtest of 23 Oct, line 36: "track some things about
+        // player behavior ... in a performant way ... and build foils for that ... pushing players for adaptability or towards
+        // teamwork"). Read once a director second with targeting on (Behaviours; a byte a tick for the voice), host only, no
+        // draws: lootingAlone (searching a house, nobody within aloneM m, lootAloneSeconds on), cellarAlone (searching a
+        // cellar, nobody within aloneM), straggling (afoot, nobody within straggleM), gunAlone (on a gun gunAloneSeconds, nobody
+        // within aloneM), lazing (a deck chair or the band, lazeSeconds), silent and chatter (with company, the share of the
+        // last talkSeconds on the mic louder than talkAbove: at most silentShare, at least chatterShare), griefing (the
+        // horseplay's mark, note 717), oneTrick (after oneTrickAfter s on the run, oneTrickShare of it at one job, those in
+        // oneTrickExempt not counted). on: the aim's score × pull.<behaviour> for each shown, and foils.<behaviour>'s kinds
+        // answer it as answers' do. Off until measured (the reading runs either way, for the harness's stance.behaviours).
+        "behaviours": { "on": false, "aloneM": 12, "straggleM": 40, "lootAloneSeconds": 10, "gunAloneSeconds": 120, "lazeSeconds": 45,
+          "talkAbove": 0.15, "talkSeconds": 120, "silentShare": 0.03, "chatterShare": 0.6, "oneTrickAfter": 600, "oneTrickShare": 0.8,
+          "oneTrickExempt": ["riding", "afield"],
+          "pull": { "lootingAlone": 1.5, "cellarAlone": 2, "straggling": 1.5, "gunAlone": 1.3, "lazing": 1.5, "silent": 1.2,
+            "chatter": 1.1, "griefing": 1.5, "oneTrick": 1.2 },
+          // The existing foils (note 999 §2b's table); Sloe's (#709) go in beside them as they land.
+          "foils": {
+            "lootingAlone": ["gaunt", "followers"],
+            "cellarAlone": ["gaunt"],
+            "straggling": ["followers", "sootChildren", "moose"],
+            "gunAlone": ["climbers", "cinderHounds", "gannet"],
+            "lazing": ["gannet"],
+            "silent": ["gaunt"],
+            "chatter": ["whistler", "sootChildren"],
+            "griefing": ["followers"],
+            "oneTrick": []
+          } } }
     },
     // GDD App. B.1 "Post-event cooldown" (design decision, 2026-10): the least trough after a spawn; the pressure's relief
     // makes the rest of it, and well past the threshold (pressAt) it gives way.

@@ -22,7 +22,11 @@ public enum Doing : byte
 }
 
 /// <summary>A crewmate the director aims at this second, what they're doing, and how strongly they draw it (note 999 §4).</summary>
-public readonly record struct Aim(int Player, Doing Doing, double Score, double Slack);
+public readonly record struct Aim(int Player, Doing Doing, double Score, double Slack)
+{
+    /// <summary>What they're showing that the director foils (note 999 §2b), with <c>target.behaviours.on</c>.</summary>
+    public Behaviour Shows { get; init; }
+}
 
 /// <summary>
 /// Targeting (queue #703, note 999; the director's playtest of 23 Oct, line 35: "we should be targeting players specifically ...
@@ -74,7 +78,8 @@ public static class Targeting
     /// or × <see cref="TargetTuning.AboardRunning"/> aboard while it runs; nobody with <paramref name="perPlayer"/> threats on
     /// them already, nobody left behind (their own hunt answers them). The most, ties to the lowest id.
     /// </summary>
-    public static Aim? Pick(IReadOnlyList<(int Player, Post Post, Doing Doing, double Slack, int On)> crew, bool stopped, int perPlayer, TargetTuning t)
+    public static Aim? Pick(IReadOnlyList<(int Player, Post Post, Doing Doing, double Slack, int On)> crew, bool stopped, int perPlayer, TargetTuning t,
+        Func<int, Behaviour>? shows = null)
     {
         Aim? best = null;
         foreach (var c in crew.OrderBy(c => c.Player))
@@ -85,8 +90,14 @@ public static class Targeting
             double score = Math.Max(0, t.Pull.GetValueOrDefault(Name(c.Doing), 1))
                 * (1 + Math.Max(0, c.Slack) / Math.Max(1, t.SlackScale))
                 * (stopped && afoot ? t.AfootStopped : !stopped && !afoot ? t.AboardRunning : 1);
+            // What they're showing that the director foils (note 999 §2b): × each behaviour's pull.
+            var b = t.Behaviours.On && shows is not null ? shows(c.Player) : Behaviour.None;
+            if (b != Behaviour.None)
+                foreach (var f in Enum.GetValues<Behaviour>())
+                    if (f != Behaviour.None && (b & f) != 0)
+                        score *= Math.Max(0, t.Behaviours.Pull.GetValueOrDefault(Behaviours.Name(f), 1));
             if (score > 0 && (best is null || score > best.Value.Score))
-                best = new Aim(c.Player, c.Doing, score, c.Slack);
+                best = new Aim(c.Player, c.Doing, score, c.Slack) { Shows = b };
         }
         return best;
     }
@@ -95,15 +106,30 @@ public static class Targeting
     public static bool Answers(Doing doing, EnemyKind kind, TargetTuning t) =>
         t.Answers.TryGetValue(Name(doing), out var kinds) && kinds.Contains(Director.Key(kind));
 
+    /// <summary>Whether <paramref name="kind"/> answers the aim: its doing (<see cref="Answers(Doing, EnemyKind, TargetTuning)"/>) or a behaviour it shows (<see cref="BehavioursTuning.Foils"/>).</summary>
+    public static bool Answers(Aim aim, EnemyKind kind, TargetTuning t) => Answers(aim.Doing, kind, t) || Foils(aim.Shows, kind, t);
+
+    /// <summary>Whether <paramref name="kind"/> foils one of <paramref name="shows"/> (<see cref="BehavioursTuning.Foils"/>).</summary>
+    public static bool Foils(Behaviour shows, EnemyKind kind, TargetTuning t)
+    {
+        if (shows == Behaviour.None || !t.Behaviours.On)
+            return false;
+        string key = Director.Key(kind);
+        foreach (var f in Enum.GetValues<Behaviour>())
+            if (f != Behaviour.None && (shows & f) != 0 && t.Behaviours.Foils.TryGetValue(Behaviours.Name(f), out var kinds) && kinds.Contains(key))
+                return true;
+        return false;
+    }
+
     /// <summary>
     /// The choice weighed toward the aim: a kind that answers its doing ×<see cref="TargetTuning.AnswerWeight"/>, every other
     /// ×<see cref="TargetTuning.OffWeight"/>. Left as it is when none of them answers (nothing to aim with) or with no aim.
     /// </summary>
     public static List<(EnemyKind Kind, double Weight)> Weigh(List<(EnemyKind Kind, double Weight)> options, Aim? aim, TargetTuning t)
     {
-        if (!t.On || aim is not { } a || !options.Any(o => o.Weight > 0 && Answers(a.Doing, o.Kind, t)))
+        if (!t.On || aim is not { } a || !options.Any(o => o.Weight > 0 && Answers(a, o.Kind, t)))
             return options;
-        return [.. options.Select(o => (o.Kind, o.Weight * (Answers(a.Doing, o.Kind, t) ? t.AnswerWeight : t.OffWeight)))];
+        return [.. options.Select(o => (o.Kind, o.Weight * (Answers(a, o.Kind, t) ? t.AnswerWeight : t.OffWeight)))];
     }
 
     /// <summary>The doing's name in the tuning (camel case).</summary>
@@ -114,12 +140,21 @@ public static class Targeting
     /// it has them, 0 where it doesn't: the orchestrator off).
     /// </summary>
     public static List<(int Player, Post Post, Doing Doing, double Slack, int On)> Read(World world, IReadOnlyList<CensusEntry> census,
-        double behindM, double drivingAbove, TargetTuning t)
+        double behindM, double drivingAbove, TargetTuning t) => Read(world, census, behindM, drivingAbove, t, out _);
+
+    /// <summary>
+    /// <see cref="Read(World, IReadOnlyList{CensusEntry}, double, double, TargetTuning)"/>, and what the behaviour reader sees of each
+    /// (note 999 §2b): the nearest living crewmate (one O(crew²) pass), a cellar searched, a deck chair or the band, the mark.
+    /// </summary>
+    public static List<(int Player, Post Post, Doing Doing, double Slack, int On)> Read(World world, IReadOnlyList<CensusEntry> census,
+        double behindM, double drivingAbove, TargetTuning t, out List<Seen> seen)
     {
+        seen = [];
         var train = world.Train;
         bool moving = Math.Abs(train.Dynamics.Velocity) > drivingAbove;
         var site = world.Run is { Phase: Run.RunPhase.AtFacility, CurrentSite: { } here } ? here : null;
         var list = new List<(int, Post, Doing, double, int)>();
+        var spots = new List<Double3>();
         foreach (var (id, s) in world.CrewThisTick.OrderBy(c => c.Id))
         {
             if (!s.Alive)
@@ -133,6 +168,17 @@ public static class Targeting
             var doing = Of(post, s.Flags, s.ActionProgress, ground, moving, inHouse, shut, site?.Works(id) == true, t);
             var entry = census.FirstOrDefault(c => c.Player == id);
             list.Add((id, post, doing, entry?.Slack ?? 0, entry?.On ?? 0));
+            bool cellar = afoot && world.Run?.SearchingIn(id) == Stops.ContainerKind.Cellar;
+            seen.Add(new Seen(id, post, doing, double.PositiveInfinity, cellar, s.Has(PlayerFlags.Lounging) || s.Has(PlayerFlags.Playing), world.IsMarked(id)));
+            spots.Add(at);
+        }
+        for (int i = 0; i < seen.Count; i++)
+        {
+            double near = double.PositiveInfinity;
+            for (int j = 0; j < seen.Count; j++)
+                if (i != j)
+                    near = Math.Min(near, (spots[i] - spots[j]).Length);
+            seen[i] = seen[i] with { Nearest = near };
         }
         return list;
     }
@@ -150,4 +196,6 @@ public sealed record TargetTuning
     public double OffWeight { get; init; } = 0.75;
     public Dictionary<string, double> Pull { get; init; } = [];
     public Dictionary<string, List<string>> Answers { get; init; } = [];
+    /// <summary>The behaviours read and foiled (note 999 §2b).</summary>
+    public BehavioursTuning Behaviours { get; init; } = new();
 }
