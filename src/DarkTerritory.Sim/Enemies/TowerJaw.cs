@@ -241,6 +241,24 @@ public sealed class TowerJaw(int id) : Enemy(id)
             if (Flat(at - _fallsAt) <= t.CrushRadius)
                 ctx.Bite(p.Id, t.Crush, DeathCause.Crushed);
         var world = ctx.World;
+        // Note 996 (the director's playtest of 23 Oct, line 26: it "didn't do anything to the car"): a car it comes down on
+        // is dented, never broken (wreckLeaves). Within crushRadius of the car's sides or ends. The host's, as the train's hurts are.
+        if (world.Authority)
+        {
+            var train = ctx.Train;
+            for (int i = 0; i < train.Frames.Count && i < train.Vehicles.Count; i++)
+            {
+                var v = train.Vehicles[i];
+                if (v.Taken || v.OffRails)
+                    continue;
+                var local = train.Frames[i].ToLocal(_fallsAt);
+                var shape = train.Frames[i].Shape;
+                if (Math.Abs(local.X) > shape.HalfWidth + t.CrushRadius || Math.Abs(local.Z) > shape.HalfLength + t.CrushRadius)
+                    continue;
+                v.Integrity = Dent(v.Integrity, t.CrushCar, t);
+                v.Knock = (KnockCause.Wreck, 0);
+            }
+        }
         if (world.Authority && world.Run is { } run)
         {
             if (_target == TowerJawTarget.CoalingTower)
@@ -292,12 +310,19 @@ public sealed class TowerJaw(int id) : Enemy(id)
             if (speed > t.SafeSpeed)
             {
                 var hit = rake.Consist.Vehicles[fromBehind ? 0 : ^1];
-                hit.Integrity = Math.Max(0, hit.Integrity - (speed - t.SafeSpeed) * (speed - t.SafeSpeed) * t.DamagePerSpeed);
+                hit.Integrity = Dent(hit.Integrity, (speed - t.SafeSpeed) * (speed - t.SafeSpeed) * t.DamagePerSpeed, t);
                 hit.Knock = (KnockCause.Wreck, speed);
             }
             train.RefreshFrames();
         }
     }
+
+    /// <summary>
+    /// Note 996: the wreck's harm to a car or the engine, never below <see cref="TowerJawTuning.WreckLeaves"/> of it (and never
+    /// raising one already under it): a dent the wrench mends, never a breakdown that ends the night stood at the wreck.
+    /// </summary>
+    static double Dent(double integrity, double harm, TowerJawTuning t) =>
+        Math.Min(integrity, Math.Max(Math.Min(integrity, t.WreckLeaves), integrity - harm));
 
     /// <summary>
     /// Struck: hurt by every blow (health in blows); <c>driveOffBlows</c> inside <c>driveOffSeconds</c> drive it off its post

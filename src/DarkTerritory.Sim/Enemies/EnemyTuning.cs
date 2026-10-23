@@ -1677,6 +1677,14 @@ public sealed record TowerJawTuning
     public double WreckHalf { get; init; } = 3;
     public double SafeSpeed { get; init; } = 1;
     public double DamagePerSpeed { get; init; } = 0.06;
+    /// <summary>
+    /// Note 996 (the director's playtest of 23 Oct, line 1: run into the wreck, "Engine just breaks down immediately, and now
+    /// we're perma-stuck"): what the wreck's blow, or its fall, leaves of a car or the engine at the least, so it dents (the
+    /// wrench mends it) and never breaks one down. 0: as before, a run at 12 m/s broke the engine.
+    /// </summary>
+    public double WreckLeaves { get; init; } = 0.3;
+    /// <summary>Note 996 (line 26: the fall "didn't do anything to the car"): a car within crushRadius of where it comes down loses this.</summary>
+    public double CrushCar { get; init; } = 0.35;
     public Dictionary<string, double> TierWeights { get; init; } = new() { ["local"] = 1, ["frontier"] = 1.5, ["deadLines"] = 2, ["deepTerritory"] = 2 };
 
     /// <summary>Seconds to gnaw through, by tier (120 where the tier isn't listed).</summary>
