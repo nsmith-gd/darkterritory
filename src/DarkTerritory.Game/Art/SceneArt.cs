@@ -746,12 +746,44 @@ public sealed partial class SceneArt(Look look)
     /// <summary>A car's heap as drawn (note 659): its poured load to the nearest eighth, so a car filling has a handful of meshes.</summary>
     static float HeapFill(Vehicle v) => (float)Math.Clamp(Math.Round(v.Bulk * 8) / 8, 0.125, 1);
 
-    static string ShapeKey(CarShape s) =>
-        $"{s.HalfWidth:0.###}x{s.HalfLength:0.###}x{s.RoofHeight:0.###}:{s.Solids.Count}:{s.Solids.Any(x => x.Part == PartKind.Coupler)}" +
+    /// <summary>
+    /// What a car's cooked pieces are kept under: its size and parts, and a print of every solid and door in it (note 1001:
+    /// the size and the count alone gave the utility car, the dining car and the dressed last guard van one key, and the
+    /// last guard van its platform or not, so each was drawn with whichever body was cooked first).
+    /// </summary>
+    public static string ShapeKey(CarShape s) => ShapeKeys.GetValue(s, k =>
+        $"{k.HalfWidth:0.###}x{k.HalfLength:0.###}x{k.RoofHeight:0.###}:{k.Solids.Count}:{k.Solids.Any(x => x.Part == PartKind.Coupler)}" +
         // (The BBQ deck's engine, note 698.)
-        (s.Bbq is not null ? ":bbq" : "") +
+        (k.Bbq is not null ? ":bbq" : "") +
         // (A Knotter's back where the plate was, CarShape.Knotted: no plate drawn.)
-        (s.Solids.Any(x => x.Part == PartKind.Coupler && x.Box.Max.X - x.Box.Min.X <= CarShape.KnotWidth + 1e-3) ? ":knot" : "");
+        (k.Solids.Any(x => x.Part == PartKind.Coupler && x.Box.Max.X - x.Box.Min.X <= CarShape.KnotWidth + 1e-3) ? ":knot" : "") +
+        $":{Print(k):x16}");
+
+    static readonly System.Runtime.CompilerServices.ConditionalWeakTable<CarShape, string> ShapeKeys = new();
+
+    /// <summary>A repeatable print (FNV-1a, to the millimetre) of a shape's solids and doors.</summary>
+    static ulong Print(CarShape s)
+    {
+        ulong h = 14695981039346656037;
+        void Add(long v)
+        {
+            h ^= (ulong)v;
+            h *= 1099511628211;
+        }
+        void AddBox(Box b)
+        {
+            foreach (double v in new[] { b.Min.X, b.Min.Y, b.Min.Z, b.Max.X, b.Max.Y, b.Max.Z })
+                Add((long)Math.Round(v * 1000));
+        }
+        foreach (var x in s.Solids)
+        {
+            Add((long)x.Part);
+            AddBox(x.Box);
+        }
+        foreach (var d in s.DoorList)
+            AddBox(d.Box);
+        return h;
+    }
 
     /// <summary>
     /// A loose body that isn't a ragdoll (crates, freight, a lamp, a radio) as its prop, turned by its yaw in its parent's

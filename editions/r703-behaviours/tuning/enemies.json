@@ -1,0 +1,9 @@
+// the behaviour foils (#703, note 999 §2b): director.encounters.target.behaviours on
+{
+  "$patch": true,
+  "director": {
+    "encounters": {
+      "target": { "on": true, "behaviours": { "on": true } }
+    }
+  }
+}
