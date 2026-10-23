@@ -38,8 +38,10 @@ public readonly record struct FortHouse(double Width, double Depth, double Ridge
 /// The fortress gates (note 847; the director's playtest of 16 Oct, line 26: "The gates to the fortress should close behind
 /// me"), run.json <c>gates</c>: open while the train's going through, as its engine comes within <see cref="OpenAheadM"/> of
 /// one, shut again once its last car's <see cref="ShutBehindM"/> past; the leaves take <see cref="SwingSeconds"/> to swing.
+/// With <see cref="Expect"/> (note 998), the terminus's gate stands open for the train all night until it's in, and past dawn
+/// until a Waker's within <see cref="WakerShutM"/> of it, or has the train.
 /// </summary>
-public sealed record GateTuning(double OpenAheadM, double ShutBehindM, double SwingSeconds);
+public sealed record GateTuning(double OpenAheadM, double ShutBehindM, double SwingSeconds, bool Expect = true, double WakerShutM = 300);
 
 /// <summary>
 /// Where a fortress's walls, gun towers, gatehouse and houses stand (T100; T124 "fort buildings have no collision, and gun
@@ -177,6 +179,19 @@ public static class Fortresses
     /// </summary>
     public static bool Open(double gate, double front, double rear, GateTuning t) =>
         front >= gate - t.OpenAheadM && rear < gate + t.ShutBehindM;
+
+    /// <summary>
+    /// Note 998 (the director's playtest of 23 Oct, line 19: "the gate at the beginning is open, and then it closes behind us
+    /// at dawn. And if we're not in by dawn ... it stays open expecting us until the waker ... gets too close"): whether the
+    /// terminus's gate at <paramref name="gate"/> stands open for a train whose last car is at <paramref name="rear"/>. Open
+    /// all night until it's in (its last car <see cref="GateTuning.ShutBehindM"/> past), so a train coming in at speed never
+    /// meets leaves still swinging; shut on a train that isn't once the lead Waker is <see cref="GateTuning.WakerShutM"/> from
+    /// it, or has the train (<paramref name="waker"/>: the lead's place along the line, +∞ when it holds the train, −∞ with
+    /// none up). From the train's place and the lead Waker's, which every machine has (<see cref="Enemies.Waker"/> is sent
+    /// to all), so every machine stands the same leaves.
+    /// </summary>
+    public static bool Expecting(double gate, double rear, double waker, GateTuning t) =>
+        t.Expect && rear < gate + t.ShutBehindM && waker < gate - t.WakerShutM;
 
     // A gate's key from where it stands along the main line, to the quarter metre (a departure town's way in is behind the
     // line's start, so offset), and back. Never 0.

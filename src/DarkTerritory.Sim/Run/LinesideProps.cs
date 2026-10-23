@@ -233,21 +233,32 @@ public sealed partial class LinesideProps
         return false;
     }
 
-    /// <summary>Inside a fortress's walls (<see cref="Fortresses.WallOut"/> out, with a little room), its town's square, or a walled town's wall: nothing wild grows there.</summary>
-    public static bool InsideAFort(IReadOnlyList<Fort> forts, double along, double offset)
+    /// <summary>
+    /// Inside a fortress's walls (<see cref="Fortresses.WallOut"/> out, with a little room), its town's square, or a walled
+    /// town's wall: nothing wild grows there. <paramref name="room"/> more round each: what reaches that far out from its foot.
+    /// </summary>
+    public static bool InsideAFort(IReadOnlyList<Fort> forts, double along, double offset, double room = 0)
     {
         foreach (var f in forts)
         {
-            if (Math.Abs(offset) < Fortresses.WallOut + 1.7 && along > f.Start - 2 && along < f.End + 2)
+            if (Math.Abs(offset) < Fortresses.WallOut + 1.7 + room && along > f.Start - 2 - room && along < f.End + 2 + room)
                 return true;
-            if (f.Square is { } sq && Math.Sign(offset) == sq.Side && Math.Abs(offset) < Math.Abs(sq.WallD) + 2 && along > sq.S0 - 2 && along < sq.S1 + 2)
+            if (f.Square is { } sq && Math.Sign(offset) == sq.Side && Math.Abs(offset) < Math.Abs(sq.WallD) + 2 + room && along > sq.S0 - 2 - room && along < sq.S1 + 2 + room)
                 return true;
             // A walled town's whole extent (note 335), its streets and lanes behind the wall.
-            if (f.InTown(along, offset, 3))
+            if (f.InTown(along, offset, 3 + room))
                 return true;
         }
         return false;
     }
+
+    /// <summary>
+    /// Whether a thing beside the line is inside a fort (<see cref="InsideAFort"/>), or near enough that it reaches in: a
+    /// tree by its crown (note 998; the director's playtest of 23 Oct, line 21: "I see a tree clipping through one of the
+    /// walls"; <see cref="SightRadius"/>). What the sim stands (<see cref="Walls"/>) and the art draws go by this alike.
+    /// </summary>
+    public bool InAFort(IReadOnlyList<Fort> forts, LinesideProp p) =>
+        InsideAFort(forts, p.Along, p.Lateral, p.Kind == LinesideKind.Tree ? SightRadius(p) : 0);
 
     /// <summary>The world point <paramref name="offset"/> m right of the main line at <paramref name="along"/>, on the ground plane.</summary>
     public Double3 World(double along, double offset)
@@ -398,7 +409,7 @@ public sealed partial class LinesideProps
                 _solids[reach] = solids = [.. Props(0, _line.Length, reach).Where(Stands).SelectMany(p => WallsOf(p).Select(w => (p, w)))];
         // Nothing wild grows inside a fort; the poles run on through it.
         foreach (var (p, w) in solids)
-            if (p.Kind == LinesideKind.Pole || !InsideAFort(forts, p.Along, p.Lateral))
+            if (p.Kind == LinesideKind.Pole || !InAFort(forts, p))
                 yield return w;
     }
 

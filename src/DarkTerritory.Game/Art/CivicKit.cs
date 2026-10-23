@@ -62,6 +62,8 @@ public static class CivicKit
                 // Its plate, brass, on the front.
                 k.Use("brass", Palette.TarnishedBrass, 0.4f, 0.6f);
                 k.Box(new Vector3(-0.32f, 0.6f, -z + 0.12f), new Vector3(0.32f, 0.9f, -z + 0.15f));
+                if (variant == 2)
+                    Coins(k, x, z);
                 break;
             case "memorial":
                 // Slate on a granite footing, the names in rows (a dark cut each), the blank row along the bottom.
@@ -375,6 +377,35 @@ public static class CivicKit
                     break;
                 }
         }
+    }
+
+    /// <summary>
+    /// The Child's coins (note 998; the director's playtest of 23 Oct, line 22: "Coins at its feet. I don't see coins at its
+    /// feet"; towns.json civic, "the Child"): left on the plinth in front of the figure's feet, a few stacked, and some down on
+    /// the step where they've been tossed short. A fixed scatter, so every town's Child has the same.
+    /// </summary>
+    static void Coins(Kit k, float x, float z)
+    {
+        // Bright where they've been handled, not the bronze's dull: they catch the lamp (metal, they'd go black in the dark).
+        k.Use("brass", Palette.TarnishedBrass, 0.3f, 0.35f);
+        k.Tint = new Vector3(2.1f, 1.85f, 1.35f);
+        var rng = new Random(1998);
+        void Coin(float cx, float y, float cz, float r) =>
+            k.Cylinder(new Vector3(cx, y, cz), new Vector3(cx, y + 0.006f, cz), r, 10, smooth: false);
+        // On the plinth's top, in a fan before the feet (its front is −Z), the newer ones nearer.
+        for (int i = 0; i < 26; i++)
+        {
+            float a = (float)(rng.NextDouble() * Math.PI), d = 0.16f + (float)rng.NextDouble() * (z - 0.3f);
+            Coin(MathF.Cos(a) * d, PlinthTop, -MathF.Sin(a) * d, 0.022f + (float)rng.NextDouble() * 0.006f);
+        }
+        // Three little stacks by the toes.
+        foreach (var (cx, cz, n) in new[] { (-0.12f, -0.24f, 4), (0.1f, -0.28f, 3), (0.02f, -0.36f, 5) })
+            for (int i = 0; i < n; i++)
+                Coin(cx + i * 0.002f, PlinthTop + 0.006f * (i + 1), cz, 0.024f);
+        // Down on the footing's step, thrown short.
+        for (int i = 0; i < 9; i++)
+            Coin(-x + 0.25f + (float)rng.NextDouble() * (2 * x - 0.5f), 0.3f, -z + 0.04f + (float)rng.NextDouble() * 0.09f, 0.024f);
+        k.Tint = Vector3.One;
     }
 
     static void Stone(Kit k) => k.Use("granite_lichen", Palette.Ballast, 0.7f, 0.1f, tile: 1);

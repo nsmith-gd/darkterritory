@@ -505,7 +505,7 @@ public static class Guns
         return best;
     }
 
-    static double? RayBox(Double3 o, Double3 d, Box b)
+    internal static double? RayBox(Double3 o, Double3 d, Box b)
     {
         double tmin = 0, tmax = double.PositiveInfinity;
         for (int axis = 0; axis < 3; axis++)

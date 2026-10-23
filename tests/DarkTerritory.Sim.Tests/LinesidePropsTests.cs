@@ -55,7 +55,7 @@ public class LinesidePropsTests
 
     /// <summary>How many walls the lineside stands outside the forts (the telegraph poles run on through them).</summary>
     static int WallsOutsideForts(LinesideProps side, IEnumerable<LinesideProp> props, IReadOnlyList<Fort> forts) =>
-        props.Where(p => p.Kind == LinesideKind.Pole || !LinesideProps.InsideAFort(forts, p.Along, p.Lateral)).Sum(p => side.WallsOf(p).Count());
+        props.Where(p => p.Kind == LinesideKind.Pole || !side.InAFort(forts, p)).Sum(p => side.WallsOf(p).Count());
 
     [Fact]
     public void TheSameNightStandsTheSameWoodsOnEveryMachineAndAnotherNightOthers()

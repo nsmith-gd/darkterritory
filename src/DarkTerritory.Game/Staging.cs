@@ -124,13 +124,16 @@ public static partial class Staging
         var board = plan.Fixtures.First(f => f.Kind == "board");
         var hall = plan.Buildings.First(b => b.Kind == "hall");
         // "folk", "folk2"...: the townspeople the lookbook dresses for their job (note 694), the nth of them by their id, from
-        // a few metres off at head height, where they are on their round now.
+        // a few metres off at head height, where they are on their round now. "folk:guard", "folk2:guard": those of a role
+        // (note 1002: the wall guards' faces).
+        string? role = where.StartsWith("folk", StringComparison.Ordinal) && where.IndexOf(':') is > 0 and var colon ? where[(colon + 1)..] : null;
+        string which = role is null ? where : where[..where.IndexOf(':')];
         if (where.StartsWith("folk", StringComparison.Ordinal)
-            && plan.People.Where(p => Art.LookbookKit.For(p.Role, p.Id) is not null).OrderBy(p => p.Id).ToList() is { Count: > 0 } dressed)
+            && plan.People.Where(p => (role is null ? Art.LookbookKit.For(p.Role, p.Id) is not null : p.Role == role)).OrderBy(p => p.Id).ToList() is { Count: > 0 } dressed)
         {
-            int nth = where.Length > 4 && int.TryParse(where[4..], out int n) ? Math.Clamp(n - 1, 0, dressed.Count - 1) : 0;
+            int nth = which.Length > 4 && int.TryParse(which[4..], out int n) ? Math.Clamp(n - 1, 0, dressed.Count - 1) : 0;
             var now = town.Now(dressed[nth]);
-            var at = now.Feet + now.Facing * 3.2 + Double3.Up * 1.55;
+            var at = now.Feet + now.Facing * (role is null ? 3.2 : 1.5) + Double3.Up * 1.55;
             return Ballast.Render.Camera.LookAt(at, now.Feet + Double3.Up * 1.0, 55);
         }
         // Inside the town's gate, looking out at it (note 963, `--town gatein --clock 60`): the restless stood at it looking out
