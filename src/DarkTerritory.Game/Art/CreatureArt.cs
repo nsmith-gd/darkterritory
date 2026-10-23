@@ -3407,7 +3407,7 @@ public sealed partial class CreatureArt
                 m = Matrix4x4.CreateRotationY(-MathF.Sign((float)e.Extra2 == 0 ? 1 : (float)e.Extra2) * MathF.PI / 2) * model;
                 break;
             case EnemyKind.Mourners or EnemyKind.FreightBeetle or EnemyKind.TowerJaw or EnemyKind.Pickers or EnemyKind.Lodger or EnemyKind.Householder
-                or EnemyKind.MouseMoose:
+                or EnemyKind.MouseMoose or EnemyKind.Bruin:
                 // What it's doing (the sim's mode) and how fast it's going (CreatureArt.Outside.cs).
                 m = OutsideIn(e, model, pace);
                 break;
