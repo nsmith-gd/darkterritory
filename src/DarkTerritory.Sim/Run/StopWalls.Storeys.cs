@@ -283,6 +283,10 @@ public sealed partial class StopWalls
     List<(int Owner, Wall Footprint, double Floor)> _basements = [];
     Dictionary<(int, int), List<int>> _basementCells = [];
     List<(int Owner, WorldLadder Ladder)> _ladders = [];
+    List<(int Owner, Wall Hole)> _hatches = [];
+
+    /// <summary>The basements' hatches (note 1005), as their holes in the boards: what a bot's path keeps off (<see cref="Bots.FootPath"/>).</summary>
+    public IEnumerable<Wall> Hatches => _hatches.Select(h => h.Hole);
 
     /// <summary>The ladders standing in the stops' houses (note 1005): a basement's hatch's, its cellar windows' crates.</summary>
     public IEnumerable<WorldLadder> Ladders => _ladders.Select(l => l.Ladder);
@@ -312,6 +316,7 @@ public sealed partial class StopWalls
             if (!gone.Contains(owner))
                 AddBasement(owner, foot, floor);
         _ladders = [.. from._ladders.Where(l => !gone.Contains(l.Owner))];
+        _hatches = [.. from._hatches.Where(h => !gone.Contains(h.Owner))];
     }
 
     void AddBasement(int owner, Wall foot, double floor)
@@ -405,6 +410,8 @@ public sealed partial class StopWalls
             return;
         // Its footprint out to the walls' outside faces: the earth's not stood on anywhere in it under the ground floor's boards.
         AddBasement(owner, place(0, 0, b.Length / 2, b.Width / 2, -3, FloorAt(b, 0) - Slab), world(0, 0, FloorAt(b, -1)).Y);
+        var (hatchX, hatchY, _, _) = Hatch(b);
+        _hatches.Add((owner, place(hatchX, hatchY, HatchSize / 2, HatchSize / 2, FloorAt(b, -1), FloorAt(b, 0))));
         foreach (var (x, y, lo, hi, inX, inY, onto) in StoreyedLadders(b))
         {
             var footAt = world(x, y, lo);

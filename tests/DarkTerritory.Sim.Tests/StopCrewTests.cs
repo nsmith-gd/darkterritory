@@ -112,11 +112,13 @@ public partial class StopCrewTests
         /// <param name="dawn">The night's dawn (s on the run's clock), if not the route's.</param>
         public Night(int cars, int walkers = 1, bool winchPair = true, bool crateHands = false, bool coaling = false, bool deadLine = false,
             bool ids = false, int hands = 3, FacilityTuning? facilities = null, bool loot = false, bool express = false, int lost = 0,
-            double from = 600, bool creatures = false, double? dawn = null, params ModuleKind[] modules)
+            double from = 600, bool creatures = false, double? dawn = null, bool pair = false, params ModuleKind[] modules)
         {
-            // A crew that searches the village (note 326) needs a stop with one: open houses with something kept in them.
+            // A crew that searches the village (note 326) needs a stop with one: open houses with something kept in them (and,
+            // asked, a pair of cottages among them: note 1005's fewer houses leave some villages without one).
             Func<RouteFeature, bool>? village = loot
                 ? f => f.Stop is { } st && st.Containers.Any(c => c.Zone == Stops.StopZone.Village && c.Building >= 0 && st.Buildings[c.Building].Open)
+                    && (!pair || st.Buildings.Any(b => b is { Shape: Stops.HouseShape.Pair, Open: true }))
                 : null;
             var (route, facility, toe) = deadLine ? DeadLine() : coaling ? CoalingTower() : StopWith(village, modules.Length > 0 ? modules : [ModuleKind.Winch]);
             if (dawn is { } d)
@@ -1455,7 +1457,7 @@ public partial class StopCrewTests
         // Note 453 (note 413's "not yet"): a pair of cottages was one house of two doors, shut up only with both shut, though
         // there's no way between them; the hands passed them by. Each is a home of its own now: a hand in one with the Choir
         // gathering shuts its door and is behind it, the other's door open or not; quiet, it opens up and gets on.
-        var night = new Night(cars: 8, walkers: 3, crateHands: true, ids: true, loot: true, modules: ModuleKind.Crates);
+        var night = new Night(cars: 8, walkers: 3, crateHands: true, ids: true, loot: true, pair: true, modules: ModuleKind.Crates);
         var train = night.Train;
         var world = night.World;
         var run = world.Run!;
