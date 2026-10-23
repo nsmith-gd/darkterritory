@@ -1468,7 +1468,9 @@ public static partial class Hud
             string who = IncidentLog.NameOf(world, s.Watching).ToUpperInvariant() + (s.Viewpoint.Alive ? "" : " (BODY)");
             var view = s.DeadView == DeadView.Eyes && !s.Viewpoint.Alive ? DeadView.Shoulder : s.DeadView;
             rows.Add((Bound($"WATCHING {who}   NEXT : [LMB] OR [D]   BACK : [A]"), Ink));
-            rows.Add((Bound($"VIEW : {DeadViews.Name(view)}   [TAB] TO CHANGE"), Dim));
+            // Note 994 (the director's playtest of 23 Oct, line 14: "a no text, no UI on screen button I can press when I'm
+            // dead"): F1 hides every word and the UI while watching, and they're back with F1 or on coming back to life.
+            rows.Add((Bound($"VIEW : {DeadViews.Name(view)}   [TAB] TO CHANGE   [F1] HIDE ALL"), Dim));
         }
         else if (s.Link is not null && world.Run is not { Over: true })
             rows.Add(("NOBODY LEFT ALIVE TO WATCH", Dim));
@@ -1684,17 +1686,18 @@ public static partial class Hud
 
     /// <summary>
     /// Which of the report's lines are drawn (note 416), in the order they happened: all of them if they fit in
-    /// <paramref name="room"/>; otherwise as many as fit beside the "... and n more" line, the lowest <see cref="ReportRank"/>
-    /// first, earlier before later within a rank.
+    /// <paramref name="room"/> and there are no more than <paramref name="most"/>; otherwise as many as fit beside the "... and
+    /// n more" line, at most <paramref name="most"/> (note 994: the highlights), the lowest <see cref="ReportRank"/> first,
+    /// earlier before later within a rank.
     /// </summary>
-    public static List<int> ReportKept(IReadOnlyList<(float Height, int Rank)> lines, float room, float line)
+    public static List<int> ReportKept(IReadOnlyList<(float Height, int Rank)> lines, float room, float line, int most = int.MaxValue)
     {
-        if (lines.Sum(l => l.Height) <= room)
+        if (lines.Sum(l => l.Height) <= room && lines.Count <= most)
             return [.. Enumerable.Range(0, lines.Count)];
         var kept = new List<int>();
         float used = 0;
         foreach (int i in Enumerable.Range(0, lines.Count).OrderBy(i => lines[i].Rank).ThenBy(i => i))
-            if (used + lines[i].Height <= room - line)
+            if (kept.Count < most && used + lines[i].Height <= room - line)
             {
                 kept.Add(i);
                 used += lines[i].Height;
@@ -1752,9 +1755,9 @@ public static partial class Hud
         // Note 416: when they don't all fit, what matters most is kept (the night's end, then the deaths, then what it took,
         // what went well, the rest), still in the order it happened, and the rest counted: a long night kept its first lines
         // and lost its ending (the derailment, the cars lost) to "... and 9 more lines".
-        var kept = ReportKept([.. blocks.Select(b => (b.Height, b.Rank))], room, line);
+        var kept = ReportKept([.. blocks.Select(b => (b.Height, b.Rank))], room, line, Math.Max(1, Tuning.ReportHighlights));
         float used = kept.Sum(i => blocks[i].Height);
-        int more = blocks.Where((_, i) => !kept.Contains(i)).Sum(b => b.Rows.Count);
+        int more = blocks.Count - kept.Count;
         float total = line + used + (more > 0 ? line : 0) + manualH + sum.Count * line;
         UiStyle.Plate(o, x - 4, top - 4, w + 8, total + 8);
         float y = top;
@@ -1779,7 +1782,7 @@ public static partial class Hud
         }
         if (more > 0)
         {
-            o.Text(x + 4, y, $"... and {more} more lines", Dim);
+            o.Text(x + 4, y, $"... and {more} more", Dim);
             y += line;
         }
         if (manual.Count > 0)
@@ -2117,7 +2120,10 @@ public static partial class Hud
             return null;
         string when = w.Metres <= 0 ? "NOW" : double.IsFinite(w.Seconds) ? $"IN {Math.Max(1, Math.Ceiling(w.Seconds)):0}S" : $"{w.Metres:0} M AHEAD";
         return w.Kind == SignKind.LowClearance
-            ? ("LOW CLEARANCE", w.Metres <= 0 ? "IN THE TUNNEL: STAY OFF THE ROOF" : $"TUNNEL MOUTH {when}: GET OFF THE ROOF")
+            ? ("LOW CLEARANCE", w.Bridge
+                // Note 998: a through truss's bracing, boarded as a tunnel's mouth.
+                ? w.Metres <= 0 ? "UNDER THE BRIDGE: STAY DOWN" : $"TRUSS BRIDGE {when}: GET OFF THE ROOF"
+                : w.Metres <= 0 ? "IN THE TUNNEL: STAY OFF THE ROOF" : $"TUNNEL MOUTH {when}: GET OFF THE ROOF")
             : (w.Bridge ? "TOO FAST FOR THE BRIDGE" : "TOO FAST FOR THE BEND", $"{w.LimitKmh} KM/H BOARD {when}: GET OFF THE ROOF");
     }
 

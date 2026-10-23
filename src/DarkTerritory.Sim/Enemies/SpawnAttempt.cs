@@ -60,6 +60,8 @@ public sealed record SpawnAttempt(EnemyKind Kind, SpawnChannel Channel, uint Tic
     public double Cooldown { get; init; }
     /// <summary>The stops' own: the stop's key (<see cref="Director.StopAt"/>) and whether it's the stop's boarder.</summary>
     public (int Key, bool Boarder)? Stop { get; init; }
+    /// <summary>Note 999: the crewmate it was sent at and for what they were doing, when its kind answers that doing.</summary>
+    public Aim? Aim { get; init; }
 }
 
 /// <summary>An attempt as it went (note 885), for the telemetry (#600's <c>EncounterLog</c>) and the harness: one a decision.</summary>

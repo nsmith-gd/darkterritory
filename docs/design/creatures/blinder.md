@@ -1,5 +1,7 @@
 # THE BLINDER — the thing that grows over the cab's glass
 
+> **CUT by the director, 23 Oct 2026** (`docs/playtest/2026-10-23.md` line 36): "I don't really like the blinder." Kept here for the record (queue #709, note 1004); not to be built.
+
 *Creature proposal, Moth (queue #706, ARCHITECTURE §8 note 1000), 23 Oct 2026. **Status: a proposal for the director;
 nothing is built until the director approves it.** Numbers are a first pass in the roster's units.*
 

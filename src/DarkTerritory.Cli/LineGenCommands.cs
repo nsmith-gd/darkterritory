@@ -181,7 +181,7 @@ static class LineGenCommands
                 .ToDictionary(g => g.Key, g => new
                 {
                     all = g.Count(),
-                    solid = g.Count(p => side.Within(p, solidReach) && side.WallsOf(p).Any() && !DarkTerritory.Sim.Run.LinesideProps.InsideAFort(forts, p.Along, p.Lateral)),
+                    solid = g.Count(p => side.Within(p, solidReach) && side.WallsOf(p).Any() && !side.InAFort(forts, p)),
                     // Where the nearest few stand (along, out), to point a camera at: `dt screenshot --route r --cam s,l,h --target s,l,h`.
                     nearest = g.OrderBy(p => Math.Abs(p.Lateral)).Take(3).Select(p => new[] { Math.Round(p.Along, 1), Math.Round(p.Lateral, 1) }),
                 }),
