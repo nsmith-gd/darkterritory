@@ -242,7 +242,8 @@ public class OpenHouseTests
 
     /// <summary>Where a crewmate gets to from outside a house, on a 10 cm grid in its own frame.</summary>
     [Theory]
-    [InlineData("frontier:1")]
+    // (frontier:2: note 1005's fewer houses moved frontier:1's sheds' dice, and none of its four keeps a find.)
+    [InlineData("frontier:2")]
     [InlineData("deadLines:20")]
     [InlineData("local:10")]
     [InlineData("deepTerritory:1")]

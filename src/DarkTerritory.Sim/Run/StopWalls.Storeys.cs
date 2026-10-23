@@ -389,6 +389,9 @@ public sealed partial class StopWalls
             var (x0, dir, y0, y1) = Stair(b);
             double a = x0 - dir * StairFoot, z = x0 + dir * ((Rises - 1) * Tread + 0.9);
             yield return ((a + z) / 2, (y0 + y1) / 2, Math.Abs(z - a) / 2, Math.Abs(y0 - y1) / 2 + 0.1);
+            // And the floor in front of its foot, out into the room: the way to it, and to the corner beside it.
+            double foot = x0 - dir * StairFoot / 2, mouth = y1 - Math.Sign(y0) * 0.7;
+            yield return (foot, mouth, StairFoot / 2 + 0.4, 0.7);
         }
         if (b.Basement)
         {
