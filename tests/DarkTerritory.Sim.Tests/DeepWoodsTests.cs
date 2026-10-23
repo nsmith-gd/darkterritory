@@ -66,7 +66,7 @@ public class DeepWoodsTests
             $"{Wall(deepTrees, wall)} trees within {wall} m in 200 m of deep woods, {outside.Average(t => Wall(t, wall)):0} out of them");
         double near = w.Rule.NearM;
         Assert.All(deepTrees, t => Assert.True(Math.Abs(t.Lateral) >= Math.Min(near, 6) - 1e-9, $"a trunk {t.Lateral:0.0} m out"));
-        // and close in on the line: three times the trunks within 8 and 20 m of the night's woods out of them (17 and 231 in
+        // and close in on the line: three times the trunks within 8 and 20 m of the night's woods out of them (12 and 226 in
         // 200 m against 2.8 and 52 when this was written), none nearer than the rule's nearM.
         foreach (double within in new[] { 8.0, 20 })
             Assert.True(Wall(deepTrees, within) >= Math.Max(10, 3 * outside.Average(t => Wall(t, within))),
