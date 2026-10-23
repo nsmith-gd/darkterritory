@@ -147,7 +147,7 @@ public static class Targeting
     /// (note 999 §2b): the nearest living crewmate (one O(crew²) pass), a cellar searched, a deck chair or the band, the mark.
     /// </summary>
     public static List<(int Player, Post Post, Doing Doing, double Slack, int On)> Read(World world, IReadOnlyList<CensusEntry> census,
-        double behindM, double drivingAbove, TargetTuning t, out List<Seen> seen)
+        double behindM, double drivingAbove, TargetTuning t, out List<CrewSeen> seen)
     {
         seen = [];
         var train = world.Train;
@@ -169,7 +169,7 @@ public static class Targeting
             var entry = census.FirstOrDefault(c => c.Player == id);
             list.Add((id, post, doing, entry?.Slack ?? 0, entry?.On ?? 0));
             bool cellar = afoot && world.Run?.SearchingIn(id) == Stops.ContainerKind.Cellar;
-            seen.Add(new Seen(id, post, doing, double.PositiveInfinity, cellar, s.Has(PlayerFlags.Lounging) || s.Has(PlayerFlags.Playing), world.IsMarked(id)));
+            seen.Add(new CrewSeen(id, post, doing, double.PositiveInfinity, cellar, s.Has(PlayerFlags.Lounging) || s.Has(PlayerFlags.Playing), world.IsMarked(id)));
             spots.Add(at);
         }
         for (int i = 0; i < seen.Count; i++)

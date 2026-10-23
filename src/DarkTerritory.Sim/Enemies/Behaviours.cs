@@ -34,7 +34,7 @@ public enum Behaviour : ushort
 /// <param name="Cellar">Searching a cellar now (<see cref="Run.Run.SearchingIn"/>).</param>
 /// <param name="Lazing">In a deck chair or playing the band (<see cref="Player.PlayerFlags.Lounging"/>, <see cref="Player.PlayerFlags.Playing"/>).</param>
 /// <param name="Marked">The horseplay's mark on them (<see cref="World.IsMarked"/>).</param>
-public readonly record struct Seen(int Player, Post Post, Doing Doing, double Nearest, bool Cellar, bool Lazing, bool Marked);
+public readonly record struct CrewSeen(int Player, Post Post, Doing Doing, double Nearest, bool Cellar, bool Lazing, bool Marked);
 
 /// <summary>
 /// The behaviour reader (note 999 §2b): host only, once a director second, O(crew) over what <see cref="Targeting.Read"/> already
@@ -81,7 +81,7 @@ public sealed class Behaviours
     /// <paramref name="counting"/>: out on the run (past the grace, out of the forts), when the night's tallies and the voice's
     /// and the jobs' shares count; otherwise the reads hold.
     /// </summary>
-    public void Second(IReadOnlyList<Seen> crew, bool counting, BehavioursTuning t)
+    public void Second(IReadOnlyList<CrewSeen> crew, bool counting, BehavioursTuning t)
     {
         var seen = new HashSet<int>();
         bool company = crew.Count > 1;

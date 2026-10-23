@@ -14,11 +14,11 @@ public class BehaviourReaderTests
     static readonly TargetTuning T = E.Director.Encounters.Target;
     static readonly BehavioursTuning B = T.Behaviours;
 
-    static Seen At(int id, Doing doing, double nearest = 2, Post post = Post.Ground, bool cellar = false, bool lazing = false, bool marked = false) =>
+    static CrewSeen At(int id, Doing doing, double nearest = 2, Post post = Post.Ground, bool cellar = false, bool lazing = false, bool marked = false) =>
         new(id, post, doing, nearest, cellar, lazing, marked);
 
     /// <summary><paramref name="seconds"/> director seconds of <paramref name="crew"/>, each crewmate's voice <paramref name="voice"/> (by id) every tick of them.</summary>
-    static Behaviours Run(Seen[] crew, double seconds, Func<int, byte>? voice = null)
+    static Behaviours Run(CrewSeen[] crew, double seconds, Func<int, byte>? voice = null)
     {
         var b = new Behaviours();
         for (int s = 0; s < seconds; s++)
@@ -42,7 +42,7 @@ public class BehaviourReaderTests
             foreach (var k in B.Foils[name])
                 Assert.True(kinds.Contains(k), $"foils.{name}: {k} isn't a kind");
         }
-        Assert.False(B.On, "the foils feed the aim only once measured (note 999 §2b)");
+        Assert.True(B.On, "measured in note 999 §2b: 14 of 20 bands, as with targeting alone");
     }
 
     [Fact]
@@ -72,7 +72,7 @@ public class BehaviourReaderTests
     [Fact]
     public void TheGunAloneTakesItsSecondsOnTheGun()
     {
-        Seen gunner = At(1, Doing.Gunning, nearest: B.AloneM + 1, post: Post.Gunner);
+        CrewSeen gunner = At(1, Doing.Gunning, nearest: B.AloneM + 1, post: Post.Gunner);
         Assert.False(Run([gunner], B.GunAloneSeconds - 1).Of(1).HasFlag(Behaviour.GunAlone));
         Assert.True(Run([gunner], B.GunAloneSeconds).Of(1).HasFlag(Behaviour.GunAlone));
         Assert.False(Run([gunner with { Nearest = 2 }], B.GunAloneSeconds * 2).Of(1).HasFlag(Behaviour.GunAlone));
@@ -81,7 +81,7 @@ public class BehaviourReaderTests
     [Fact]
     public void LazingIsTheDeckChairOrTheBandHeldItsSeconds()
     {
-        Seen lounger = At(1, Doing.Walking, post: Post.Walker, lazing: true);
+        CrewSeen lounger = At(1, Doing.Walking, post: Post.Walker, lazing: true);
         Assert.False(Run([lounger], B.LazeSeconds - 1).Of(1).HasFlag(Behaviour.Lazing));
         Assert.True(Run([lounger], B.LazeSeconds).Of(1).HasFlag(Behaviour.Lazing));
     }
@@ -89,7 +89,7 @@ public class BehaviourReaderTests
     [Fact]
     public void SilentAndChatterAreTheMicsShareWithCompanyAfterItsWindow()
     {
-        Seen[] two = [At(1, Doing.Riding, post: Post.Rider), At(2, Doing.Riding, post: Post.Rider)];
+        CrewSeen[] two = [At(1, Doing.Riding, post: Post.Rider), At(2, Doing.Riding, post: Post.Rider)];
         // 1 never speaks, 2 always does.
         var b = Run(two, B.TalkSeconds * 3, id => id == 1 ? (byte)0 : (byte)255);
         Assert.True(b.Of(1).HasFlag(Behaviour.Silent));
@@ -110,7 +110,7 @@ public class BehaviourReaderTests
     public void GriefingIsTheMarkAndOneTrickIsMostOfTheNightAtOneJob()
     {
         Assert.True(Run([At(1, Doing.Afield, marked: true)], 1).Of(1).HasFlag(Behaviour.Griefing));
-        Seen gunner = At(1, Doing.Gunning, post: Post.Gunner);
+        CrewSeen gunner = At(1, Doing.Gunning, post: Post.Gunner);
         Assert.False(Run([gunner], B.OneTrickAfter - 1).Of(1).HasFlag(Behaviour.OneTrick));
         Assert.True(Run([gunner], B.OneTrickAfter).Of(1).HasFlag(Behaviour.OneTrick));
         // Riding all night is no job: not one trick.
@@ -121,7 +121,7 @@ public class BehaviourReaderTests
     public void TheNightsTalliesCountOnlyOutOnTheRunAndForgetTheGone()
     {
         var b = new Behaviours();
-        Seen s = At(1, Doing.Afield, nearest: B.StraggleM + 1);
+        CrewSeen s = At(1, Doing.Afield, nearest: B.StraggleM + 1);
         b.Second([s], counting: false, B);
         Assert.Empty(b.Seconds);
         b.Second([s], counting: true, B);
@@ -142,7 +142,7 @@ public class BehaviourReaderTests
         Assert.Equal(2, aim?.Player);
         Assert.Equal(Behaviour.Straggling, aim?.Shows);
         // Off, the lowest id as before, and nothing shown.
-        var off = Targeting.Pick(crew, stopped: true, perPlayer: 1, T with { On = true }, shows);
+        var off = Targeting.Pick(crew, stopped: true, perPlayer: 1, T with { On = true, Behaviours = B with { On = false } }, shows);
         Assert.Equal(1, off?.Player);
         Assert.Equal(Behaviour.None, off?.Shows);
         // A foil that isn't in the doing's answers still answers the aim.
@@ -151,7 +151,7 @@ public class BehaviourReaderTests
         var kind = Enum.GetValues<EnemyKind>().First(k => Director.Key(k) == foil);
         Assert.False(Targeting.Answers(Doing.Firing, kind, on));
         Assert.True(Targeting.Answers(a, kind, on));
-        Assert.False(Targeting.Answers(a, kind, T with { On = true }));
+        Assert.False(Targeting.Answers(a, kind, T with { On = true, Behaviours = B with { On = false } }));
     }
 
     [Fact]
