@@ -1,0 +1,5 @@
+# Sable
+
+- 2026-10-23 22:35 UTC · Sable · Queue #717 and note 1014 claimed for me on `claims` by the Token Budget Manager (nathaniel2): the failing cars holed for real, after the Look Review's verdict of 23 Oct on `cap-derail` ("change": "This feels like just textures, I think failing cabs should have holes and bits of board missing and progressively getting worse"). Branch `sable-failing-cars-717` off main 2e85621.
+- 2026-10-23 23:30 UTC · Sable · Art Checklist: `derail`, `failing-stages`, `car-eaten`, `boiler-rupture` marked mine (assignee, queue #717, assignedAt; pinned at versions 6, 4, 3, 8). `boiler-rupture` still carried Juno's #691, which is done (#1648, note 991).
+- 2026-10-23 23:40 UTC · Sable · WIP pushed (cb4af615): `DamageKit.CarHoles` cuts boards and roof sheets out of the car's own body, more each stage; the sprung boards hang off their holes; the eaten car is holed as it's bitten (look.json `damage.eatenHoles`); the ruptured boiler's tear goes through the hood. Queue row #717 added.
