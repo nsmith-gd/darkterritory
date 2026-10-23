@@ -44,6 +44,8 @@ public sealed record SweepRow(SweepCell Cell, string End, bool Delivered, double
     public int? Tried { get; init; }
     public int? Placed { get; init; }
     public int? ChargedUnplaced { get; init; }
+    /// <summary>Note 999: the train's states and whom the director aimed at, as the harness reports them (null before it).</summary>
+    public Sim.Net.StanceReport? Stance { get; init; }
     /// <summary>
     /// Each half's seconds open to the director's encounters, not under a quiet the brief keeps (grace, the final stretch and the
     /// terminus's, the facility lull; <see cref="EncounterWatch.Protects"/>), and each half's encounters per open minute (#613,
@@ -120,6 +122,7 @@ public static class DirectorSweep
             Sorted(t?.Director.Where(kv => kv.Key != "sent").ToDictionary() ?? []), Math.Round(wallSeconds, 1))
         {
             Telemetry = printed?["threats"]?["encounters"]?.DeepClone() ?? printed?["encounters"]?.DeepClone(),
+            Stance = t?.Stance,
             EarlyOpenSeconds = Math.Round(earlyOpen),
             LateOpenSeconds = Math.Round(lateOpen),
             EarlyPerOpenMinute = earlyOpen > 0 ? Math.Round(early / earlyOpen * 60, 3) : null,
