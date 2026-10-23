@@ -22,12 +22,7 @@
   // across the passage, the wicket in one left open for a crewmate on foot. The night starts with the engine
   // departShortOfGateM short of the gate, so the departure's is open from the first; the arrival's shuts behind the train
   // well before it's home (homeInsideGateM).
-  // waitOpen (note 1002; the director's 23 Oct playtest, line 19: "the gate at the beginning is open, and then it closes
-  // behind us at dawn. And if we're not in by dawn ... it stays open expecting us until the waker ... gets too close"): the
-  // arrival's way in stands open all night, waiting, and shuts behind the train once it's in; a train not in by dawn, it
-  // stays open until the lead Waker is within wakerShutM of it (past the wakers' stopShort, where they halt for a train
-  // home). Off, it opens only as the engine comes up, as the departure's does.
-  "gates": { "openAheadM": 40, "shutBehindM": 3, "swingSeconds": 4, "waitOpen": true, "wakerShutM": 350 },
+  "gates": { "openAheadM": 40, "shutBehindM": 3, "swingSeconds": 4 },
   // The director's decision of 6 Oct 2026 (GDD §9, ARCHITECTURE §8 note 263): until the run begins (the train through the
   // gate, above), the fortress yard is a safe space, like the ship in Lethal Company. The crew wait for friends, try on
   // outfits, walk away from the keyboard; nothing of consequence happens. Nothing spawns, the boiler and its fire hold (no

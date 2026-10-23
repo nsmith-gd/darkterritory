@@ -2117,9 +2117,7 @@ public static partial class Hud
             return null;
         string when = w.Metres <= 0 ? "NOW" : double.IsFinite(w.Seconds) ? $"IN {Math.Max(1, Math.Ceiling(w.Seconds)):0}S" : $"{w.Metres:0} M AHEAD";
         return w.Kind == SignKind.LowClearance
-            ? ("LOW CLEARANCE", w.Bridge
-                ? w.Metres <= 0 ? "IN THE TRUSS: STAY OFF THE ROOF" : $"THROUGH TRUSS {when}: GET OFF THE ROOF"
-                : w.Metres <= 0 ? "IN THE TUNNEL: STAY OFF THE ROOF" : $"TUNNEL MOUTH {when}: GET OFF THE ROOF")
+            ? ("LOW CLEARANCE", w.Metres <= 0 ? "IN THE TUNNEL: STAY OFF THE ROOF" : $"TUNNEL MOUTH {when}: GET OFF THE ROOF")
             : (w.Bridge ? "TOO FAST FOR THE BRIDGE" : "TOO FAST FOR THE BEND", $"{w.LimitKmh} KM/H BOARD {when}: GET OFF THE ROOF");
     }
 
@@ -2206,7 +2204,7 @@ public static partial class Hud
         DeathCause.Drift => "THE GROUND CAME UP. YOU KEPT MOVING",
         DeathCause.TornOff => "WENT OFF THE RAILS WITH THE REAR CAR",
         DeathCause.Climbed => "SOMETHING CAME IN OFF THE ROOF",
-        DeathCause.Struck => "STRUCK BY THE LOW CLEARANCE", // a tunnel mouth or a through truss (note 1002)
+        DeathCause.Struck => "STRUCK BY THE TUNNEL MOUTH",
         DeathCause.Thrown => "THROWN OFF ON THE CURVE",
         DeathCause.Burned => "BURNED IN A BLAZING CAR",
         DeathCause.Exploded => "BLOWN UP WITH THE POWDER CAR",

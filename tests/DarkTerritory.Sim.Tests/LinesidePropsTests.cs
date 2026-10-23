@@ -53,9 +53,9 @@ public class LinesidePropsTests
     /// <summary>The shore's own, which stand at and in its water (note 389): its sheds, wharves and lighthouses, its ledges and boulders.</summary>
     static bool OfTheShore(LinesideProp p) => p.Species is "fishShed" or "wharf" or "lighthouse" or "ledge" or "weed" or "boulder" or "redBoulder";
 
-    /// <summary>How many walls the lineside stands outside the forts (the telegraph poles run on through them; a tree kept its crown off them, note 1002).</summary>
+    /// <summary>How many walls the lineside stands outside the forts (the telegraph poles run on through them).</summary>
     static int WallsOutsideForts(LinesideProps side, IEnumerable<LinesideProp> props, IReadOnlyList<Fort> forts) =>
-        props.Where(p => p.Kind == LinesideKind.Pole || !LinesideProps.InsideAFort(forts, p.Along, p.Lateral, p.Crown)).Sum(p => side.WallsOf(p).Count());
+        props.Where(p => p.Kind == LinesideKind.Pole || !LinesideProps.InsideAFort(forts, p.Along, p.Lateral)).Sum(p => side.WallsOf(p).Count());
 
     [Fact]
     public void TheSameNightStandsTheSameWoodsOnEveryMachineAndAnotherNightOthers()

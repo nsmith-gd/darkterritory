@@ -70,10 +70,8 @@ public class CrewOfTwoTests
             // train's weight is the night's timing). What's tested is what a crew does in it, not what the train leaves with.
             Run = Tuning.Run with { DepartureLoad = AsFound },
             Facilities = DataFile.Load<Run.FacilityTuning>(Path.Combine(Content, Run.FacilityTuning.File)),
-            // As these nights were found, before a through truss was posted low clearance (note 1002: deadLines:2's bridge the Car
-            // Hugger lurks at is one, and the friend hauling from the roof would be down off it).
             Sight = DataFile.Load<Route.SightTuning>(Path.Combine(Content, Route.SightTuning.File)) is var sight && !cranes
-                ? sight with { MailCranes = false, TrussClearance = false } : sight with { MailCranes = true, TrussClearance = false },
+                ? sight with { MailCranes = false } : sight with { MailCranes = true },
             YardLength = gate,
             Upkeep = upkeep,
             Holdouts = Tuning.Holdouts,

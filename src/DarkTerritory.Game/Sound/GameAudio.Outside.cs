@@ -521,26 +521,22 @@ public sealed partial class GameAudio
         Double3 Yard(double s, double side) => line.Sample(s) is var t ? t.Position + Double3.Cross(t.Tangent, Double3.Up).Normalized * side + Double3.Up * 4 : default;
         if (run.Phase == RunPhase.Yard)
             HoldLevel("place-threshold.fortress", 0, Yard(Math.Max(0, Math.Min(front, gate) - 60), 30), Occlusion(PlayerMotor.Outside), 1);
-        PlaceGates(0, gate, front, rear, line, primed, run.Tuning.Gates, train.Walls);
+        PlaceGates(0, gate, front, rear, line, primed, run.Tuning.Gates);
         if (places.Plan?.Terminus is { Silent: false } terminus && terminus.GateM > 0)
         {
             if (front >= terminus.GateM - 300 || run.Phase == RunPhase.Arrived)
                 HoldLevel("place-threshold.fortress", 1, Yard(terminus.GateM + 80, 30), Occlusion(PlayerMotor.Outside), 1);
-            PlaceGates(1, terminus.GateM, front, rear, line, primed, run.Tuning.Gates, train.Walls);
+            PlaceGates(1, terminus.GateM, front, rear, line, primed, run.Tuning.Gates);
         }
     }
 
     // (When the leaves are seen and stood swinging, note 847: run.json gates, Sim.Run.Fortresses.Open.)
-    void PlaceGates(int which, double gate, double front, double rear, RailLine line, bool primed, Sim.Run.GateTuning gates, Sim.Run.StopWalls? walls = null)
+    void PlaceGates(int which, double gate, double front, double rear, RailLine line, bool primed, Sim.Run.GateTuning gates)
     {
         var at = line.Sample(gate).Position + Double3.Up * 3;
-        // Where the walls stand the gate, as they have it (note 1002: the arrival's way in waits open all night, and shuts on a
-        // train not in once the Waker's near), so what's heard is what's seen and walked into.
-        int key = Sim.Run.Fortresses.GateKey(gate);
-        bool? standing = walls is not null && walls.Gates.Contains(key) ? walls.GateOpen(key) : null;
-        if (Flipped("place-threshold.open", which, standing ?? (front >= gate - gates.OpenAheadM && front < gate + 5), primed) > 0)
+        if (Flipped("place-threshold.open", which, front >= gate - gates.OpenAheadM && front < gate + 5, primed) > 0)
             Cue("place-threshold.gate-open", at, Occlusion(PlayerMotor.Outside));
-        if ((standing is not null || !double.IsNaN(rear)) && Flipped("place-threshold.shut", which, standing is { } open ? !open : rear >= gate + gates.ShutBehindM, primed) > 0)
+        if (!double.IsNaN(rear) && Flipped("place-threshold.shut", which, rear >= gate + gates.ShutBehindM, primed) > 0)
             Cue("place-threshold.gate-shut", at, Occlusion(PlayerMotor.Outside));
     }
 

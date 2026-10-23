@@ -4093,8 +4093,7 @@ public sealed partial class GreyboxScene
     /// built without the forts' solids), as the Sim's rule has it for where the train is.
     /// </summary>
     double GateSwing(double along) => GatesHeld ?? (_gateSwing.TryGetValue(Sim.Run.Fortresses.GateKey(along), out double open) ? open
-        : Run is { } run && Sim.Run.Fortresses.Open(along, _trainAlong.Front, _trainAlong.Rear, run.Tuning.Gates,
-            run.Tuning.Gates.WaitOpen && run.Route.Plan?.Terminus is { Silent: false } t && Math.Abs(along - t.GateM) < 0.5) ? 1 : 0);
+        : Run is { } run && Sim.Run.Fortresses.Open(along, _trainAlong.Front, _trainAlong.Rear, run.Tuning.Gates) ? 1 : 0);
 
     /// <summary>Note 847: every gate's leaves held this far open (0..1) whatever the train's doing (`dt screenshot --gates`); null, as they swing.</summary>
     public double? GatesHeld { get; set; }

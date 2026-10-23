@@ -41,13 +41,6 @@ public readonly record struct LinesideProp(LinesideKind Kind, double Along, doub
         _ when Dead => Math.Clamp(Height * 0.014, 0.1, 0.3),
         _ => Math.Clamp(Height * Species switch { "pine" => 0.015, "birch" => 0.012, _ => 0.018 }, 0.08, 0.45),
     };
-
-    /// <summary>
-    /// How far a tree's boughs reach out from its trunk as the art draws it, lean and all (note 1002; the director's 23 Oct
-    /// playtest, line 21: "I see a tree clipping through one of the walls"): the widest of the pieces, WorldKit.Pine's boughs
-    /// at 0.34 h, NovaKit.Conifer's fir card 0.23 h either side, a few degrees' lean on top; 0 for anything but a tree.
-    /// </summary>
-    public double Crown => Kind == LinesideKind.Tree ? Height * LinesideProps.CrownPerHeight : 0;
 }
 
 /// <summary>
@@ -65,8 +58,6 @@ public sealed partial class LinesideProps
     /// <summary>The slots trees and boulders are dealt in along the line (m), and how far out the forest runs.</summary>
     public const double SlotM = 12, ForestOutM = 90;
     /// <summary>The telegraph poles: every 50 m, 4.5 m right of the line (WorldArt's), 0.13 m round and 7.5 m tall (WorldKit.Pole).</summary>
-    /// <summary>A tree's crown's reach per metre of its height (<see cref="LinesideProp.Crown"/>; the art's, note 1002).</summary>
-    public const double CrownPerHeight = 0.36;
     public const double PoleEveryM = 50, PoleOut = 4.5, PoleRadius = 0.13, PoleHeight = 7.5;
     /// <summary>How many tries a slot makes at a tree, and the steepest land one stands on (rise over run).</summary>
     const int TreeTries = 50;
@@ -238,18 +229,16 @@ public sealed partial class LinesideProps
     }
 
     /// <summary>Inside a fortress's walls (<see cref="Fortresses.WallOut"/> out, with a little room), its town's square, or a walled town's wall: nothing wild grows there.</summary>
-    /// <param name="reach">How far what stands there reaches out from its foot (a tree's <see cref="LinesideProp.Crown"/>, note
-    /// 1002): it's kept that much further off the walls, so its boughs don't come through them.</param>
-    public static bool InsideAFort(IReadOnlyList<Fort> forts, double along, double offset, double reach = 0)
+    public static bool InsideAFort(IReadOnlyList<Fort> forts, double along, double offset)
     {
         foreach (var f in forts)
         {
-            if (Math.Abs(offset) - reach < Fortresses.WallOut + 1.7 && along + reach > f.Start - 2 && along - reach < f.End + 2)
+            if (Math.Abs(offset) < Fortresses.WallOut + 1.7 && along > f.Start - 2 && along < f.End + 2)
                 return true;
-            if (f.Square is { } sq && Math.Sign(offset) == sq.Side && Math.Abs(offset) - reach < Math.Abs(sq.WallD) + 2 && along + reach > sq.S0 - 2 && along - reach < sq.S1 + 2)
+            if (f.Square is { } sq && Math.Sign(offset) == sq.Side && Math.Abs(offset) < Math.Abs(sq.WallD) + 2 && along > sq.S0 - 2 && along < sq.S1 + 2)
                 return true;
             // A walled town's whole extent (note 335), its streets and lanes behind the wall.
-            if (f.InTown(along, offset, 3 + reach))
+            if (f.InTown(along, offset, 3))
                 return true;
         }
         return false;
@@ -391,7 +380,7 @@ public sealed partial class LinesideProps
                 _solids[reach] = solids = [.. Props(0, _line.Length, reach).Where(Stands).SelectMany(p => WallsOf(p).Select(w => (p, w)))];
         // Nothing wild grows inside a fort; the poles run on through it.
         foreach (var (p, w) in solids)
-            if (p.Kind == LinesideKind.Pole || !InsideAFort(forts, p.Along, p.Lateral, p.Crown))
+            if (p.Kind == LinesideKind.Pole || !InsideAFort(forts, p.Along, p.Lateral))
                 yield return w;
     }
 

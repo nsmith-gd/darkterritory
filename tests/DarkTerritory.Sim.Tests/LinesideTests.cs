@@ -135,45 +135,6 @@ public class LinesideTests
         Assert.True(crew[2].Alive, $"inside: {crew[2].Death}");
     }
 
-    [Fact]
-    public void AThroughTrussTakesWhoeverStandsOnARoofAsATunnelDoes()
-    {
-        // The director's 23 Oct playtest, line 18 (note 1002): "We went under a bridge, and I clipped right through the bridge
-        // top. That should be treated like ... a tunnel." A through truss's portals and overhead bracing are over a standing
-        // crewmate's head on a roof (StructureKit.TrussSpan: the portal plate's foot trussHigh − 1.4 m over the rail), so its
-        // span is posted low clearance as a tunnel is, and takes them as a tunnel's mouth does; crouched, they get under.
-        var route = LineGen.Routes.Generate(DataFile.FindContentRoot(), "frontier:7", 10);
-        var truss = route.Plan!.Structures.First(st => st.Type == LineGen.StructureType.Truss && st.Edge == "main");
-        var sign = Lineside.Boards(S, route).Single(s => s.Kind == SignKind.LowClearance && s.Bridge);
-        Assert.Equal(truss.S0, sign.Start, 1);
-        Assert.Equal(truss.S1, sign.End, 1);
-        // Girders and trestles have nothing overhead: no clearance board of theirs.
-        foreach (var b in route.Plan.Structures.Where(st => st.Edge == "main" && st.Type is LineGen.StructureType.Girder or LineGen.StructureType.Trestle or LineGen.StructureType.Viaduct))
-            Assert.DoesNotContain(Lineside.Boards(S, route), s => s.Kind == SignKind.LowClearance && Math.Abs(s.Start - b.S0) < 1);
-
-        var train = new TrainOnLine(new TrainDynamics(Consist.Uniform(T, 5, 1)), route.Build(), truss.S0 - 300);
-        var world = new World(train, Tuning.Combat);
-        world.EnableBodies();
-        world.EnableLineside(S, route);
-        world.Hand = P.Hand;
-        world.Movement = P;
-        PlayerState[] states = [PlayerMotor.SpawnOnRoof(train, 2, 0, P), PlayerMotor.SpawnOnRoof(train, 3, 0, P)];
-        var crouch = new PlayerIntent { Moves = PlayerMoves.Crouch };
-        while (train.Dynamics.RearDistance < truss.S1 + 20)
-        {
-            train.Dynamics.Velocity = 12;
-            world.BeginTick();
-            for (int i = 0; i < states.Length; i++)
-                world.CrewAct(ref states[i], i == 1 ? crouch : default, i + 1);
-            world.Step(new TrainControls { Reverser = 1 });
-            world.ApplyDamage(id => states[id - 1], (id, s) => states[id - 1] = s, Enumerable.Range(1, states.Length));
-            for (int i = 0; i < states.Length; i++)
-                PlayerMotor.Step(ref states[i], i == 1 ? crouch : default, train, P, T, SimConstants.TickSeconds, applyLook: false);
-        }
-        Assert.Equal(DeathCause.Struck, states[0].Death);
-        Assert.True(states[1].Alive, $"crouched: {states[1].Death}");
-    }
-
     /// <summary>
     /// A scripted ride (note 260): a train driven by <paramref name="speedAt"/> (m/s, by the second) over a route, with riders
     /// stood on every car's roof who never get down, lamps lit or not. Every tick it watches the roof warning as a player's

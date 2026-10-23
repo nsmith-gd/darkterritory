@@ -119,7 +119,7 @@ public static class IncidentLog
         DeathCause.Climbed => "Killed by a Climber come in off the roof",
         DeathCause.TornOff => "Went off the rails with the rear car",
         DeathCause.Gaunt => "Taken by the Gaunt",
-        DeathCause.Struck => "Struck by the low clearance overhead", // a tunnel mouth or a through truss (note 1002)
+        DeathCause.Struck => "Struck by a tunnel mouth",
         DeathCause.Thrown => "Thrown off on a curve",
         DeathCause.Burned => "Burned in a blazing car",
         DeathCause.Exploded => "Killed when a powder car went up",

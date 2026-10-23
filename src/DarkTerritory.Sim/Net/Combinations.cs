@@ -172,10 +172,8 @@ public static class Combinations
         bool Hugger(double s) => route.Features.Any(f => f.Kind is FeatureKind.Marsh or FeatureKind.Bridge
             && (f.Start + f.End) * 0.5 is var at && at >= s + e.CarHugger.LurkAheadMin + lead && at <= s + e.CarHugger.LurkAheadMax
             && Math.Abs(line.Sample(Rail.RailLine.MainPath, at).GradePercent) <= e.CarHugger.MaxGrade);
-        // A through truss is low clearance as a tunnel is (note 1002): the bots off the roofs for it, so kept clear of too.
-        var trusses = Route.Lineside.Trusses(route).ToList();
         bool Clear(double s) => !route.Features.Any(f => f.Kind is FeatureKind.Facility or FeatureKind.Tunnel or FeatureKind.Junction
-            && s >= f.Start - 300 && s <= f.End + 100) && !trusses.Any(f => s >= f.Start - 300 && s <= f.End + 100);
+            && s >= f.Start - 300 && s <= f.End + 100);
         var needs = new List<(EnemyKind Kind, Func<double, bool> Ok)>();
         if (kinds.Contains(EnemyKind.CarHugger))
             needs.Add((EnemyKind.CarHugger, Hugger));

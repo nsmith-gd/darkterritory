@@ -80,28 +80,21 @@ public class GateTests
         // The night starts with the engine just short of the departure's gate, so that gate's open (the train's going out
         // through it) and the rest shut: from the first, before any tick (note 869: never drawn swinging in toward an engine
         // already moving off), and on the first.
-        // The arrival's way in stands open all night, waiting for the train (note 1002, the director's 23 Oct playtest line 19:
-        // "the gate at the beginning is open, and then it closes behind us").
         Assert.True(Open(world, departOut), "the departure's gate is shut in front of the engine before the first tick");
-        Assert.True(Open(world, arriveIn), "the arrival's way in is shut before the first tick, not waiting for the train");
-        Assert.False(Open(world, departIn) || Open(world, arriveOut));
+        Assert.False(Open(world, departIn) || Open(world, arriveIn) || Open(world, arriveOut));
         world.Step(new TrainControls { Brake = 1 });
         Assert.True(Open(world, departOut), "the departure's gate is shut in front of the engine");
-        Assert.True(Open(world, arriveIn), "the arrival's way in is shut, not waiting for the train");
-        Assert.False(Open(world, departIn) || Open(world, arriveOut));
+        Assert.False(Open(world, departIn) || Open(world, arriveIn) || Open(world, arriveOut));
         // Its last car through, the departure's gate shuts behind it.
-        bool At(double front) => walls.OpenGates(front, front - length, G, arriveIn);
+        bool At(double front) => walls.OpenGates(front, front - length, G);
         At(departOut + G.ShutBehindM + length - 0.5);
         Assert.True(Open(world, departOut), "shut on the last car");
         At(departOut + G.ShutBehindM + length + 0.5);
         Assert.False(Open(world, departOut), "the departure's gate open behind the train");
-        // Down the line the arrival's way in is open, waiting, as the engine comes up to it, open while the train goes in, and
-        // shut behind it well before it's home.
+        // Down the line the arrival's way in is shut till the engine comes up to it, open while the train goes in, and shut
+        // behind it well before it's home.
         At(arriveIn - G.OpenAheadM - 1);
-        Assert.True(Open(world, arriveIn), "shut before the train's there");
-        // Without the wait (gates.waitOpen off, note 847's rule): shut till the engine comes up to it.
-        walls.OpenGates(arriveIn - G.OpenAheadM - 1, arriveIn - G.OpenAheadM - 1 - length, G with { WaitOpen = false });
-        Assert.False(Open(world, arriveIn), "open before the train's there, not waiting");
+        Assert.False(Open(world, arriveIn), "open before the train's there");
         At(arriveIn - G.OpenAheadM + 1);
         Assert.True(Open(world, arriveIn), "shut in front of the engine");
         At(arriveIn + length);
@@ -115,25 +108,6 @@ public class GateTests
             At(front);
             Assert.False(Open(world, departIn) || Open(world, arriveOut), $"a gate no train comes to open, the engine at {front:0}");
         }
-    }
-
-    [Fact]
-    public void NotInByDawnTheArrivalsGateWaitsOpenTillTheWakerComesNear()
-    {
-        // Note 1002 (the director's 23 Oct playtest, line 19): "if we're not in by dawn ... it stays open expecting us until the
-        // waker ... gets too close". The lead Waker out past wakerShutM, the gate waits; within it, shut on the train.
-        var (world, route, _) = Night("frontier:7");
-        double gate = route.Plan!.Terminus.GateM;
-        Assert.True(G.WaitOpen);
-        var waker = world.AddEnemy(id => Enemies.Waker.Rise(id, world.Train.Dynamics.RearDistance, 0, Tuning.Enemies.Wakers));
-        Assert.True(waker.Lead);
-        waker.LineDistance = gate - G.WakerShutM - 1;
-        world.Step(new TrainControls { Brake = 1 });
-        Assert.True(Open(world, gate), "shut with the Waker still far off");
-        waker.LineDistance = gate - G.WakerShutM + 1;
-        world.Step(new TrainControls { Brake = 1 });
-        Assert.False(Open(world, gate), "still open with the Waker near it");
-        Assert.True(Open(world, route.GateOr(RouteTuning.Load(Content).YardLength)), "the departure's gate shut on the train in it");
     }
 
     /// <summary>A crewmate on the ground at <paramref name="along"/> the line, <paramref name="across"/> out from it, facing up it.</summary>
@@ -161,8 +135,6 @@ public class GateTests
         var train = world.Train;
         double gate = route.Plan!.Terminus.GateM;
         world.Step(new TrainControls { Brake = 1 });
-        // Not waiting for the train (note 1002's gates.waitOpen off): note 847's shut gate, as the arrival's way on out is.
-        train.Walls!.OpenGates(gate - 4000, gate - 4000 - train.Dynamics.Consist.LengthMetres, G with { WaitOpen = false });
         Assert.False(Open(world, gate));
         double Walk(double across)
         {

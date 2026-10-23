@@ -1045,23 +1045,7 @@ public sealed partial class World
     {
         if (Run is { } run && Train.Walls is { Gates.Count: > 0 } gated)
             gated.OpenGates(Train.Line.MainDistance(Train.Dynamics.Path, Train.Dynamics.Distance),
-                Train.Line.MainDistance(Train.Dynamics.Path, Train.Dynamics.RearDistance), run.Tuning.Gates, WaitingGate(run));
-    }
-
-    /// <summary>
-    /// Note 1002 (the director's 23 Oct playtest, line 19): the gate held open for the train all night, the arrival's way in,
-    /// along the main line; NaN once the lead Waker is within run.json <c>gates.wakerShutM</c> of it (the train not in, it's
-    /// shut on them), or with <c>gates.waitOpen</c> off. From the route and the Wakers' places, which every client has.
-    /// </summary>
-    double WaitingGate(Sim.Run.Run run)
-    {
-        var t = run.Tuning.Gates;
-        if (!t.WaitOpen || run.Route.Plan?.Terminus is not { Silent: false, GateM: > 0 } terminus)
-            return double.NaN;
-        foreach (var e in ActiveEnemies)
-            if (e is Enemies.Waker { Lead: true, Gone: false } w && w.LineDistance >= terminus.GateM - t.WakerShutM)
-                return double.NaN;
-        return terminus.GateM;
+                Train.Line.MainDistance(Train.Dynamics.Path, Train.Dynamics.RearDistance), run.Tuning.Gates);
     }
 
     Sim.Run.StopWalls StopsWalls(Route.Route route)

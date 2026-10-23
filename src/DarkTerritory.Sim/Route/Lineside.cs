@@ -20,11 +20,6 @@ public sealed record SightTuning
     public double PostBelow { get; init; } = 15;
     public double PlanPostBelow { get; init; } = 22;
     public double WeakBridgeLimit { get; init; } = 7;
-    /// <summary>
-    /// A through truss on the main is posted low clearance over its span, as a tunnel is (note 1002; the director's 23 Oct
-    /// playtest, line 18: "I clipped right through the bridge top. That should be treated like ... a tunnel").
-    /// </summary>
-    public bool TrussClearance { get; init; } = true;
     public double LurchOver { get; init; } = 1.5;
     public double ThrowOver { get; init; } = 3.5;
     public double DerailRatio { get; init; } = 1.55;
@@ -103,7 +98,7 @@ public sealed record Sign(int Id, SignKind Kind, double Board, double Start, dou
 {
     /// <summary>A drop board's drop.</summary>
     public Drop? Drop { get; init; }
-    /// <summary>A speed board for a weak bridge, not a bend; a clearance board for a through truss, not a tunnel (note 1002).</summary>
+    /// <summary>A speed board for a weak bridge, not a bend.</summary>
     public bool Bridge { get; init; }
     /// <summary>A board's figure, as it's painted: km/h, in fives.</summary>
     public int LimitKmh => (int)(Math.Floor(Limit * 3.6 / 5) * 5);
@@ -217,14 +212,6 @@ public sealed class Lineside
     public double SignRange(bool lamp, double reach = 1) => lamp ? Tuning.LampSignRange * reach : Tuning.DarkSignRange;
 
     /// <summary>Every board on a route: before each sharp curve and weak bridge, a speed; before each tunnel, the clearance.</summary>
-    /// <summary>
-    /// A generated line's through trusses on the main (note 1002): its bridges built as a truss, not weak ones (drawn as a
-    /// trestle). Their portals and bracing are over a standing crewmate's head on a roof, as a tunnel's roof is.
-    /// </summary>
-    public static IEnumerable<RouteFeature> Trusses(Route route) => route.Plan is not { } plan ? []
-        : route.Of(FeatureKind.Bridge).Where(b => b.MaxCars == 0
-            && plan.Structures.Any(st => st.Edge == "main" && st.Type == LineGen.StructureType.Truss && Math.Abs(st.S0 - b.Start) < 0.5));
-
     public static IEnumerable<Sign> Boards(SightTuning t, Route route) => Boards(t, route, [.. Drops(t, route)]);
 
     public static IEnumerable<Sign> Boards(SightTuning t, Route route, IReadOnlyList<Drop> drops)
@@ -260,11 +247,6 @@ public sealed class Lineside
             zones.Add((SignKind.SpeedLimit, b.Start, b.End, t.WeakBridgeLimit, true));
         foreach (var tunnel in route.Of(FeatureKind.Tunnel))
             zones.Add((SignKind.LowClearance, tunnel.Start, tunnel.End, 0, false));
-        // A through truss's portals and bracing are over a standing crewmate's head on a roof (StructureKit.TrussSpan): its
-        // span takes them as a tunnel's mouth does (note 1002). A weak one is drawn a trestle, nothing overhead.
-        if (t.TrussClearance)
-            foreach (var b in Trusses(route))
-                zones.Add((SignKind.LowClearance, b.Start, b.End, 0, true));
         var boards = zones.Select(z => new Sign(0, z.Kind, Math.Max(0, z.Start - t.BoardAhead), z.Start, z.End, z.Limit) { Bridge = z.Bridge })
             .Concat(drops.Select(d => new Sign(0, SignKind.Drop, Math.Max(0, d.At - t.DropBoardAhead), d.At, d.At, t.CatchMaxSpeed) { Drop = d }))
             .Append(new Sign(0, SignKind.Terminus, Math.Max(0, route.RunLength - t.TerminusBoard), route.RunLength, route.RunLength))
