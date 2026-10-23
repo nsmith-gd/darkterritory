@@ -2,6 +2,7 @@ using System.Numerics;
 using Ballast;
 using Ballast.Render;
 using DarkTerritory.Game.Art;
+using DarkTerritory.Sim.Train;
 
 namespace DarkTerritory.Game.Tests;
 
@@ -439,5 +440,36 @@ public class EffectsTests
         var none = Mesh();
         Fx.Flanges(none, frames, default, 3, [(0f, 1)]);
         Assert.Empty(none.AdditiveFx);
+    }
+    [Fact]
+    public void TheStacksSmokeStaysInTheAirWhereSheLaidItRoundACurve()
+    {
+        // Playtest 23 Oct line 16 (note 1001, the director: "it's tied to my camera ... rather than a render tied to the
+        // world"): each puff was put back along the way she's going now, so round a curve the whole plume swung with the
+        // engine (and the crew riding her). Kept where it left the stack, it lies along the arc she ran, give or take the
+        // wind and its spread.
+        var shape = CarShape.Build(DataFile.Load<TrainTuning>(Path.Combine(DataFile.FindContentRoot(), TrainTuning.File)).Geometry,
+            VehicleKind.Engine, hasCarBehind: true);
+        const double radius = 150, speed = 20;
+        var centre = new Double3(radius, 0, 0);
+        CarFrame At(double s)
+        {
+            double a = s / radius;
+            var forward = new Double3(Math.Sin(a), 0, -Math.Cos(a));
+            return new CarFrame(0, centre + new Double3(-Math.Cos(a), 0, -Math.Sin(a)) * radius, new Double3(Math.Cos(a), 0, Math.Sin(a)),
+                new Double3(0, 1, 0), forward * -1, forward * speed, shape);
+        }
+        var fx = new Effects(Look);
+        var mesh = Mesh();
+        var controls = new TrainControls { Throttle = 0.6, Reverser = 1 };
+        for (int f = 0; f <= 6 * 30; f++)
+        {
+            mesh = Mesh();
+            fx.Train(mesh, [At(speed * f / 30.0)], default, 10 + f / 30.0, controls, 0.5f, false);
+        }
+        var quads = mesh.AlphaFx.ToArray().Chunk(6).Select(q => q.Aggregate(Vector3.Zero, (a, v) => a + v.Position) / q.Length).ToArray();
+        Assert.True(quads.Length > 20, $"{quads.Length} puffs");
+        float worst = quads.Max(p => MathF.Abs(new Vector2(p.X - (float)radius, p.Z).Length() - (float)radius));
+        Assert.True(worst < 8, $"a puff lies {worst:F1} m off the arc she ran: the plume swings with her heading");
     }
 }

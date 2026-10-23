@@ -8,8 +8,8 @@ namespace DarkTerritory.Game.Art;
 /// <summary>
 /// The train's effects (GDD §31 "VFX supports readability": steam venting, sparks, smoke trails, cinders, furnace
 /// flare, drifting fog; "mechanical first, supernatural second"). Every one is worked out from the time and the train's
-/// state, not simulated: puff <c>i</c> left the stack at a known time and has drifted since, so a screenshot is
-/// repeatable, a client draws what the host would, and nothing needs replicating.
+/// state, not simulated: puff <c>i</c> left the stack at a known time and has drifted since (where it left from is kept,
+/// note 1001), so a screenshot is repeatable, a client draws what the host would, and nothing needs replicating.
 /// </summary>
 public sealed partial class Effects(Look look)
 {
@@ -18,6 +18,47 @@ public sealed partial class Effects(Look look)
 
     /// <summary>Whether the look has the flipbooks the art pass draws its fire with (the greybox draws boxes without).</summary>
     public bool HasFlames => _flame >= 0 && _smoke >= 0;
+
+    const float PuffLife = 5.5f;
+    readonly record struct Puff(long Index, double Born, Double3 From, Vector3 Up, Vector3 Right, Vector3 Back);
+    readonly List<Puff> _puffs = [];
+    long _nextPuff;
+    double _nextPuffAt, _puffsSeen = double.NaN;
+    Double3 _puffStack;
+
+    /// <summary>
+    /// The stack's puffs (playtest 23 Oct line 16, note 1001: "it's tied to my camera ... rather than a render tied to the
+    /// world"): each keeps the world place it left the stack, so the plume stays where the engine laid it, round a curve and
+    /// through a change of speed, instead of hanging off the engine's heading and speed now. The first frame (a still, or a
+    /// jump in time or place) lays the last few seconds' puffs back along the way she's going, from the time alone, so a
+    /// screenshot is repeatable as before; after that they're laid as she goes.
+    /// </summary>
+    void Puffs(double time, float rate, Double3 stack, Double3 velocity, Vector3 up, Vector3 right, Vector3 back)
+    {
+        double since = time - _puffsSeen;
+        bool fresh = double.IsNaN(since) || since < 0 || since > PuffLife || (stack - (_puffStack + velocity * since)).Length > 20;
+        _puffsSeen = time;
+        _puffStack = stack;
+        if (fresh)
+        {
+            _puffs.Clear();
+            double emitted = Math.Floor(time * rate);
+            for (int k = (int)(rate * PuffLife) - 1; k >= 0; k--)
+            {
+                double born = (emitted - k) / rate;
+                if (time - born is >= 0 and <= PuffLife)
+                    _puffs.Add(new Puff((long)(emitted - k), born, stack - velocity * (time - born), up, right, back));
+            }
+            _nextPuff = (long)emitted + 1;
+            _nextPuffAt = _nextPuff / (double)rate;
+            return;
+        }
+        // Laid as she goes, at the rate the regulator sets now (a change of throttle thickens the plume from here on,
+        // and leaves what's already in the air where it is).
+        for (; _nextPuffAt <= time; _nextPuffAt += 1 / rate)
+            _puffs.Add(new Puff(_nextPuff++, _nextPuffAt, stack - velocity * (time - _nextPuffAt), up, right, back));
+        _puffs.RemoveAll(p => time - p.Born > PuffLife);
+    }
 
     static float Hash(float x) => Frac(MathF.Sin(x * 12.9898f) * 43758.5453f);
     static float Frac(float x) => x - MathF.Floor(x);
@@ -57,31 +98,30 @@ public sealed partial class Effects(Look look)
         var back = F(engine.Back);
         var right = F(engine.Right);
 
-        // Smoke: puffs at a rate the regulator sets, each drifting up and left behind where the stack was. The wind
-        // leans it off the line a little. Dark, sooty, lit only by the night (and faintly by the fire underneath).
+        // Smoke: puffs at a rate the regulator sets, each left in the air where the stack was when it went up, drifting up
+        // and off on the wind from there. Dark, sooty, lit only by the night (and faintly by the fire underneath).
         float work = dead ? 0 : (float)Math.Clamp(controls.Throttle, 0, 1);
         // A shovelful flaring (note 903): she works as if pulling hard while it burns, and the puffs come thick and black.
         float kick = dead ? 0 : Math.Clamp(flare, 0, 1.5f);
         work = Math.Max(work, Math.Min(1, kick));
         float rate = 3.5f + 7f * work + 4f * kick;
-        const float life = 5.5f;
-        int count = (int)(rate * life);
-        double emitted = Math.Floor(time * rate);
+        var stackWorld = engine.ToWorld(new Double3(0, stackBox.Max.Y, stackBox.Centre.Z));
+        Puffs(time, rate, stackWorld, engine.Velocity, up, right, back);
         var wind = new Vector3(0.7f, 0, 0.4f);
-        for (int k = 0; k < count; k++)
+        for (int k = _puffs.Count - 1; k >= 0; k--)
         {
-            double index = emitted - k;
-            float age = (float)(time - index / rate);
-            if (age < 0 || age > life)
+            var puff = _puffs[k];
+            float age = (float)(time - puff.Born);
+            if (age < 0 || age > PuffLife)
                 continue;
-            float h = Hash((float)(index * 0.618));
-            float t = age / life;
-            var drift = -velocity * age + wind * age + up * (2.2f * MathF.Pow(age, 0.6f) * (1 + work)) + (right * (h - 0.5f) + back * (Hash((float)index + 3.3f) - 0.5f)) * (0.4f + age * 0.5f);
+            float h = Hash((float)(puff.Index * 0.618));
+            float t = age / PuffLife;
+            var drift = wind * age + puff.Up * (2.2f * MathF.Pow(age, 0.6f) * (1 + work)) + (puff.Right * (h - 0.5f) + puff.Back * (Hash((float)puff.Index + 3.3f) - 0.5f)) * (0.4f + age * 0.5f);
             float size = (0.9f + 3.6f * MathF.Sqrt(t) * (0.8f + 0.4f * h)) * (1 + 0.35f * kick);
             float alpha = MathF.Min(0.9f, 0.6f * MathF.Pow(1 - t, 1.4f) * MathF.Min(1, age * 6) * (0.6f + 0.4f * work) * (1 + 0.4f * kick) * (dead ? 0.18f : 1));
             var soot = dead ? new Vector3(0.2f, 0.2f, 0.21f) : new Vector3(0.05f, 0.046f, 0.044f);
             var colour = new Vector4(soot * (0.9f + 0.3f * h) + FurnaceTint(dead ? 0 : fire) * MathF.Max(0, 0.4f - t), alpha);
-            mesh.Billboard(stackTop + drift, size, h * 6.28f + age * 0.3f, colour, _smoke, FxBlend.Alpha, (int)(t * 15.99f), 4);
+            mesh.Billboard(puff.From.RelativeTo(eye) + drift, size, h * 6.28f + age * 0.3f, colour, _smoke, FxBlend.Alpha, (int)(t * 15.99f), 4);
         }
         // Cinders when she's worked hard: sparks up through the smoke, falling back.
         if (work > 0.55f && !emergency)
