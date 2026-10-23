@@ -47,7 +47,10 @@ public sealed class DeepWoods
         var stretches = new List<Stretch>();
         foreach (var (a, b) in laid.OrderBy(x => x.S0))
         {
-            double s0 = Math.Max(a, 0), s1 = Math.Min(b, plan.LengthM);
+            // Out on the line, never round a fortress: clear of the departure town's gate and the terminus's by the rule's
+            // gatesM (the towns' walls and squares are drawn over their own land, and a frame there is a town's).
+            double clear = RuleAt(a) is { } at0 ? at0.GatesM : RuleAt(b)?.GatesM ?? 0;
+            double s0 = Math.Max(a, plan.GateM + clear), s1 = Math.Min(b, Math.Min(plan.TerminusM - clear, plan.LengthM));
             while (s0 < s1 && RuleAt(s0) is null)
                 s0 += 25;
             while (s1 > s0 && RuleAt(s1) is null)

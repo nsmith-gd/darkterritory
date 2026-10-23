@@ -289,8 +289,9 @@ public sealed record BiomeDef(string Name, string Ground, string[] Materials, do
 /// cover <paramref name="Cover"/> of the land (LinesideProps.Stand), the first trunks <paramref name="NearM"/> from the line's
 /// middle, <paramref name="ExtraTries"/> more tries a 12 m slot at a tree, within <paramref name="WallM"/> of the line, the trees grown as tall as the
 /// thickest forest's, and the forest floor and the trees darkened by <paramref name="Shade"/> (the art's: under the canopy).
+/// None within <paramref name="GatesM"/> of either town's gate.
 /// </summary>
-public sealed record DeepWoodsRule(double Share, double[] LengthM, double EdgeM, double Cover, double NearM, int ExtraTries, double WallM, double Shade);
+public sealed record DeepWoodsRule(double Share, double[] LengthM, double EdgeM, double Cover, double NearM, int ExtraTries, double WallM, double Shade, double GatesM);
 
 /// <summary>A dressing piece a biome stands along the line: per 150 m, its chance, how far out, how many.</summary>
 public sealed record PropRule(double Chance, double[] OutM, int Count);
