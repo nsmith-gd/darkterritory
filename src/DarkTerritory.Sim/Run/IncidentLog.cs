@@ -347,10 +347,14 @@ public static class IncidentLog
     public static List<ReportLine> Lines(World world, double fee, double refund, Func<int, bool> home)
     {
         var lines = new List<ReportLine>();
+        // A body is one death, charged once (note 994): a death logged twice for the same body is read (and charged) once.
+        var bodies = new HashSet<int>();
         foreach (var i in world.Attribution.Log.Where(i => i.Kind != IncidentKind.Grab))
         {
             string who = i.Victim >= 0 ? NameOf(world, i.Victim) : "";
             string action = i.Action.Replace("{actor}", NameOf(world, i.Actor));
+            if (i.Kind == IncidentKind.Death && i.Body >= 0 && !bodies.Add(i.Body))
+                continue;
             if (i.Kind == IncidentKind.Death)
             {
                 bool recovered = i.Body >= 0 && home(i.Body);

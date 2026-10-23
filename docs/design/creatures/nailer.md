@@ -5,6 +5,36 @@ nothing is built until the director approves it.** Numbers are a first pass in t
 
 > **Hear the hammer, get out. Or have a friend outside.**
 
+## 0. Reworked on the director's verdict (Sloe, queue #709, note 1004)
+
+> **The director, 23 Oct (line 36):** "The nailer is interesting, but it's got a bit of a problem to it where there's not
+> really windows that you can escape from ... more complex houses that have multiple levels, including basements ... They
+> should have windows that you can escape from, especially. Maybe a couple doors ... going in that basement should feel
+> like high risk, high reward sometimes. That's when a creature like the nailer could be interesting."
+
+**Kept, once #710's houses are in** (two floors and a basement, windows a crewmate climbs out of, a back door; note 1005).
+**This section replaces §5 below** (kept for the record):
+
+```
+COME      a crewmate searching a house alone (nobody else within 10 m, or inside the house) for 20 s → it comes to that house
+BOARD     the ground floor first: each door and window boarded in 4 s, the one nearest the looter last; then the basement's
+          windows, if the looter is down there
+          └ TELEGRAPH: the hammering, from the first opening (the looter has the whole boarding to get out)
+          ├ a crewmate outside comes within 4 m → it flees (it never stands against one outside)
+          └ 3 blows kill it
+ESCAPE    every way out stays a way out, at a price:
+          ├ an unboarded door or window: out, as now
+          ├ an upstairs window (#710): a drop to the ground, a stagger of 2 s and 10 damage; it never boards upstairs
+          ├ a basement window: a crawl of 3 s, head first; it waits at the last one unboarded → GRAB as it comes out
+          │ (dragged 10 s; a friend's blow frees)
+          └ a board prised off from either side with the crowbar (6 s, or 3 s with two)
+```
+
+So the counter is a choice the looter makes under the hammering: up and out the window (hurt, safe), down and out the
+basement (quick, where it waits), or call a friend round (the counter that costs nothing). With the Sump (`sump.md`) the
+basement is where it gets worst: boarded in down there with it. **What it foils:** looting alone (Rook's `looting`,
+alone), and with the Sump the basement alone. **Cost:** as §10, after #710.
+
 ## 1. What it is
 
 A corrupted carpenter, hunched, a nail-bag at its belt and a mouth full of nails, that follows the crew to a village. When
