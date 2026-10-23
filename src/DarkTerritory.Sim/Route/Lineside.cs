@@ -217,6 +217,14 @@ public sealed class Lineside
     public double SignRange(bool lamp, double reach = 1) => lamp ? Tuning.LampSignRange * reach : Tuning.DarkSignRange;
 
     /// <summary>Every board on a route: before each sharp curve and weak bridge, a speed; before each tunnel, the clearance.</summary>
+    /// <summary>
+    /// A generated line's through trusses on the main (note 1002): its bridges built as a truss, not weak ones (drawn as a
+    /// trestle). Their portals and bracing are over a standing crewmate's head on a roof, as a tunnel's roof is.
+    /// </summary>
+    public static IEnumerable<RouteFeature> Trusses(Route route) => route.Plan is not { } plan ? []
+        : route.Of(FeatureKind.Bridge).Where(b => b.MaxCars == 0
+            && plan.Structures.Any(st => st.Edge == "main" && st.Type == LineGen.StructureType.Truss && Math.Abs(st.S0 - b.Start) < 0.5));
+
     public static IEnumerable<Sign> Boards(SightTuning t, Route route) => Boards(t, route, [.. Drops(t, route)]);
 
     public static IEnumerable<Sign> Boards(SightTuning t, Route route, IReadOnlyList<Drop> drops)
@@ -254,9 +262,8 @@ public sealed class Lineside
             zones.Add((SignKind.LowClearance, tunnel.Start, tunnel.End, 0, false));
         // A through truss's portals and bracing are over a standing crewmate's head on a roof (StructureKit.TrussSpan): its
         // span takes them as a tunnel's mouth does (note 1002). A weak one is drawn a trestle, nothing overhead.
-        if (t.TrussClearance && plan is not null)
-            foreach (var b in route.Of(FeatureKind.Bridge).Where(b => b.MaxCars == 0
-                && plan.Structures.Any(st => st.Edge == "main" && st.Type == LineGen.StructureType.Truss && Math.Abs(st.S0 - b.Start) < 0.5)))
+        if (t.TrussClearance)
+            foreach (var b in Trusses(route))
                 zones.Add((SignKind.LowClearance, b.Start, b.End, 0, true));
         var boards = zones.Select(z => new Sign(0, z.Kind, Math.Max(0, z.Start - t.BoardAhead), z.Start, z.End, z.Limit) { Bridge = z.Bridge })
             .Concat(drops.Select(d => new Sign(0, SignKind.Drop, Math.Max(0, d.At - t.DropBoardAhead), d.At, d.At, t.CatchMaxSpeed) { Drop = d }))
