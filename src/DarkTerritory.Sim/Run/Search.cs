@@ -65,7 +65,7 @@ public sealed partial class Run
                 if (!Hides(t, stop, c))
                     continue;
                 var b = stop.Buildings[c.Building];
-                var (x, y, fx, fy) = StopWalls.Kept(b, c.Kind, c.Index, c.Level);
+                var (x, y, fx, fy) = StopWalls.Kept(b, c);
                 // (On its floor: a storeyed house's basement, upstairs or raised ground floor, note 1005.)
                 double up = StopWalls.FindUp(stop, c);
                 var kept = StopWorld(line, f, StopWalls.InHouse(b, x, y), up);

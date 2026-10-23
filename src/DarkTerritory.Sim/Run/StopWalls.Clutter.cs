@@ -84,8 +84,8 @@ public sealed partial class StopWalls
         var clear = new List<(double X, double Y, double R)>();
         foreach (var c in kept)
         {
-            var (fx, fy) = InsideLocal(b, c.Kind, c.Index, c.Level);
-            var (_, _, nx, ny) = Kept(b, c.Kind, c.Index, c.Level);
+            var (fx, fy) = InsideLocal(b, c);
+            var (_, _, nx, ny) = Kept(b, c);
             clear.Add((fx, fy, 0.75));
             clear.Add((fx + nx * 0.45, fy + ny * 0.45, 0.75));
         }

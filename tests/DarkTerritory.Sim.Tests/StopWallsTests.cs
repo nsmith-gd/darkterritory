@@ -68,7 +68,8 @@ public class StopWallsTests
         var (route, train) = Night(spec);
         int steps = 0;
         foreach (var f in route.Features.Where(x => x.Stop is not null))
-            foreach (var c in f.Stop!.Containers.Where(c => c.Building >= 0 && StopWalls.Walled(f.Stop!, c.Building)))
+            // (A house of floors stands on its plinth with steps up to its door, and its finds are inside: note 1005.)
+            foreach (var c in f.Stop!.Containers.Where(c => c.Building >= 0 && StopWalls.Walled(f.Stop!, c.Building) && !StopWalls.Storeyed(f.Stop!.Buildings[c.Building])))
             {
                 var at = Run.Run.StopWorld(train.Line, f, StopWalls.Doorstep(f.Stop!.Buildings[c.Building], c.Index));
                 Assert.False(InAnyWall(train.Walls!, at, 0.3), $"a find's step at {at} is in a wall");

@@ -6,6 +6,12 @@ using DarkTerritory.Sim.Train;
 
 namespace DarkTerritory.Sim.Run;
 
+/// <summary>What a piece of a storeyed house's shell is (note 1005): the art's material for it.</summary>
+public enum ShellPart : byte { Wall, Lintel, Plinth, Step, Floor, Cellar, Tread, Upper, Rail }
+
+/// <summary>A piece of a storeyed house's shell, in its own frame: its middle and half sizes, its bottom and top over its ground.</summary>
+public readonly record struct ShellBox(ShellPart Part, double X, double Y, double HalfX, double HalfY, double Bottom, double Top);
+
 /// <summary>
 /// The houses with more than one floor (queue #710, ARCHITECTURE §8 note 1005; the director, 23 Oct 2026: "more complex houses
 /// that have multiple levels, including basements. Those basements should get pretty dark. They should have windows that you
@@ -133,15 +139,14 @@ public sealed partial class StopWalls
     }
 
     /// <summary>
-    /// A storeyed house's solids, in its own frame (middles and half sizes) with their bottoms and tops over its ground: its
-    /// outside walls (its doors, the back door and its cellar windows cut out of them), the lintels and the plinth under each
-    /// door, the steps up, the slabs, the flight, the rails, and the furniture kept on each floor.
+    /// A storeyed house's shell, in its own frame (middles and half sizes) with their bottoms and tops over its ground, each
+    /// tagged with what it is: its outside walls from <paramref name="low"/> to <paramref name="top"/> (its door, the back door
+    /// and its cellar windows cut out of them), the lintels and the plinth under each door, the steps up, the floors, the
+    /// flight and the rails. The sim stands it (<see cref="StoreyedSolids"/>), the art draws it.
     /// </summary>
-    public static IEnumerable<(double X, double Y, double HalfX, double HalfY, double Bottom, double Top)> StoreyedSolids(StopLayout stop, int building,
-        WallTuning t)
+    public static IEnumerable<ShellBox> Shell(StopBuilding b, double low, double top)
     {
-        var b = stop.Buildings[building];
-        double th = WallThickness, f0 = FloorAt(b, 0), low = b.Basement ? FloorAt(b, -1) - 0.6 : -3, top = t.TopM;
+        double th = WallThickness, f0 = FloorAt(b, 0);
         double hx = b.Length / 2, hy = b.Width / 2, ix = hx - th, iy = hy - th, door = DoorWidth / 2;
         var (fx, fy) = Front(b);
         int e = BackEnd(b);
@@ -162,33 +167,33 @@ public sealed partial class StopWalls
             foreach (var h in cuts)
             {
                 if (h.A - from > 0.01)
-                    yield return Along(alongX, at, from, h.A, across, low, top);
-                yield return Along(alongX, at, h.A, h.B, across, low, h.Lo);
-                yield return Along(alongX, at, h.A, h.B, across, h.Hi, top);
+                    yield return Tag(ShellPart.Wall, Along(alongX, at, from, h.A, across, low, top));
+                yield return Tag(h.Lo > f0 - 0.01 ? ShellPart.Plinth : ShellPart.Wall, Along(alongX, at, h.A, h.B, across, low, h.Lo));
+                yield return Tag(ShellPart.Lintel, Along(alongX, at, h.A, h.B, across, h.Hi, top));
                 from = h.B;
             }
             if (mid + half - from > 0.01)
-                yield return Along(alongX, at, from, mid + half, across, low, top);
+                yield return Tag(ShellPart.Wall, Along(alongX, at, from, mid + half, across, low, top));
         }
         // The front doorway: the lintel over it, and (raised) the plinth under its threshold.
         var (dx, dy, dwx, dwy) = fx != 0 ? (fx * (hx - th / 2), 0.0, th / 2, door) : (0.0, fy * (hy - th / 2), door, th / 2);
-        yield return (dx, dy, dwx, dwy, f0 + Lintel, top);
+        yield return new(ShellPart.Lintel, dx, dy, dwx, dwy, f0 + Lintel, top);
         if (b.Basement)
         {
-            yield return (dx, dy, dwx, dwy, low, f0);
+            yield return new(ShellPart.Plinth, dx, dy, dwx, dwy, low, f0);
             // The steps up to each door, the top one at the threshold.
             foreach (var (ox, oy, nx, ny) in new[] { (dx + fx * th / 2, dy + fy * th / 2, fx, fy), (e * hx, 0.0, (double)e, 0.0) })
                 for (int i = 1; i <= DoorSteps; i++)
                 {
                     double out_ = (DoorSteps - i + 0.5) * DoorStepTread;
                     bool acrossX = Math.Abs(nx) > 0.5;
-                    yield return (ox + nx * out_, oy + ny * out_, acrossX ? DoorStepTread / 2 : door + 0.2, acrossX ? door + 0.2 : DoorStepTread / 2, -1, f0 * i / DoorSteps);
+                    yield return new(ShellPart.Step, ox + nx * out_, oy + ny * out_, acrossX ? DoorStepTread / 2 : door + 0.2, acrossX ? door + 0.2 : DoorStepTread / 2, -1, f0 * i / DoorSteps);
                 }
             // The ground floor's boards, the hatch left open; and the basement's floor.
             var (hxc, hyc, _, _) = Hatch(b);
             foreach (var (x, y, wx, wy) in Less(-ix, -iy, ix, iy, hxc - HatchSize / 2, hyc - HatchSize / 2, hxc + HatchSize / 2, hyc + HatchSize / 2))
-                yield return (x, y, wx, wy, f0 - Slab, f0);
-            yield return (0, 0, ix, iy, FloorAt(b, -1) - 0.3, FloorAt(b, -1));
+                yield return new(ShellPart.Floor, x, y, wx, wy, f0 - Slab, f0);
+            yield return new(ShellPart.Cellar, 0, 0, ix, iy, FloorAt(b, -1) - 0.3, FloorAt(b, -1));
         }
         if (b.Upstairs)
         {
@@ -198,18 +203,31 @@ public sealed partial class StopWalls
             for (int i = 1; i < Rises; i++)
             {
                 double xm = x0 + dir * (i - 0.5) * Tread;
-                yield return (xm, ym, Tread / 2, yh, f0 - 0.1, f0 + Storey * i / Rises);
+                yield return new(ShellPart.Tread, xm, ym, Tread / 2, yh, f0 - 0.1, f0 + Storey * i / Rises);
             }
             // The upper floor, open over the flight (from just short of its foot to its top tread's back edge).
             double w0 = x0 - dir * 0.1, w1 = x0 + dir * (Rises - 1) * Tread;
             double f1 = FloorAt(b, 1);
             foreach (var (x, y, wx, wy) in Less(-ix, -iy, ix, iy, Math.Min(w0, w1), Math.Min(y0, y1), Math.Max(w0, w1), Math.Max(y0, y1)))
-                yield return (x, y, wx, wy, f1 - Slab, f1);
+                yield return new(ShellPart.Upper, x, y, wx, wy, f1 - Slab, f1);
             // Its rails: along the well's open side, and across its end over the flight's foot.
             int s = Math.Sign(y0);
-            yield return ((w0 + w1) / 2, y1 - s * RailHalf, Math.Abs(w1 - w0) / 2, RailHalf, f1 - Slab, f1 + RailHeight);
-            yield return (w0 - dir * RailHalf, ym, RailHalf, yh, f1 - Slab, f1 + RailHeight);
+            yield return new(ShellPart.Rail, (w0 + w1) / 2, y1 - s * RailHalf, Math.Abs(w1 - w0) / 2, RailHalf, f1 - Slab, f1 + RailHeight);
+            yield return new(ShellPart.Rail, w0 - dir * RailHalf, ym, RailHalf, yh, f1 - Slab, f1 + RailHeight);
         }
+    }
+
+    /// <summary>
+    /// A storeyed house's solids, as the sim stands them (middles and half sizes, bottoms and tops over its ground): its
+    /// <see cref="Shell"/>, its walls from under its basement to run.json's walls.topM, and the furniture kept on each floor.
+    /// </summary>
+    public static IEnumerable<(double X, double Y, double HalfX, double HalfY, double Bottom, double Top)> StoreyedSolids(StopLayout stop, int building,
+        WallTuning t)
+    {
+        var b = stop.Buildings[building];
+        double f0 = FloorAt(b, 0);
+        foreach (var w in Shell(b, b.Basement ? FloorAt(b, -1) - 0.6 : -3, t.TopM))
+            yield return (w.X, w.Y, w.HalfX, w.HalfY, w.Bottom, w.Top);
         // What the finds are kept in, on their floors: under the ceiling over them.
         foreach (var c in stop.Containers.Where(c => c.Building == building))
             foreach (var p in Furniture(b, [c]))
@@ -218,6 +236,10 @@ public sealed partial class StopWalls
         foreach (var x in ClutterOf(stop, building).Where(x => x.Solid))
             yield return (x.X, x.Y, x.Box.HalfX, x.Box.HalfY, f0 - 0.05, f0 + FurnitureTop);
     }
+
+
+    static ShellBox Tag(ShellPart part, (double X, double Y, double HalfX, double HalfY, double Bottom, double Top) b) =>
+        new(part, b.X, b.Y, b.HalfX, b.HalfY, b.Bottom, b.Top);
 
     static (double, double, double, double, double, double) Along(bool alongX, double at, double a, double z, double across, double lo, double hi) =>
         alongX ? ((a + z) / 2, at, (z - a) / 2, across, lo, hi) : (at, (a + z) / 2, across, (z - a) / 2, lo, hi);
@@ -322,17 +344,23 @@ public sealed partial class StopWalls
         // (u along the house toward its back end, v across it toward the stair's side; faces likewise.)
         (double, double, double, double, double, double) At(double u, double v, double fu, double fv, double depth, double find) =>
             (e * u + e * fu * depth, s * v + s * fv * depth, e * fu, s * fv, e * u + e * fu * find, s * v + s * fv * find);
-        double slot = (index % 3 - 1) * 0.45;
+        // (index: the container's slot, its rank among its kind's on its floor.)
+        double across = (index % 3) switch { 0 => -0.45, 1 => 0.45, _ => 0 };
         if (level < 0)
-            return At(-ix, slot * iy, 1, 0, 0.35, 0.95);
+            return At(-ix, across * iy, 1, 0, 0.35, 0.95);
         if (level > 0)
-            return At(ix, slot * iy, -1, 0, CabinetDepth, FindOut);
+            return At(ix, across * iy, -1, 0, CabinetDepth, FindOut);
         return kind switch
         {
-            ContainerKind.Cupboard => index % 2 == 0 ? At(-ix + 1.2, -iy, 0, 1, CupboardDepth, FindOut) : At(ix - 1.6, iy, 0, -1, CupboardDepth, FindOut),
+            ContainerKind.Cupboard => index switch
+            {
+                0 => At(-ix + 1.2, -iy, 0, 1, CupboardDepth, FindOut),
+                1 => At(ix - 1.6, iy, 0, -1, CupboardDepth, FindOut),
+                _ => At(-ix + 2.4, -iy, 0, 1, CupboardDepth, FindOut),
+            },
             ContainerKind.Cabinet => index % 2 == 0 ? At(-ix, -(iy - 0.9), 1, 0, CabinetDepth, FindOut) : At(ix, iy - 0.9, -1, 0, CabinetDepth, FindOut),
-            ContainerKind.Cellar => At(ix - 1.3, -(iy - 1.0), -1, 0, 0, 0),
-            ContainerKind.UnderFloor => At(-0.6, -0.5, 1, 0, 0, 0),
+            ContainerKind.Cellar => At(ix - 1.3, -(iy - 1.0) + index * 1.2, -1, 0, 0, 0),
+            ContainerKind.UnderFloor => At(-0.6 + index % 2 * 1.4, -0.5, 1, 0, 0, 0),
             ContainerKind.Loose => (index % 4) switch
             {
                 0 => At(-ix + 0.4, iy - 0.4, 1, 0, 0, 0),

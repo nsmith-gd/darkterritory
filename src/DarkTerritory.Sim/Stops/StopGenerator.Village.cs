@@ -217,6 +217,13 @@ public static partial class StopGenerator
                     g.Contain(ContainerKind.Cabinet, StopZone.Village, h.Centre, Band(h.D), 0, hi, outlier: h.Outlier, level: 1);
             }
         }
+        // Note 1005: in a house of floors, each find's place among its kind's on its floor.
+        for (int k = before; k < g.Containers.Count; k++)
+        {
+            var c = g.Containers[k];
+            if (g.Buildings[c.Building].Form != HouseForm.Plain)
+                g.Containers[k] = c with { Slot = g.Containers.Take(k).Count(o => o.Building == c.Building && o.Level == c.Level && o.Kind == c.Kind) };
+        }
         foreach (int si in sheds)
         {
             var b = g.Buildings[si];

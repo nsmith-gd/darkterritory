@@ -169,8 +169,9 @@ public sealed record StopLair(LairKind Kind, StopZone Zone, Pt At, double Radius
 /// <param name="Track">For a crane bay, the track whose crane reaches it (−1 otherwise).</param>
 /// <param name="Floor">P12's floor guarantee: the one find a village always has.</param>
 /// <param name="Level">Note 1005: which of its house's floors it's on: −1 the basement, 0 the ground floor, 1 upstairs.</param>
+/// <param name="Slot">Note 1005: in a house of floors, which of its kind's places on its floor it's kept in (its rank among them).</param>
 public sealed record StopContainer(int Index, ContainerKind Kind, StopZone Zone, Pt At, int Band, int Depth, int Building, int Track = -1, bool Outlier = false, bool Floor = false,
-    int Level = 0);
+    int Level = 0, int Slot = 0);
 
 /// <summary>
 /// What the crew has to do to work the stop (P15, level-design D.1), counted move by move for the tier's typical

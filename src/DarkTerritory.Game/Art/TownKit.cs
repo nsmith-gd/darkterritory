@@ -240,8 +240,8 @@ public static partial class TownKit
         double t = Sim.Run.StopWalls.WallThickness, inset = t + 0.2;
         var taken = kept.SelectMany(c =>
         {
-            var (kx, ky, _, _) = Sim.Run.StopWalls.Kept(b, c.Kind, c.Index);
-            var (fx, fy) = Sim.Run.StopWalls.InsideLocal(b, c.Kind, c.Index);
+            var (kx, ky, _, _) = Sim.Run.StopWalls.Kept(b, c);
+            var (fx, fy) = Sim.Run.StopWalls.InsideLocal(b, c);
             return new[] { (kx, ky), (fx, fy) };
         }).ToList();
         var corners = new List<(double, double)>();
@@ -877,7 +877,7 @@ public static partial class TownKit
         {
             // The find lies out in the room; a cupboard stands behind it against the back wall, a cabinet against the side,
             // as solid as the walls (StopWalls.Furniture; the scene draws a searched one opened).
-            var (x, y, faceX, faceY) = Sim.Run.StopWalls.Kept(b, c.Kind, c.Index);
+            var (x, y, faceX, faceY) = Sim.Run.StopWalls.Kept(b, c);
             // The boards run the way the spot faces into the room (a plain house's toward its door).
             bool endOn = Math.Abs(faceX) > 0.5;
             switch (c.Kind)

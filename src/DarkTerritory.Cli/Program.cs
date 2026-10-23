@@ -2048,7 +2048,7 @@ static object Screenshot(TrainTuning t, string content, string[] args)
             return Print(new { error = $"{Str(args, "--route", "")} has no cupboards" });
         var (f, c) = pieces[(int)keptAt % pieces.Count];
         var b = f.Stop!.Buildings[c.Building];
-        var (x, y, fx, fy) = DarkTerritory.Sim.Run.StopWalls.Kept(b, c.Kind, c.Index);
+        var (x, y, fx, fy) = DarkTerritory.Sim.Run.StopWalls.Kept(b, c);
         Double3 At(double px, double py, double up) => DarkTerritory.Sim.Run.Run.StopWorld(line, f, DarkTerritory.Sim.Run.StopWalls.InHouse(b, px, py), up);
         camera = floorKind.Length > 0
             ? Camera.LookAt(At(x + fx * 1.5 - fy * 0.6, y + fy * 1.5 + fx * 0.6, 1.65), At(x, y, 0.2), 70)
