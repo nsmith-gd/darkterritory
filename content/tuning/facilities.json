@@ -379,7 +379,8 @@
     // the bot driver stands in the cab on the brake and leaves the controls to them for peopleSeatSeconds, once everyone's
     // aboard: whoever works a control has them (note 574), and the bot goes out to work the train. Nobody takes them in that
     // time, or someone playing pings the cab (GDD §12), and it drives out itself. 0: it drives out as soon as everyone's
-    // aboard, as before. A bot crew alone isn't held: there's nobody to give the seat to.
+    // aboard, as before. A bot crew alone isn't held: there's nobody to give the seat to. Decided: the director, 23 Oct: go with
+    // option (a) for the driver seat (the Director's Inbox, asks/nathaniel2-pine-seat: the player's for 60 s, then the bot's).
     "peopleSeatSeconds": 60,
     // Note 1009 (the director's playtest of 23 Oct, line 6: "We didn't stop to get anything else ... these guys blew through
     // everything and we didn't stop to actually play the game"; line 3: "I've thrown the spur"): every stop is optional
