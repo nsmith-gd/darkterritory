@@ -139,6 +139,8 @@ public static class Calls
                 return MouseMooseCall(world, you, max, t);
             case EnemyKind.Bruin:
                 return BruinCall(world, you, t);
+            case EnemyKind.Tapper:
+                return TapperCall(world, t);
             case EnemyKind.Pickers:
                 {
                     var crates = Crates(world, you, min, max, 3);
@@ -267,6 +269,20 @@ public static class Calls
     /// The Mouse Moose (note 790) after the nearest casting stacked by any crane on the line (a facility's own or a yard's),
     /// within <paramref name="max"/> of you, whether the train's in its yard or not: out of its hole past it.
     /// </summary>
+    /// <summary>The Tapper (note 1011) behind whoever's seated at a gun, as if they'd been on it alone its dwell.</summary>
+    static string TapperCall(World world, EnemyTuning t)
+    {
+        var train = world.Train;
+        foreach (var (id, s) in world.CrewThisTick.OrderBy(c => c.Id))
+            if (s.Alive && s.Has(Player.PlayerFlags.Seated) && s.Parent >= 1 && s.Parent < train.Frames.Count && train.Frames[s.Parent].Shape.Gun is not null)
+            {
+                int car = s.Parent;
+                world.AddEnemy(n => Tapper.Over(n, car, s.Position, id, train, t.Tapper));
+                return $"over the roof behind the gunner on car {car}: when it taps, look round";
+            }
+        return "nobody at a gun: sit at one and call again";
+    }
+
     static string BruinCall(World world, Double3 you, EnemyTuning t)
     {
         // The gym's train stands empty at its yard: any car with a room will do to meet it.

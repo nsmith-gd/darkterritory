@@ -51,6 +51,7 @@ public sealed class Behaviours
         public double Talk;
         public double Heard;
         public double Seconds;
+        public double Nearest = double.PositiveInfinity;
         public readonly double[] ByDoing = new double[Enum.GetValues<Doing>().Length];
         public Behaviour Now;
     }
@@ -66,6 +67,12 @@ public sealed class Behaviours
         if (voice > _voice.GetValueOrDefault(player))
             _voice[player] = voice;
     }
+
+    /// <summary>
+    /// What <paramref name="player"/>'s doing now, the seconds they've been at it, and the metres to their nearest crewmate (note
+    /// 1011: the Tapper's own dwell on the gun); null for nobody read.
+    /// </summary>
+    public (Doing Doing, double Seconds, double Nearest)? At(int player) => _p.TryGetValue(player, out var t) ? (t.Doing, t.InDoing, t.Nearest) : null;
 
     /// <summary>What <paramref name="player"/> shows now.</summary>
     public Behaviour Of(int player) => _p.TryGetValue(player, out var t) ? t.Now : Behaviour.None;
@@ -92,6 +99,7 @@ public sealed class Behaviours
                 _p[c.Player] = p = new Track { Doing = c.Doing };
             p.InDoing = p.Doing == c.Doing ? p.InDoing + 1 : 1;
             p.Doing = c.Doing;
+            p.Nearest = c.Nearest;
             bool alone = c.Nearest > t.AloneM;
             if (counting)
             {

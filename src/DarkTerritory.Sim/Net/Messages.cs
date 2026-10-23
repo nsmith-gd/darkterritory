@@ -138,7 +138,8 @@ public static class Protocol
     //     ride in its vehicle record's cooler field (the 33rd), as the BBQ deck's beers do.
     // 87: a mended rupture's patch (note 991): the boiler record's flags bit 7, Patched.
     // 88: the Bruin (note 1007): an enemy kind of its own (48).
-    public const int Version = 88;
+    // 89: the Tapper (note 1011): an enemy kind of its own (49).
+    public const int Version = 89;
 }
 
 public enum MessageType : byte

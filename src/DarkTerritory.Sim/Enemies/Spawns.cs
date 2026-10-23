@@ -537,6 +537,23 @@ public static class Spawns
             return c.Placed();
         })
         { Enabled = t => t.Bruin.On },
+        // The Tapper (note 1011; the director's playtest of 23 Oct, line 36: "I am sitting on the back gun alone for too long"):
+        // at speed (boardAbove), a crewmate on a gun with nobody within the behaviour reader's aloneM for dwell seconds (by
+        // tier; note 999 §2b's gun alone, read with targeting on); one at a time; from Frontier (tierWeights). Off with tapper.on.
+        new(EnemyKind.Tapper, c =>
+        {
+            var t = c.Tuning.Tapper;
+            if (!t.On || c.Train.Dynamics.Speed < t.BoardAbove || c.World.TrainInFort || !c.None(EnemyKind.Tapper) || Tapper.For(c) is null)
+                return null;
+            return MooseTuning.ByTier(t.TierWeights, c.Tier);
+        }, c =>
+        {
+            if (Tapper.For(c) is not { } at)
+                return SpawnContext.Failed(SpawnFailure.NoTarget);
+            c.Add(i => Tapper.Over(i, at.Car, at.Seat, at.Gunner, c.Train, c.Tuning.Tapper));
+            return c.Placed();
+        })
+        { Enabled = t => t.Tapper.On },
         // B.8 · The Brakeman (note 364): up at the far end of a moving train; never with a crew of one; every tier, more the
         // harder, the longer the train and with a climb ahead.
         new(EnemyKind.Brakeman, c =>

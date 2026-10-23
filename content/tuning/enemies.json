@@ -183,6 +183,8 @@
     "mouseMoose": [[0.35, 0.3]],
     // The Bruin (note 1007): on all fours, a man's shoulder high and long; its body, its shoulders, its head.
     "bruin": [[0.7, 0.8], [0.6, 1.3]],
+    // The Tapper (note 1011): flat on a roof, folded; its body and its head, a little off the roof.
+    "tapper": [[0.4, 0.3]],
     // The house creatures (notes 583–586): the Lodger and the Householder man-sized; the Hanger's sac, up in the roof.
     "lodger": [[0.35, 0.5], [0.3, 1.2]],
     "householder": [[0.35, 0.5], [0.3, 1.3]],
@@ -534,6 +536,27 @@
     "health": 20, "frontFactor": 0.2, "staggerSeconds": 1.2, "driveOffBlows": 8, "leaveFarM": 150,
     "leaveAfter": { "local": 40, "frontier": 40, "deadLines": 90, "deepTerritory": -1 },
     "tierWeights": { "local": 0.5, "frontier": 1, "deadLines": 1.5, "deepTerritory": 2 }
+  },
+
+  // THE TAPPER · sight · flank (GDD §21; the director's playtest of 23 Oct 2026, line 36: "I am sitting on the back gun alone
+  // for too long ... every creature's purpose is to foil some sort of behavior ... a clear tell and a clear counter"; Sloe's
+  // docs/design/creatures/tapper.md, note 1004; ARCHITECTURE §8 note 1011; spec B.22). Spawns (on): the train at boardAbove
+  // m/s or more, a crewmate seated at a gun with nobody within director.encounters.target.behaviours.aloneM for dwell s by tier
+  // (note 999 §2b's gun alone; read with targeting on); one at a time; tierWeights (none on Local). It comes over that car's
+  // roof comeFromM behind the gunner (against the way their gun faces), crawls (crawl m/s) to tapBehindM behind them and taps
+  // twice (the telegraph); tapSeconds on by tier (never under the reaction window), the lift: a grab, liftSeconds, then
+  // dropped off the train. The gunner facing it within lookDegrees for lookSeconds: it flinches flat and backs off holdSeconds
+  // by tier, then comes again. Anyone else on its car or within companyM of it: it folds and goes over the side. A blow knocks
+  // it off (a friend's drops whoever it's lifting on the roof); health of blows kills it. Under leaveBelow m/s, or its gunner
+  // off their car, it goes. on: false until the director answers nathaniel2-sloe-forest-heavies (the r714-tapper edition
+  // turns it on).
+  "tapper": {
+    "on": false, "boardAbove": 8, "leaveBelow": 3, "comeFromM": 6, "crawl": 0.8, "tapBehindM": 1.0, "lookDegrees": 30,
+    "lookSeconds": 1, "companyM": 4, "liftSeconds": 10, "health": 3,
+    "dwell": { "local": 90, "frontier": 90, "deadLines": 60, "deepTerritory": 45 },
+    "tapSeconds": { "local": 5, "frontier": 5, "deadLines": 4, "deepTerritory": 3 },
+    "holdSeconds": { "local": 30, "frontier": 30, "deadLines": 20, "deepTerritory": 10 },
+    "tierWeights": { "local": 0, "frontier": 1, "deadLines": 1.5, "deepTerritory": 2 }
   },
 
   // THE HOUSE CREATURES (GDD §21; the director, 9 Oct 2026: "Every time I go into a house, it should feel like there could
@@ -1620,7 +1643,7 @@
         "answers": {
           "firing": ["stoker", "hotbox"],
           "driving": ["trackDoll", "stoker", "hotbox", "brakeman", "knotter"],
-          "gunning": ["cinderHounds", "climbers", "gannet"],
+          "gunning": ["cinderHounds", "climbers", "gannet", "tapper"],
           "repairing": ["whistler", "knotter", "draggers", "brakeman"],
           "operating": ["ribbits", "towerJaw", "moose", "freightBeetle"],
           "carrying": ["ribbits", "gaunt", "followers", "carHugger", "freightBeetle"],
@@ -1652,7 +1675,7 @@
             "lootingAlone": ["gaunt", "followers"],
             "cellarAlone": ["gaunt"],
             "straggling": ["followers", "sootChildren", "moose", "bruin"],
-            "gunAlone": ["climbers", "cinderHounds", "gannet"],
+            "gunAlone": ["climbers", "cinderHounds", "gannet", "tapper"],
             "lazing": ["gannet"],
             "silent": ["gaunt"],
             "chatter": ["whistler", "sootChildren"],
@@ -1706,7 +1729,7 @@
     "costs": { "followers": 2, "draggers": 2, "fireFlies": 2, "trackDoll": 3, "cinderHounds": 3, "climbers": 3,
       "whistler": 3, "stoker": 3, "ribbits": 3, "carHugger": 4, "tippyToesie": 4, "gaunt": 4, "sootChildren": 4, "grumbler": 4,
       "passenger": 5, "moose": 3, "gannet": 4, "freightBeetle": 1, "towerJaw": 3, "brakeman": 3, "hotbox": 2, "knotter": 3,
-      "mouseMoose": 2, "bruin": 4 },
+      "mouseMoose": 2, "bruin": 4, "tapper": 2 },
     // App. B.3/B.8 weights.
     "houndsLivestockWeight": 2.5,
     "houndsHotBoilerWeight": 1.5,

@@ -1,0 +1,9 @@
+// Queue #714's measurement (note 1011): the shipping content with the Tapper on (tapper.on), until the director answers
+// nathaniel2-sloe-forest-heavies. `dt --edition r714-tapper director sweep ...`. Measurement only; never shipped.
+{
+  "id": "edition-r714-tapper",
+  "name": "r714-tapper",
+  "version": "1.0.0",
+  "description": "the Tapper on: enemies.json tapper.on (#714, note 1011)",
+  "order": -1000
+}
