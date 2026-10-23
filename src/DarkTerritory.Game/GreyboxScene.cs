@@ -1031,6 +1031,10 @@ public sealed partial class GreyboxScene
                 // Put away in a slot (note 594): on them, not drawn.
                 if (b.Stashed)
                     continue;
+                // Your own radio, worn at your chest (note 997; the director, 23 Oct: "When I look down, the radio kind of jitters
+                // ... We don't need to show that"): not drawn through your own eyes. The crew still see it on you.
+                if (b.Kind == Sim.Physics.BodyKind.Radio && HeldHere is { } wearer && b.Carrier == wearer.Player)
+                    continue;
                 // In your own hands, drawn at them for the frame (the mirror's own pose is back before anything reads it).
                 bool held = HeldHere is { } h && b.Carrier == h.Player && b.Kind is not (Sim.Physics.BodyKind.Heavy or Sim.Physics.BodyKind.Ragdoll or Sim.Physics.BodyKind.Radio);
                 var (parent, at, yaw) = (b.Parent, b.Pbd.Particles[0].Position, b.Yaw);
