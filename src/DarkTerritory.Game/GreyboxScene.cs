@@ -1031,6 +1031,10 @@ public sealed partial class GreyboxScene
                 // Put away in a slot (note 594): on them, not drawn.
                 if (b.Stashed)
                     continue;
+                // Your own radio, worn at your chest (note 997; the director, 23 Oct: "When I look down, the radio kind of jitters
+                // ... We don't need to show that"): not drawn through your own eyes. The crew still see it on you.
+                if (b.Kind == Sim.Physics.BodyKind.Radio && HeldHere is { } wearer && b.Carrier == wearer.Player)
+                    continue;
                 // In your own hands, drawn at them for the frame (the mirror's own pose is back before anything reads it).
                 bool held = HeldHere is { } h && b.Carrier == h.Player && b.Kind is not (Sim.Physics.BodyKind.Heavy or Sim.Physics.BodyKind.Ragdoll or Sim.Physics.BodyKind.Radio);
                 var (parent, at, yaw) = (b.Parent, b.Pbd.Particles[0].Position, b.Yaw);
@@ -4155,7 +4159,8 @@ public sealed partial class GreyboxScene
                 Lap(mesh, "town smoke");
                 foreach (var (feet, facing, variant) in Art.WorldArt.Watch(town, gateAt, Time))
                     if ((feet - eye).Length < 260)
-                        Folk(mesh, eye, feet, facing, variant, drab: 0.6f, "walk", gear: "respirator", who: variant, lamp: true);
+                        // The watch on the walls are the lookbook's watchmen (note 1002: the drab figure's faces read badly).
+                        Folk(mesh, eye, feet, facing, variant, drab: 0.6f, "walk", gear: "respirator", who: variant, lamp: true, role: "guard");
                 Lap(mesh, "town watch");
                 // The statue on the green (note 353): the survivors' figure, frozen in its pose on the plinth, cast in bronze or
                 // cut in stone; the Lamplighter's lamp lit.
@@ -4208,7 +4213,9 @@ public sealed partial class GreyboxScene
             // Its people (T100): a few about at night, in their own drab, idling on their own beat. A dark town has none.
             if (lit)
                 foreach (var (feet, facing, variant) in Art.WorldArt.FortFolk(line, eye, Math.Max(start, from - 20), Math.Min(end, to + 20), gateAt, start == 0))
-                    Folk(mesh, eye, feet, facing, variant);
+                    // The lookbook's people (note 1002; the director's 23 Oct playtest, line 23: "Some of these people's faces are
+                    // terrifying"): the gate's two its watchmen, the rest those who go about a town, not the drab figure.
+                    Folk(mesh, eye, feet, facing, variant, role: variant <= 2 ? "guard" : Art.LookbookKit.AnyoneRole(variant), who: variant);
             return;
         }
         double a = Math.Max(start, from), b = Math.Min(end, to);
