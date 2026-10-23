@@ -2964,6 +2964,18 @@ public sealed partial class GreyboxScene
             back = new Double3(Math.Sin(e.Lateral), 0, Math.Cos(e.Lateral));
             right = Double3.Cross(Double3.Up, back).Normalized;
         }
+        else if (e.Kind == EnemyKind.Tapper && e.Attached >= 0)
+        {
+            // The Tapper on its car's roof (note 1011): facing along the car toward the gunner (its Lateral is which way's behind
+            // them, so it faces the other way).
+            if (e.Attached >= frames.Count)
+                return;
+            var f = frames[e.Attached];
+            origin = f.ToWorld(e.Local);
+            up = f.Up;
+            back = f.Back * (e.Lateral >= 0 ? 1 : -1);
+            right = Double3.Cross(up, back).Normalized;
+        }
         else if (e.Kind == EnemyKind.Bruin && e.Attached >= 0)
         {
             // The Bruin in its car (note 1007): on the car's floor, facing its heading (its Lateral: a world yaw, as loose).
@@ -3150,6 +3162,30 @@ public sealed partial class GreyboxScene
                         foreach (double x in new[] { -0.4, 0.4 })
                             foreach (double z in new[] { -0.7, 0.8 })
                                 Draw(x, 0.28, z, 0.15, 0.28, 0.15, moss);
+                    }
+                    break;
+                }
+            case EnemyKind.Tapper:
+                {
+                    // A long folded thing with arms twice its length (note 1011): flat on the roof like a broken umbrella, crawling or
+                    // flinched; up on its knees at the tap, an arm out over the gunner's shoulder; lifting, both arms up. Until it's
+                    // modelled (it still needs its rig and clips: crawl, tap, reach, lift, flinch, knocked, death).
+                    var mode = e is Sim.Enemies.Tapper tapper ? tapper.Mode : Sim.Enemies.TapperMode.Crawl;
+                    var grey = Palette.BoardEnamel * 0.5f;
+                    if (mode is Sim.Enemies.TapperMode.Crawl or Sim.Enemies.TapperMode.Flinch)
+                    {
+                        Draw(0, 0.12, 0, 0.25, 0.1, 0.5, grey);
+                        Draw(0, 0.15, -0.55, 0.1, 0.08, 0.1, grey);
+                        foreach (double x in new[] { -0.6, 0.6 })
+                            Draw(x, 0.08, -0.2, 0.45, 0.03, 0.03, grey);
+                    }
+                    else
+                    {
+                        bool lifting = mode == Sim.Enemies.TapperMode.Lift;
+                        Draw(0, 0.6, 0, 0.18, 0.55, 0.15, grey);
+                        Draw(0, 1.25, -0.05, 0.09, 0.1, 0.09, grey);
+                        foreach (double x in new[] { -0.25, 0.25 })
+                            Draw(x, lifting ? 1.7 : 1.05, lifting ? -0.2 : -0.9, 0.03, lifting ? 0.6 : 0.03, lifting ? 0.03 : 0.8, grey);
                     }
                     break;
                 }

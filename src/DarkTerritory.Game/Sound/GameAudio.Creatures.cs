@@ -255,6 +255,9 @@ public sealed partial class GameAudio
             case Bruin b:
                 BruinSounds(b, was, at, occ);
                 break;
+            case Tapper tp:
+                TapperSounds(tp, was, at, occ);
+                break;
             case Waker w:
                 WakerSounds(world, w, was, at);
                 break;
