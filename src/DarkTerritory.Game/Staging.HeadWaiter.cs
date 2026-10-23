@@ -31,7 +31,7 @@ public static partial class Staging
             _ => (HeadWaiterMode.Serve, SpinePhase.Telegraph, 0.4),
         };
         var w = new HeadWaiter(HeadWaiterId);
-        w.Restore(phase, seconds, t.KillBlows, 0, stand, train.Dynamics.Distance, 0, (double)m, 40, 0, holding: phase == SpinePhase.Grab ? 40 : -1, grabWindow: t.ClearSeconds);
+        w.Restore(phase, seconds, t.KillBlows, 0, stand, train.Dynamics.Distance, 0, 0, 40, (double)m, holding: phase == SpinePhase.Grab ? 40 : -1, grabWindow: t.ClearSeconds);
         var diner = new Crewmate(40, engine.ToWorld(seat), engine.Heading, true, Act: Art.CrewPose.Lounge, Car: 0, Local: seat);
         return ([diner], w);
     }

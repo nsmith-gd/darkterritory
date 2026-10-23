@@ -1209,7 +1209,7 @@ public class CreatureSoundTests
     {
         // Its tell (note 1008): the spoon on the glass as it sets the plate down; then nothing while it waits on them.
         using var scene = new Scene(2, "tell-head-waiter.glass");
-        HeadWaiter W(HeadWaiterMode mode) => Record(new HeadWaiter(98), SpinePhase.Telegraph, 0, 6, 1, new Double3(0.8, 1.2, 2), height: (double)mode, extra: 1);
+        HeadWaiter W(HeadWaiterMode mode) => Record(new HeadWaiter(98), SpinePhase.Telegraph, 0, 6, 1, new Double3(0.8, 1.2, 2), extra: 1, extra2: (double)mode);
         var heard = new List<string>();
         heard.AddRange(scene.Tick(W(HeadWaiterMode.Climb)));
         for (int i = 0; i < 2 * SimConstants.TickRate; i++)

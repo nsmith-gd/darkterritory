@@ -4,7 +4,7 @@ using DarkTerritory.Sim.Train;
 
 namespace DarkTerritory.Sim.Enemies;
 
-/// <summary>What the Head Waiter is doing (replicated in <see cref="Enemy.Height"/>), for its clips and its glass.</summary>
+/// <summary>What the Head Waiter is doing (replicated in <see cref="Enemy.Extra2"/>), for its clips and its glass.</summary>
 public enum HeadWaiterMode : byte { Climb, Serve, Wait, Clear, Dismissed, Dropped }
 
 /// <summary>
@@ -20,7 +20,7 @@ public enum HeadWaiterMode : byte { Climb, Serve, Wait, Clear, Dismissed, Droppe
 /// <remarks>
 /// Off unless enemies.json <c>headWaiter.on</c> (built behind a flag, note 1008: awaiting the director's verdict). On the
 /// lounger's car: <see cref="Enemy.Attached"/> the car, <see cref="Enemy.Local"/> its feet beside the seat; <see cref="Enemy.Extra"/>
-/// the lounger; <see cref="Enemy.Height"/> its <see cref="HeadWaiterMode"/>. Host only, as the spine is.
+/// the lounger; <see cref="Enemy.Extra2"/> its <see cref="HeadWaiterMode"/> (not <see cref="Enemy.Height"/>, which lifts what stands on the line). Host only, as the spine is.
 /// </remarks>
 public sealed class HeadWaiter(int id) : Enemy(id)
 {
@@ -40,7 +40,7 @@ public sealed class HeadWaiter(int id) : Enemy(id)
     public override bool PullsFree => true;
     public override double MeleeRadius => 1.0;
 
-    public HeadWaiterMode Mode => (HeadWaiterMode)(int)Height;
+    public HeadWaiterMode Mode => (HeadWaiterMode)(int)Extra2;
     /// <summary>The crewmate it's come to wait on.</summary>
     public int Diner => (int)Extra;
     /// <summary>The glass is ringing: the tell, for the mixer and the bots.</summary>
@@ -96,7 +96,7 @@ public sealed class HeadWaiter(int id) : Enemy(id)
             Local = new Double3(side * (shape.HalfWidth + 0.3), seat.Y - 1.2, stand.Z),
             Extra = diner,
             Health = t.KillBlows,
-            Height = (double)HeadWaiterMode.Climb,
+            Extra2 = (double)HeadWaiterMode.Climb,
             _seat = seat,
             _stand = stand,
             _side = side,
@@ -117,7 +117,7 @@ public sealed class HeadWaiter(int id) : Enemy(id)
     {
         if (Mode != mode)
             _modeSeconds = 0;
-        Height = (double)mode;
+        Extra2 = (double)mode;
     }
 
     protected override void Tick(EnemyContext ctx)
