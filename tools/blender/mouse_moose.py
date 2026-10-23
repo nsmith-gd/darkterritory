@@ -1,4 +1,4 @@
-"""THE MOUSE MOOSE (GDD §21; the director, 15 Oct 2026: "a mutant rat with little tiny moose antlers"; ARCHITECTURE §8
+"""THE MOOSE MOUSE (renamed from the Mouse Moose, 23 Oct; note 1015) (GDD §21; the director, 15 Oct 2026: "a mutant rat with little tiny moose antlers"; ARCHITECTURE §8
 notes 790, 796; docs/design/creatures/mouse-moose.md §1): the yard's thief that drags a crane's castings off, very slowly.
 
 A rat the size of a dog: about 0.45 m at the shoulder and 0.95 m from its nose to its rump, its tail as long again. Hunched,
@@ -327,7 +327,8 @@ for s, sx in (("r", 1), ("l", -1)):
 fine.tube([H("bell") + Vector((0, -0.01, 0.025)), H("bell").lerp(T("bell"), 0.45), T("bell"), T("bell") + Vector((0, 0.004, -0.012))],
           [(0.016, 0.024), (0.012, 0.02), (0.009, 0.014), (0.004, 0.006)], 8, FUR, {"bell": 0.85, "neck": 0.15}, ref=(0, 1, 0), cap1="point")
 
-# The antlers: a moose's, small. Each a short beam out of the skull, out and up and a little back, to a flat palm turned up,
+# The antlers: a moose's, big for a rat's head (the director, Look Review, 23 Oct: "their moose antlers need to be bigger";
+# note 1015: about twice the span they were, the palms reading from across a yard). Each a short beam out of the skull, out and up and a little back, to a flat palm turned up,
 # its tines along the palm's outer edge, and a brow tine forward off the beam. The left grown bigger; the right stunted,
 # its palm smaller and curled in. The velvet torn and hanging off both in shreds.
 ANTLER_TIPS, VELVET_AT = [], []
@@ -336,11 +337,14 @@ ANTLER_TIPS, VELVET_AT = [], []
 def antler(sx, size, curl, n_tines, seed):
     root = Vector((sx * 0.035, 0.405, 0.415))
     out = Vector((sx * 0.7, 0.05, 0.7)).normalized()
-    knee = root + out * 0.05 * size
-    beam_end = knee + Vector((sx * 0.6, -0.1, 0.35)).normalized() * 0.045 * size
-    fine.tube([root - out * 0.012, knee, beam_end], [0.014 * size, 0.011 * size, 0.01 * size], 7, ANTLER, "head", ref=(0, 1, 0), cap0="point")
+    # (The beam short, as a moose's is, so the palm spreads close off the skull: grown with the rest, it was a stalk.)
+    knee = root + out * 0.05 * size ** 0.6
+    beam_end = knee + Vector((sx * 0.6, -0.1, 0.35)).normalized() * 0.045 * size ** 0.6
+    # (The beam and the burr thicken slower than the antler grows: a rat's skull carries them.)
+    th = size ** 0.7
+    fine.tube([root - out * 0.012, knee, beam_end], [0.014 * th, 0.011 * th, 0.01 * th], 7, ANTLER, "head", ref=(0, 1, 0), cap0="point")
     # The burr at its root, rough.
-    fine.blob(root + out * 0.006, (0.017 * size, 0.017 * size, 0.008 * size), 9, 4, ANTLER, "head", rot=Vector((0, 0, 1)).rotation_difference(out).to_matrix())
+    fine.blob(root + out * 0.006, (0.017 * th, 0.017 * th, 0.008 * th), 9, 4, ANTLER, "head", rot=Vector((0, 0, 1)).rotation_difference(out).to_matrix())
     # The palm: a flattened oval, broad out and back from the beam's end, tipped up and turned out; `curl` bends it in.
     pc = beam_end + Vector((sx * 0.035, -0.022, 0.012)) * size
     rot = R(rx=12, ry=-sx * (52 + 25 * curl), rz=sx * 18)
@@ -362,12 +366,12 @@ def antler(sx, size, curl, n_tines, seed):
         L = (0.034 + 0.02 * h01(seed + 1, k)) * size * (1 - 0.35 * curl)
         tip = edge + d * L
         ANTLER_TIPS.append(tip)
-        fine.tube([edge - d * 0.008 * size, edge.lerp(tip, 0.45), tip], [0.0075 * size, 0.005 * size, 0.0009], 5, ANTLER, "head", ref=(0, 0, 1),
+        fine.tube([edge - d * 0.008 * size, edge.lerp(tip, 0.45), tip], [0.0075 * th, 0.005 * th, 0.0009], 5, ANTLER, "head", ref=(0, 0, 1),
                   cap1="point")
     # The brow tine: forward and up off the beam, over the eye.
     b0 = root.lerp(knee, 0.6)
     b1 = b0 + Vector((sx * 0.006, 0.03, 0.012)) * size
-    fine.tube([b0, b0.lerp(b1, 0.5), b1], [0.006 * size, 0.0045 * size, 0.0008], 5, ANTLER, "head", ref=(0, 0, 1), cap1="point")
+    fine.tube([b0, b0.lerp(b1, 0.5), b1], [0.006 * th, 0.0045 * th, 0.0008], 5, ANTLER, "head", ref=(0, 0, 1), cap1="point")
     ANTLER_TIPS.append(b1)
     # The velvet: shreds of it torn and hanging off the beam and the palm's underside, swinging with the head (thin flat strips).
     for k in range(3):
@@ -379,8 +383,8 @@ def antler(sx, size, curl, n_tines, seed):
         fine.tube(pts_, [(0.006 * size, 0.0012), (0.005 * size, 0.001), (0.002 * size, 0.0006)], 4, VELVET, "head", ref=(sx, 0, 0), cap1="point")
 
 
-antler(-1, 1.8, 0.0, 5, 621)    # the left: grown big
-antler(1, 1.35, 0.7, 3, 631)    # the right: stunted, curled in
+antler(-1, 3.4, 0.0, 5, 621)    # the left: grown big
+antler(1, 2.6, 0.7, 3, 631)     # the right: stunted, curled in
 
 
 # ----------------------------------------------------------------------------------------------------------------

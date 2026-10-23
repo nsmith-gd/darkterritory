@@ -8,7 +8,7 @@ namespace DarkTerritory.Game.Tests;
 
 /// <summary>
 /// The Climbers (GDD v1.2 §21, App. A.4; tools/blender/climber.py; ARCHITECTURE §8 notes 122, 136): pacing the train it
-/// runs low on its six limbs along the line, not at the train; on the roofs it creeps flattened; in a dark car it waits low.
+/// runs low on all fours along the line, not at the train; on the roofs it slinks flattened; in a dark car it waits (note 1015).
 /// </summary>
 public class ClimberTests
 {

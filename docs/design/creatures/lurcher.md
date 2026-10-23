@@ -64,7 +64,7 @@ only do once you're caught.
 - **Lurcher + Ribbits:** the Ribbits' answer is to be in a group at least their size; the Lurcher's is to be in one at
   all. Together they herd a crew into one knot, which is what the Hollow House and the Close punish.
 - **Lurcher + the Hanger / the Lodger:** the house you ran into to get away from it has its own rule; you went in alone.
-- **Lurcher + the Pickers or Mouse Moose:** they pull crewmates to guard one crate each, apart; it takes the one guarding
+- **Lurcher + the Pickers or Moose Mouse:** they pull crewmates to guard one crate each, apart; it takes the one guarding
   the far one.
 
 ## 8. Early versus late
