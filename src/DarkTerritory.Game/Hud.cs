@@ -2206,7 +2206,7 @@ public static partial class Hud
         DeathCause.Drift => "THE GROUND CAME UP. YOU KEPT MOVING",
         DeathCause.TornOff => "WENT OFF THE RAILS WITH THE REAR CAR",
         DeathCause.Climbed => "SOMETHING CAME IN OFF THE ROOF",
-        DeathCause.Struck => "STRUCK BY THE TUNNEL MOUTH",
+        DeathCause.Struck => "STRUCK BY THE LOW CLEARANCE", // a tunnel mouth or a through truss (note 1002)
         DeathCause.Thrown => "THROWN OFF ON THE CURVE",
         DeathCause.Burned => "BURNED IN A BLAZING CAR",
         DeathCause.Exploded => "BLOWN UP WITH THE POWDER CAR",
