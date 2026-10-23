@@ -367,6 +367,12 @@
     // A pair module only people playing can make up (one bot at the winch, someone playing for the other handle) is waited
     // on while the loading's getting somewhere: this long with nothing loading, and the bots leave it (seconds).
     "peopleWait": 45,
+    // Note 995 (the director's playtest of 23 Oct, lines 2-4: "The train left without me ... while I was exploring the town";
+    // "the train does not stop and wait for me to get on"; "I fell off the train. Is he going to stop for me?"): a bot driver
+    // never leaves someone playing who's afoot by the train, at the gate, at a stop's points, or fallen off behind it. It
+    // waits (or sets back for them) this long, then leaves them as a deserter (seconds). The dawn doesn't cut it short: a
+    // person left behind is fetched as the crew's bots aren't once the dawn's near (#613).
+    "peopleLeftSeconds": 600,
     // Note 326 (GDD App. F.3: "crews decide whether to split up for more loot, or work the yard together, or the village
     // together"): once the yard's crates are in, this share of the crate hands go to search the village's open houses
     // (the rest shut the doors), each to the nearest hiding spot nobody else has taken within villageReach (m) of where it
