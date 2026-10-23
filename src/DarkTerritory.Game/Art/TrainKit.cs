@@ -287,7 +287,7 @@ public static partial class TrainKit
     /// <param name="gear">With its drivers and rods in it (a still engine: the catalog's, a wreck's). Without, they're
     /// drawn apart each frame turning with the train's going (SceneArt.Gear).</param>
     /// <param name="paint">The train's livery (note 714; composition.livery): 0 the works' rust.</param>
-    public static MeshAsset Engine(Look? look, CarShape shape, int variant, bool gear = true, int paint = 0)
+    public static MeshAsset Engine(Look? look, CarShape shape, int variant, bool gear = true, int paint = 0, IReadOnlyList<DamageKit.Gap>? holes = null)
     {
         var k = new Kit(look, 101 + variant) { Paint = PaintOf(paint) };
         float w = (float)shape.HalfWidth, l = (float)shape.HalfLength;
@@ -488,7 +488,7 @@ public static partial class TrainKit
         foreach (int side in new[] { -1, 1 })
             k.Rod(new Vector3(side * (bw * 0.6f), top - 0.25f, sandDome.Z), new Vector3(side * (HalfGauge + 0.1f), 0.25f, drivers[0] - 0.8f), 0.02f, 5);
 
-        Cab(k, shape, w, deck, cabFront, cabBack, bw, top, roofLow, roofTop);
+        Cab(k, shape, w, deck, cabFront, cabBack, bw, top, roofLow, roofTop, holes ?? []);
         Bunker(k, shape, deck, roofLow, roofTop, w);
         RunningBoards(k, shape);
         CouplerPlates(k, shape);
@@ -798,9 +798,11 @@ public static partial class TrainKit
     /// <summary>
     /// The tear itself, drawn over the casing at <see cref="RuptureSeam"/> while she's ruptured: a ragged black hole
     /// in a scorch of soot, its plate peeled back in petals bent out from the edge, and burst tubes curling out of it.
-    /// Its own frame: the casing's face is x = 0, outward −X; Y up, Z along the engine.
+    /// Its own frame: the casing's face is x = 0, outward −X; Y up, Z along the engine. <paramref name="open"/>: the hood's
+    /// plate is cut away under it (DamageKit.HoodHole, note 1014), so it's a real hole: no black drawn in it, and the soot
+    /// only round it.
     /// </summary>
-    public static MeshAsset RuptureTear(Look? look)
+    public static MeshAsset RuptureTear(Look? look, bool open = false)
     {
         var k = new Kit(look, 77);
         const int n = 9;
@@ -819,12 +821,20 @@ public static partial class TrainKit
             var e0 = edge[i] * 1.6f + new Vector3(-0.004f, 0.05f, 0);
             var e1 = edge[(i + 1) % n] * 1.6f + new Vector3(-0.004f, 0.05f, 0);
             // (Both windings: it's seen from out along −X, and cheap.)
+            if (open)
+            {
+                // A ring round the hole, from its edge out.
+                var i0 = edge[i] with { X = -0.004f };
+                var i1 = edge[(i + 1) % n] with { X = -0.004f };
+                k.Quad(i0, i1, e1, e0, twoSided: true);
+                continue;
+            }
             k.Tri(new Vector3(-0.004f, 0, 0), e1, e0);
             k.Tri(new Vector3(-0.004f, 0, 0), e0, e1);
         }
         // The hole: black, the dark of the boiler's inside.
         k.Use("paint_black", new Vector3(0.01f, 0.01f, 0.01f), 1, 0);
-        for (int i = 0; i < n; i++)
+        for (int i = 0; i < n && !open; i++)
         {
             k.Tri(new Vector3(-0.008f, 0, 0), edge[(i + 1) % n] with { X = -0.008f }, edge[i] with { X = -0.008f });
             k.Tri(new Vector3(-0.008f, 0, 0), edge[i] with { X = -0.008f }, edge[(i + 1) % n] with { X = -0.008f });
@@ -880,7 +890,7 @@ public static partial class TrainKit
             k.Rod(p0, p1, 0.022f, 6);
             k.Rod(p1, p2, 0.022f, 6);
         }
-        return k.Build("rupture-tear");
+        return k.Build(open ? "rupture-tear-open" : "rupture-tear");
     }
 
     /// <summary>
@@ -1573,7 +1583,8 @@ public static partial class TrainKit
     /// an arched roof; and in its back wall, where the boiler comes through, the backhead: the firebox door's frame, four
     /// gauges, the water glass and pipework (GDD §12, the Conductor's and the Boiler's place), facing forward into the cab.
     /// </summary>
-    static void Cab(Kit k, CarShape shape, float w, float deck, float cabFront, float cabBack, float bw, float top, float roofLow, float roofTop)
+    static void Cab(Kit k, CarShape shape, float w, float deck, float cabFront, float cabBack, float bw, float top, float roofLow, float roofTop,
+        IReadOnlyList<DamageKit.Gap> holes)
     {
         float waist = deck + 1.1f;
         // Where the doorway starts: under its lintel (the sim's, the standard doorway: note 110).
@@ -1587,7 +1598,20 @@ public static partial class TrainKit
             var faces = front ? Kit.Faces.PosZ | Kit.Faces.PosY | Kit.Faces.PosX | Kit.Faces.NegX
                 : waistWall ? (b.Min.X < 0 ? Kit.Faces.PosX : Kit.Faces.NegX) | Kit.Faces.PosY | Kit.Faces.PosZ | Kit.Faces.NegZ : Kit.Faces.All; // (its ends a side door's jambs, note 856)
             Plate(k);
-            k.Box(F(b.Min), F(b.Max), faces);
+            // The boiler burst through the hood (note 1014): its plate gone round the tear, the corridor's dark through it.
+            int side = b.Max.X < 0 ? -1 : b.Min.X > 0 ? 1 : 0;
+            var pieces = side != 0 && holes.Count > 0 ? DamageKit.Pieces(F(b.Min), F(b.Max), holes, side) : [(F(b.Min), F(b.Max))];
+            foreach (var (pmin, pmax) in pieces)
+            {
+                var cut = DamageKit.CutFaces(pmin, pmax, F(b.Min), F(b.Max));
+                k.Box(pmin, pmax, faces & ~cut);
+                if (cut != 0)
+                {
+                    DamageKit.Raw(k, iron: true);
+                    k.Box(pmin, pmax, cut);
+                    Plate(k);
+                }
+            }
         }
         CabShell(k, shape, w, deck, cabFront, cabBack, doorFront, roofLow, bw);
         foreach (int side in new[] { -1, 1 })
@@ -2344,8 +2368,12 @@ public static partial class TrainKit
         k.Tint *= (livery switch { Livery.Planked => IronTint, Livery.Steel => PlateTint, _ => new Vector3(0.62f, 0.55f, 0.45f) }) * k.Paint;
     }
 
-    public static MeshAsset Car(Look? look, CarShape shape, Livery livery, int variant, bool load = true, bool wheel = true, int paint = 0)
+    public static MeshAsset Car(Look? look, CarShape shape, Livery livery, int variant, bool load = true, bool wheel = true, int paint = 0,
+        DamageKit.Holes? holes = null)
     {
+        holes ??= DamageKit.Holes.None;
+        // (Its broken boards' ends: split wood, or on a steel car plate scraped bright, as DamageKit.Failing's sprung boards.)
+        bool iron = livery == Livery.Steel;
         var k = new Kit(look, 7 + variant * 3 + (int)livery) { Paint = PaintOf(paint) };
         var interior = shape.Interior!.Value;
         float w = (float)shape.HalfWidth, l = (float)shape.HalfLength, h = (float)shape.RoofHeight;
@@ -2365,11 +2393,25 @@ public static partial class TrainKit
             if (min.X <= -w + 1e-3f) outer |= Kit.Faces.NegX;
             if (max.Z >= l - 1e-3f) outer |= Kit.Faces.PosZ;
             if (min.Z <= -l + 1e-3f) outer |= Kit.Faces.NegZ;
-            Outside();
-            k.Box(min, max, outer);
-            Lining();
-            k.Box(min, max, Kit.Faces.All & ~outer);
+            // Failing (note 1014): its boards gone where its holes are, cut right through the wall, their broken ends raw.
+            int side = (outer & Kit.Faces.PosX) != 0 ? 1 : (outer & Kit.Faces.NegX) != 0 ? -1 : 0;
+            var pieces = side != 0 && holes.Walls.Count > 0 ? DamageKit.Pieces(min, max, holes.Walls, side) : [(min, max)];
+            foreach (var (pmin, pmax) in pieces)
+            {
+                var cut = DamageKit.CutFaces(pmin, pmax, min, max);
+                Outside();
+                k.Box(pmin, pmax, outer & ~cut);
+                Lining();
+                k.Box(pmin, pmax, Kit.Faces.All & ~outer & ~cut);
+                if (cut != 0)
+                {
+                    DamageKit.Raw(k, iron);
+                    k.Box(pmin, pmax, cut);
+                }
+            }
         }
+        if (holes.Walls.Count > 0)
+            DamageKit.Splinters(k, holes.Walls, w, t, iron);
         // Outside framing: posts and braces on a planked car, ribs on steel, plate straps on armour.
         Outside();
         k.Shade(0.85f);
@@ -2430,8 +2472,11 @@ public static partial class TrainKit
         bool InHatch(float z0, float z1) => z1 > hz0 && z0 < hz1;
         var spans = shape.Hatch is null ? new[] { (-l, l) } : new[] { (-l, hz0), (hz1, l) };
         Lining();
+        // (Open to the sky where its sheets are gone: note 1014.)
+        var roofHoles = holes.Roof.Select(g => g.Side > 0 ? (g.Inner, w + 0.1f, g.Z0, g.Z1) : (-w - 0.1f, -g.Inner, g.Z0, g.Z1)).ToList();
         foreach (var (z0, z1) in spans)
-            k.Box(new Vector3(-w, ceiling, z0), new Vector3(w, ceiling + 0.01f, z1), Kit.Faces.NegY);
+            foreach (var (x0, x1, za, zb) in DamageKit.Subtract((-w, w, z0, z1), roofHoles))
+                k.Box(new Vector3(x0, ceiling, za), new Vector3(x1, ceiling + 0.01f, zb), Kit.Faces.NegY);
         k.Use("wood_sleeper", Palette.DeepBrown, 0.9f, 0);
         for (float z = -l + 1; z < l - 0.5f; z += 1.1f)
             if (!InHatch(z - 0.05f, z + 0.05f))
@@ -2449,7 +2494,14 @@ public static partial class TrainKit
             profile.Add(new Vector2(-w - 0.07f, ceiling + 0.04f));
             profile.Add(new Vector2(-w - 0.07f, ceiling - 0.02f));
             foreach (var (z0, z1) in spans)
-                k.Prism(profile, z0 == -l ? -l - 0.06f : z0, z1 == l ? l + 0.06f : z1, caps: true, smooth: false);
+                foreach (var (za, zb, xl, xr) in DamageKit.RoofSpans(z0 == -l ? -l - 0.06f : z0, z1 == l ? l + 0.06f : z1, holes.Roof))
+                    k.Prism(xl is null && xr is null ? profile : DamageKit.RoofProfile(w, h, ceiling, xl, xr), za, zb, caps: true, smooth: false);
+            if (holes.Roof.Count > 0)
+            {
+                DamageKit.RoofEdges(k, holes.Roof, w, h);
+                k.Use(livery == Livery.Planked ? "corrugated_iron" : "iron_plate", Palette.IronGrey, 0.9f, 0.3f, tile: 1.2f);
+                k.Tint *= IronTint;
+            }
         }
         if (shape.Hatch is { } hatch)
         {
