@@ -42,7 +42,7 @@ public enum EnemyKind : byte
     // The Mouse Moose (GDD §21, the director, 15 Oct 2026; note 790).
     MouseMoose = 47,
     // The Head Waiter (GDD §21, Sloe's proposal, note 1004; built behind a flag, note 1008: awaiting the director's verdict).
-    HeadWaiter = 48
+    HeadWaiter = 50
 }
 
 /// <summary>
