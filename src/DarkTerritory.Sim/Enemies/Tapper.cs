@@ -35,6 +35,8 @@ public sealed class Tapper(int id) : Enemy(id)
     public override Sense Sense => Sense.Sight;
     public override Want Want => Want.Split;
     public override double MeleeRadius => Gone ? 0 : 1.2;
+    /// <summary>Flat on the roof crawling or flinched: a third of its height (up on its knees at the tap and the lift).</summary>
+    public override double Stoop(EnemyTuning t) => Mode is TapperMode.Crawl or TapperMode.Flinch ? 0.3 : 1;
     /// <summary>It's there for the gunner alone, nobody else near: the director never dismisses it for want of company.</summary>
     public override bool StaysAboard => true;
 
