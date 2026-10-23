@@ -564,6 +564,8 @@ public sealed class Director
         }
         // The final surge (#663, note 960): what the terminus approach's quiet would have owed, before it.
         EncounterRate *= Surge;
+        // By the train's state (note 999): running or stopped, a stop's ramping with the seconds stood.
+        EncounterRate *= Enemies.Stance.Rate(Stance, StoodSeconds, e.Stance);
         double headroom = Math.Max(0, EngagedCap - Holding(world, active).Count);
         _clock = (_clock with { Progress = progress }).Second(EncounterRate / 60, _hold, _unmet, headroom, e);
     }
@@ -608,9 +610,50 @@ public sealed class Director
         var surge = _t.Encounters.Drive.FinalSurge;
         Surge = surge.On && _route is { } surgeRoute ? surge.At(ToKeptQuiet(world.Train.Dynamics.Distance, surgeRoute, noSpawnFinal), Active) : 1;
         TrackFar(world, active);
+        Read(world);
         var attempt = ChooseNow(world, elapsed, active, noSpawnFinal);
         Pace(world, elapsed, active);
+        // Sent at someone for a reason (note 999): only a kind that answers what the aimed-at crewmate is doing.
+        if (attempt is not null && Aimed is { } aim && Targeting.Answers(aim.Doing, attempt.Kind, _t.Encounters.Target))
+            attempt = attempt with { Aim = aim };
         return attempt;
+    }
+
+    /// <summary>The train's state this second (note 999): running or stopped, and how.</summary>
+    public StanceKind Stance { get; private set; }
+    /// <summary>Seconds the train has stood since it last ran (note 999's stood ramp).</summary>
+    public double StoodSeconds { get; private set; }
+    double _lastSpeed;
+    /// <summary>The crewmate the director aims at this second and why (note 999), or null (targeting off, nobody to aim at).</summary>
+    public Aim? Aimed { get; private set; }
+    /// <summary>Tonight's encounters placed at someone for what they were doing (note 999), by the doing's name.</summary>
+    public IReadOnlyDictionary<string, int> Targeted => _targeted;
+    readonly SortedDictionary<string, int> _targeted = new(StringComparer.Ordinal);
+    /// <summary>Director seconds spent in each stance tonight (note 999), by its name.</summary>
+    public IReadOnlyDictionary<string, double> StanceSeconds => _stanceSeconds;
+    readonly SortedDictionary<string, double> _stanceSeconds = new(StringComparer.Ordinal);
+    /// <summary>Tonight's encounters placed in each stance (note 999), by its name.</summary>
+    public IReadOnlyDictionary<string, int> PlacedByStance => _placedByStance;
+    readonly SortedDictionary<string, int> _placedByStance = new(StringComparer.Ordinal);
+
+    /// <summary>
+    /// Once a second, before the choice (note 999): the train's stance and the seconds it has stood, and whom to aim at. Reads
+    /// only; the choice and the rate read it back.
+    /// </summary>
+    void Read(World world)
+    {
+        var st = _t.Encounters.Stance;
+        double speed = world.Train.Dynamics.Speed;
+        Stance = Enemies.Stance.Of(speed, _lastSpeed, world.Run is { Phase: Run.RunPhase.AtFacility }, StopAt(world), st);
+        _lastSpeed = speed;
+        StoodSeconds = Enemies.Stance.Stopped(Stance) ? StoodSeconds + 1 : 0;
+        string name = Enemies.Stance.Name(Stance);
+        _stanceSeconds[name] = _stanceSeconds.GetValueOrDefault(name) + 1;
+        var tt = _t.Encounters.Target;
+        Aimed = tt.On
+            ? Targeting.Pick(Targeting.Read(world, Posts.Entries, _t.Abandoned.BehindM, _t.Orchestrator.DrivingAbove, tt),
+                Enemies.Stance.Stopped(Stance), _t.Orchestrator.PerTarget ? PerCrewmate : 0, tt)
+            : null;
     }
 
     SpawnAttempt? ChooseNow(World world, double elapsed, IReadOnlyList<Enemy> active, double noSpawnFinal)
@@ -848,7 +891,7 @@ public sealed class Director
         // Everything that could come is for someone who has one on them already (note 345): nothing, this second. Only when
         // the census is what zeroed them: a list weighing nothing for other reasons is App. B.1's as it was (its last pick).
         bool weighed = options.Any(op => op.Weight > 0);
-        options = WhoseNext(ZoneSpread(options, holding));
+        options = Targeting.Weigh(WhoseNext(ZoneSpread(options, holding)), Aimed, _t.Encounters.Target);
         if (weighed && options.All(op => op.Weight <= 0))
             return Held("one on each");
         options = WeighVotes(options);
@@ -952,7 +995,7 @@ public sealed class Director
             Freshen(world, holding);
             return null;
         }
-        options = WeighVotes(WhoseNext(ZoneSpread(options, holding)));
+        options = WeighVotes(Targeting.Weigh(WhoseNext(ZoneSpread(options, holding)), Aimed, _t.Encounters.Target));
         double total = options.Sum(o => o.Weight);
         if (total <= 0)
             return null;
@@ -1144,6 +1187,7 @@ public sealed class Director
                 continue;
             options.Add((rule.Kind, w * _t.Weights.GetValueOrDefault(Key(rule.Kind), 1) * NightVariety(rule.Kind)));
         }
+        options = Targeting.Weigh(options, Aimed, _t.Encounters.Target);
         double total = options.Sum(o => o.Weight);
         if (total <= 0)
             return null;
@@ -1201,7 +1245,7 @@ public sealed class Director
         var holding = Holding(world, active);
         if (holding.Count >= EngagedCap)
             return null;
-        var options = WeighVotes(WhoseNext(ZoneSpread(FreeOptions(world, et, holding, active, withBound: true), holding)));
+        var options = WeighVotes(Targeting.Weigh(WhoseNext(ZoneSpread(FreeOptions(world, et, holding, active, withBound: true), holding)), Aimed, _t.Encounters.Target));
         double total = options.Sum(o => o.Weight);
         if (total <= 0)
             return null;
@@ -2340,6 +2384,13 @@ public sealed class Director
             return outcome;
         }
         HeldBecause = null;
+        string stance = Enemies.Stance.Name(Stance);
+        _placedByStance[stance] = _placedByStance.GetValueOrDefault(stance) + 1;
+        if (attempt.Aim is { } aimed)
+        {
+            string doing = Targeting.Name(aimed.Doing);
+            _targeted[doing] = _targeted.GetValueOrDefault(doing) + 1;
+        }
         // Placed, by whichever channel: one encounter off the night's account (#608, note 908), a pack as one.
         if (_t.Encounters.Drive.On)
             _clock = _clock.Paid(EncounterClock.NextThreshold(_paceRng.NextDouble(), _t.Encounters), _t.Encounters);
