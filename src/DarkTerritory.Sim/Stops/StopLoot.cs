@@ -274,7 +274,8 @@ public static class StopLoot
                 for (int draw = 1; draw < levelDraws; draw++)
                 {
                     string other = kind.Items[(int)(deeper.NextDouble() * kind.Items.Length)];
-                    if (t.WorthOf(other, perCar) > t.WorthOf(item, perCar))
+                    // (Never up to a find that heals: they stay as rare as one draw has them, GDD App. F.1.)
+                    if (t.WorthOf(other, perCar) > t.WorthOf(item, perCar) && (t.Healing?.Of(other) ?? 0) <= 0)
                         item = other;
                 }
                 return new LootFind(c.Index, item, t.WorthOf(item, perCar));
