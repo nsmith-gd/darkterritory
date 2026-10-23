@@ -235,7 +235,15 @@
     "craneOrderSeconds": 600,
     // Note 936: how far from where it stands a hand sent to the town by a ping goes to search its houses (m), past
     // facilities.json crew.villageReach: a house is pinged from as far off as townRange, and its rooms are further in.
-    "townReach": 300
+    "townReach": 300,
+    // Note 1010 (the director, 23 Oct: "once he goes and does it, just get rid of it. Get rid of the ping"): how long a ping
+    // a crewmate took stays up once they've stopped answering it (s), their job done (or given up). A moment, not seconds:
+    // a dropped tick's answer doesn't take it down.
+    "doneSeconds": 1,
+    // Note 1010 (the director, 23 Oct: "point in the direction of a village ... we're gonna go loot this place"): how long a
+    // village pinged before the train stands at its stop stays up for it (s), nobody's yet (no bot can search it from the
+    // line). It goes sooner once the train's past the stop.
+    "townAheadSeconds": 240
   },
   "emotes": {
     "dance": 8,

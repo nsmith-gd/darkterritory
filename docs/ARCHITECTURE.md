@@ -1164,4 +1164,5 @@ written here instead is moved out by `tools/coord/notes.py split`; the Coordinat
 - [1002. The wall folk's faces: the wall watch and the fort folk from the lookbook (Birch, the Token Budget Manager's worker on nathaniel2; queue…](notes/1002.md)
 - [1001. The cars' side doors (Ash, nathaniel2; queue #707; `docs/playtest/2026-10-23.md` line 20): every car's body cooked apart](notes/1001.md)
 - [1004. Every creature foils a behaviour: the creature list again, by the director's verdicts on Moth's nine; a behaviour → foil table, the Close,…](notes/1004.md)
+- [1010. The ping: a village means search it, a ping needs line of sight, and it clears when done (Hazel, nathaniel2; queue #700; the director's…](notes/1010.md)
 <!-- end of the notes index -->
