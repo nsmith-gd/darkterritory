@@ -1159,4 +1159,5 @@ written here instead is moved out by `tools/coord/notes.py split`; the Coordinat
 - [999. Pressure by state and by player: the director reads whether the train runs or stands, what each crewmate is doing, and sends its threats at…](notes/999.md)
 - [1000. More creatures, made to be composed: the roster mapped by where it presses players, and nine new creatures proposed for the gaps (Moth,…](notes/1000.md)
 - [1004. Every creature foils a behaviour: the creature list again, by the director's verdicts on Moth's nine; a behaviour → foil table, the Close,…](notes/1004.md)
+- [1010. The ping: a village means search it, a ping needs line of sight, and it clears when done (Hazel, nathaniel2; queue #700; the director's…](notes/1010.md)
 <!-- end of the notes index -->

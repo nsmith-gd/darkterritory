@@ -21,7 +21,7 @@ public readonly record struct PingEvent(int Id, uint Tick, int By, PingKind Kind
 
 /// <summary>Field docs live in player.json <c>pings</c>.</summary>
 public sealed record PingTuning(double Range = 60, double ConeDegrees = 12, double Seconds = 20, double OrderSeconds = 120, double Cooldown = 0.5, double TownRange = 150,
-    double CraneOrderSeconds = 600, double TownReach = 300);
+    double CraneOrderSeconds = 600, double TownReach = 300, double DoneSeconds = 1, double TownAheadSeconds = 240);
 
 /// <summary>
 /// Note 739 (the director's second playtest, 14 Oct 2026: "I'm going to want to use my middle mouse button to create some
@@ -47,9 +47,10 @@ public static class Pings
             view = f.Right * localView.X + f.Up * localView.Y + f.Back * localView.Z;
         }
         double cone = DMath.Cos(t.ConeDegrees * Math.PI / 180);
-        (PingKind, int, Double3)? best = null;
-        double bestCos = cone;
-        void Consider(PingKind kind, int target, Double3 at, double radius = 0)
+        // Everything in the cone, each with how near the middle of the view it is and whether it has to be seen (note 1010);
+        // the nearest the middle that's seen wins, ties to the first considered.
+        var candidates = new List<(double Cos, int Order, PingKind Kind, int Target, Double3 At, bool Sight)>();
+        void Consider(PingKind kind, int target, Double3 at, double radius = 0, bool sight = false)
         {
             var to = at - eye;
             double d = to.Length;
@@ -57,16 +58,23 @@ public static class Pings
                 return;
             // Something big is looked at anywhere on it: its cone widened by its size where it is.
             double c = Double3.Dot(to * (1 / d), view) + Math.Min(0.5, radius / d) * (1 - cone);
-            if (c > bestCos)
-                (bestCos, best) = (c, (kind, target, at));
+            if (c > cone)
+                candidates.Add((c, candidates.Count, kind, target, at, sight));
         }
-        // Note 739 part two, the abandoned town: a house of the stop's village, looked at anywhere on it. First, so anything
-        // else as near the middle of the view (a find at its door, the crane) is pinged rather than the town round it.
-        if (world.Run is { CurrentSite: { } here } run && train.Walls is { } walls && run.StopOf(here.Feature) is ( >= 0 and var stop, var feature))
-        {
-            foreach (var h in walls.OpenHouses.Where(h => h.Feature == feature))
-                Consider(PingKind.Town, stop, h.Middle + Double3.Up * 2, Math.Max(h.Plan.HalfX, h.Plan.HalfY));
-        }
+        // Note 739 part two, the abandoned town: a house of a stop's village, looked at anywhere on it. First, so anything
+        // else as near the middle of the view (a find at its door, the crane) is pinged rather than the town round it. Note
+        // 1010 (the director, 23 Oct: "even if I just sort of like point in the direction of a village ... we're gonna go loot
+        // this place"): any stop's village in reach, not only the one the train stands at; the bots take it once it does.
+        var villages = new Dictionary<int, List<Run.StopWalls.OpenHouse>>();
+        if (world.Run is { } run && train.Walls is { } walls)
+            foreach (var h in walls.OpenHouses)
+                if (run.StopAt(h.Feature) is >= 0 and var stop && (h.Middle - eye).Length <= t.TownRange + 50)
+                {
+                    Consider(PingKind.Town, stop, h.Middle + Double3.Up * 2, Math.Max(h.Plan.HalfX, h.Plan.HalfY));
+                    if (!villages.TryGetValue(stop, out var houses))
+                        villages[stop] = houses = [];
+                    houses.Add(h);
+                }
         foreach (var e in world.ActiveEnemies.OfType<CarFire>().Where(e => !e.Gone && e.Attached > 0 && e.Attached < train.Frames.Count).OrderBy(e => e.Id))
         {
             var car = train.Frames[e.Attached];
@@ -76,7 +84,7 @@ public static class Pings
         if (train.Frames.Count > 0 && train.Frames[0] is var engine && (engine.Shape.Levers?.Regulator ?? (engine.Shape.Cab is { } cab ? (cab.Min + cab.Max) * 0.5 : null)) is { } controls)
             Consider(PingKind.Cab, 0, engine.ToWorld(controls), 0.6);
         foreach (var b in world.Bodies.All.Where(b => b.Kind == Physics.BodyKind.Loot && b.Carrier < 0).OrderBy(b => b.Id))
-            Consider(PingKind.Loot, b.Id, Physics.Bodies.WorldCentre(b, train), 0.4);
+            Consider(PingKind.Loot, b.Id, Physics.Bodies.WorldCentre(b, train), 0.4, sight: true);
         if (world.Run?.CurrentSite is { } site)
         {
             for (int i = 0; i < site.Cranes.Count; i++)
@@ -85,7 +93,7 @@ public static class Pings
             // crate of its cargo on the ground, and a cargo car with its door open to load it into.
             foreach (var b in world.Bodies.All.Where(b => b.Kind is Physics.BodyKind.Cargo or Physics.BodyKind.Heavy && b.Carrier < 0 && !b.Stowed
                 && b.Parent == PlayerState.World).OrderBy(b => b.Id))
-                Consider(PingKind.Cargo, 0, Physics.Bodies.WorldCentre(b, train), 0.5);
+                Consider(PingKind.Cargo, 0, Physics.Bodies.WorldCentre(b, train), 0.5, sight: true);
             var layout = train.Dynamics.Tuning.Geometry.Interior;
             foreach (var v in train.Dynamics.Consist.Vehicles.Where(v => v.Kind == VehicleKind.Cargo && v.Id < train.Frames.Count).OrderBy(v => v.Id))
                 for (int side = -1; side <= 1 && layout is not null; side += 2)
@@ -98,6 +106,64 @@ public static class Pings
         if (world.Switches is { } stands)
             for (int i = 0; i < train.Line.Branches.Count; i++)
                 Consider(PingKind.Points, i, stands.LeverAt(train.Line, i), 0.8);
-        return best;
+        foreach (var c in candidates.OrderByDescending(c => c.Cos).ThenBy(c => c.Order))
+            if (!c.Sight || Seen(world, eye, c.At))
+                return (c.Kind, c.Target, c.At);
+        return Village(villages, eye, view, t);
+    }
+
+    /// <summary>
+    /// Note 1010 (the director, 23 Oct: "even if I just sort of like point in the direction of a village"): with nothing else
+    /// pinged, a village looked towards anywhere across it, not only at a house: the one whose spread of houses the view
+    /// passes nearest the middle of (within the cone), its middle in <see cref="PingTuning.TownRange"/>. Null with none.
+    /// </summary>
+    static (PingKind Kind, int Target, Double3 At)? Village(Dictionary<int, List<Run.StopWalls.OpenHouse>> villages, Double3 eye, Double3 view, PingTuning t)
+    {
+        double coneAngle = t.ConeDegrees * Math.PI / 180;
+        (double Off, int Stop, Double3 At)? best = null;
+        foreach (var (stop, houses) in villages.OrderBy(v => v.Key))
+        {
+            var middle = houses.Aggregate(Double3.Zero, (a, h) => a + h.Middle) * (1.0 / houses.Count) + Double3.Up * 2;
+            double radius = houses.Max(h => (h.Middle - middle with { Y = h.Middle.Y }).Length + Math.Max(h.Plan.HalfX, h.Plan.HalfY));
+            var to = middle - eye;
+            double d = to.Length;
+            if (d < 1e-6 || d > t.TownRange)
+                continue;
+            double off = Math.Acos(Math.Clamp(Double3.Dot(to * (1 / d), view), -1, 1)) - Math.Atan(radius / d);
+            if (off <= coneAngle && (best is null || off < best.Value.Off))
+                best = (off, stop, middle);
+        }
+        return best is { } b ? (PingKind.Town, b.Stop, b.At) : null;
+    }
+
+    /// <summary>
+    /// Note 1010 (the director, 23 Oct: "I can just, like, throw my ping around to find random loot. It should check a cast to
+    /// be like, can you actually see this or not?"): whether the pinger's eye has a clear line to <paramref name="at"/>: no car
+    /// of the train, no wall (a house's, a shed's, a fort's), and no ground in the way. The cast starts a hand's breadth out
+    /// (an eye against a wall isn't blinded by it) and stops short of the thing (it lies on something, a floor or a shelf).
+    /// </summary>
+    public static bool Seen(World world, Double3 eye, Double3 at)
+    {
+        const double Skin = 0.15, Short = 0.4, Step = 1, GroundSlack = 0.3;
+        var to = at - eye;
+        double d = to.Length;
+        if (d <= Skin + Short)
+            return true;
+        var dir = to * (1 / d);
+        var start = eye + dir * Skin;
+        double span = d - Skin - Short;
+        var train = world.Train;
+        if (Combat.Guns.TrainRaycast(train, start, dir, span) < span)
+            return false;
+        if (train.Walls is { } walls && walls.Raycast(start, start + dir * span) < span)
+            return false;
+        if (train.Line.Conditions is { } ground)
+            for (double s = Step; s < span; s += Step)
+            {
+                var p = start + dir * s;
+                if (p.Y < ground.Ground(p) - GroundSlack)
+                    return false;
+            }
+        return true;
     }
 }
