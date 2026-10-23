@@ -65,5 +65,10 @@ public sealed class ReportInkTests : IDisposable
         Assert.Equal([2, 9], Hud.ReportKept(lines, 3, 1));
         // A line too tall for what's left is passed over for a shorter one of a lower rank.
         Assert.Equal([0, 2], Hud.ReportKept([(1, G), (3, D), (1, E)], 3, 1));
+        // Note 994 (the director's playtest of 23 Oct, line 13: "Just give us the highlights. Not necessarily like every
+        // kill"): with room for all ten, only the highlights: the end, the death and the car lost, in the order they happened.
+        Assert.Equal([2, 5, 9], Hud.ReportKept(lines, 10, 1, most: 3));
+        Assert.Equal([0, 1], Hud.ReportKept(lines[..2], 10, 1, most: 3));
+        Assert.Equal(3, DataFile.Load<HudTuning>(Path.Combine(DataFile.FindContentRoot(), HudTuning.File)).ReportHighlights);
     }
 }

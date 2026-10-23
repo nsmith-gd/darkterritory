@@ -34,7 +34,7 @@ public static class PlanRoutes
                     features.Add(new RouteFeature(FeatureKind.Tunnel, st.S0, st.S1));
                     break;
                 case StructureType.Trestle or StructureType.Girder or StructureType.Truss or StructureType.Viaduct:
-                    features.Add(new RouteFeature(FeatureKind.Bridge, st.S0, st.S1, MaxCars: st.Weak?.MaxCars ?? 0));
+                    features.Add(new RouteFeature(FeatureKind.Bridge, st.S0, st.S1, MaxCars: st.Weak?.MaxCars ?? 0) { Through = st.Type == StructureType.Truss });
                     break;
             }
         foreach (var poi in plan.Pois)
