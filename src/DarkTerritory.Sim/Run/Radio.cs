@@ -59,10 +59,17 @@ public static class Radio
         // GDD §19: the most valuable cargo there is, read like the coal.
         if (report.ChildrenHome > 0)
             lines.Add($"Child survivor{(report.ChildrenHome == 1 ? "" : "s")}: {report.ChildrenHome}. Paid {report.ChildPay:0}.");
-        foreach (var death in report.Lines.Where(l => l.Kind == IncidentKind.Death))
-            lines.Add(death.Refund > 0
-                ? $"{death.Who}. Body recovered. Fee {death.Fee:0}. Refund {death.Refund:0}."
-                : $"{death.Who}. Body not recovered. Fee {death.Fee:0}.");
+        // Each crewmate's bodies read once (the director's playtest of 23 Oct, line 12, note 994: "Body not recovered. Fee 350.
+        // Body not recovered. Fee 350 ... I should only get body not recovered once"): a crewmate who died twice in the night
+        // (freed from a Holdout, App. D.8, and lost again) is one line, their fees added, not the same line said twice. The
+        // bodies brought home and those left are each read once a crewmate, in the order they first died.
+        foreach (var group in report.Lines.Where(l => l.Kind == IncidentKind.Death).GroupBy(l => (l.Who, Home: l.Refund > 0)))
+        {
+            double fee = group.Sum(l => l.Fee), refund = group.Sum(l => l.Refund);
+            lines.Add(group.Key.Home
+                ? $"{group.Key.Who}. Body recovered. Fee {fee:0}. Refund {refund:0}."
+                : $"{group.Key.Who}. Body not recovered. Fee {fee:0}.");
+        }
         if (report.Mail > 0)
             lines.Add($"Mail: {report.Mail:0}.");
         if (report.Scavenged > 0)

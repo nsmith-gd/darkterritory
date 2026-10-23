@@ -2572,6 +2572,22 @@ public static partial class Hud
         return null;
     }
 
+    /// <summary>
+    /// Note 996 (the director's playtest of 23 Oct, line 1: a felled coaling tower across the line, "the player has no way of
+    /// dealing with it"): within clearReach of the wreck, it's cleared by hand, Use held, the crew's seconds counted together.
+    /// </summary>
+    static string? WreckPrompt(IPlaySession s)
+    {
+        if (s.World.Enemies is not { } et)
+            return null;
+        var me = PlayerMotor.WorldPosition(s.Player, s.Train);
+        foreach (var e in s.World.ActiveEnemies)
+            if (e is Sim.Enemies.TowerJaw { Gone: false, Mode: Sim.Enemies.TowerJawMode.Wreck } jaw
+                && ((jaw.FallsAt - me) with { Y = 0 }).Length <= et.TowerJaw.ClearReach)
+                return Hold("CLEAR THE WRECK", jaw.Cleared / et.TowerJaw.ClearCrewSeconds);
+        return null;
+    }
+
     public static string? Prompt(IPlaySession s)
     {
         var p = s.Player;
@@ -2598,6 +2614,8 @@ public static partial class Hud
         // Note 945: at a Knotter held taut, where a blow reaches it: why the blows aren't landing.
         if (KnotterPrompt(s) is { } taut)
             return taut;
+        if (WreckPrompt(s) is { } wreck)
+            return wreck;
         // A mail crane's last seconds, in the open door on its side (note 673): the hook, before anything else in reach.
         if (MailPrompt(s) is { } hook)
             return hook;
