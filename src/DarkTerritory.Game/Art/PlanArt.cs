@@ -367,7 +367,7 @@ public sealed partial class WorldArt
         var forts = Forts(line);
         foreach (var prop in lineside?.Props(from, to) ?? [])
         {
-            if (prop.Kind == Sim.Run.LinesideKind.Pole || Sim.Run.LinesideProps.InsideAFort(forts, prop.Along, prop.Lateral))
+            if (prop.Kind == Sim.Run.LinesideKind.Pole || lineside!.InAFort(forts, prop))
                 continue;
             var rng = new Random(unchecked((int)prop.Seed));
             double along = prop.Along, offset = prop.Lateral;
