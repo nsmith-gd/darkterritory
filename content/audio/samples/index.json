@@ -21530,5 +21530,65 @@
   ],
   "takes": 4,
   "sha": "a83b19a0bb8be6e7"
+ },
+ "world-woods/branch": {
+  "cue": "world-woods.branch",
+  "surface": null,
+  "picked": "first",
+  "candidates": [
+   {
+    "label": "A branch going somewhere close in the trees: a twig snapped, a limb cracking down, a cone dropping, needles shaken",
+    "key": "close",
+    "sources": [],
+    "licence": "CC0"
+   }
+  ],
+  "takes": 5,
+  "sha": "7ca4cc1a9f5368a0"
+ },
+ "world-woods/far": {
+  "cue": "world-woods.far",
+  "surface": null,
+  "picked": "first",
+  "candidates": [
+   {
+    "label": "A far call in the woods: a barred owl's 'who cooks for you', a great horned owl's hoots, an answer, a tree falling",
+    "key": "calls",
+    "sources": [],
+    "licence": "CC0"
+   }
+  ],
+  "takes": 4,
+  "sha": "22d8c06e0b5b9a3c"
+ },
+ "world-woods/heavy": {
+  "cue": "world-woods.heavy",
+  "surface": null,
+  "picked": "first",
+  "candidates": [
+   {
+    "label": "Something big moving out in the trees: heavy steps in the duff, brush pushed aside, a long breath, then still",
+    "key": "big",
+    "sources": [],
+    "licence": "CC0"
+   }
+  ],
+  "takes": 4,
+  "sha": "5a327f4cb3b3bce0"
+ },
+ "world-woods/hush": {
+  "cue": "world-woods.hush",
+  "surface": null,
+  "picked": "first",
+  "candidates": [
+   {
+    "label": "The deep woods round a stood train: wind high in the canopy, a trunk creaking as the tops sway, needles dripping",
+    "key": "canopy",
+    "sources": [],
+    "licence": "CC0"
+   }
+  ],
+  "takes": 1,
+  "sha": "22a881dd3f08b292"
  }
 }

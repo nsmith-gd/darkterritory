@@ -119,6 +119,23 @@ public sealed partial class WorldArt
         /// <summary>The biome at a main-line distance (§13.1).</summary>
         public string BiomeAt(double s) => BiomeOf(Plan, s);
 
+        /// <summary>The night's big forests (note 1006), the sim's: where the woods close in on the line.</summary>
+        public Sim.LineGen.DeepWoods Woods => Sim.LineGen.DeepWoods.Of(Plan);
+
+        /// <summary>
+        /// A biome's stand cover at a main-line distance, the big forests' where the line's in them (note 1006; the sim's
+        /// LinesideProps.Slot, so the stands drawn are where its trees stand).
+        /// </summary>
+        public float CoverAt(BiomeDef def, double s)
+        {
+            float cover = Cover(def);
+            double deep = Woods.Depth(s);
+            return deep > 0 && Woods.At(s) is { Rule: var dw } ? MathF.Max(cover, cover + ((float)dw.Cover - cover) * (float)deep) : cover;
+        }
+
+        /// <summary>How much darker it is under the big forests' canopy at a main-line distance (note 1006): 0 out of them.</summary>
+        public float ShadeAt(double s) => Woods.At(s) is { Rule: var dw } ? (float)(dw.Shade * Woods.Depth(s)) : 0;
+
         public BiomeDef? Biome(double s) => Plan.Rules.Biomes.GetValueOrDefault(BiomeAt(s));
 
         /// <summary>
@@ -425,6 +442,8 @@ public sealed partial class WorldArt
             }
             bool dead = prop.Dead, corrupted = prop.Corrupted;
             string kind = prop.Species;
+            // Under the big forests' canopy the trees stand in each other's shade (note 1006).
+            float under = 1 - 0.5f * p.ShadeAt(along);
             var (m, _) = Place(along, offset, yaw, height / 12, 0.15f);
             // Its form and lean (note 395), from a stream of its own off its art seed, so the draws below are as they were.
             var (form, lean) = Form(prop.Seed, p.Biome(along));
@@ -436,7 +455,7 @@ public sealed partial class WorldArt
                 var (cm, _) = Place(along, offset, yaw, height / CorruptedTreeArt.BuiltHeight, 0.15f);
                 if (lean.Angle > 0)
                     cm = Matrix4x4.CreateRotationZ(lean.Angle) * Matrix4x4.CreateRotationY(lean.Toward) * cm;
-                mesh.Append(blighted, CutBack(cm, blighted, height / CorruptedTreeArt.BuiltHeight, Room(along, offset)), new Vector3(0.85f + 0.3f * (float)rng.NextDouble()));
+                mesh.Append(blighted, CutBack(cm, blighted, height / CorruptedTreeArt.BuiltHeight, Room(along, offset)), new Vector3((0.85f + 0.3f * (float)rng.NextDouble()) * under));
                 continue;
             }
             MeshAsset piece = dead
@@ -458,7 +477,7 @@ public sealed partial class WorldArt
             // heaped at the foot.
             if (corrupted)
                 tint = new Vector3(0.32f, 0.24f, 0.2f);
-            mesh.Append(piece, m, tint);
+            mesh.Append(piece, m, tint * under);
             if (corrupted)
             {
                 // Brighter than a brass field's growths, a sick glow in them: what the eye should catch in the dead wood.
@@ -479,7 +498,7 @@ public sealed partial class WorldArt
             if (!Clear(s) || p.Biome(s) is not { } def)
                 continue;
             var rng = new Random(unchecked(seed * 73856093 ^ (int)(s / 12) * 19349663));
-            float cover = Cover(def);
+            float cover = p.CoverAt(def, s), under = 1 - 0.5f * p.ShadeAt(s);
             // The stand's mass behind the single trees: walls of packed spires where a stand runs on out from the
             // line, one at its near edge's depth and one deep in it, so the forest has a body and a serrated top.
             // (On the barrens and the coast the stands are stunted: the wind-cut white spruce of the headlands.)
@@ -501,7 +520,7 @@ public sealed partial class WorldArt
                         // as a cut-out wherever the line turned past it or you looked back at it. Six crossed-card spruces
                         // over its 26 m in two staggered ranks, each stood on the ground where it is, keep the mass and
                         // its serrated top from any side.
-                        float tint = 0.8f + 0.25f * (float)rng.NextDouble();
+                        float tint = (0.8f + 0.25f * (float)rng.NextDouble()) * under;
                         for (int k = 0; k < 6; k++)
                         {
                             double dAlong = -11 + k * 4.4 + (rng.NextDouble() - 0.5) * 2.4, dOut = (k % 2 == 0 ? -2.5 : 2.5) + (rng.NextDouble() - 0.5) * 2;

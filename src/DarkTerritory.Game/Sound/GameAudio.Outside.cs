@@ -139,6 +139,7 @@ public sealed partial class GameAudio
         HandcarSounds(world);
         if (_places is { } places)
         {
+            WorldWoods(train, places, run, ear, front, tunnel, underground, dt);
             WorldNight(world, run, ear, tunnel, underground, dt);
             WorldTunnels(train, places, ear, front, tunnel, dt, primed);
             WorldBridges(train, places, ear, dt);
@@ -270,7 +271,8 @@ public sealed partial class GameAudio
         if (run is null || run.Phase is not (RunPhase.Underway or RunPhase.AtFacility))
             return;
         double dawn = Math.Clamp(run.DawnIn / 300, 0.35, 1);
-        HoldLevel("world-night.night", 0, ear + Double3.Up * 3, Math.Max(Occlusion(PlayerMotor.Outside), AirWalls()), (tunnel || underground ? 0.2 : 1) * dawn);
+        // Stood in the big forests the open country's bed gives way to the woods' own hush (note 1006).
+        HoldLevel("world-night.night", 0, ear + Double3.Up * 3, Math.Max(Occlusion(PlayerMotor.Outside), AirWalls()), (tunnel || underground ? 0.2 : 1) * dawn * (1 - 0.6 * _woods));
         if (tunnel || underground || _time < _nextFar)
             return;
         if (_nextFar > 0)

@@ -272,6 +272,18 @@ public class AudioTests
     }
 
     [Fact]
+    public void StoodInTheBigForestsTheWoodsAreHeardAndEveryTellOverThem()
+    {
+        // Note 1006 (the director, 23 Oct 2026: "some unique sound design out there in the wilds for when players stop in a
+        // forest"): the train stood in frontier:7's first deep woods, heard from the ballast. The woods' hush comes in round
+        // it, quieter than the open country's night it takes over from, and every tell is as far over it as over any bed (spec A.3).
+        var (report, _) = AudioBench.Render(Content, "woods", cars: 6, speed: 0, listenerCar: 2, seconds: 10);
+        Assert.Contains("world-woods.hush", report.StemsDb.Keys);
+        Assert.NotEmpty(report.Tells);
+        Assert.All(report.Tells, t => Assert.True(t.OverBedDb >= 6, $"{t.Sound} only {t.OverBedDb} dB over the woods"));
+    }
+
+    [Fact]
     public void EveryLoopingTellWandersAndTheTapeRunsUnderTheTellsAndTheVoices()
     {
         // Spec A.4 rule 4 and A.6 (note 250): no looping tell plays the same twice round, and the tape's wow and flutter are
