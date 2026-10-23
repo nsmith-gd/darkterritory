@@ -50,14 +50,15 @@
     "openSheds": true,
     // Note 1005 (the director, 23 Oct: "The houses are super basic ... we maybe want more complex houses that have multiple
     // levels, including basements. Those basements should get pretty dark. They should have windows that you can escape from
-    // ... Maybe a couple doors. And we should spawn fewer of them. It's going to help us hide loot"): a village keeps this
-    // share of the houses its form lays (the rest left empty lots), and an open plain house (a rectangle or a square) is built
+    // ... Maybe a couple doors. And we should spawn fewer of them. It's going to help us hide loot"): a village keeps its
+    // first `keepFirst` houses (each form lays them from its road in, so they're the nearest the line) and `keep` of the rest
+    // (empty lots), and an open plain house (a rectangle or a square) is built
     // as one of `forms.choices`: a basement under it (raised on its plinth, a hatch and a ladder down, two cellar windows to
     // climb out of), an upstairs (a flight up), both, or one floor as before. Every house built so has a back door. At least
     // `leastBasements` a village have a basement (the plain houses furthest out first); a house with a basement keeps a find
     // down there at `basementFind` besides its others, one with an upstairs one up there at `upstairsFind`; and those finds
     // are drawn worthier (loot.json `levelDraws`). L, cross and paired houses stay one floor (note 1005's not-yet).
-    "keep": 0.65,
+    "keep": 0.6, "keepFirst": 3,
     "forms": {
       "choices": [["upstairsBasement", 0.4], ["basement", 0.3], ["upstairs", 0.15], ["plain", 0.15]],
       "leastBasements": 1, "basementFind": 0.6, "upstairsFind": 0.35

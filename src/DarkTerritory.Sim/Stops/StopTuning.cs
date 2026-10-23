@@ -147,6 +147,8 @@ public sealed record VillageTuning
     /// them"). Unset, all of them.
     /// </summary>
     public double Keep { get; init; } = 1;
+    /// <summary>Note 1005: the first this many houses a village lays are all kept (nearest its road in, so the line).</summary>
+    public int KeepFirst { get; init; }
     /// <summary>Note 1005: an open plain house's floors (an upstairs, a basement). Unset, every house is one floor, as before.</summary>
     public HouseFormsTuning? Forms { get; init; }
 }

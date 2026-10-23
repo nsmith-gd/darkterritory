@@ -33,9 +33,10 @@ public static partial class StopGenerator
         {
             if (g.RoadDistance(h.Centre) > maxRoad || !g.Fits(h, fit))
                 return false;
-            // Note 1005 (the director, 23 Oct: "we should spawn fewer of them"): a lot the form would have built on is left
+            // Note 1005 (the director, 23 Oct: "we should spawn fewer of them"): past the first village.keepFirst (each form lays
+            // its houses from its road in, so those are the nearest the line), a lot the form would have built on is left
             // empty at village.keep, counted as built so the form doesn't fill it again.
-            if (v.Keep < 1 && !F.Chance(v.Keep))
+            if (v.Keep < 1 && houses.Count >= v.KeepFirst && !F.Chance(v.Keep))
                 return true;
             houses.Add(g.Add(h));
             return true;
