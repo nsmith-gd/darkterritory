@@ -44,7 +44,9 @@ public class SwitchyardAheadTests
             Route = route,
             Run = Tuning.Run,
             Facilities = DataFile.Load<FacilityTuning>(Path.Combine(content, FacilityTuning.File)),
-            Sight = DataFile.Load<Route.SightTuning>(Path.Combine(content, Route.SightTuning.File)),
+            // (Note 998: the night's through truss, early on the line, is a low clearance now, and the bots up top get
+            // down for it; what's tested here is from before that, so the truss is left high.)
+            Sight = DataFile.Load<Route.SightTuning>(Path.Combine(content, Route.SightTuning.File)) with { TrussClearance = 0 },
             YardLength = gate,
             Holdouts = Tuning.Holdouts,
         }, Tuning.Boiler);

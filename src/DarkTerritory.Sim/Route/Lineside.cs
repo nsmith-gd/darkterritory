@@ -255,7 +255,7 @@ public sealed class Lineside
             zones.Add((SignKind.LowClearance, tunnel.Start, tunnel.End, 0, false, 0));
         // Note 998 (the director's playtest of 23 Oct, line 18: "I clipped right through the bridge top. That should be treated
         // like ... a tunnel"): a through truss's bracing over the roofs is a low clearance, boarded and warned of the same.
-        foreach (var b in route.Of(FeatureKind.Bridge).Where(b => b.Through))
+        foreach (var b in route.Of(FeatureKind.Bridge).Where(b => b.Through && t.TrussClearance > 0))
             zones.Add((SignKind.LowClearance, b.Start, b.End, 0, true, t.TrussClearance));
         var boards = zones.Select(z => new Sign(0, z.Kind, Math.Max(0, z.Start - t.BoardAhead), z.Start, z.End, z.Limit) { Bridge = z.Bridge, Clearance = z.Clearance })
             .Concat(drops.Select(d => new Sign(0, SignKind.Drop, Math.Max(0, d.At - t.DropBoardAhead), d.At, d.At, t.CatchMaxSpeed) { Drop = d }))
