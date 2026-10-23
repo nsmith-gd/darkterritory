@@ -1676,7 +1676,12 @@ public sealed partial class SceneArt(Look look)
             mesh.Instances.Add(new MeshInstance(Piece($"dining:{ShapeKey(shape)}", () => TrainKit.DiningFit(Look, shape)), m,
                 emergency ? 0.06f : 1, Scar: scar, Bite: cut, BiteFloor: floor));
             if (!emergency && !dark && (frame.Origin - eye).Length < 120)
+            {
                 mesh.PointLights.Add(new PointLight(Vector3.Transform(TrainKit.ChandelierAt(shape) + new Vector3(0, 0.1f, 0), m), Palette.LampAmber * 1.4f, 6));
+                // The table's candles, and the back bar's lamp along its cornice (note 1016: the chandelier's over the stools now).
+                mesh.PointLights.Add(new PointLight(Vector3.Transform(TrainKit.TableLightAt(shape), m), Palette.LampAmber * 0.8f, 4.5f));
+                mesh.PointLights.Add(new PointLight(Vector3.Transform(TrainKit.BackBarLightAt(shape), m), Palette.LampAmber * 1.2f, 3.5f));
+            }
         }
         else if (loadApart && vehicle!.Bulk > Solid.HeapFrom)
         {

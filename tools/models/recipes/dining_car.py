@@ -18,14 +18,22 @@ at the end of the world, so the pieces are the real thing, a first-class diner's
   * dining_chandelier: a brass chandelier of six lights hung on its chain from a rose in the ceiling, S-scrolled arms out
     of a turned body, a drip pan and a candle on each and cut-glass drops hanging off the pans. Its origin is the rose's
     top (the ceiling); sockets flame_0..flame_5 at the wicks (TrainKit.ChandelierAt is their height, 0.63 m down).
-  * bar_counter: the bar's counter, 1.25 m by 0.6 m and 1.08 m high (the sim's Box), fronted to +Y (the room) in
-    raised-and-fielded panels between pilasters, a thick top with a bullnosed edge and a brass nosing, a brass foot rail
-    on its brackets, its end panelled too; behind (the barman's side) two open shelves of glasses turned down. A bottle
-    and two glasses stand on it, a cloth folded by them.
-  * bar_bell: the counter's service bell: a nickelled dome on a black base, its plunger on top.
-  * bar_back: the back bar on the car's rear wall (its origin on the floor at the wall, facing +Y): a panelled cupboard
-    with a row of glasses on it, then a mirror between two uprights with three shelves of bottles across it (wine, gin,
-    whisky, rum, a stone jar, brandy; their labels and their corks), a cornice over it and a crest painted BAR.
+  * bar_bell: the pub counter's service bell: a nickelled dome on a black base, its plunger on top.
+
+Note 1016 (the director's Look Review verdict, 23 Oct: "More like a fancy bar with bar stools to sit on ... a cool classic
+wooden english pub bar. Place it at the back of the car"): the pub down the car's rear half (CarFrame.DiningRoom, train.json
+composition.dining.bar), each modelled in the car's own axes:
+
+  * pub_counter: the pub's long counter, PUB_L along the car (Y) and PUB_D deep, its front to -X (the aisle) in raised
+    and fielded mahogany panels between pilasters, a plinth and base moulding, a thick bullnosed top overhanging the front,
+    a brass foot rail on brackets; its return at the front end (+Y) across to the wall, panelled to the front; on the top
+    three beer engines (porcelain handles, brass collars, a pump clip each) over a drip tray, pint glasses, the bar cloth;
+    behind (the barman's side, +X), open shelves of glasses turned down. Origin: the run's middle, on the floor.
+  * pub_back: the back bar on the car's right wall behind the walkway, facing -X: a shelf at the counter's height, then
+    bays of mirror between turned columns, three shelves of bottles across them, a row of optics (spirits upside down with
+    their measures), a carved cornice and a gilt board painted THE DINING CAR. Origin: on the floor at the wall, its middle.
+  * pub_stool: a bar stool, turned mahogany, four splayed legs, a brass foot ring, a round seat buttoned in oxblood
+    leather and nailed round in brass, its top STOOL_H. Origin: on the floor, under the seat.
 
 Axes (Blender): +X the car's right, +Y its front (the game's -Z), +Z up; each piece's origin as above.
 
@@ -44,12 +52,16 @@ import cook  # noqa: E402
 import make  # noqa: E402
 
 # The sim's (CarFrame.DiningRoom, train.json geometry: a 14 m car, 3 m wide, its walls 0.1 thick, floor at 1.1 m): the
-# table x 0.05..0.85, from 2.6 m in at the front end to 4.6 m in at the rear, 0.76 high; the counter from 0.15 m right of
-# the middle to the wall (1.4), 0.6 deep, 1.08 high; the back bar from 0.3 to 1.35 against the rear wall.
+# table x 0.05..0.85, 0.76 high, modelled 6.6 m long and stretched to the sim's (note 1016: the front half's, 5.9 m).
 TABLE_W, TABLE_L, TABLE_H = 0.8, 6.6, 0.76
-COUNTER_W, COUNTER_D, COUNTER_H = 1.25, 0.6, 1.08
-BACK_W = 1.05
 CANDLE_TIP = 0.63  # the chandelier's wicks, down from the ceiling (TrainKit.ChandelierAt: 0.75 less the candle)
+# The pub (train.json composition.dining.bar, note 1016): the counter's run, its depth and the return's width across to the
+# wall (from its back at x 0.6 to the wall at 1.4), the back bar's depth and length (the run less the return's depth), a
+# stool's seat.
+PUB_L, PUB_D, PUB_H = 4.8, 0.5, 1.08
+PUB_RETURN = 0.8
+PUB_BACK_D, PUB_BACK_L = 0.15, 4.3
+STOOL_H = 0.76
 
 
 def materials():
@@ -511,53 +523,6 @@ def tumbler(m, at, down=False):
     return lathe(prof, m["glass"], at=at, n=16, low=8, name="tumbler")
 
 
-def counter(m):
-    p = []
-    hw, hd = COUNTER_W / 2, COUNTER_D / 2
-    top = COUNTER_H
-    # The carcass: a plinth set back, the body, its back open on the barman's side (two shelves), the top over it.
-    p.append(make.box((0, 0.0, 0.05), (hw - 0.02, hd - 0.04, 0.05), m["dark"], bevel=0.006, name="plinth"))
-    p.append(make.box((0, 0.0, 0.11), (hw - 0.005, hd - 0.015, 0.015), m["dark"], bevel=0.006, name="base_moulding"))
-    p.append(make.box((0, hd - 0.02, 0.55), (hw - 0.01, 0.02, 0.43), m["dark"], bevel=0.004, name="front"))
-    p.append(make.box((-hw + 0.02, 0.0, 0.55), (0.02, hd - 0.02, 0.43), m["dark"], bevel=0.004, name="end"))
-    p.append(make.box((hw - 0.02, 0.0, 0.55), (0.02, hd - 0.02, 0.43), m["dark"], bevel=0.004, name="wall_end"))
-    for z in (0.14, 0.48, 0.8):
-        p.append(make.box((0, -0.04, z), (hw - 0.04, hd - 0.1, 0.012), m["wood"], bevel=0.003, name="shelf"))
-    make.low_box((0, -hd + 0.06, 0.55), (hw - 0.04, 0.005, 0.43), m["dark"], name="back_shadow")
-    # The front in three panels between pilasters, the end in one.
-    bay = (COUNTER_W - 0.04) / 3
-    for k in range(3):
-        p += panel(m, (-hw + 0.02 + bay * (k + 0.5), hd, 0.55), bay - 0.06, 0.74, (0, 1, 0))
-    p += panel(m, (-hw, 0.0, 0.55), COUNTER_D - 0.1, 0.74, (-1, 0, 0))
-    for k in range(4):
-        x = -hw + 0.02 + bay * k
-        p.append(make.box((x, hd + 0.012, 0.55), (0.028, 0.014, 0.43), m["wood"], bevel=0.006, name="pilaster"))
-        p.append(make.box((x, hd + 0.02, 0.96), (0.036, 0.022, 0.02), m["wood"], bevel=0.006, name="capital"))
-        p.append(make.box((x, hd + 0.02, 0.15), (0.036, 0.022, 0.025), m["wood"], bevel=0.006, name="pilaster_foot"))
-    # Under the top, a moulding; the top itself thick, bullnosed, overhanging the front and the open end, a brass nosing.
-    p.append(make.box((0, 0.01, 1.0), (hw + 0.005, hd + 0.005, 0.02), m["wood"], bevel=0.008, name="moulding"))
-    p.append(make.box((-0.02, 0.03, top - 0.03), (hw + 0.02, hd + 0.04, 0.03), m["dark"], bevel=0.022, segments=4, name="top"))
-    p.append(make.cyl((-hw - 0.035, hd + 0.068, top - 0.03), (hw, hd + 0.068, top - 0.03), 0.006, m["brass"], n=10, bevel=0, name="nosing",
-                      low=0))
-    # The foot rail on its brackets, out from the front.
-    rail_y, rail_z = hd + 0.17, 0.2
-    p.append(make.cyl((-hw + 0.06, rail_y, rail_z), (hw - 0.03, rail_y, rail_z), 0.024, m["brass"], n=16, bevel=0, name="foot_rail", low=8))
-    end = cook.uv_sphere(12, 6, 0.028, Matrix.Translation((-hw + 0.06, rail_y, rail_z)))
-    p.append(make._finish(end, m["brass"], 0, 1, "rail_end"))
-    for x in (-hw + 0.12, 0.0, hw - 0.12):
-        p += make.pipe([(x, hd + 0.0, 0.32), (x, hd + 0.1, 0.3), (x, rail_y, rail_z + 0.02)], 0.01, m["brass"], name="bracket", n=8, low=5)
-        p.append(make.cyl((x, hd - 0.002, 0.32), (x, hd + 0.012, 0.32), 0.03, m["brass"], n=12, bevel=0.002, name="rose", low=6))
-    # On it: a whisky decanter, two glasses, a bar cloth folded; under it, glasses turned down on the shelves.
-    p += bottle(m, (0.36, -0.02, top), "whisky", 3)
-    p.append(tumbler(m, (0.22, 0.06, top)))
-    p.append(tumbler(m, (0.27, 0.12, top)))
-    p.append(make.box((0.05, -0.12, top + 0.008), (0.1, 0.07, 0.008), m["cloth"], bevel=0.006, segments=2, name="bar_cloth"))
-    for z in (0.152, 0.492):
-        for k in range(7):
-            p.append(tumbler(m, (-hw + 0.12 + k * 0.16, -0.1, z), down=True))
-    return p
-
-
 def bell(m):
     p = []
     p.append(lathe([(0.0, 0.0), (0.046, 0.0), (0.048, 0.006), (0.044, 0.016), (0.0, 0.016)], m["ebony"], n=24, low=10, name="base"))
@@ -569,53 +534,201 @@ def bell(m):
     return p
 
 
-BACK_SHELVES = (1.17, 1.5, 1.83)
+# ----------------------------------------------------------------------------------------------------------------
+# The pub (note 1016).
+
+def placed(make_parts, at):
+    """Parts made about the origin (a bottle), and their game-mesh twins, moved by the matrix `at`."""
+    n0 = len(make.LOW)
+    parts = [o for o in make_parts() if o is not None]
+    for o in parts + make.LOW[n0:]:
+        o.data.transform(at)
+    return parts
 
 
-def back_bar(m):
+def handpump(m, at, seed):
+    """A beer engine's handle on the counter's top at `at`: a brass collar and a tall turned porcelain handle, a brass
+    ferrule, the brewer's clip on its front (to -X); the swan neck over a drip tray is on the barman's side."""
+    x, y, z = at
     p = []
-    hw = BACK_W / 2
-    depth = 0.4
-    # The cupboard: its carcass, two panelled doors and their knobs, a top over it.
-    p.append(make.box((0, depth / 2, 0.06), (hw - 0.02, depth / 2 - 0.03, 0.06), m["dark"], bevel=0.006, name="plinth"))
-    p.append(make.box((0, depth / 2, 0.5), (hw, depth / 2, 0.38), m["dark"], bevel=0.006, name="cupboard"))
-    for s in (-1, 1):
-        p += panel(m, (s * hw / 2, depth, 0.5), hw - 0.03, 0.7, (0, 1, 0))
-        p.append(make.cyl((s * 0.05, depth + 0.012, 0.6), (s * 0.05, depth + 0.035, 0.6), 0.012, m["brass"], n=12, bevel=0.003, name="knob",
-                          low=6))
-    p.append(make.box((0, depth / 2 + 0.01, 0.9), (hw + 0.02, depth / 2 + 0.02, 0.02), m["wood"], bevel=0.01, segments=3, name="top"))
-    # A row of stemmed glasses on it, and two decanters.
-    for k in range(6):
-        g = [(0.0, 0.0), (0.03, 0.0), (0.03, 0.003), (0.006, 0.008), (0.0035, 0.02), (0.0035, 0.065), (0.012, 0.075), (0.03, 0.095),
-             (0.034, 0.13), (0.0, 0.11)]
-        p.append(lathe(g, m["glass"], at=(-hw + 0.1 + k * 0.08, 0.27, 0.92), n=16, low=6, name="glass"))
-    p += bottle(m, (hw - 0.22, 0.25, 0.92), "brandy", 1)
-    p += bottle(m, (hw - 0.1, 0.24, 0.92), "jar", 2)
-    # Above: the uprights, the mirror between them, three shelves of bottles, and the cornice with its crest.
-    for s in (-1, 1):
-        p.append(make.box((s * (hw - 0.025), 0.12, 1.6), (0.025, 0.12, 0.68), m["wood"], bevel=0.006, name="upright"))
-        p.append(make.box((s * (hw - 0.025), 0.2, 1.0), (0.03, 0.04, 0.06), m["wood"], bevel=0.008, name="bracket"))
-    p.append(make.box((0, 0.015, 1.6), (hw - 0.05, 0.008, 0.62), m["mirror"], bevel=0.002, name="mirror"))
-    kinds = ("wine", "gin", "whisky", "rum", "wine", "jar", "gin", "brandy", "wine", "rum", "whisky", "wine")
-    seed = 0
-    for i, z in enumerate(BACK_SHELVES):
-        p.append(make.box((0, 0.12, z - 0.012), (hw - 0.05, 0.11, 0.012), m["wood"], bevel=0.004, name="shelf"))
-        p.append(make.box((0, 0.225, z - 0.02), (hw - 0.05, 0.006, 0.02), m["wood"], bevel=0.003, name="shelf_lip"))
-        x = -hw + 0.1
-        while x < hw - 0.1:
-            kind = kinds[(seed * 5 + i) % len(kinds)]
-            if kind == "wine" and z > 1.7:
-                kind = "rum"  # (the top shelf's under the cornice)
-            p += bottle(m, (x, 0.11, z), kind, seed)
-            x += 0.105 if kind in ("whisky", "jar", "brandy") else 0.09
-            seed += 1
-    p.append(make.box((0, 0.13, 2.24), (hw + 0.02, 0.14, 0.03), m["wood"], bevel=0.01, segments=3, name="cornice"))
-    p.append(make.box((0, 0.15, 2.29), (hw + 0.04, 0.16, 0.02), m["dark"], bevel=0.008, segments=2, name="cornice_cap"))
-    crest = [(-0.2, 0.0), (0.2, 0.0), (0.2, 0.08), (0.12, 0.12), (0.0, 0.14), (-0.12, 0.12), (-0.2, 0.08)]
-    p.append(slab(crest, 0.02, m["dark"], (0, 0.22, 2.31), (1, 0, 0), (0, 0, 1), name="crest", bevel=0.004))
-    p.append(make.stencil("BAR", (0, 0.231, 2.365), (0, 1, 0), (0, 0, 1), 0.075, m["gilt"], name="bar_word"))
+    p.append(lathe([(0.0, 0.0), (0.038, 0.0), (0.04, 0.012), (0.026, 0.03), (0.022, 0.06), (0.0, 0.06)], m["brass"], at=at, n=18, low=8,
+                   name="pump_collar"))
+    lean = 0.035 * (1 if seed % 2 else -1) * 0.3
+    prof = [(0.0, 0.0), (0.016, 0.0), (0.017, 0.03), (0.013, 0.05), (0.016, 0.1), (0.021, 0.2), (0.022, 0.26), (0.018, 0.3), (0.012, 0.32),
+            (0.0, 0.325)]
+    p.append(make.cyl((x, y, z + 0.06), (x, y, z + 0.085), 0.017, m["brass"], n=12, bevel=0.002, name="ferrule", low=6))
+    p.append(lathe(prof, m["china"], at=(x + lean, y, z + 0.085), n=16, low=8, name="pump_handle"))
+    # The clip: an oval badge on the handle's front, its brewer's colours.
+    clip = [(0.05 * math.cos(a), 0.035 * math.sin(a)) for a in [k * 2 * math.pi / 16 for k in range(16)]]
+    tint = ("ink", "gilt", "bottle_green")[seed % 3]
+    p.append(slab(clip, 0.006, m[tint], (x + lean - 0.026, y, z + 0.27), (0, -1, 0), (0, 0, 1), name="pump_clip", bevel=0.002))
+    rim = [(0.04 * math.cos(a), 0.027 * math.sin(a)) for a in [k * 2 * math.pi / 16 for k in range(16)]]
+    p.append(slab(rim, 0.002, m["paper"], (x + lean - 0.03, y, z + 0.27), (0, -1, 0), (0, 0, 1), name="pump_clip_face", bevel=0, low=False))
+    # The swan neck, out over the drip tray behind.
+    p += make.pipe([(x + 0.02, y, z + 0.05), (x + 0.1, y, z + 0.09), (x + 0.16, y, z + 0.05), (x + 0.16, y, z + 0.0)], 0.007, m["brass"],
+                   name="swan_neck", n=8, low=0)
     return p
 
+
+def pint(m, at, full=0.0):
+    """A dimpled pint pot (a straight jug of a glass, its handle to +X); `full` of it beer, a collar of head on it."""
+    x, y, z = at
+    p = [lathe([(0.0, 0.0), (0.036, 0.0), (0.04, 0.13), (0.037, 0.13), (0.032, 0.008), (0.0, 0.008)], m["glass"], at=at, n=16, low=8,
+               name="pint")]
+    if full > 0:
+        h = 0.12 * full
+        p.append(lathe([(0.0, 0.0), (0.033, 0.0), (0.036, h), (0.0, h)], m["bottle_amber"], at=(x, y, z + 0.008), n=16, low=0, name="beer"))
+        p.append(lathe([(0.0, 0.0), (0.0365, 0.0), (0.037, 0.012), (0.0, 0.014)], m["cloth"], at=(x, y, z + 0.008 + h), n=16, low=0,
+                       name="head"))
+    p.append(make.torus((x + 0.045, y, z + 0.07), (0, 1, 0), 0.03, 0.006, m["glass"], n=12, m=5, name="pint_handle", low=(6, 3)))
+    return p
+
+
+def pub_counter(m):
+    p = []
+    hd, hl, top = PUB_D / 2, PUB_L / 2, PUB_H
+    fx = -hd  # the front face, to the aisle
+    # The run's carcass: a plinth set back, the body, open behind on the barman's side.
+    p.append(make.box((0.02, 0, 0.05), (hd - 0.04, hl - 0.02, 0.05), m["dark"], bevel=0.006, name="plinth"))
+    p.append(make.box((0, 0, 0.11), (hd - 0.01, hl - 0.005, 0.016), m["dark"], bevel=0.006, name="base_moulding"))
+    p.append(make.box((fx + 0.02, 0, 0.55), (0.02, hl - 0.01, 0.43), m["dark"], bevel=0.004, name="front"))
+    p.append(make.box((0, -hl + 0.02, 0.55), (hd - 0.02, 0.02, 0.43), m["dark"], bevel=0.004, name="rear_end"))
+    for z in (0.16, 0.5, 0.82):
+        p.append(make.box((0.06, 0, z), (hd - 0.1, hl - 0.04, 0.012), m["wood"], bevel=0.003, name="shelf"))
+    make.low_box((hd - 0.06, 0, 0.55), (0.005, hl - 0.04, 0.43), m["dark"], name="back_shadow")
+    # The front in eight panels between pilasters; the rear end in one.
+    bays = 8
+    bay = (PUB_L - 0.04) / bays
+    for k in range(bays):
+        p += panel(m, (fx, -hl + 0.02 + bay * (k + 0.5), 0.56), bay - 0.07, 0.72, (-1, 0, 0))
+    p += panel(m, (0, -hl, 0.56), PUB_D - 0.1, 0.72, (0, -1, 0))
+    for k in range(bays + 1):
+        y = -hl + 0.02 + bay * k
+        p.append(make.box((fx - 0.012, y, 0.56), (0.014, 0.03, 0.42), m["wood"], bevel=0.006, name="pilaster"))
+        p.append(make.box((fx - 0.02, y, 0.97), (0.022, 0.04, 0.022), m["wood"], bevel=0.006, name="capital"))
+        p.append(make.box((fx - 0.02, y, 0.16), (0.022, 0.04, 0.03), m["wood"], bevel=0.006, name="pilaster_foot"))
+    # The return across the front end (+Y) to the wall, its face to the room's front, panelled in two, its top as the run's;
+    # the run's top and the return's meet in the corner.
+    rx0, rx1 = hd, hd + PUB_RETURN
+    ry = hl - PUB_D / 2
+    p.append(make.box(((rx0 + rx1) / 2, ry, 0.05), (PUB_RETURN / 2, hd - 0.04, 0.05), m["dark"], bevel=0.006, name="return_plinth"))
+    p.append(make.box(((rx0 + rx1) / 2, hl - 0.02, 0.55), (PUB_RETURN / 2, 0.02, 0.43), m["dark"], bevel=0.004, name="return_front"))
+    p.append(make.box(((rx0 + rx1) / 2, ry - hd + 0.02, 0.55), (PUB_RETURN / 2, 0.02, 0.43), m["dark"], bevel=0.004, name="return_back"))
+    p += panel(m, (fx, hl, 0.56), PUB_D - 0.1, 0.72, (0, 1, 0))
+    for k in range(2):
+        p += panel(m, (rx0 + PUB_RETURN / 4 * (2 * k + 1), hl, 0.56), PUB_RETURN / 2 - 0.07, 0.72, (0, 1, 0))
+    # Under the top a moulding; the top thick and bullnosed, mahogany, overhanging the front and the ends.
+    p.append(make.box((0, 0, 1.0), (hd + 0.005, hl + 0.005, 0.02), m["wood"], bevel=0.008, name="moulding"))
+    p.append(make.box((-0.02, 0, top - 0.03), (hd + 0.04, hl + 0.03, 0.03), m["dark"], bevel=0.022, segments=4, name="top"))
+    p.append(make.box(((rx0 + rx1) / 2 + 0.02, ry, top - 0.03), (PUB_RETURN / 2 + 0.02, hd + 0.04, 0.03), m["dark"], bevel=0.022, segments=4,
+                      name="return_top"))
+    p.append(make.cyl((fx - 0.065, -hl - 0.02, top - 0.03), (fx - 0.065, hl + 0.02, top - 0.03), 0.006, m["brass"], n=10, bevel=0,
+                      name="nosing", low=0))
+    # The foot rail on its brackets, out from the front, the length of the run.
+    rail_x, rail_z = fx - 0.17, 0.2
+    p.append(make.cyl((rail_x, -hl + 0.08, rail_z), (rail_x, hl - 0.05, rail_z), 0.024, m["brass"], n=16, bevel=0, name="foot_rail", low=8))
+    for y in (-hl + 0.08, hl - 0.05):
+        end = cook.uv_sphere(12, 6, 0.028, Matrix.Translation((rail_x, y, rail_z)))
+        p.append(make._finish(end, m["brass"], 0, 1, "rail_end"))
+    for k in range(5):
+        y = -hl + 0.15 + (PUB_L - 0.3) * k / 4
+        p += make.pipe([(fx, y, 0.32), (fx - 0.1, y, 0.3), (rail_x, y, rail_z + 0.02)], 0.01, m["brass"], name="bracket", n=8, low=5)
+        p.append(make.cyl((fx + 0.002, y, 0.32), (fx - 0.012, y, 0.32), 0.03, m["brass"], n=12, bevel=0.002, name="rose", low=6))
+    # On the top: the drip tray and three beer engines a little behind the middle, pints, a cloth, the bar bell's place
+    # (the bell's its own piece) left clear at the rear.
+    p.append(make.box((0.06, 0.0, top + 0.006), (0.08, 0.34, 0.006), m["brass"], bevel=0.003, name="drip_tray"))
+    for k, y in enumerate((-0.24, 0.0, 0.24)):
+        p += handpump(m, (-0.04, y, top), k)
+    p += pint(m, (-0.12, 0.55, top), full=0.85)
+    p += pint(m, (-0.08, 0.68, top), full=0.4)
+    p += pint(m, (0.1, -0.5, top))
+    p += bottle(m, (0.05, 1.2, top), "whisky", 3)
+    p.append(tumbler(m, (-0.1, 1.08, top)))
+    p.append(make.box((0.05, -0.9, top + 0.008), (0.07, 0.11, 0.008), m["cloth"], bevel=0.006, segments=2, name="bar_cloth"))
+    # Behind, on the barman's side, glasses turned down along the shelves.
+    for z in (0.172, 0.512):
+        for k in range(12):
+            p.append(tumbler(m, (0.12, -hl + 0.25 + k * 0.36, z), down=True))
+    return p
+
+
+def pub_back(m):
+    p = []
+    d, hl = PUB_BACK_D, PUB_BACK_L / 2
+    face = -d  # its face, to the walkway (-X); the wall at 0
+    # A shelf at the counter's height on brackets, glasses and a jar on it; under it the wall's panelled dado.
+    p.append(make.box((face / 2, 0, 1.06), (d / 2 + 0.01, hl, 0.02), m["dark"], bevel=0.008, segments=2, name="ledge"))
+    bays = 6
+    bay = PUB_BACK_L / bays
+    make.low_box((-0.006, 0, 0.53), (0.006, hl, 0.47), m["dark"], name="dado")
+    for k in range(bays):
+        y = -hl + bay * (k + 0.5)
+        p += panel(m, (-0.01, y, 0.55), bay - 0.06, 0.8, (-1, 0, 0), depth=0.01)
+        p.append(make.box((face / 2, y - bay / 2 + 0.04, 0.98), (d / 2 - 0.02, 0.02, 0.06), m["wood"], bevel=0.006, name="ledge_bracket"))
+    # Columns between mirrored bays, three shelves of bottles across them, the optics on a rail under the cornice.
+    for k in range(bays + 1):
+        y = -hl + bay * k
+        p.append(lathe([(0.0, 0.0), (0.03, 0.0), (0.03, 0.05), (0.022, 0.08), (0.02, 1.0), (0.026, 1.03), (0.03, 1.12), (0.0, 1.12)],
+                       m["wood"], at=(face + 0.03, y, 1.08), n=12, low=6, name="column"))
+    p.append(make.box((-0.006, 0, 1.68), (0.004, hl - 0.02, 0.56), m["mirror"], bevel=0.001, name="mirror"))
+    kinds = ("gin", "whisky", "rum", "wine", "whisky", "brandy", "gin", "jar", "rum", "whisky", "gin", "wine")
+    seed = 0
+    for i, z in enumerate((1.12, 1.44, 1.76)):
+        p.append(make.box((face / 2, 0, z - 0.012), (d / 2, hl - 0.03, 0.012), m["wood"], bevel=0.004, name="shelf"))
+        p.append(make.box((face + 0.006, 0, z - 0.018), (0.006, hl - 0.03, 0.018), m["brass"], bevel=0.002, name="shelf_lip"))
+        y = -hl + 0.08
+        while y < hl - 0.08:
+            kind = kinds[(seed * 5 + i) % len(kinds)]
+            if kind == "wine" and z > 1.5:
+                kind = "rum"
+            # The bottles' labels to the room: each one's turned so its -Y face is to -X.
+            p += placed(lambda: bottle(m, (0, 0, 0), kind, seed), Matrix.Translation((face / 2 - 0.005, y, z)) @ Matrix.Rotation(-math.pi / 2, 4, "Z"))
+            y += 0.11 if kind in ("whisky", "jar", "brandy") else 0.095
+            seed += 1
+    # The optics: spirits upside down in their brackets, a measure under each.
+    for k in range(8):
+        y = -hl + 0.4 + k * (PUB_BACK_L - 0.8) / 7
+        p += placed(lambda: bottle(m, (0, 0, 0), ("gin", "whisky", "rum", "brandy")[k % 4], 40 + k),
+                    Matrix.Translation((face / 2 - 0.01, y, 2.28)) @ Matrix.Rotation(math.pi, 4, "X") @ Matrix.Rotation(-math.pi / 2, 4, "Z"))
+        p.append(make.cyl((face / 2 - 0.01, y, 2.0), (face / 2 - 0.01, y, 1.96), 0.018, m["glass"], n=10, bevel=0.001, name="measure", low=6))
+        p.append(make.cyl((face / 2 - 0.01, y, 1.96), (face / 2 - 0.01, y, 1.94), 0.008, m["nickel"], n=8, bevel=0, name="tap", low=0))
+    p.append(make.box((face / 2, 0, 2.3), (d / 2, hl - 0.03, 0.012), m["brass"], bevel=0.003, name="optic_rail"))
+    # The cornice, dentilled, and the board on it.
+    p.append(make.box((face / 2 - 0.01, 0, 2.36), (d / 2 + 0.02, hl + 0.02, 0.04), m["wood"], bevel=0.012, segments=3, name="cornice"))
+    for k in range(int(PUB_BACK_L / 0.06)):
+        p.append(make.box((face - 0.02, -hl + 0.03 + k * 0.06, 2.31), (0.012, 0.015, 0.012), m["dark"], bevel=0.002, name="dentil", low=False))
+    p.append(make.box((face / 2 - 0.02, 0, 2.43), (d / 2 + 0.03, hl + 0.04, 0.025), m["dark"], bevel=0.01, segments=2, name="cornice_cap"))
+    p.append(make.box((face - 0.035, 0, 2.53), (0.012, 0.85, 0.075), m["ebony"], bevel=0.006, name="board"))
+    p.append(make.stencil("THE DINING CAR", (face - 0.048, 0, 2.53), (-1, 0, 0), (0, 0, 1), 0.075, m["gilt"], name="board_word"))
+    return p
+
+
+def pub_stool(m):
+    p = []
+    seat = STOOL_H
+    # Four turned legs splayed out to the floor, a brass foot ring and a stretcher ring under it.
+    for k in range(4):
+        a = math.pi / 4 + k * math.pi / 2
+        foot = Vector((0.19 * math.cos(a), 0.19 * math.sin(a), 0.0))
+        head = Vector((0.12 * math.cos(a), 0.12 * math.sin(a), seat - 0.06))
+        p.append(beam(foot, head, 0.016, 0.016, m["wood"], name="leg"))
+        p.append(make.cyl(foot, foot + Vector((0, 0, 0.02)), 0.02, m["brass"], n=8, bevel=0.002, name="ferrule", low=0))
+    p.append(make.torus((0, 0, 0.3), (0, 0, 1), 0.165, 0.011, m["brass"], n=28, m=8, name="foot_ring", low=(10, 4)))
+    p.append(make.torus((0, 0, 0.52), (0, 0, 1), 0.138, 0.012, m["wood"], n=28, m=8, name="stretcher", low=(10, 4)))
+    # The seat: an apron, the board, the buttoned leather cushion nailed round in brass.
+    p.append(make.cyl((0, 0, seat - 0.07), (0, 0, seat - 0.04), 0.15, m["dark"], n=24, bevel=0.006, name="apron", low=10))
+    p.append(make.cyl((0, 0, seat - 0.045), (0, 0, seat - 0.025), 0.18, m["wood"], n=28, bevel=0.008, name="seat_board", low=12))
+    p.append(lathe([(0.0, 0.0), (0.172, 0.0), (0.176, 0.012), (0.165, 0.03), (0.12, 0.042), (0.0, 0.046)], m["leather"], at=(0, 0, seat - 0.025),
+                   n=28, low=12, name="cushion"))
+    for k in range(5):
+        a = k * 2 * math.pi / 5
+        p.append(make.cyl((0.08 * math.cos(a), 0.08 * math.sin(a), seat + 0.012), (0.08 * math.cos(a), 0.08 * math.sin(a), seat + 0.018),
+                          0.007, m["leather"], n=8, bevel=0.002, r1=0.004, name="button", low=0))
+    for k in range(24):
+        a = k * 2 * math.pi / 24
+        n = (math.cos(a), math.sin(a), 0)
+        p.append(make.nail((0.176 * math.cos(a), 0.176 * math.sin(a), seat - 0.016), n, m["brass"], r=0.005))
+    return p
 
 # ----------------------------------------------------------------------------------------------------------------
 
@@ -637,9 +750,10 @@ PIECES = {
     "dining_place": lambda: build("dining_place", place, "a place laid at the dining car's table", 700, grime=0.1),
     "dining_candelabrum": lambda: build("dining_candelabrum", candelabrum, "the table's candelabrum", 700),
     "dining_chandelier": lambda: build("dining_chandelier", chandelier, "the dining car's chandelier", 2600, size=1024),
-    "bar_counter": lambda: build("bar_counter", counter, "the dining car's bar counter", 3200, size=1024),
     "bar_bell": lambda: build("bar_bell", bell, "the bar's service bell", 300, size=256),
-    "bar_back": lambda: build("bar_back", back_bar, "the dining car's back bar and its bottles", 6000, size=1024),
+    "pub_counter": lambda: build("pub_counter", pub_counter, "the dining car's pub counter, its return and its beer engines", 6500, size=2048),
+    "pub_back": lambda: build("pub_back", pub_back, "the pub's back bar: mirrors, bottles and optics", 7800, size=2048),
+    "pub_stool": lambda: build("pub_stool", pub_stool, "a bar stool", 900),
 }
 want = set(cook.args()) or set(PIECES)
 for name, fn in PIECES.items():

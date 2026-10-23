@@ -781,10 +781,12 @@ public static class Views
         double floor = d.Table.Min.Y, z0 = f.Shape.Interior!.Value.Min.Z, mid = (d.Table.Min.Z + d.Table.Max.Z) / 2;
         return name switch
         {
-            "diningbar" => Camera.LookAt(f.ToWorld(new Double3(-0.6, floor + 1.6, d.Counter.Min.Z - 1.6)), f.ToWorld(new Double3(0.8, floor + 1.2, d.Counter.Max.Z + 0.6)), 60),
-            "diningdrunk" => Camera.LookAt(f.ToWorld(d.Bar + new Double3(-1.15, 1.7, 0.5)), f.ToWorld(d.Bar + new Double3(0, 1.45, -0.05)), 40),
-            "diningtable" => Camera.LookAt(f.ToWorld(new Double3(-0.95, floor + 1.7, mid + 1.9)), f.ToWorld(new Double3(0.5, floor + 1.05, mid - 0.5)), 62),
-            _ => Camera.LookAt(f.ToWorld(new Double3(-0.6, floor + 1.65, z0 + 0.9)), f.ToWorld(new Double3(0.3, floor + 1.1, d.Counter.Min.Z)), 70),
+            // The pub (note 1016): from the aisle by the rear door, up the counter's front and its stools to its return and the
+            // back bar; and close on the barman pouring behind it, from across the counter at the stools.
+            "diningbar" => Camera.LookAt(f.ToWorld(new Double3(-1.15, floor + 1.65, d.Counter.Max.Z + 1.1)), f.ToWorld(new Double3(0.45, floor + 1.0, d.Counter.Min.Z + 1.4)), 64),
+            "diningdrunk" => Camera.LookAt(f.ToWorld(new Double3(-1.1, floor + 1.6, d.Bar.Z + 0.9)), f.ToWorld(d.Bar + new Double3(0, 1.3, -0.2)), 46),
+            "diningtable" => Camera.LookAt(f.ToWorld(new Double3(-0.55, floor + 1.7, d.Table.Max.Z + 1.0)), f.ToWorld(new Double3(0.5, floor + 0.9, mid)), 62),
+            _ => Camera.LookAt(f.ToWorld(new Double3(-0.6, floor + 1.65, z0 + 0.9)), f.ToWorld(new Double3(0.3, floor + 1.1, d.Counter.Max.Z)), 70),
         };
     }
 

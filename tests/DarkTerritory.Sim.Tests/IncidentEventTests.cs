@@ -92,7 +92,9 @@ public class IncidentEventTests
     public void AFollowersNestNamesWhoCarriedItAboard()
     {
         var n = new Night(4, speed: 0);
-        n.Crew[2] = PlayerMotor.SpawnOnRoof(n.Train, 1, 0, P);
+        // Inside car 1: it lets go only in a car's body (note 1016).
+        var room = n.Train.Frames[1].Shape.Interior!.Value;
+        n.Crew[2] = PlayerMotor.SpawnOnRoof(n.Train, 1, 0, P) with { Position = new Double3(-0.6, room.Min.Y + 0.1, 0), Surface = Surface.Deck };
         var f = n.World.AddEnemy(id => Follower.On(id, n.Train, n.Crew[2], 2, E.Followers));
         for (int s = 0; s < 400 && !f.Nested && !f.Gone; s++)
             n.Run(1);

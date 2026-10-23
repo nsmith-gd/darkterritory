@@ -401,7 +401,19 @@
     // The dining car (upgrades.md §8.5; note 959): the drinks its bar pours a night ("what the fortress's cellar sold the
     // crew", U1's call: eight), taken one at a time at the counter (Use, empty hands) and drunk as a beer (held Use); what one
     // gives back drunk (drinkHeals: none, it's a drink). What a drink does to the drinker's view is look.json tipsy's.
-    "dining": { "drinks": 8, "drinkHeals": 0 },
+    // Note 1016 (the director's Look Review verdict, 23 Oct: "More like a fancy bar with bar stools to sit on. The players can
+    // go behind the bar and pour drinks ... a cool classic wooden english pub bar. Place it at the back of the car clearly not
+    // obstructing the doors. Needs to be away from the lockers"): the bar runs down the right of the car's rear half. Its
+    // counter stands counterX m right of the car's middle (clear of the aisle and the end doors, which stand left of it),
+    // counterDepth deep and counterHeight high, counterLength long, ending fromRear m short of the rear end wall, where the
+    // barman's walkway behind it opens (a return closes its front end to the wall); the back bar along the wall behind the
+    // walkway is backBarDepth deep (the walkway between them a crewmate's width); the table stops tableGap short of it.
+    // A drink is poured from behind it (Use, empty hands, within pourReach m of the pumps at the counter's middle: from the
+    // stools that's the counter's depth and more away). Its stools (stools of them, sat on with Use from the aisle standOff m
+    // in front of each: SIT AT THE BAR) stand down its front, stoolOut m out, their seats stoolHeight high.
+    "dining": { "drinks": 8, "drinkHeals": 0,
+      "bar": { "counterX": 0.1, "counterDepth": 0.5, "backBarDepth": 0.15, "counterHeight": 1.08, "counterLength": 4.8, "fromRear": 1.3, "tableGap": 1.2,
+        "pourReach": 0.6, "stools": 5, "stoolHeight": 0.76, "stoolOut": 0.32, "standOff": 0.4 } },
     "bbq": { "deckLength": 3.0, "railHeight": 1.0, "beers": 24, "beerHeals": 0, "lightSeconds": 0.6, "burnSeconds": 300,
       "grillSeconds": 6, "sausageHeals": 20, "grillReach": 2.0 },
     // The whimsies (note 715; docs/design/upgrades.md §8.2). Gerald on the guard van's roof and the garden gnomes along the
@@ -490,8 +502,9 @@
     // its door; a tap of Use puts what's in your hands on its first free shelf, or takes the top thing off its shelves.
     // What's inside is held by the locker, not lying in the car: it can't fall, slide, or go through a wall.
     "lockers": {
-      // One locker a number, front to back, painted on its plate.
-      "names": ["1", "2", "3", "4", "5", "6", "7", "8", "9", "10", "11", "12"],
+      // One locker a number, front to back, painted on its plate. Eight (note 1016; the director's Look Review verdict on the
+      // dining car, 23 Oct: "reduce the locker count to 8"; it was twelve).
+      "names": ["1", "2", "3", "4", "5", "6", "7", "8"],
       // The repair kit's locker. Spare kits go on its other shelf, then into the lockers after it.
       "kitLocker": "8",
       // Shelves in each: the locker's floor, and three more up to a hand under its top, about 0.4 m apart (note 659; the director,
