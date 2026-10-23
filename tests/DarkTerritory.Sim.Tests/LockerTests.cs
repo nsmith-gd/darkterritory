@@ -64,12 +64,13 @@ public class LockerTests
     }
 
     [Fact]
-    public void TheKitsCarHasARowOfAtLeastTenNamedLockersClearOfTheAisleAndTheDoors()
+    public void TheKitsCarHasARowOfEightNamedLockersClearOfTheAisleAndTheDoors()
     {
         var world = Stocked();
         var shape = KitCarShape(world);
         var names = Tuning.Train.Kit.Lockers!.Names;
-        Assert.True(names.Count >= 10);
+        // Eight (note 1016; the director, 23 Oct: "reduce the locker count to 8"; it was at least ten).
+        Assert.Equal(8, names.Count);
         Assert.Equal(names.Count, shape.Lockers.Count);
         Assert.Equal(names, shape.Lockers.Select(b => b.Name));
         Assert.Contains("8", names);

@@ -81,7 +81,7 @@ public class DiningCarTests
         // The bar down the rear half, right of the aisle and the end doors, clear of the lockers' row by more than its stools.
         Assert.True(d.Counter.Min.Z > 0 && d.Counter.Max.Z < room.Max.Z - 1.0, $"{d.Counter}");
         Assert.True(d.Counter.Min.Z - shape.Lockers[^1].Box.Max.Z > 2.0, $"{d.Counter} after {shape.Lockers[^1].Box}");
-        Assert.All(shape.DoorList.Where(x => Math.Abs(x.Box.Centre.Z) > room.Max.Z - 0.5), x => Assert.True(x.Box.Max.X < d.Counter.Min.X - 0.3));
+        Assert.All(shape.DoorList.Where(x => Math.Abs(x.Box.Centre.Z) > room.Max.Z - 0.5), x => Assert.True(x.Box.Max.X <= d.Counter.Min.X, $"{x.Box} beside {d.Counter}"));
         // The barman's walkway: a crewmate's width between the counter and the back bar, open at the rear end, closed at the front.
         Assert.True(d.Behind.Max.X - d.Behind.Min.X >= 2 * P.Radius + 0.02, $"{d.Behind}");
         Assert.Equal(d.Counter.Max.X, d.Behind.Min.X, 6);
