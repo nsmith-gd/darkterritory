@@ -265,6 +265,8 @@ public static partial class TownKit
         {
             var (x, y) = corners[(i + b.Variant) % corners.Count];
             if (taken.All(p => Math.Abs(p.Item1 - x) + Math.Abs(p.Item2 - y) > 1.4)
+                // (Not on a house with floors' flight, by its hatch or in its back doorway: note 1005.)
+                && (!Sim.Run.StopWalls.Storeyed(b) || Sim.Run.StopWalls.KeepClear(b).All(q => Math.Abs(q.X - x) > q.HalfX || Math.Abs(q.Y - y) > q.HalfY))
                 && (clutter ?? []).All(c => !c.Solid || Math.Abs(c.X - x) > c.Box.HalfX + 0.15 || Math.Abs(c.Y - y) > c.Box.HalfY + 0.15))
                 return (x, y, 0.16f, false);
         }
@@ -686,7 +688,14 @@ public static partial class TownKit
         const float Floor = 0.17f, H = 3.0f, Lintel = 2.15f;
         double hx = b.Length / 2, hy = b.Width / 2, t = Sim.Run.StopWalls.WallThickness;
         var (fx, fy) = Sim.Run.StopWalls.Front(b);
-
+        // A house with floors (note 1005) is its own shell; its ground floor's boards are this over a one-floor house's.
+        float lift = LevelLift(b, 0);
+        if (Sim.Run.StopWalls.Storeyed(b))
+            StoreyedShell(k, b, Box);
+        else
+            OneFloor();
+        void OneFloor()
+        {
         bool composite = Sim.Run.StopWalls.Composite(b);
         var outline = composite ? Sim.Run.StopWalls.Outline(b) : null;
         k.Use("wood_grey", Palette.DeepBrown, 0.9f, 0, tile: 1);
@@ -743,6 +752,7 @@ public static partial class TownKit
         else
             foreach (var part in b.Parts)
                 Gabled(k, (float)part.Y, (float)-part.X, (float)Math.Min(part.Length, part.Width), (float)Math.Max(part.Length, part.Width), part.Length >= part.Width, H);
+        }
 
         // What a ransack left (the director, 8 Oct): each piece where the sim has it, turned its way (its x along the house's
         // yaw from x toward y; the kit's frame has the house's x on −Z and its y on +X).
@@ -751,19 +761,19 @@ public static partial class TownKit
             float yaw = (float)c.Yaw;
             var along = new Vector3(MathF.Sin(yaw), 0, -MathF.Cos(yaw));
             var front = new Vector3(MathF.Cos(yaw), 0, MathF.Sin(yaw));
-            var at = K(c.X, c.Y, Floor);
+            var at = K(c.X, c.Y, Floor + lift);
             var m = new Matrix4x4(along.X, along.Y, along.Z, 0, 0, 1, 0, 0, front.X, front.Y, front.Z, 0, at.X, at.Y, at.Z, 1);
             k.With(m, () => RansackKit.Piece(k, c));
         }
         // The Gaunt's nest, if it roosts here: in the dark, nothing lit.
         if (nest is { } n)
-            k.With(Matrix4x4.CreateTranslation(K(n.X, n.Y, Floor)), () => RansackKit.Nest(k, b.Variant));
+            k.With(Matrix4x4.CreateTranslation(K(n.X, n.Y, Floor + lift)), () => RansackKit.Nest(k, b.Variant));
 
         // Its light (HouseLight): a candle stub on a saucer, the wax run down it, its flame; or a tin lamp on a chain, its
         // glass barely lit.
         if (HouseLight(b, kept, clutter, nest) is var (lx, ly, height, lamp))
         {
-            var at = K(lx, ly, Floor);
+            var at = K(lx, ly, Floor + lift);
             if (lamp)
             {
                 k.Use("rust_heavy", Palette.SootBlack, 0.7f, 0.4f);
@@ -874,6 +884,9 @@ public static partial class TownKit
 
         // What the finds are kept in, each where the sim puts its find (its thin side to the wall it stands against).
         foreach (var c in kept)
+            // On its own floor (note 1005).
+            k.With(Matrix4x4.CreateTranslation(0, LevelLift(b, c.Level), 0), () => KeptPiece(c));
+        void KeptPiece(Sim.Stops.StopContainer c)
         {
             // The find lies out in the room; a cupboard stands behind it against the back wall, a cabinet against the side,
             // as solid as the walls (StopWalls.Furniture; the scene draws a searched one opened).
@@ -888,6 +901,10 @@ public static partial class TownKit
                         Dresser(piece.X, piece.Y, faceX, faceY);
                     else
                         Sideboard(piece.X, piece.Y, faceX, faceY);
+                    break;
+                case Sim.Stops.ContainerKind.Cellar when c.Level < 0:
+                    // Down in a basement (note 1005): a chest on the flags.
+                    k.Append(CellarChest(k.Look, open: false), Laid(x, y, faceX, faceY));
                     break;
                 case Sim.Stops.ContainerKind.Cellar:
                     // Its trapdoor let into the floor, hinged on the wall's side (note 991).

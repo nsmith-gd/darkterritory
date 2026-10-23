@@ -59,6 +59,9 @@ public static class FootPath
                 if (walls is not null)
                     foreach (var w in walls.Near(p))
                     {
+                        // (A house with floors' floors, steps and lintels are walked on and under, note 1005.)
+                        if (w.Level)
+                            continue;
                         var l = w.ToLocal(p);
                         double dx = Math.Max(0, Math.Abs(l.X) - w.HalfLength), dz = Math.Max(0, Math.Abs(l.Z) - w.HalfWidth);
                         if (dx * dx + dz * dz < clearance * clearance)

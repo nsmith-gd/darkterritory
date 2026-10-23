@@ -25,6 +25,12 @@ public readonly record struct Wall(Double3 Centre, Double3 Axis, double HalfLeng
     /// <summary>Which coaling tower it's part of (1 up; 0 for none): it stands only while the tower does (<see cref="StopWalls.Fell"/>).</summary>
     public int Tower { get; init; }
 
+    /// <summary>
+    /// A house with floors' floor, step, lintel or rail (note 1005): stood on or walked under, never in a bot's way across
+    /// the ground floor (<see cref="Bots.FootPath"/>).
+    /// </summary>
+    public bool Level { get; init; }
+
     /// <summary>Which stop building it's part of (1 up, alike on every machine; 0 for none): all of a building's walls share its axis.</summary>
     public int Owner { get; init; }
 

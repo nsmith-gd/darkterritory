@@ -221,20 +221,20 @@ public sealed partial class StopWalls
     /// A storeyed house's solids, as the sim stands them (middles and half sizes, bottoms and tops over its ground): its
     /// <see cref="Shell"/>, its walls from under its basement to run.json's walls.topM, and the furniture kept on each floor.
     /// </summary>
-    public static IEnumerable<(double X, double Y, double HalfX, double HalfY, double Bottom, double Top)> StoreyedSolids(StopLayout stop, int building,
+    public static IEnumerable<(double X, double Y, double HalfX, double HalfY, double Bottom, double Top, bool Level)> StoreyedSolids(StopLayout stop, int building,
         WallTuning t)
     {
         var b = stop.Buildings[building];
         double f0 = FloorAt(b, 0);
         foreach (var w in Shell(b, b.Basement ? FloorAt(b, -1) - 0.6 : -3, t.TopM))
-            yield return (w.X, w.Y, w.HalfX, w.HalfY, w.Bottom, w.Top);
+            yield return (w.X, w.Y, w.HalfX, w.HalfY, w.Bottom, w.Top, w.Part is not (ShellPart.Wall or ShellPart.Tread));
         // What the finds are kept in, on their floors: under the ceiling over them.
         foreach (var c in stop.Containers.Where(c => c.Building == building))
             foreach (var p in Furniture(b, [c]))
-                yield return (p.X, p.Y, p.HalfX, p.HalfY, FloorAt(b, c.Level) - 0.05, FloorAt(b, c.Level) + FurnitureTop);
+                yield return (p.X, p.Y, p.HalfX, p.HalfY, FloorAt(b, c.Level) - 0.05, FloorAt(b, c.Level) + FurnitureTop, c.Level != 0);
         // A ransack's heavy pieces, on the ground floor.
         foreach (var x in ClutterOf(stop, building).Where(x => x.Solid))
-            yield return (x.X, x.Y, x.Box.HalfX, x.Box.HalfY, f0 - 0.05, f0 + FurnitureTop);
+            yield return (x.X, x.Y, x.Box.HalfX, x.Box.HalfY, f0 - 0.05, f0 + FurnitureTop, false);
     }
 
 
@@ -399,8 +399,8 @@ public sealed partial class StopWalls
         Func<double, double, double, Double3> world)
     {
         var b = stop.Buildings[building];
-        foreach (var (x, y, hx, hy, lo, hi) in StoreyedSolids(stop, building, t))
-            Add(place(x, y, hx, hy, lo, hi));
+        foreach (var (x, y, hx, hy, lo, hi, level) in StoreyedSolids(stop, building, t))
+            Add(place(x, y, hx, hy, lo, hi) with { Level = level });
         if (!b.Basement)
             return;
         // Its footprint out to the walls' outside faces: the earth's not stood on anywhere in it under the ground floor's boards.

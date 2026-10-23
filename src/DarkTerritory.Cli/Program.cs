@@ -2054,6 +2054,34 @@ static object Screenshot(TrainTuning t, string content, string[] args)
             ? Camera.LookAt(At(x + fx * 1.5 - fy * 0.6, y + fy * 1.5 + fx * 0.6, 1.65), At(x, y, 0.2), 70)
             : Camera.LookAt(At(x + fx * 2.1 - fy * 0.7, y + fy * 2.1 + fx * 0.7, 1.65), At(x, y, 0.95), 70);
     }
+    // --storey basement|upstairs|ground|outside [--house n] (note 1005): the night's nth house with floors (one with a basement
+    // for basement, with an upstairs for upstairs): down in its basement from the ladder's foot toward its deep end and its
+    // chests; upstairs from its back wall toward the stairwell; on its ground floor from inside its front door toward the
+    // flight and the hatch; or from outside, its plinth, steps and cellar windows. With --lantern, a hand lamp.
+    if (Str(args, "--storey", "") is { Length: > 0 } storey && generated is not null)
+    {
+        var storeyed = generated.Features.Where(f => f.Stop is not null)
+            .SelectMany(f => f.Stop!.Buildings.Select((b, i) => (Feature: f, Building: b, Index: i)))
+            .Where(x => DarkTerritory.Sim.Run.StopWalls.Storeyed(x.Building) && DarkTerritory.Sim.Run.StopWalls.Walled(x.Feature.Stop!, x.Index)
+                && (storey != "basement" || x.Building.Basement) && (storey != "upstairs" || x.Building.Upstairs)).ToList();
+        if (storeyed.Count == 0)
+            return Print(new { error = $"{Str(args, "--route", "")} has no house with floors for --storey {storey}" });
+        var (f, b, _) = storeyed[(int)Opt(args, "--house", 0) % storeyed.Count];
+        int e = DarkTerritory.Sim.Run.StopWalls.BackEnd(b), side = DarkTerritory.Sim.Run.StopWalls.StairSide(b);
+        double ix = b.Length / 2 - DarkTerritory.Sim.Run.StopWalls.WallThickness, iy = b.Width / 2 - DarkTerritory.Sim.Run.StopWalls.WallThickness;
+        // Heights over the house's ground (its middle's), as the sim has them.
+        double ground = DarkTerritory.Sim.Run.Run.StopWorld(line, f, b.Centre).Y;
+        Double3 At(double x, double y, double up) => DarkTerritory.Sim.Run.Run.StopWorld(line, f, DarkTerritory.Sim.Run.StopWalls.InHouse(b, x, y)) with { Y = ground + up };
+        double Floor(int level) => DarkTerritory.Sim.Run.StopWalls.FloorAt(b, level);
+        var (fx, fy) = DarkTerritory.Sim.Run.StopWalls.Front(b);
+        camera = storey switch
+        {
+            "basement" => Camera.LookAt(At(e * (ix - 0.9), side * 0.6, Floor(-1) + 1.6), At(-e * ix, -side * 0.4, Floor(-1) + 0.5), 80),
+            "upstairs" => Camera.LookAt(At(e * (ix - 0.5), -side * (iy - 0.6), Floor(1) + 1.65), At(-e * ix, side * iy * 0.5, Floor(1) + 0.4), 80),
+            "outside" => Camera.LookAt(At(fx * (b.Length / 2 + 7) - fy * 3, fy * (b.Width / 2 + 7) + fx * 3, 1.7), At(0, 0, Floor(0) + 1.2), 70),
+            _ => Camera.LookAt(At(fx * (b.Length / 2 - 1.0), fy * (b.Width / 2 - 1.0), Floor(0) + 1.65), At(-fx * ix + e * 0.5, -fy * iy + side * 0.5, Floor(0) + 0.6), 80),
+        };
+    }
     // --gun-laid yaw,pitch (degrees): every gun turned and elevated so, as a seated gunner lays it (T112).
     if (Str(args, "--gun-laid", "") is { Length: > 0 } laid)
     {
