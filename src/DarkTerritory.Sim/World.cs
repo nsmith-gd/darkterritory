@@ -2521,6 +2521,10 @@ public sealed partial class World
         // Singing together (note 720), heard before the meter, the livestock and the creatures listen this tick.
         if (Authority && _context is { } heard)
             StepSinging(heard);
+        // The behaviour reader's voice (note 999 §2b): each crewmate's loudest of the second, a byte a tick.
+        if (Authority && _context is { } voiced && Director is { } listening)
+            foreach (var (p, intent) in voiced.Crew)
+                listening.Behaviours.Hear(p.Id, intent.Voice);
         if (Authority)
             StoppedBySignal();
         if (Combat is { } c)
