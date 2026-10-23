@@ -41,12 +41,14 @@ public class StopWallsTests
     {
         var (route, train) = Night("frontier:7");
         Assert.NotEmpty(train.Walls!.All);
+        // From 12 m out on the line's side of it, straight at its middle for ten seconds (the first whose 12 m out isn't against
+        // another building: note 1005's thinned villages left one there).
+        Double3 From(Route.RouteFeature x, StopBuilding b) => Run.Run.StopWorld(train.Line, x, new Pt(b.S, b.D - Math.Sign(b.D) * (Math.Max(b.Length, b.Width) / 2 + 12)));
         var (f, b) = route.Features.Where(x => x.Stop is not null)
             .SelectMany(x => x.Stop!.Buildings.Select((b, i) => (x, b, i)).Where(t => StopWalls.Walled(x.Stop!, t.i)).Select(t => (x, t.b)))
-            .First();
+            .First(t => !InAnyWall(train.Walls, From(t.x, t.b), 2));
         var centre = Run.Run.StopWorld(train.Line, f, b.Centre);
-        // From 12 m out on the line's side of it, straight at its middle for ten seconds.
-        var from = Run.Run.StopWorld(train.Line, f, new Pt(b.S, b.D - Math.Sign(b.D) * (Math.Max(b.Length, b.Width) / 2 + 12)));
+        var from = From(f, b);
         var s = PlayerMotor.SpawnOnGround(from, train.Line, f.Start + b.S, P);
         var d = centre - from;
         s.Yaw = Math.Atan2(-d.X, -d.Z);

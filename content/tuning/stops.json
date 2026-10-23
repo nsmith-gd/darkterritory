@@ -58,7 +58,7 @@
     // `leastBasements` a village have a basement (the plain houses furthest out first); a house with a basement keeps a find
     // down there at `basementFind` besides its others, one with an upstairs one up there at `upstairsFind`; and those finds
     // are drawn worthier (loot.json `levelDraws`). L, cross and paired houses stay one floor (note 1005's not-yet).
-    "keep": 0.6, "keepFirst": 3,
+    "keep": 0.6, "keepFirst": 5,
     "forms": {
       "choices": [["upstairsBasement", 0.4], ["basement", 0.3], ["upstairs", 0.15], ["plain", 0.15]],
       "leastBasements": 1, "basementFind": 0.6, "upstairsFind": 0.35
