@@ -26,6 +26,11 @@ public sealed class Ribbit(int id, int pack) : Enemy(id)
     public override double MeleeRadius => 0.7;
     public int Pack { get; } = pack;
     public int? Target => Extra >= 0 ? (int)Extra : null;
+    /// <summary>
+    /// Note 1003: the crewmate on foot the pack's closing in on though it can't take them (no Target: nobody's outnumbered),
+    /// −1 none. The leader's pick, copied to the pack as <see cref="Target"/> is. Host's.
+    /// </summary>
+    public int Stalking { get; private set; } = -1;
 
     public static Ribbit At(int id, int pack, Double3 world, RibbitTuning t) => new(id, pack) { Attached = Loose, Local = world, Extra = -1, Health = t.Health };
 
@@ -40,6 +45,7 @@ public sealed class Ribbit(int id, int pack) : Enemy(id)
         if (leader == this && Phase != SpinePhase.Grab)
             Choose(ctx, t, members);
         Extra = leader.Extra;
+        Stalking = leader.Stalking;
         var target = ctx.LivingCrew().FirstOrDefault(c => Target is { } w && c.Player.Id == w);
         if (Target is not { } who || ctx.LivingCrew().All(c => c.Player.Id != who))
         {
@@ -47,6 +53,23 @@ public sealed class Ribbit(int id, int pack) : Enemy(id)
             {
                 Enter(ctx, SpinePhase.BreakOff);
                 Enter(ctx, SpinePhase.Dormant);
+            }
+            // Note 1003 (the director's playtest of 23 Oct, line 24: "they should start moving towards us, they should put
+            // pressure on us"): a pack that can't take anyone yet closes in on the nearest on foot anyway, and sits stalkAt m
+            // off them, out of the tongue's lash, for the first of them to walk off alone (App. A.6's COUNT/IGNORE holds:
+            // it never tongues a group it doesn't outnumber).
+            if (Phase == SpinePhase.Dormant && t.StalkAt > 0 && Stalking >= 0
+                && ctx.LivingCrew().Where(c => c.Player.Id == Stalking).Select(c => (Double3?)c.World).FirstOrDefault() is { } stalked)
+            {
+                // Where: stalkAt off them on the pack's side, each to its place round it (Place's fan).
+                var centre = members.Aggregate(Double3.Zero, (a, m) => a + m.Local) * (1.0 / size);
+                var off = (centre - stalked) with { Y = 0 };
+                if (off.Length > 1e-6 && ((Local - stalked) with { Y = 0 }).Length > t.StalkAt + 1)
+                {
+                    var sitAt = stalked + off.Normalized * t.StalkAt;
+                    var (stalkWay, stalkApart) = Place(sitAt, members, leader, t);
+                    Hop(stalkWay, stalkApart, t.HopSpeed, members, t.Spacing);
+                }
             }
             return;
         }
@@ -63,8 +86,11 @@ public sealed class Ribbit(int id, int pack) : Enemy(id)
                         m.Enter(ctx, SpinePhase.Telegraph);
                 return;
             case SpinePhase.Telegraph:
-                // Outrun (App. A.6: "outrunnable, if you run"): out of the tongues' reach before they fire, and they hop after.
-                if (leader == this && d > t.TongueReach * 1.5)
+                // Outrun (App. A.6: "outrunnable, if you run"): out of the tongues' lash before they fire, and they hop after.
+                // Note 1003 (the director's playtest of 23 Oct, line 25: "just my walking pace can defeat them"): the lash was
+                // 1.5 × tongueReach (6 m), and a walk backward from 4 m makes 7.6 m in the 1.5 s telegraph; tongueLash is past a
+                // walk's and short of a run's (8.25 m further).
+                if (leader == this && d > t.TongueLash)
                 {
                     foreach (var m in members)
                     {
@@ -129,6 +155,20 @@ public sealed class Ribbit(int id, int pack) : Enemy(id)
             }
         }
         Extra = pick ?? -1;
+        // Note 1003: nobody to take, the nearest on foot within stalkFrom to close in on (weighed as a catch is).
+        int? stalk = null;
+        best = double.MaxValue;
+        if (pick is null)
+            foreach (var (p, w) in ctx.LivingCrew())
+            {
+                // Nor into a fort (or the gym's safe ring) after them: it would only be driven off there.
+                if (!CrewSense.Afoot(p.State, ctx.Train) || ctx.World.InFort(w))
+                    continue;
+                double d = ((w - centre) with { Y = 0 }).Length, weighed = ctx.Weigh(p.Id, d);
+                if (d <= t.StalkFrom && weighed < best)
+                    (best, stalk) = (weighed, p.Id);
+            }
+        Stalking = stalk ?? -1;
     }
 
     /// <summary>

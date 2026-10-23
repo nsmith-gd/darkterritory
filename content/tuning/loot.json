@@ -237,11 +237,16 @@
   // no more than liveCap move at once in a car (the rest lie still till they're done), and a thing lying still is asleep
   // and costs nothing. What's felt is capped at maxFelt m/s² (a jolt of the couplings). Off, things lie as they lay (the
   // brakes nudge them; nothing slides on a bend), as before.
+  // Note 1003 (the director's playtest of 23 Oct, line 31: "it slides really easily, like it's sitting on ice ... I kind of
+  // sometimes wish that they were stable"): grip 0.05 → 0.2 and slide 0.03 → 0.2, a crate on a plank floor. Measured in a
+  // frontier cargo car: a bend at any speed is felt at 0.05-0.16 g (12-26 m/s), so nothing shifts on a bend now; the full
+  // brake from 20 m/s is felt at 0.28 g, 0.42 g at its first snatch, so a hard stop still throws what's loose forward (and a
+  // fragile one into the car's end), and it stops sliding as soon as the brake's off.
   "ride": {
     "enabled": true,
-    "grip": 0.05,
+    "grip": 0.2,
     "stackGrip": 0.3,
-    "slide": 0.03,
+    "slide": 0.2,
     "heavyGrip": 2.0,
     "liveCap": 12,
     "maxFelt": 12

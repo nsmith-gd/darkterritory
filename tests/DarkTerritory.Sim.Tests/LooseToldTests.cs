@@ -33,6 +33,28 @@ public class LooseToldTests
         w.Step(c);
     }
 
+    /// <summary>
+    /// Note 1003 (the director's playtest of 23 Oct, line 30: "I can hear the sound of one of the couplings is loose ... I don't
+    /// know why"): still knocking at retellAt, the crew are told again what did it, once; and the gap's prompt says it.
+    /// </summary>
+    [Fact]
+    public void APinStillKnockingIsToldAgainWhatLoosenedItOnce()
+    {
+        var w = Straight(15);
+        for (int i = 0; i < 3 * SimConstants.TickRate; i++)
+            Tick(w, new TrainControls { Brake = 1, Reverser = 1 });
+        var loose = Assert.Single(w.Train.Vehicles, v => v.Loose > 0);
+        Assert.Equal("A HARD BRAKE", Couplings.CauseWords(loose.LooseCause));
+        for (int i = 0; i < (L.RetellAt + 5) * SimConstants.TickRate; i++)
+        {
+            w.Train.Dynamics.Velocity = 10;
+            Tick(w, new TrainControls { Reverser = 1 });
+        }
+        var again = Assert.Single(w.NewsLog, e => e.Kind == NewsKind.StillLoose);
+        Assert.Equal($"COUPLING STILL LOOSE BEHIND CAR {loose.Id} · A HARD BRAKE AT 54 KM/H", News.Line(w, again));
+        Assert.True(again.Tick * SimConstants.TickSeconds - w.NewsLog.Single(e => e.Kind == NewsKind.Loose).Tick * SimConstants.TickSeconds >= L.RetellAt - 4);
+    }
+
     [Fact]
     public void AHardBrakesPinIsToldAsItJumpsAtItsGapAndThePartingSaysTheSame()
     {

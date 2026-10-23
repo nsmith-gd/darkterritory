@@ -307,6 +307,12 @@ public sealed record RibbitTuning
     public double HopSpeed { get; init; } = 4;
     public double GroupRadius { get; init; } = 8;
     public double TongueReach { get; init; } = 4;
+    /// <summary>Note 1003: m; out past this in the telegraph, the catch has outrun the tongues (was 1.5 × TongueReach).</summary>
+    public double TongueLash { get; init; } = 6;
+    /// <summary>Note 1003: m off the nearest on foot that a pack with nobody to take closes in to and sits; 0 it sits where it is.</summary>
+    public double StalkAt { get; init; }
+    /// <summary>Note 1003: m; how far off a pack with nobody to take sees a crewmate on foot to close in on.</summary>
+    public double StalkFrom { get; init; } = 45;
     public double DevourSeconds { get; init; } = 8;
     public double GiveUpBeyond { get; init; } = 45;
     public double SpawnOut { get; init; } = 35;

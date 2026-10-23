@@ -1224,7 +1224,11 @@ public sealed class Bodies
             var was = counts ? ps[0].Velocity(Dt) + b.Slide : Double3.Zero;
             b.RestingOn = null;
             b.Struck = 0;
-            b.Pbd.Step(Dt, gravity, (pos, r) => Contact(b, frame, pos, r, train, ref touchedCar, rides));
+            // Note 1003 (the director's playtest of 23 Oct, line 31: "like it's sitting on ice"): lying on something in a riding
+            // car, what's felt along the floor (the car's moving, its cant and grade) is the slide's alone, held by its grip; the
+            // physics' own contact friction only slows a push, never holds it, and crept a thing across the floor under the grip.
+            var pushed = rides && ps.Length == 1 && ps[0].Contact ? gravity with { X = 0, Z = 0 } : gravity;
+            b.Pbd.Step(Dt, pushed, (pos, r) => Contact(b, frame, pos, r, train, ref touchedCar, rides));
             if (b.Kind == BodyKind.Caboose)
                 Tow(b, train, t.Composition.Caboose);
             if (rides)

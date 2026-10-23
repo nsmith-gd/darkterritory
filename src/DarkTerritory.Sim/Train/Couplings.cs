@@ -33,6 +33,11 @@ public sealed record LooseTuning
     /// <summary>A pin holds while the train stands (the director, the inbox, 9 Oct) and while a hound pack is aboard (12 Oct).</summary>
     public bool Holds { get; init; } = true;
     public double PartAfter { get; init; } = 90;
+    /// <summary>
+    /// Note 1003: s a pin's been working loose when the crew are told again what loosened it (the knock's still going, and the
+    /// first line, at the jump, faded long since); 0 never. Not a jumped pin's (that one's told twice already).
+    /// </summary>
+    public double RetellAt { get; init; } = 45;
     public double TightenSeconds { get; init; } = 4;
     public double Reach { get; init; } = 2.2;
     /// <summary>A pin jumped at speed, two on the run (note 865): upkeep.json <c>coupling.jump</c>.</summary>
@@ -119,6 +124,8 @@ public sealed class Couplings(LooseTuning tuning, ulong seed)
     public int Parted { get; private set; }
     /// <summary>The pin worked loose this tick, what did it and the train's speed then (host; the clerk's), or null.</summary>
     public (int Car, LooseCause Cause, double Speed)? Loosened { get; private set; }
+    /// <summary>Note 1003: the car whose pin's been working loose <see cref="LooseTuning.RetellAt"/> s as of this tick (host), or −1.</summary>
+    public int Retold { get; private set; } = -1;
     /// <summary>The first car of the rake a dropped pin parted from the train this tick (host), or −1.</summary>
     public int PartedFrom { get; private set; } = -1;
     /// <summary>Note 865: pins jumped at speed tonight, driven home by two, and parted with one letting go (host; the tests').</summary>
@@ -135,6 +142,19 @@ public sealed class Couplings(LooseTuning tuning, ulong seed)
     /// <summary>Where the coupling behind a car is (that car's frame): the middle of the gap, at the coupler's height.</summary>
     public static Double3 Pin(CarShape shape, TrainTuning t) =>
         new(t.Geometry.PlateX, t.Geometry.CouplerHeight, shape.HalfLength + t.Geometry.CouplingGap / 2);
+
+    /// <summary>
+    /// Note 1003 (the director's playtest of 23 Oct, line 30: "I don't know why that coupling is loose"): what worked a pin
+    /// loose, in the HUD's few words, for the gap's own prompt; null for one that isn't known.
+    /// </summary>
+    public static string? CauseWords(LooseCause cause) => cause switch
+    {
+        LooseCause.RunIn => "A HARD BRAKE",
+        LooseCause.Knock => "COUPLED UP HARD",
+        LooseCause.Bend => "A BEND TAKEN FAST",
+        LooseCause.Working or LooseCause.Jumped => "A RAIL JOINT",
+        _ => null,
+    };
 
     /// <summary>Note 865: a pin that takes two, working loose (the warning) or jumped clear.</summary>
     public static bool TakesTwo(LooseCause cause) => cause is LooseCause.Working or LooseCause.Jumped;
@@ -164,7 +184,7 @@ public sealed class Couplings(LooseTuning tuning, ulong seed)
     public int Step(TrainOnLine train, int open, bool quiet, bool packAboard = false,
         IReadOnlyList<(int Id, PlayerState State, PlayerIntent Intent)>? crew = null, HandTuning? hand = null)
     {
-        (Loosened, PartedFrom, LetGo) = (null, -1, null);
+        (Loosened, PartedFrom, LetGo, Retold) = (null, -1, null, -1);
         _clock += SimConstants.TickSeconds;
         var engine = train.RakeOf(0);
         double speed = Math.Abs(engine.Velocity);
@@ -227,7 +247,12 @@ public sealed class Couplings(LooseTuning tuning, ulong seed)
                 }
             }
             else if (v.Loose > 0)
+            {
                 loose++;
+                // Note 1003: halfway through its knock, the crew are told again what worked it loose.
+                if (!jumped && tuning.RetellAt > 0 && v.Loose >= tuning.RetellAt && v.Loose - SimConstants.TickSeconds < tuning.RetellAt && Retold < 0)
+                    Retold = i;
+            }
             else if (Runs(train, i))
                 tight.Add(i);
         }
