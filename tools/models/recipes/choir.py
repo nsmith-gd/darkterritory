@@ -7,7 +7,8 @@ high-resolution copy and bakes it into one 1024 atlas:
     panels between them paler, a faint wet sheen over all of it;
   * the frilled skirt and the curtains paler still, almost white at their edges, veined finer;
   * the lips a child's, gone grey-violet, cracked; the milk teeth yellowed; the throat black and wet;
-  * the tendrils banded faintly, darker at their roots.
+  * the tendrils banded faintly, darker at their roots;
+  * the organs inside the bell (seen through it) a clotted blood-violet, knotted.
 The membrane's wet (rough 0.35), the lips and the throat wetter (0.15, 0.1).
 
     tools/models/build.sh choir
@@ -35,6 +36,7 @@ DRESS = {
     "skin.choir_frill": (lambda: make.flat("choir_frill", (0.24, 0.255, 0.27), rough=0.35), 2),
     "skin.choir_teeth": (lambda: make.flat("choir_teeth", (0.34, 0.31, 0.24), rough=0.4), 1),
     "skin.choir": (lambda: make.flat("choir_skin", (0.22, 0.25, 0.28), rough=0.35), 2),
+    "skin.choir_organ": (lambda: make.flat("choir_organ", (0.09, 0.035, 0.05), rough=0.25), 2),
     "tar.choir_hole": (lambda: make.flat("choir_hole", (0.004, 0.003, 0.003), rough=0.1), 1),
 }
 
@@ -71,7 +73,8 @@ def lip_shape(p, n):
 
 
 SHAPE = {"skin.choir_face": lip_shape, "skin.choir_frill": lambda p, n: 0.0004 * veins_of(p, 30.0) + fine(p, 0.00005, 900, 1206),
-         "skin.choir_teeth": lambda p, n: fine(p, 0.00003, 900, 1207), "skin.choir": skin_shape, "tar.choir_hole": lambda p, n: 0 * p[:, 0]}
+         "skin.choir_teeth": lambda p, n: fine(p, 0.00003, 900, 1207), "skin.choir": skin_shape,
+         "skin.choir_organ": lambda p, n: 0.0008 * ridged(p, 1208, 40.0) ** 3 + fine(p, 0.00005, 900, 1209), "tar.choir_hole": lambda p, n: 0 * p[:, 0]}
 BAKED = sorted(parts)
 highs = {name: overbake.high_of(parts[name], dress, SHAPE) for name in BAKED}
 print("[dt] choir highs", {k: sum(len(h.data.polygons) for h in v) for k, v in highs.items()})

@@ -158,6 +158,27 @@ public sealed partial class Effects
             var p = bell + new Vector3((h - 0.5f) * 1.1f + MathF.Sin((float)t + k) * 0.08f, 0.2f - 1.6f * s, (h2 - 0.5f) * 1.1f);
             mesh.Billboard(p, 0.06f, 0, new Vector4(0.6f, 0.75f, 0.9f, 0.9f * (1 - s) * twinkle), _spark, FxBlend.Additive, 0, 2);
         }
+        // (The Look Review's quality pass, note 1015.) And rime shed down the tendrils: motes hung in a column under the bell
+        // where they trail, sifting slowly down them and swaying as they do, each catching the lamp as it turns; a wisp of
+        // mist low among them. Swooping, the column's left streaming behind (the mist's own trail above).
+        for (int k = 0; k < 14; k++)
+        {
+            float h = Hash(seed * 2.7f + k * 4.3f), h2 = Hash(seed * 0.3f + k * 9.7f);
+            float period = 3.5f + 2.5f * h;
+            float s = (float)((t * 0.6 + h * 11) % period) / period;
+            float a = 2 * MathF.PI * (k + 0.5f) / 14, r = 0.26f + 0.1f * h2;
+            float sway = MathF.Sin((float)t * 0.9f + k * 1.7f) * 0.05f * (1 + 2 * s);
+            var p = bell + new Vector3(MathF.Sin(a) * r + sway, -0.25f - 1.25f * s, MathF.Cos(a) * r) * (swooping ? 1.4f : 1);
+            float twinkle = MathF.Pow(0.5f + 0.5f * MathF.Sin((float)t * (6 + 5 * h) + k * 2.1f), 3);
+            mesh.Billboard(p, 0.035f + 0.025f * h2, 0, new Vector4(0.66f, 0.8f, 0.95f, 0.75f * MathF.Sin(MathF.PI * s) * (0.3f + 0.7f * twinkle)), -1, FxBlend.Additive);
+        }
+        for (int k = 0; k < 3; k++)
+        {
+            float h = Hash(seed * 5.1f + k * 1.9f);
+            float s = (float)((t * 0.35 + h * 5) % 1);
+            var p = bell + new Vector3((h - 0.5f) * 0.4f, -0.9f - 0.5f * s, (Hash(h + k) - 0.5f) * 0.4f);
+            mesh.Billboard(p, 0.8f + 0.9f * s, h * 6.28f, new Vector4(0.6f, 0.66f, 0.72f, 0.16f * MathF.Sin(MathF.PI * s)), _steam, FxBlend.Alpha, (int)(s * 15.99f), 4);
+        }
     }
 
     /// <summary>

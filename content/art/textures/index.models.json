@@ -11677,7 +11677,7 @@
     "sources": [
       {
         "generator": "tools/models/recipes/mouse_moose.py",
-        "what": "the Mouse Moose, modelled in tools/blender/mouse_moose.py, its colour painted here",
+        "what": "the Moose Mouse, modelled in tools/blender/mouse_moose.py, its colour painted here",
         "author": "Dark Territory",
         "license": "CC0-1.0",
         "attribution": "Dark Territory (modelled in tools/models from the texture library)"

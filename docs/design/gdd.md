@@ -14,7 +14,7 @@ Interactive version, with the roster explorer and director tools: [claude.ai/art
 - **The guns:** their own, endless shot, no steam needed (note 689); held in a walled town, down to −20° (note 846); the human cannonball (upgrades.md; note 746).
 - **The train:** the fortress's catalogue of upgrades and the BBQ deck (§11; note 678); a broken-down engine mended in two minutes with a wrench aboard (§23.3; note 660); a car's fire 16 cells, beaten by two (C.5; note 634); every fire has its cause (§22; note 851); the cab's bend warning off, the tilt kept (§32; note 837); pressure builds 17% faster (spec B.6; note 843).
 - **Controls:** crouch held on LeftCtrl, the gun pushed on the middle mouse, the vent on Left Alt, the shove on 5 and nothing on Caps Lock (§32; notes 664, 703, 844, 898); the controls map in README.md and the players' PLAYING.txt written from the game's defaults (`dt controls`, note 898); the crane's keys as its cab sees them (§18; note 845); the whistle blows only while held (§12; note 839).
-- **The world:** ten walled town forms (§3.1; note 692); the gates shut behind the train (§9; note 847); night markets, the Flooders' stilt towns, Hope Tower, ruins (§3); the Mouse Moose, the Pickers and the house creatures (§21).
+- **The world:** ten walled town forms (§3.1; note 692); the gates shut behind the train (§9; note 847); night markets, the Flooders' stilt towns, Hope Tower, ruins (§3); the Moose Mouse, the Pickers and the house creatures (§21).
 - **Since the audit** (18 Oct): the night's curve, rule-less creatures coming more as the night goes (B.1; note 849, #1241, merged 18 Oct after the audit).
 
 **v1.7 changes — what changed since v1.6 (11 to 20 October; started 20 Oct, the director, the inbox: "Yes to both."; note 857 call 10, note 897).** The week to 18 Oct is the list above, from the audit of 18 Oct (note 857); since it:
@@ -77,8 +77,8 @@ Interactive version, with the roster explorer and director tools: [claude.ai/art
 - **Run budgets match the build** (B.1): 90, 150, 230 and 330 by tier, about twice v1.1's, to pay for the paced director the build runs.
 - Touches §12, §23, §23.1, B.1, C.9, D.2, D.4, D.7, D.12, E.9 and E.12.
 
-**The director's note of 2026-10-15: the Mouse Moose (queue #515; ARCHITECTURE §8 note 790; design in `docs/design/creatures/mouse-moose.md`).** "A creature that wanders yards stealing loot. It does so very slowly, and once it gets out of position so that the crane can't reach it, then you can't get it as a player ... a management task of trying to keep awareness of all of the loot around you and then trying to drive them off."
-- **The Mouse Moose** (outside, sight, Cargo): a mutant rat the size of a dog, with little moose antlers. At a yard where a crane still has castings to load, it creeps in and drags one away, very slowly, out from under the gantry. Once the casting is out of the crane's reach, nobody can get it back.
+**The director's note of 2026-10-15: the Moose Mouse (named the Mouse Moose until the director renamed it, Look Review, 2026-10-23; note 1015) (queue #515; ARCHITECTURE §8 note 790; design in `docs/design/creatures/mouse-moose.md`).** "A creature that wanders yards stealing loot. It does so very slowly, and once it gets out of position so that the crane can't reach it, then you can't get it as a player ... a management task of trying to keep awareness of all of the loot around you and then trying to drive them off."
+- **The Moose Mouse** (outside, sight, Cargo): a mutant rat the size of a dog, with little moose antlers. At a yard where a crane still has castings to load, it creeps in and drags one away, very slowly, out from under the gantry. Once the casting is out of the crane's reach, nobody can get it back.
 - Come within 6 m and it runs off and hides a while, then comes back for the same casting, so a crewmate can stand guard over it. After five scares it goes for a different one. It never hurts anyone.
 - Touches §21.
 
@@ -911,7 +911,7 @@ Knee-high, long-armed scavengers that scuttle out of the drains at the foot of t
 > **RULE: get there first.**
 They come up a little after the train stands at a yard and race the crew for its loose crates: each takes the nearest one nobody's guarding and runs it down its drain, gone; a heavy one takes two. Come right up to one carrying and it bites and drops it; a blow kills one and scatters the rest. They never kill.
 
-**THE MOUSE MOOSE** · *in a yard, while a crane has castings to load* *(the director, 2026-10-15)*
+**THE MOOSE MOUSE** · *in a yard, while a crane has castings to load* *(the director, 2026-10-15; renamed from the Mouse Moose, 2026-10-23)*
 A mutant rat the size of a dog, mangy and hunched, with a little pair of moose antlers on its head. It squeaks.
 > **RULE: keep an eye on the castings, and stand by the one it wants.**
 A while after the train stands at a yard with a crane, it creeps in out of the dark and fastens its teeth on one of the castings waiting to be craned. Then it drags it away from the gantry, very slowly. Once the casting is out from under the crane, out of the hook's reach, it's lost: nobody can get it back. Come within 6 m of it, or strike it, and it lets go and bolts for its hole. It hides there a while, then comes back for the same casting, so once you know which one it wants, you can guard it. After the fifth scare it gives that casting up and goes for another. It never hurts anyone, and nothing kills it. It goes when the train leaves the yard.
