@@ -1223,7 +1223,13 @@
       // (1 + lengthScale × (cars − scaleCars)), each at least scaleFloor; 1 at a crew of four and eight cars (a Frontier
       // train). The budget scales by both too (crewPerPlayer, lengthPerCarBeyondThird), but on a 7 km night it never binds:
       // this is what does. 0.18 and 0.06: the director's on the Creature Tweaker (note 652, 13 Oct).
-      "crewScale": 0.18, "lengthScale": 0.06, "scaleCrew": 4, "scaleCars": 8, "scaleFloor": 0.5
+      "crewScale": 0.18, "lengthScale": 0.06, "scaleCrew": 4, "scaleCars": 8, "scaleFloor": 0.5,
+      // Queue #723 (note 1020; the director's two-player Frontier night, 24 Oct: "great for 3 people", not two). crewLoad:
+      // × the pressure's build and the encounter rate λ for a crew of that many in the night (the key; 1 not named): with
+      // encounters.drive.pressureByLambda the pressure has no crew scale, and a crew of two met as many encounters a night as
+      // a three. escalationTier: the escalation above on that tier (not named: escalation), so a tier's end can rise less
+      // with its gate untouched. Both empty: the proposals are on the Creature Tweaker, the director's to set.
+      "crewLoad": {}, "escalationTier": {}
     },
     // The night's curve and the free spawns on it (note 849; GDD App. B.1 "The night's curve"; spec B.10; the director's
     // playtest of 16 Oct: "I do like the whole Lethal Company. The longer a run goes, the more monsters just spawn in general,

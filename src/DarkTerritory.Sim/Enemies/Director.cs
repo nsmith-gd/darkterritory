@@ -77,6 +77,7 @@ public sealed class Director
         double u = new Pcg32(seed, 0x6EACE).NextDouble() * tuning.Pressure.GraceTierScale.GetValueOrDefault(key, 1);
         Grace = tuning.GraceMinSeconds + (tuning.GraceMaxSeconds - tuning.GraceMinSeconds) * Math.Clamp(u, 0, 1);
         _tierRate = tuning.Pressure.Tier.GetValueOrDefault(key, 1);
+        _escalation = tuning.Pressure.EscalationOn(key);
         // The kinds not about tonight (note 635): each named kind's roll, in name order, on its own stream from the scrambled
         // seed (a PCG stream's first draws barely move between neighbouring seeds), so the night's other draws are as they were.
         var about = new Pcg32(unchecked(seed * 0x9E3779B97F4A7C15UL + 0x0BE5E), 0x0BE5E);
@@ -144,6 +145,8 @@ public sealed class Director
     }
 
     readonly double _tierRate;
+    /// <summary>The pressure's escalation on this night's tier (#723: pressure.escalationTier, else pressure.escalation).</summary>
+    readonly double _escalation;
     double _pressure;
     bool _building;
     /// <summary>The night's curve as of the last second the director thought (note 849): 0 at the gate, 1 at the end.</summary>
@@ -554,6 +557,8 @@ public sealed class Director
         // With no route, the same stand-in line as the pressure's (Build): 20 km.
         double progress = EncounterPacing.Progress(elapsed, _route?.DawnSeconds ?? 0, world.Train.Dynamics.Distance, _route?.RunLength ?? 20_000, _clock.Progress);
         EncounterRate = EncounterPacing.Rate(progress, Math.Max(1, Active), world.Train.Dynamics.Consist.CarCount, _route?.Tier ?? RouteTier.Frontier, e);
+        // A crew's own load (#723, note 1020), as the pressure's.
+        EncounterRate *= _t.Pressure.Load(Math.Max(1, Crew));
         // A crew that's losing gets relief (note 906, #611): λ counts only the living already; × the alive share and the hurt.
         if (e.Concurrency is { On: true } c && world.CrewThisTick is { Count: > 0 } crew)
         {
@@ -1390,7 +1395,7 @@ public sealed class Director
             : Math.Max(s / Math.Max(1, _route.RunLength), _route.DawnSeconds > 0 ? elapsed / _route.DawnSeconds : 0);
         // The night's curve (note 849): the escalation climbs by it, as the free spawns come on it.
         Curve = _t.Curve.Of(progress);
-        double escalation = 1 + p.Escalation * Curve;
+        double escalation = 1 + _escalation * Curve;
         // Engaged with the crew: showing itself, coming on, holding someone, punishing. What only paces the train or lingers
         // (on the caps, <see cref="Engaged"/>) neither stops the quiet nor keeps the crew busy (harness: a Climber pacing a car
         // nobody walked into held the night's pressure flat).
@@ -1443,7 +1448,7 @@ public sealed class Director
         double scale = _t.Encounters.Drive is { On: true, PressureByLambda: true } ? 1
             : p.Scale(Math.Max(1, Crew), world.Train.Dynamics.Consist.CarCount);
         // The final surge (#663, note 960) presses the pressure as it raises λ: the pressure is what spends.
-        double rate = _tierRate * scale * conditions * relief * busy * escalation * Surge * (p.BasePerSecond + quiet + loud + cargo + afoot);
+        double rate = _tierRate * scale * p.Load(Math.Max(1, Crew)) * conditions * relief * busy * escalation * Surge * (p.BasePerSecond + quiet + loud + cargo + afoot);
         _pressure = Math.Min(p.Max, _pressure + rate);
         Terms = new PressureTerms(rate, escalation, _sinceThreat, loud, cargo, relief, conditions, afoot);
     }

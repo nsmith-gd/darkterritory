@@ -1097,6 +1097,23 @@ public sealed record PressureTuning
     /// <summary>The rate's scale for a crew of <paramref name="crew"/> and a train of <paramref name="cars"/> cars.</summary>
     public double Scale(int crew, int cars) =>
         Math.Max(ScaleFloor, 1 + CrewScale * (crew - ScaleCrew)) * Math.Max(ScaleFloor, 1 + LengthScale * (cars - ScaleCars));
+
+    /// <summary>
+    /// Queue #723 (note 1020): the night's load for a crew of that many (the key), × the pressure's build and the encounter
+    /// rate λ alike, whichever scaling is on (with drive.pressureByLambda the pressure has no crew scale of its own). A crew
+    /// not named: 1. Empty as shipped: proposed on the Creature Tweaker, the director's to set.
+    /// </summary>
+    public Dictionary<string, double> CrewLoad { get; init; } = new();
+    /// <summary>
+    /// Queue #723 (note 1020): <see cref="Escalation"/> for a tier (its key, as in <see cref="Tier"/>), so a tier's night can
+    /// rise less toward its end with its gate untouched. A tier not named: <see cref="Escalation"/>. Empty as shipped.
+    /// </summary>
+    public Dictionary<string, double> EscalationTier { get; init; } = new();
+
+    /// <summary>The night's load for a crew of <paramref name="crew"/> (<see cref="CrewLoad"/>; 1 not named).</summary>
+    public double Load(int crew) => CrewLoad.GetValueOrDefault(crew.ToString(System.Globalization.CultureInfo.InvariantCulture), 1);
+    /// <summary>The escalation on the tier keyed <paramref name="tier"/> (<see cref="EscalationTier"/>, else <see cref="Escalation"/>).</summary>
+    public double EscalationOn(string tier) => EscalationTier.GetValueOrDefault(tier, Escalation);
 }
 
 /// <summary>
