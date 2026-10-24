@@ -124,7 +124,8 @@ public class StopShellArtTests
     }
 
     [Theory]
-    [InlineData("frontier:1")]
+    // (frontier:2: note 1005's fewer houses moved frontier:1's sheds' dice, and none of them keeps a find.)
+    [InlineData("frontier:2")]
     [InlineData("deadLines:20")]
     public void AnOpenBarnsHayloftAndAShedsBenchStandAtItsBackWall(string spec)
     {

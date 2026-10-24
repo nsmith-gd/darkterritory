@@ -331,6 +331,18 @@ public sealed partial class Run
         return (-1, -1);
     }
 
+    /// <summary>
+    /// The stop (its place in <see cref="Stops"/>) at the route's feature <paramref name="feature"/> (its place in the route's
+    /// features, as the houses' <c>OpenHouse.Feature</c> has it), or −1 (note 1010: a village pinged from the line).
+    /// </summary>
+    public int StopAt(int feature)
+    {
+        for (int k = 0; k < _stopLoot.Count; k++)
+            if (_stopLoot[k].Index == feature)
+                return k;
+        return -1;
+    }
+
     /// <summary>Note 719: the jackpot house's building at the route's feature <paramref name="feature"/>, or −1.</summary>
     public int LockedAt(int feature)
     {
@@ -629,7 +641,7 @@ public sealed partial class Run
             if (kits.Contains(c.Index))
             {
                 var put = StopWalls.FindAt(stop, c);
-                bodies.SpawnItem(StopWorld(line, f, put + new Pt(0.4, 0.3)), hint, Physics.BodyKind.RepairKit);
+                bodies.SpawnItem(StopWorld(line, f, put + new Pt(0.4, 0.3), StopWalls.FindUp(stop, c)), hint, Physics.BodyKind.RepairKit);
             }
             switch (c.Kind)
             {
@@ -651,12 +663,13 @@ public sealed partial class Run
                     // A find in a shut house is put out on its step (T114: the houses are walls, with no way in); in an open
                     // one it's inside, where it'd be kept (note 326).
                     var put = StopWalls.FindAt(stop, c);
+                    double up = StopWalls.FindUp(stop, c);
                     if (finds.Any(x => x.Container == c.Index))
-                        bodies.SpawnLoot(StopWorld(line, f, put), f.Start + put.S, LootOwner(k, c.Index), t.Radius);
+                        bodies.SpawnLoot(StopWorld(line, f, put, up), f.Start + put.S, LootOwner(k, c.Index), t.Radius);
                     // A toy with it (note 264), beside the find: GDD §19's hand loot, for the Track Doll or the meter.
                     foreach (var toy in toys)
                         if (toy.Container == c.Index)
-                            bodies.SpawnItem(StopWorld(line, f, put + new Pt(-0.4, 0.3)), f.Start + put.S, Physics.BodyKind.Toy).Noise = toy.Noise;
+                            bodies.SpawnItem(StopWorld(line, f, put + new Pt(-0.4, 0.3), up), f.Start + put.S, Physics.BodyKind.Toy).Noise = toy.Noise;
                     break;
             }
         }
@@ -681,7 +694,8 @@ public sealed partial class Run
             {
                 var (x, y) = StopWalls.InsideLocal(b, ContainerKind.Loose, StopWalls.Composite(b) ? i + 1 : corners[i % corners.Count]);
                 var put = StopWalls.InHouse(b, x, y);
-                bodies.SpawnLoot(StopWorld(line, f, put), f.Start + put.S, LootOwner(k, ExtraContainer + i), t.Radius);
+                // (On a raised ground floor's boards, note 1005.)
+                bodies.SpawnLoot(StopWorld(line, f, put, StopWalls.Storeyed(b) ? StopWalls.FloorAt(b, 0) : 0), f.Start + put.S, LootOwner(k, ExtraContainer + i), t.Radius);
             }
         }
         if (k < _jackpots.Count && t.Jackpots is { } jp)
@@ -691,7 +705,9 @@ public sealed partial class Run
                 Pt? put = beside < 0 ? HouseFloor(stop.Buildings[_locked[k]]) : JackpotAt(stop, stop.Containers[beside]);
                 if (put is not { } at || !jp.Items.TryGetValue(item, out var size))
                     continue;
-                bodies.SpawnCargo(StopWorld(line, f, at + new Pt(0.3 * i, 0)), f.Start + at.S, size.Radius).Owner = LootOwner(k, JackpotContainer + i);
+                double up = beside < 0 ? StopWalls.Storeyed(stop.Buildings[_locked[k]]) ? StopWalls.FloorAt(stop.Buildings[_locked[k]], 0) : 0
+                    : StopWalls.FindUp(stop, stop.Containers[beside]);
+                bodies.SpawnCargo(StopWorld(line, f, at + new Pt(0.3 * i, 0), up), f.Start + at.S, size.Radius).Owner = LootOwner(k, JackpotContainer + i);
             }
     }
 }

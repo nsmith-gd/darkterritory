@@ -1,0 +1,11 @@
+// The Head Waiter (#713, note 1008): headWaiter on, and in director.encounters.target.behaviours' foils for lazing beside the
+// Gannet (note 999 §2b's table).
+{
+  "$patch": true,
+  "headWaiter": { "on": true },
+  "director": {
+    "encounters": {
+      "target": { "behaviours": { "foils": { "lazing": ["gannet", "headWaiter"] } } }
+    }
+  }
+}

@@ -328,7 +328,7 @@ Use talks to someone, and Use again hears their next line. They turn to face you
 - ~~fish sheds, fences, granite and lobster traps between the houses~~ *(in: note 989, #689)*;
 - buying, upgrading and turning loot into scrip in the town itself, not the menu;
 - faces of their own for the townspeople (they wear the crew's model; they move about on their rounds since note 353, #389);
-- upstairs in the open houses;
+- upstairs in the towns' open houses *(the villages' houses have floors and dark basements since note 1005, #710: an upstairs by a flight, a basement by a hatch and a ladder, cellar windows to climb out of)*;
 - ~~things everyone hears when one person does them (ringing the bell)~~ *(in: note 730, #1038)*;
 - notes found out along the line.
 
@@ -978,6 +978,11 @@ He climbs up at one end of the train and works toward the other, winding each ca
 A gaunt figure in rotting Sunday clothes, sat at a set table by a lit stove, watching you.
 > **RULE: pay for what you take.**
 It doesn't touch guests. Everything in its house is its own: leave something of yours on its table and you can take one of its things. Walk out with one unpaid and it gets up and follows whoever's carrying it, slow and relentless, to the train if it has to. Drop it and it takes it home.
+
+**THE HEAD WAITER** · *at the BBQ deck, the hot tub, the hammock* *(Sloe's proposal, 23 Oct 2026, for the director's line 36: "if you spend too much time up there, something should come and get you"; built behind a flag, off, awaiting the director's verdict; note 1008)*
+Too tall for the deck's awning, thin, in a black waistcoat and a long white apron, a white face with a waiter's moustache painted on, a silver tray up on its fingertips.
+> **RULE: when the glass rings, back to work.**
+It comes up the side of the car for a crewmate who's lounged a long while (90 s in a deck chair, the hot tub or the hammock) while the train runs, stands at their shoulder and rings a spoon on a glass. Then it waits 15 s. Get up and off to work and it bows and goes over the side. Still sat, it clears the table, and you with it: held in the chair 8 s, then thrown over the rail; at speed that's death, slow you're left behind. A friend pulls you free, or hits it: three blows and it drops its tray and goes, six kill it. A few minutes in the hot tub on a quiet stretch are free; it comes when there's work and you let the others do it.
 
 ### Retired from v1.0
 
