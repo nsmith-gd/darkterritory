@@ -18,8 +18,13 @@ public class OpenHouseTests
     static readonly string Content = DataFile.FindContentRoot();
     const double Crewmate = 0.3;
 
-    static bool Blocked(StopWalls walls, Double3 p) =>
-        walls.Near(p).Any(w => Math.Abs(w.ToLocal(p).X) <= w.HalfLength + Crewmate && Math.Abs(w.ToLocal(p).Z) <= w.HalfWidth + Crewmate);
+    /// <summary>
+    /// Whether a crewmate can't stand at a point, walking on a floor <paramref name="up"/> over its ground: a wall's in the way
+    /// between a step up off that floor and a head's height over it (a house of floors' slabs, steps and lintels aren't, note 1005).
+    /// </summary>
+    static bool Blocked(StopWalls walls, Double3 p, double up = 0) =>
+        walls.Near(p).Any(w => Math.Abs(w.ToLocal(p).X) <= w.HalfLength + Crewmate && Math.Abs(w.ToLocal(p).Z) <= w.HalfWidth + Crewmate
+            && w.Top > p.Y + up + 0.36 && w.Bottom < p.Y + up + 1.8);
 
     [Theory]
     [InlineData("frontier:7")]
@@ -47,6 +52,9 @@ public class OpenHouseTests
                 var doors = StopWalls.Doorways(b).ToList();
                 // A unit a door: a pair of cottages has two.
                 Assert.Equal(b.Shape == HouseShape.Pair ? 2 : 1, doors.Count);
+                // And a house of floors a back door besides (note 1005).
+                if (StopWalls.Storeyed(b) && StopWalls.BackDoor(b) is var (bx, by, bnx, bny))
+                    doors.Add(((bx + bnx * 0.8, by + bny * 0.8), (bx - bnx * 1.2, by - bny * 1.2)));
                 pairs += b.Shape == HouseShape.Pair ? 1 : 0;
                 var walk = Reach(walls, line, f, b);
                 // In at each door, from its step.
@@ -59,13 +67,14 @@ public class OpenHouseTests
                 foreach (var (x, y) in walk.Crossings)
                     Assert.True(doors.Any(d => Math.Abs(x - (d.Out.X + d.In.X) / 2) < 1.5 && Math.Abs(y - (d.Out.Y + d.In.Y) / 2) < 1.5),
                         $"{spec} at {f.Start:0}: house {i} ({b.Shape}) has a way in at ({x:0.0}, {y:0.0})");
-                foreach (var c in stop.Containers.Where(c => c.Building == i))
+                // (What's kept in the basement or upstairs is StoreyedHouseTests'.)
+                foreach (var c in stop.Containers.Where(c => c.Building == i && c.Level == 0))
                 {
                     // Inside, and a crewmate gets to just in front of it (within a search's reach, loot.json search.reach), round
                     // the furniture; a cupboard or a cabinet is solid.
                     inside++;
-                    var (ix, iy) = StopWalls.InsideLocal(b, c.Kind, c.Index);
-                    var (kx, ky, fx, fy) = StopWalls.Kept(b, c.Kind, c.Index);
+                    var (ix, iy) = StopWalls.InsideLocal(b, c);
+                    var (kx, ky, fx, fy) = StopWalls.Kept(b, c);
                     Assert.True(StopWalls.InParts(b, ix, iy) && StopWalls.InParts(b, kx, ky), $"{spec} at {f.Start:0}: a {c.Kind} outside its house {i} ({b.Shape})");
                     Assert.True(walk.Reached(ix + fx * 0.45, iy + fy * 0.45), $"{spec} at {f.Start:0}: a {c.Kind} in house {i} ({b.Shape}) can't be got to");
                     if (c.Kind is ContainerKind.Cupboard or ContainerKind.Cabinet)
@@ -110,8 +119,9 @@ public class OpenHouseTests
                             $"{spec} at {f.Start:0}: house {i}'s {pieces[p].Kind} and {pieces[q].Kind} stand in each other ({b.Shape})");
                 if (StopWalls.Partition(b) is not { } w)
                 {
-                    // Only a long plain house or an L is cut into rooms.
-                    Assert.False(b.Shape == HouseShape.L || b.Shape is HouseShape.Rect or HouseShape.Square && b.Length >= StopWalls.RoomsFrom, $"house {i} ({b.Shape}, {b.Length:0.0} m) is one room");
+                    // Only a long plain house or an L is cut into rooms (a house of floors has its floors for rooms, note 1005).
+                    Assert.False(b.Shape == HouseShape.L || b.Shape is HouseShape.Rect or HouseShape.Square && b.Length >= StopWalls.RoomsFrom && !StopWalls.Storeyed(b),
+                        $"house {i} ({b.Shape}, {b.Length:0.0} m) is one room");
                     one++;
                     continue;
                 }
@@ -139,7 +149,8 @@ public class OpenHouseTests
                 }
             }
         }
-        Assert.True(ls > 0 && plain > 0 && one > 0, $"{spec}: {ls} Ls and {plain} plain houses with a back room, {one} of one room");
+        // (Most long plain houses are built with floors now, note 1005, and have none: an L always has its wing.)
+        Assert.True(ls > 0 && one > 0, $"{spec}: {ls} Ls and {plain} plain houses with a back room, {one} of one room");
     }
 
     [Theory]
@@ -180,10 +191,10 @@ public class OpenHouseTests
                 lying++;
                 var b = stop.Buildings[c.Building];
                 Assert.True(b is { Kind: BuildingKind.House, Open: true });
-                var (x, y) = StopWalls.InsideLocal(b, c.Kind, c.Index);
+                var (x, y) = StopWalls.InsideLocal(b, c);
                 // Inside its walls (where the walls are, a crewmate can't stand), and a metre and more from any way in.
                 var at = Run.Run.StopWorld(line, route.Features[i], StopWalls.InHouse(b, x, y));
-                Assert.False(Blocked(walls, at), $"{spec}: a find in house {c.Building}'s wall ({b.Shape})");
+                Assert.False(Blocked(walls, at, StopWalls.Storeyed(b) ? StopWalls.FloorAt(b, 0) : 0), $"{spec}: a find in house {c.Building}'s wall ({b.Shape})");
                 foreach (var (_, way) in StopWalls.Doorways(b))
                     Assert.True(Math.Sqrt((x - way.X) * (x - way.X) + (y - way.Y) * (y - way.Y)) >= 1.0, $"{spec}: a find in house {c.Building}'s doorway ({b.Shape})");
                 var find = finds.Single(f => f.Container == c.Index);
@@ -231,7 +242,8 @@ public class OpenHouseTests
 
     /// <summary>Where a crewmate gets to from outside a house, on a 10 cm grid in its own frame.</summary>
     [Theory]
-    [InlineData("frontier:1")]
+    // (frontier:2: note 1005's fewer houses moved frontier:1's sheds' dice, and none of its four keeps a find.)
+    [InlineData("frontier:2")]
     [InlineData("deadLines:20")]
     [InlineData("local:10")]
     [InlineData("deepTerritory:1")]
@@ -266,8 +278,8 @@ public class OpenHouseTests
                 foreach (var c in stop.Containers.Where(c => c.Building == i))
                 {
                     finds++;
-                    var (ix, iy) = StopWalls.InsideLocal(b, c.Kind, c.Index);
-                    var (kx, ky, fx, fy) = StopWalls.Kept(b, c.Kind, c.Index);
+                    var (ix, iy) = StopWalls.InsideLocal(b, c);
+                    var (kx, ky, fx, fy) = StopWalls.Kept(b, c);
                     Assert.True(StopWalls.InParts(b, ix, iy) && StopWalls.InParts(b, kx, ky), $"{spec} at {f.Start:0}: a {c.Kind} outside its {b.Kind} {i}");
                     Assert.True(walk.Reached(ix, iy), $"{spec} at {f.Start:0}: a {c.Kind} in {b.Kind} {i} can't be got to");
                     if (c.Kind == ContainerKind.Bench)
@@ -389,7 +401,7 @@ public class OpenHouseTests
         var free = new bool[nx, ny];
         for (int i = 0; i < nx; i++)
             for (int j = 0; j < ny; j++)
-                free[i, j] = !Blocked(walls, o + ex * (x0 + i * step) + ey * (y0 + j * step));
+                free[i, j] = !Blocked(walls, o + ex * (x0 + i * step) + ey * (y0 + j * step), StopWalls.Storeyed(b) ? StopWalls.FloorAt(b, 0) : 0);
         var reached = new bool[nx, ny];
         var queue = new Queue<(int, int)>();
         for (int i = 0; i < nx; i++)

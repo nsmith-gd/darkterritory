@@ -61,6 +61,15 @@ public sealed record MusicReport(string Track, string Mood, double StartedAt, do
 /// </summary>
 public static class AudioBench
 {
+    /// <summary>
+    /// The tells of creatures built behind a flag, off in the shipping tuning and so not staged with the rest (the Head Waiter's
+    /// glass, note 1008): each audited alone over the train (<c>dt audio render --scenario sound:NAME</c>) in its band.
+    /// </summary>
+    public static readonly IReadOnlyDictionary<string, (double Low, double High)> FlaggedTellBands = new Dictionary<string, (double, double)>
+    {
+        ["tell-head-waiter.glass"] = (4600, 5600),
+    };
+
     /// <summary>Each tell's band from spec A.4's collision table.</summary>
     public static readonly IReadOnlyDictionary<string, (double Low, double High)> TellBands = new Dictionary<string, (double, double)>
     {
@@ -132,7 +141,10 @@ public static class AudioBench
     /// (chaos with the whole band playing on the listener's roof, or the first car's from the cab: the crew's own music
     /// mustn't bury a tell, note 775), "feet" (the crew walking: <see cref="FeetAt"/>), "pin" (note 865: the pin behind car 3
     /// working loose from half a second in, through its warning to the jump and on, the listener in the cab or up on a roof),
-    /// "brought" (note 958: a creature ridden into the arrival town and fought in its yard, heard from beside it).</param>
+    /// "brought" (note 958: a creature ridden into the arrival town and fought in its yard, heard from beside it), "woods"
+    /// (note 1006: the train stood in frontier:7's first big forest, the wilds' sound round it and every demo tell over it,
+    /// heard from the ballast beside car 2), "woods-open" (the same, stood out of the woods: the open country's night, to
+    /// hold the woods against).</param>
     /// <param name="listenerCar">0 = in the cab; otherwise on that car's roof (in "feet", inside it, or the last beside it).</param>
     /// <param name="space">Hear it all as if in this space (content/audio/spaces.json); null, where the listener is.</param>
     /// <param name="track">"wreck": the music track to play (a manifest id); null, the host's draw from a fresh bag.</param>
@@ -146,14 +158,18 @@ public static class AudioBench
         // "brought" (note 958): frontier:7 drawn in to its terminus town, the train stood in the yard past the gate, hounds
         // ridden in on car 2 (Staging.Patrol, as `dt screenshot --arrival brought --patrol` has them) for the yard's fight
         // (run.json broughtIn.fightSeconds) and then gone; heard from the ground beside car 2, on the square's side.
-        bool brought = scenario == "brought";
-        var route = brought ? Sim.LineGen.Routes.Generate(content, "frontier:7", cars = Math.Min(cars, 6)) : null;
-        var runTuning = brought ? DataFile.Load<Sim.Run.RunTuning>(Path.Combine(content, Sim.Run.RunTuning.File)) : null;
+        bool brought = scenario == "brought", open = scenario == "woods-open", woods = open || scenario == "woods";
+        var route = brought || woods ? Sim.LineGen.Routes.Generate(content, "frontier:7", cars = Math.Min(cars, 6)) : null;
+        var runTuning = brought || woods ? DataFile.Load<Sim.Run.RunTuning>(Path.Combine(content, Sim.Run.RunTuning.File)) : null;
         var consist = Consist.Uniform(trainTuning, cars, 1);
         var line = route?.Build() ?? RailLine.Load(Path.Combine(content, "lines", "test-loop.json"));
-        double startAt = route?.Plan?.Terminus is { } end
-            ? end.GateM + (runTuning!.HomeInsideGateM ?? 0) + consist.LengthMetres + 10 : cars * 16.0 + 200;
-        if (brought)
+        var deepWoods = woods ? Sim.LineGen.DeepWoods.Of(route!.Plan!) : null;
+        double startAt = open
+            ? Enumerable.Range(0, 200).Select(i => route!.Plan!.GateM + 300 + i * 50.0).First(s => deepWoods!.Depth(s - consist.LengthMetres - 50) == 0
+                && deepWoods.Depth(s + 50) == 0 && !route!.Features.Any(f => f.Stop is not null && f.Start < s + 100 && f.End > s - consist.LengthMetres - 100))
+            : woods && deepWoods!.Stretches is [var deep, ..] ? (deep.S0 + deep.S1) / 2 + consist.LengthMetres / 2
+            : route?.Plan?.Terminus is { } end ? end.GateM + (runTuning!.HomeInsideGateM ?? 0) + consist.LengthMetres + 10 : cars * 16.0 + 200;
+        if (brought || woods)
             speed = 0;
         var train = new TrainOnLine(new TrainDynamics(consist), line, startAt, boilerTuning);
         train.Dynamics.Velocity = speed;
@@ -175,7 +191,7 @@ public static class AudioBench
         var audio = new GameAudio(content) { SpaceOverride = space };
         // Offline: every take decodes the moment it's asked for, so a render is the same every time.
         audio.Bank.Samples.InlineBytes = long.MaxValue;
-        bool chaos = scenario is "chaos" or "chaos+band", tells = chaos || scenario == "tells";
+        bool chaos = scenario is "chaos" or "chaos+band", tells = chaos || woods || scenario == "tells";
         // "wreck" (T117): the train comes off half a second in, heard from beside the line where the engine left it.
         bool wreck = scenario == "wreck";
         // "sound:<name>": one sound, 6 m off the listener's right, over the train (stopped, with --speed 0, for a quiet bed):
@@ -309,6 +325,10 @@ public static class AudioBench
                         v.Loose += SimConstants.TickSeconds;
                 }
                 world.Step(controls);
+                // Stood in the woods the run's under way: the host's step (the bench's world is a client's, for its staged
+                // creatures), as WorldNight and WorldWoods ask its phase.
+                if (woods)
+                    world.Run?.Step(world, [], SimConstants.TickSeconds);
                 if (train.Wreck is null)
                     train.Dynamics.Velocity = speed; // hold the moment still in speed
                 if (chaos)
@@ -321,6 +341,9 @@ public static class AudioBench
                 if (brought)
                     trackside ??= train.Frames[Math.Min(2, train.Frames.Count - 1)] is var by
                         ? by.ToWorld(new Double3((world.Arrival?.Plan.Square.Side is -1 ? -1 : 1) * 5, 0, 0)) with { Y = by.Origin.Y + 1.65 - 1.1 } : null;
+                // Stood in the woods: on the ballast beside car 2, between the train and the trees.
+                if (woods)
+                    trackside ??= train.Frames[Math.Min(2, train.Frames.Count - 1)] is var by ? by.ToWorld(new Double3(3, 0, 0)) with { Y = by.Origin.Y + 1.65 - 1.1 } : null;
                 var ear = trackside ?? feetAt + Double3.Up * 1.65;
                 if (feet)
                     audio.Update(world, controls, Listener.At(ear, frame.Heading + player.Yaw), exposed: player.Parent == PlayerState.World, SimConstants.TickSeconds,
@@ -381,6 +404,16 @@ public static class AudioBench
             var (_, overAll, _) = Contrast(stem.AsSpan(skip), rest.AsSpan(skip), band);
             if (sounding > 0)
                 levels.Add(new TellLevel(name, band.Low, band.High, Math.Round(tellDb, 1), Math.Round(overBed, 1), Math.Round(overAll, 1), Math.Round(sounding, 2)));
+        }
+        // A flagged creature's tell auditioned alone (FlaggedTellBands): over everything else, which is the bed here.
+        if (single is not null && FlaggedTellBands.TryGetValue(single, out var flagged) && TellStem(tap, single) is { } alone)
+        {
+            var rest = (float[])tap.Total.Clone();
+            for (int i = 0; i < rest.Length; i++)
+                rest[i] -= alone[i];
+            var (tellDb, overBed, sounding) = Contrast(alone.AsSpan(skip), rest.AsSpan(skip), flagged);
+            if (sounding > 0)
+                levels.Add(new TellLevel(single, flagged.Low, flagged.High, Math.Round(tellDb, 1), Math.Round(overBed, 1), Math.Round(overBed, 1), Math.Round(sounding, 2)));
         }
         var stems = tap.Stems.ToDictionary(kv => kv.Key, kv => Math.Round(Meter.Db(kv.Value.AsSpan(skip)), 1));
         string where = feet ? listenerCar == 0 ? "cab" : listenerCar == lastCar ? $"ground beside car {listenerCar}" : $"inside car {listenerCar}"

@@ -2193,6 +2193,15 @@ public sealed partial class World
         _nextFx = _nextFx % 0xFFFFFF + 1;
     }
 
+    /// <summary>
+    /// Note 1010 (the director, 23 Oct: "point in the direction of a village ... we're gonna go loot this place"): a village
+    /// pinged whose stop the train hasn't yet gone past on the main line (off it, it's in a stop's spur), kept up for it to stand there (<see cref="PingTuning.TownAheadSeconds"/>):
+    /// no bot can search it till then (<see cref="Bots.CrewCalls.Workable"/>).
+    /// </summary>
+    bool TownAhead(in PingEvent e) =>
+        e.Kind == PingKind.Town && Run is { } run && e.Target >= 0 && e.Target < run.Stops.Count
+        && (!Train.OnMain || Train.Dynamics.Distance - Train.Dynamics.Consist.LengthMetres <= run.Stops[e.Target].End);
+
     /// <summary>Starts a tick: clears last tick's shots and events.</summary>
     public void BeginTick()
     {
@@ -2203,8 +2212,11 @@ public sealed partial class World
             Hits.RemoveAll(h => Tick - h.Tick > keep.KeepSeconds * SimConstants.TickRate);
             Swings.RemoveAll(w => Tick - w.Tick > keep.KeepSeconds * SimConstants.TickRate);
             Emotes.RemoveAll(e => !EmoteTuning.Lasts(e, Tick));
-            // (Note 936: one answered stays while its taker's at it, and pings.seconds after.)
-            Pings.RemoveAll(e => Tick - Math.Max(e.Tick, _pingAnswered.GetValueOrDefault(e.Id)) > PingTuning.Seconds * SimConstants.TickRate);
+            // (Note 936: one answered stays while its taker's at it. Note 1010, the director: "once he goes and does it, just get
+            // rid of it. Get rid of the ping": pings.doneSeconds after, not pings.seconds.)
+            Pings.RemoveAll(e => _pingAnswered.TryGetValue(e.Id, out uint answered)
+                ? Tick - answered > PingTuning.DoneSeconds * SimConstants.TickRate
+                : Tick - e.Tick > (TownAhead(e) ? PingTuning.TownAheadSeconds : PingTuning.Seconds) * SimConstants.TickRate);
             if (_pingAnswered.Count > Pings.Count)
                 foreach (int gone in _pingAnswered.Keys.Where(id => !Pings.Exists(p => p.Id == id)).ToList())
                     _pingAnswered.Remove(gone);
@@ -2509,6 +2521,10 @@ public sealed partial class World
         // Singing together (note 720), heard before the meter, the livestock and the creatures listen this tick.
         if (Authority && _context is { } heard)
             StepSinging(heard);
+        // The behaviour reader's voice (note 999 §2b): each crewmate's loudest of the second, a byte a tick.
+        if (Authority && _context is { } voiced && Director is { } listening)
+            foreach (var (p, intent) in voiced.Crew)
+                listening.Behaviours.Hear(p.Id, intent.Voice);
         if (Authority)
             StoppedBySignal();
         if (Combat is { } c)

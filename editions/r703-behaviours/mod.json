@@ -1,0 +1,9 @@
+// Queue #703's measurement (note 999): the shipping content with targeting and the behaviour foils on, the stance off. `dt --edition
+// r703-behaviours director sweep ...`. Measurement only; never shipped.
+{
+  "id": "edition-r703-behaviours",
+  "name": "r703-behaviours",
+  "version": "1.0.0",
+  "description": "pressure by state and by player: director.encounters.target and target.behaviours on (the stance off) (#703, note 999)",
+  "order": -1000
+}

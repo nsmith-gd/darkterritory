@@ -272,6 +272,25 @@ public class AudioTests
     }
 
     [Fact]
+    public void StoodInTheBigForestsTheWoodsAreHeardAndNoTellIsLostInThem()
+    {
+        // Note 1006 (the director, 23 Oct 2026: "some unique sound design out there in the wilds for when players stop in a
+        // forest"): the train stood in frontier:7's first deep woods, heard from the ballast, every demo tell staged round it.
+        // The woods' own sounds come in, and every tell is at least as clear over them as stood out of the woods on the same
+        // night, the open country's night and its gale round it (spec A.3: the woods mustn't bury a tell).
+        var (woods, _) = AudioBench.Render(Content, "woods", cars: 6, speed: 0, listenerCar: 2, seconds: 12);
+        var (open, _) = AudioBench.Render(Content, "woods-open", cars: 6, speed: 0, listenerCar: 2, seconds: 12);
+        Assert.Contains("world-woods.hush", woods.StemsDb.Keys);
+        Assert.DoesNotContain("world-woods.hush", open.StemsDb.Keys);
+        Assert.NotEmpty(woods.Tells);
+        foreach (var t in woods.Tells)
+        {
+            var there = Assert.Single(open.Tells, o => o.Sound == t.Sound);
+            Assert.True(t.OverBedDb >= there.OverBedDb - 1, $"{t.Sound}: {t.OverBedDb} dB over the woods, {there.OverBedDb} over the open night");
+        }
+    }
+
+    [Fact]
     public void EveryLoopingTellWandersAndTheTapeRunsUnderTheTellsAndTheVoices()
     {
         // Spec A.4 rule 4 and A.6 (note 250): no looping tell plays the same twice round, and the tape's wow and flutter are
@@ -322,6 +341,21 @@ public class AudioTests
         Assert.InRange(mimic.Formant!.Shift, 1.05, 1.4);
     }
 
+    [Theory]
+    [InlineData(0)]
+    [InlineData(5)]
+    public void AFlaggedCreaturesTellCutsThroughTheTrainAtSpeed(int listenerCar)
+    {
+        // The Head Waiter's glass (note 1008): off in the shipping tuning, so not among the demo's staged tells; auditioned
+        // alone 6 m off a listener in the cab and on the last roof of a 20-car train at 22 m/s, its band over the bed.
+        foreach (var (sound, _) in AudioBench.FlaggedTellBands)
+        {
+            var (report, _) = AudioBench.Render(Content, "sound:" + sound, cars: 20, speed: 22, listenerCar: listenerCar == 5 ? 19 : 0, seconds: 3);
+            var tell = Assert.Single(report.Tells, t => t.Sound == sound);
+            Assert.True(tell.OverBedDb >= 6, $"{sound} is only {tell.OverBedDb} dB over the bed");
+        }
+    }
+
     [Fact]
     public void EveryEnemyTellIsSentAsFarAsItCanBeHeard()
     {
@@ -330,7 +364,7 @@ public class AudioTests
         // enemy is sent to everyone wherever it is (Enemy.Far, T57).
         var bank = new SoundBank(Path.Combine(Content, "audio", "sounds"));
         var enemies = DataFile.Load<DarkTerritory.Sim.Enemies.EnemyTuning>(Path.Combine(Content, DarkTerritory.Sim.Enemies.EnemyTuning.File));
-        Assert.All(AudioBench.TellBands.Keys.Where(t => t is not ("choir-voice" or "train-whistle")),
+        Assert.All(AudioBench.TellBands.Keys.Where(t => t is not ("choir-voice" or "train-whistle")).Concat(AudioBench.FlaggedTellBands.Keys),
             t => Assert.True(bank.Get(t)!.MaxDistance <= enemies.InterestRadius, $"{t} carries {bank.Get(t)!.MaxDistance} m, past the {enemies.InterestRadius} m interest radius"));
     }
 

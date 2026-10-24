@@ -60,8 +60,9 @@ public sealed partial class StopHand
                 return GiveUpVillage(self, world, p);
             var kept = Lived(world);
             var next = run.HidingSpots
-                .Where(h => h.Stop == _stopIndex && !run.Searched(h.Stop, h.Container.Index) && !_cantReach.Contains(h.Key) && !calls.SpotClaimed(h.Key, member)
-                    && !InLived(world, kept, h.At))
+                // (Not down a basement or up the stairs, note 1005: the bots keep to the ground floor; that's the crew's risk.)
+                .Where(h => h.Stop == _stopIndex && h.Container.Level == 0 && !run.Searched(h.Stop, h.Container.Index) && !_cantReach.Contains(h.Key)
+                    && !calls.SpotClaimed(h.Key, member) && !InLived(world, kept, h.At))
                 .OrderBy(h => (Flat(h.At) - Flat(here)).Length).ThenBy(h => h.Key).FirstOrDefault();
             if (next.Seconds <= 0)
                 return GiveUpVillage(self, world, p);
@@ -153,7 +154,7 @@ public sealed partial class StopHand
         var t = Crew(world);
         var kept = Lived(world);
         return run.DawnIn >= t.VillageDawnSpare && (TownOrdered(_stopIndex) || calls.OutCount(member) < Math.Max(1, (int)Math.Ceiling(calls.CrateHands * t.VillageShare)))
-            && run.HidingSpots.Any(h => h.Stop == _stopIndex && !run.Searched(h.Stop, h.Container.Index) && !_cantReach.Contains(h.Key)
+            && run.HidingSpots.Any(h => h.Stop == _stopIndex && h.Container.Level == 0 && !run.Searched(h.Stop, h.Container.Index) && !_cantReach.Contains(h.Key)
                 && !calls.SpotClaimed(h.Key, member) && (Flat(h.At) - Flat(here)).Length <= Reach(world, t) && !InLived(world, kept, h.At));
     }
 

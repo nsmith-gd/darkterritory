@@ -1028,7 +1028,7 @@ public sealed unsafe class GreyboxRenderer : IDisposable
         f->Fog = new Vector4(lighting.FogColor, lighting.FogDensity);
         f->FogHeight = new Vector4(fogBase, lighting.FogHeightFalloff, lighting.FogFloor, (float)(lighting.Time % 10000));
         f->Moon = new Vector4(lighting.MoonDirection, lighting.Ambient);
-        f->Indoor = new Vector4(lighting.IndoorFill == Vector3.Zero ? lighting.Ambient * new Vector3(0.55f, 0.42f, 0.3f) : lighting.IndoorFill, 0);
+        f->Indoor = new Vector4(lighting.IndoorFill == Vector3.Zero ? lighting.Ambient * new Vector3(0.55f, 0.42f, 0.3f) : lighting.IndoorFill, 1 - lighting.CellarDim);
         f->MoonColour = new Vector4(lighting.MoonColour, lighting.MoonStrength);
         f->LampPos = new Vector4(lighting.LampPosition.RelativeTo(camera.Position), lighting.LampRange);
         f->LampDir = new Vector4(lighting.LampDirection, MathF.Cos(lighting.LampConeDegrees * MathF.PI / 180));
@@ -1060,7 +1060,8 @@ public sealed unsafe class GreyboxRenderer : IDisposable
         {
             var r = _rooms[i];
             float* p = f->Rooms + i * 12;
-            (p[0], p[1], p[2], p[3]) = (r.Centre.X, r.Centre.Y, r.Centre.Z, r.Half.X);
+            // (A dark room's half x is sent negative: the shader's cellar(), note 1005.)
+            (p[0], p[1], p[2], p[3]) = (r.Centre.X, r.Centre.Y, r.Centre.Z, r.Dark ? -r.Half.X : r.Half.X);
             (p[4], p[5], p[6], p[7]) = (r.Right.X, r.Right.Y, r.Right.Z, r.Half.Y);
             (p[8], p[9], p[10], p[11]) = (r.Back.X, r.Back.Y, r.Back.Z, r.Half.Z);
         }

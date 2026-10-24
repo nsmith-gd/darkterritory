@@ -368,7 +368,14 @@ public sealed record UpkeepReport(int HotBoxes, int Caught, int Lamps, int WentO
 /// kind; the director's spawns made while anyone was out, of all its spawns; the threats that telegraphed then, of all.
 /// </summary>
 /// <summary>Note 999: director seconds and encounters placed in each of the train's states, and encounters sent at a crewmate by what they were doing.</summary>
-public sealed record StanceReport(IReadOnlyDictionary<string, double> Seconds, IReadOnlyDictionary<string, int> Placed, IReadOnlyDictionary<string, int> Targeted);
+public sealed record StanceReport(IReadOnlyDictionary<string, double> Seconds, IReadOnlyDictionary<string, int> Placed, IReadOnlyDictionary<string, int> Targeted)
+{
+    /// <summary>Note 999 §2b: each behaviour read tonight, its crew-seconds, the crewmates who showed it, and the encounters that foiled it.</summary>
+    public IReadOnlyDictionary<string, BehaviourReport> Behaviours { get; init; } = new Dictionary<string, BehaviourReport>();
+}
+
+/// <summary>A behaviour read tonight (note 999 §2b): crew-seconds shown, by whom (player ids), and the encounters placed that foiled it.</summary>
+public sealed record BehaviourReport(double Seconds, IReadOnlyList<int> Players, int Foiled);
 
 public sealed record AfootReport(double CrewSeconds, int Signs, int FromSites, IReadOnlyDictionary<string, int> Kinds, int SpawnsAfoot, int Spawns,
     int EngagedAfoot, int Engaged);
@@ -821,7 +828,11 @@ public static class Harness
                 Votes = new SortedDictionary<string, int>(d.Votes.GroupBy(v => v.Kind.ToString()).ToDictionary(g => g.Key, g => g.Count()), StringComparer.Ordinal),
                 Stance = new StanceReport(new SortedDictionary<string, double>(d.StanceSeconds.ToDictionary(), StringComparer.Ordinal),
                     new SortedDictionary<string, int>(d.PlacedByStance.ToDictionary(), StringComparer.Ordinal),
-                    new SortedDictionary<string, int>(d.Targeted.ToDictionary(), StringComparer.Ordinal)),
+                    new SortedDictionary<string, int>(d.Targeted.ToDictionary(), StringComparer.Ordinal))
+                {
+                    Behaviours = new SortedDictionary<string, BehaviourReport>(d.Behaviours.Seconds.ToDictionary(kv => kv.Key,
+                        kv => new BehaviourReport(kv.Value, [.. d.Behaviours.Who[kv.Key]], d.Foiled.GetValueOrDefault(kv.Key))), StringComparer.Ordinal),
+                },
                 Afoot = new AfootReport(d.AfootSeconds, d.Signs.Count, d.Signs.Count(x => x.FromSite),
                     new SortedDictionary<string, int>(d.Signs.GroupBy(x => x.Kind.ToString()).ToDictionary(g => g.Key, g => g.Count()), StringComparer.Ordinal),
                     d.SpawnsAfoot, d.Log.Count,

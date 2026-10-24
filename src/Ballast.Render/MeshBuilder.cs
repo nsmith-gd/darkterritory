@@ -67,7 +67,11 @@ public enum FxBlend { Alpha, Additive }
 /// An enclosed space (a car's interior) in camera-relative space: inside it the night doesn't reach, no moon, no
 /// headlamp, no rain, only the practical lights (GDD §28: "inside = warm, human, temporary safety").
 /// </summary>
-public readonly record struct Room(Vector3 Centre, Vector3 Right, Vector3 Up, Vector3 Back, Vector3 Half);
+public readonly record struct Room(Vector3 Centre, Vector3 Right, Vector3 Up, Vector3 Back, Vector3 Half)
+{
+    /// <summary>A dark room (a house's basement, note 1005): its fill is a room's less <see cref="FrameLighting.CellarDim"/>.</summary>
+    public bool Dark { get; init; }
+}
 
 /// <summary>A cooked mesh placed in the scene: the renderer uploads <see cref="Asset"/> once and draws it by transform.</summary>
 /// <param name="Model">Object to camera-relative space.</param>

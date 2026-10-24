@@ -278,10 +278,21 @@ public sealed record BiomesFile(Dictionary<string, BiomeDef> Biomes, Dictionary<
 /// <param name="CorruptedTrees">The share of its trees the Corruption has (note 696; the director, 13 Oct 2026: about three
 /// in ten of all the trees), living or dead.</param>
 /// <param name="CorruptedKinds">Which of the corrupted trees' kinds grow here, by weight (the art's alone: CorruptedTreeArt).</param>
+/// <param name="DeepWoods">Its big forests (note 1006): how much of its line runs through deep woods and how they stand (the DeepWoods); none where null.</param>
 public sealed record BiomeDef(string Name, string Ground, string[] Materials, double NoiseScale, double TreeDensity, string[] Trees, double DeadTrees,
     double Water, Dictionary<string, double> Pieces, Dictionary<string, double> Flora, double Rocks, string Verge, Dictionary<string, PropRule> Props,
     Dictionary<string, double> Landform, double LakesPerKm, double Shore, string ShoreKind, double SweepChance, bool TidalRivers, double Roads, double[] Colour,
-    string? Ballast = null, double[]? BallastTint = null, double CorruptedTrees = 0, Dictionary<string, double>? CorruptedKinds = null);
+    string? Ballast = null, double[]? BallastTint = null, double CorruptedTrees = 0, Dictionary<string, double>? CorruptedKinds = null, DeepWoodsRule? DeepWoods = null);
+
+/// <summary>
+/// A biome's big forests (note 1006; the director, 23 Oct 2026): the <paramref name="Share"/> of its main line laid as deep
+/// woods, in stretches <paramref name="LengthM"/> long, eased in over <paramref name="EdgeM"/> at each end. In them the stands
+/// cover <paramref name="Cover"/> of the land (LinesideProps.Stand), the first trunks <paramref name="NearM"/> from the line's
+/// middle, <paramref name="ExtraTries"/> more tries a 12 m slot at a tree, within <paramref name="WallM"/> of the line, the trees grown as tall as the
+/// thickest forest's, and the forest floor and the trees darkened by <paramref name="Shade"/> (the art's: under the canopy).
+/// None within <paramref name="GatesM"/> of either town's gate.
+/// </summary>
+public sealed record DeepWoodsRule(double Share, double[] LengthM, double EdgeM, double Cover, double NearM, int ExtraTries, double WallM, double Shade, double GatesM);
 
 /// <summary>A dressing piece a biome stands along the line: per 150 m, its chance, how far out, how many.</summary>
 public sealed record PropRule(double Chance, double[] OutM, int Count);

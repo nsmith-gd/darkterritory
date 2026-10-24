@@ -245,6 +245,12 @@ static class LineGenCommands
             compressedKb = Math.Round(plan.CompressedBytes() / 1024.0, 1),
             edges = plan.Alignment.Select(a => new { a.Edge, a.Role, lengthKm = Math.Round(a.Length / 1000, 2), a.Toe, a.Rejoin }),
             pieces = plan.Pieces.GroupBy(x => x.Type).ToDictionary(g => g.Key, g => g.Count()),
+            // The big forests (note 1006): km posts in and out, and the share of the line between the gates in them.
+            deepWoods = new
+            {
+                share = Math.Round(DeepWoods.Of(plan).Share(plan.GateM, plan.TerminusM), 2),
+                stretches = DeepWoods.Of(plan).Stretches.Select(w => new { km = Math.Round(plan.Km(w.S0), 2), toKm = Math.Round(plan.Km(w.S1), 2), s0 = Math.Round(w.S0), s1 = Math.Round(w.S1) }),
+            },
             metrics = plan.Validation.Metrics,
         };
     }

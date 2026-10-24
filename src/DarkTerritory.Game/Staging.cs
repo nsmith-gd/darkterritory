@@ -124,13 +124,16 @@ public static partial class Staging
         var board = plan.Fixtures.First(f => f.Kind == "board");
         var hall = plan.Buildings.First(b => b.Kind == "hall");
         // "folk", "folk2"...: the townspeople the lookbook dresses for their job (note 694), the nth of them by their id, from
-        // a few metres off at head height, where they are on their round now.
+        // a few metres off at head height, where they are on their round now. "folk:guard", "folk2:guard": those of a role
+        // (note 1002: the wall guards' faces).
+        string? role = where.StartsWith("folk", StringComparison.Ordinal) && where.IndexOf(':') is > 0 and var colon ? where[(colon + 1)..] : null;
+        string which = role is null ? where : where[..where.IndexOf(':')];
         if (where.StartsWith("folk", StringComparison.Ordinal)
-            && plan.People.Where(p => Art.LookbookKit.For(p.Role, p.Id) is not null).OrderBy(p => p.Id).ToList() is { Count: > 0 } dressed)
+            && plan.People.Where(p => (role is null ? Art.LookbookKit.For(p.Role, p.Id) is not null : p.Role == role)).OrderBy(p => p.Id).ToList() is { Count: > 0 } dressed)
         {
-            int nth = where.Length > 4 && int.TryParse(where[4..], out int n) ? Math.Clamp(n - 1, 0, dressed.Count - 1) : 0;
+            int nth = which.Length > 4 && int.TryParse(which[4..], out int n) ? Math.Clamp(n - 1, 0, dressed.Count - 1) : 0;
             var now = town.Now(dressed[nth]);
-            var at = now.Feet + now.Facing * 3.2 + Double3.Up * 1.55;
+            var at = now.Feet + now.Facing * (role is null ? 3.2 : 1.5) + Double3.Up * 1.55;
             return Ballast.Render.Camera.LookAt(at, now.Feet + Double3.Up * 1.0, 55);
         }
         // Inside the town's gate, looking out at it (note 963, `--town gatein --clock 60`): the restless stood at it looking out
@@ -977,8 +980,8 @@ public static partial class Staging
 
     /// <summary>
     /// The dining car's diners (note 974; `dt screenshot --diners`, views diningtable and diningbar): two sat at the table
-    /// either side under the chandelier, the one on the wall side two drinks in and lolling (<see cref="Tipsy.Loll"/>), and
-    /// one at the counter with a glass, four drinks in and lolling the more.
+    /// either side, the one on the wall side two drinks in and lolling (<see cref="Tipsy.Loll"/>); one behind the bar with a
+    /// glass, four drinks in and lolling the more; and two on the bar's stools (note 1016).
     /// </summary>
     public static (List<Crewmate> Crew, IReadOnlyList<Sim.Physics.Body> Bodies) Diners(TrainOnLine train, TipsyTuning tipsy)
     {
@@ -1004,15 +1007,22 @@ public static partial class Staging
             return new Crewmate(id, frame.ToWorld(local), frame.Heading + (side < 0 ? -Math.PI / 2 : Math.PI / 2), true, Act: Art.CrewPose.Gunner,
                 Car: car, Local: local, Loll: loll);
         }
-        var bar = d.Bar + new Double3(0, 0, -0.1);
-        var glass = bodies.SpawnCrate(train, car, bar + new Double3(0.25, 1.2, 0.3), Sim.Physics.BodyKind.Drink);
+        // Behind the bar (note 1016), the one pouring: a glass in hand, four drinks in, facing the stools across the counter.
+        var bar = d.Bar;
+        var glass = bodies.SpawnCrate(train, car, bar + new Double3(-0.25, 1.2, 0), Sim.Physics.BodyKind.Drink);
         glass.Carrier = 62;
         var crew = new List<Crewmate>
         {
             Sat(60, -1, 1, 0),
             Sat(61, 1, 2, Loll(2)),
-            new(62, frame.ToWorld(bar), frame.Heading + Math.PI * 0.85, true, Act: Art.CrewPose.Drink, Car: car, Local: bar, Loll: Loll(4)),
+            new(62, frame.ToWorld(bar), frame.Heading + Math.PI / 2, true, Act: Art.CrewPose.Drink, Car: car, Local: bar, Loll: Loll(4)),
         };
+        // Two on the stools at the counter (sat on its edge, as on a bench), the second lolling a little.
+        var stools = frame.Shape.Lounges.Where(l => l.Kind == LoungeKind.Stool).ToList();
+        foreach (var (k, id, loll) in new[] { (1, (byte)63, 0.0), (3, (byte)64, Loll(1)) })
+            if (k < stools.Count)
+                crew.Add(new Crewmate(id, frame.ToWorld(stools[k].At), frame.Heading + stools[k].Yaw, true, Act: Art.CrewPose.SitEdge, Car: car,
+                    Local: stools[k].At, Loll: loll));
         return (crew, bodies.All);
     }
 
@@ -1028,7 +1038,7 @@ public static partial class Staging
         for (int car = 0; car < train.Frames.Count; car++)
         {
             var frame = train.Frames[car];
-            foreach (var l in frame.Shape.Lounges.Where(l => l.Kind != LoungeKind.Bench))
+            foreach (var l in frame.Shape.Lounges.Where(l => l.Kind is not (LoungeKind.Bench or LoungeKind.Stool)))
             {
                 // The hammock's clip lies at its own height (note 791); the tub's bench is the gunner's seat let down to it.
                 bool hammock = l.Kind == LoungeKind.Hammock;

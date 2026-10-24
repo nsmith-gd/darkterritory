@@ -56,9 +56,23 @@ public static class FootPath
             {
                 var p = At(i, k);
                 bool blocked = false;
+                // (Nor over a basement's open hatch, note 1005: down it, a bot's in a cellar it can't climb out of.)
                 if (walls is not null)
+                    foreach (var w in walls.Hatches)
+                    {
+                        var l = w.ToLocal(p);
+                        if (Math.Abs(l.X) < w.HalfLength + clearance && Math.Abs(l.Z) < w.HalfWidth + clearance)
+                        {
+                            blocked = true;
+                            break;
+                        }
+                    }
+                if (walls is not null && !blocked)
                     foreach (var w in walls.Near(p))
                     {
+                        // (A house with floors' floors, steps and lintels are walked on and under, note 1005.)
+                        if (w.Level)
+                            continue;
                         var l = w.ToLocal(p);
                         double dx = Math.Max(0, Math.Abs(l.X) - w.HalfLength), dz = Math.Max(0, Math.Abs(l.Z) - w.HalfWidth);
                         if (dx * dx + dz * dz < clearance * clearance)

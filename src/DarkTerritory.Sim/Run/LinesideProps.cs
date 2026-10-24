@@ -74,6 +74,10 @@ public sealed partial class LinesideProps
     readonly (double S0, double S1, double Left, double Right)[] _clearings;
     readonly int _main;
     readonly (double S0, double S1)[] _wet;
+    readonly DeepWoods _woods;
+
+    /// <summary>The night's big forests (note 1006): where along the main line the woods close in.</summary>
+    public DeepWoods Woods => _woods;
 
     LinesideProps(Route.Route route, RailLine line, TerrainField terrain)
     {
@@ -87,6 +91,7 @@ public sealed partial class LinesideProps
         _stopGround = StopGround(route);
         _clearings = [.. route.Features.Where(f => f.Stop is not null).Select(f => Clearing(f.Start, f.End, f.Stop!)), .. TowerClearings(route)];
         _main = _plan.Alignment.Select((a, i) => (a.Role, i)).First(x => x.Role == EdgeRole.Main).i;
+        _woods = DeepWoods.Of(_plan);
         // Where along the main line water could be within the forest's reach: a river, a tidal reach or a shore on the main
         // line, with room; anything on a branch, the branch's whole stretch. Lakes are asked by their own extent.
         (double, double) Span(string edge, double s0, double s1, double width)
@@ -321,6 +326,18 @@ public sealed partial class LinesideProps
         bool dense = def.TreeDensity >= 0.8;
         double near = def.TreeDensity >= 1.2 ? 6 : dense ? 7 : 9;
         int tries = def.TreeDensity <= 0 ? 0 : TreeTries;
+        // In the big forests (note 1006) the woods close in: the land all but solid with them, the first trunks at the
+        // ballast's edge, more trees a slot (the extra tries drawn after the slot's own, so out of the woods nothing moves),
+        // and all of them grown as the thickest forest's. Eased in at the stretch's ends.
+        double deep = _woods.Depth(s), wall = ForestOutM;
+        if (deep > 0 && _woods.At(s) is { Rule: var dw })
+        {
+            cover = Math.Max(cover, cover + (dw.Cover - cover) * deep);
+            near = Math.Min(near, near + (dw.NearM - near) * deep);
+            tries = TreeTries + (int)Math.Round(dw.ExtraTries * deep);
+            dense |= deep > 0.5;
+            wall = dw.WallM;
+        }
         var flora = def.Flora.OrderBy(f => f.Key, StringComparer.Ordinal).ToArray();
         double floraTotal = flora.Sum(f => f.Value);
         for (int k = 0; k < tries; k++)
@@ -332,7 +349,8 @@ public sealed partial class LinesideProps
             double yaw = rng.NextDouble() * 2 * Math.PI, pick = rng.NextDouble() * floraTotal, tall = rng.NextDouble(), pineTall = rng.NextDouble();
             uint look = rng.NextUInt();
             // u^0.75 (sqrt · sqrt sqrt, exact everywhere): more of them near than far, as the art's u^0.8 had it.
-            double offset = side * (near + Math.Sqrt(u) * Math.Sqrt(Math.Sqrt(u)) * (ForestOutM - near));
+            // The big forests' extra trees stand within its wallM of the line: the wall the train runs between.
+            double offset = side * (near + Math.Sqrt(u) * Math.Sqrt(Math.Sqrt(u)) * ((k < TreeTries ? ForestOutM : wall) - near));
             double along = s + at * SlotM;
             if (Math.Abs(offset) > reach || keep > (Stand(World(along, offset), cover) > 0.5 ? 1 : 0.035))
                 continue;
