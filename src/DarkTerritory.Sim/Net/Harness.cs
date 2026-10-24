@@ -908,7 +908,7 @@ public static class Harness
             Dawn = dawn ?? (lineAt is { } la ? new DawnReport(la, atLine ?? [], -1, -1, -1, [], double.IsFinite(closest) ? Math.Round(closest, 1) : -1) : null),
             Reckonings = clients.Select(c => c.Bot).OfType<ConductorBot>().FirstOrDefault()?.Stops?.Reckonings,
             Driving = braking.Report(),
-            Driver = driverWatch.Report(),
+            Driver = driverWatch.Report(host.World),
         };
     }
 
@@ -1022,7 +1022,7 @@ public static class Harness
         string doing = bot switch
         {
             ConductorBot { Driving: false } f => f.Venting ? "venting" : "firing",
-            ConductorBot c => c.Sanding ? "sanding" : c.BreachingAlone ? "breaching" : c.WorkingOut ? $"{c.Stops?.Doing}: {c.WorkStep}" : c.Stops?.Doing.ToString() ?? "",
+            ConductorBot c => c.Sanding ? "sanding" : c.BreachingAlone ? "breaching" : c.WorkingOut ? $"{c.Stops?.Doing}: {c.WorkStep}" : c.Stops is { Doing: not StopDriver.Leg.Cruise } ? c.Stops.Doing.ToString() : c.SixStep ?? (c.Why is "drive" or "" ? c.Stops?.Doing.ToString() ?? "" : c.Why),
             RoofWalkerBot { Manning: { } fwd } => fwd ? "manning the engine gun" : "manning the guard gun",
             RoofWalkerBot { KitStep: { } k } => $"kit:{k}",
             RoofWalkerBot { TendStep: { } t } => $"tend:{t}",

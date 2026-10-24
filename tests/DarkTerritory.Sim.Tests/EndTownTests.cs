@@ -152,4 +152,27 @@ public class EndTownTests
         Assert.Equal(terminus.GateM + Tuning.Run.HomeInsideGateM!.Value + length, world.Run!.HomeFront(world.Train), 6);
         Assert.True(world.Run.HomeFront(world.Train) < route.Length - Tuning.Run.TerminusZone);
     }
+
+    /// <summary>
+    /// Note 1009 (the director's playtest of 23 Oct, line 11: "he's going into town, like, literally as slow as possible"): a
+    /// town's arrival yard is held to its own limit (tiers.json terminus townYardLimitSpeed), on the plan and its YARD LIMIT
+    /// board alike, not the 2.5 m/s crawl a silent settlement's yard keeps; still under the crew's run.
+    /// </summary>
+    [Theory]
+    [InlineData("frontier:7", false)]
+    [InlineData("deadLines:3", true)]
+    public void ATownsYardHasItsOwnLimitAndASilentSettlementsItsCrawl(string spec, bool silent)
+    {
+        var route = Routes.Generate(Content, spec, 6);
+        var plan = route.Plan!;
+        Assert.Equal(silent, plan.Terminus.Silent);
+        var t = LineGenContent.Cached(Content).Config.Tiers.Terminus;
+        double want = silent ? t.YardLimitSpeed : t.TownYardLimitSpeed!.Value;
+        // Over the crawl, and under the crew's run: in a yard you can still chase the train down (systems spec B.3).
+        Assert.True(t.TownYardLimitSpeed > t.YardLimitSpeed);
+        Assert.True(t.TownYardLimitSpeed < Tuning.Train.PlayerRunSpeed);
+        var yard = Assert.Single(plan.Authority.Limits, l => l.Edge == "main" && l.Source == LimitSource.Yard && l.S0 >= plan.Terminus.GateM - 1);
+        Assert.Equal(want, yard.VMs);
+        Assert.Equal(want, Assert.Single(plan.Signage, s => s.Type == "yardLimit").Value);
+    }
 }

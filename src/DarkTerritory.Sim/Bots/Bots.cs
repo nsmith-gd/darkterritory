@@ -2906,6 +2906,25 @@ public sealed partial class ConductorBot(CrewCalls? calls = null, int member = 0
     }
     bool _driving, _sawDriver;
     double _boardWait;
+    /// <summary>Note 1009: seconds the controls have been left to someone playing at the gate; and whether that's over.</summary>
+    double _seatWait;
+    bool _seatGiven;
+
+    /// <summary>
+    /// Note 1009: whether the controls are still being left to someone playing at the gate (facilities.json
+    /// crew.peopleSeatSeconds): someone playing is in the crew, alive, and nobody's pinged the cab for a bot (GDD §12) or let
+    /// the time go by. Once it's over, it's over for the night.
+    /// </summary>
+    bool LeavingTheSeat(World world)
+    {
+        if (_seatGiven || calls is null || Express)
+            return false;
+        double seat = world.Run?.FacilityTuning?.Crew.PeopleSeatSeconds ?? 0;
+        if (seat <= 0 || Players?.Any(p => p.Alive) != true || _seatWait >= seat
+            || world.Pings.Any(p => p.Kind == Player.PingKind.Cab && !calls.IsBot(p.By)))
+            _seatGiven = true;
+        return !_seatGiven;
+    }
     /// <summary>How long the driver waits at the gate for the crew to climb aboard (T102) before it goes anyway.</summary>
     const double AllAboardSeconds = 120;
     /// <summary>Note 995: how long it waits for someone playing who's afoot (facilities.json crew.peopleLeftSeconds).</summary>
@@ -3032,6 +3051,20 @@ public sealed partial class ConductorBot(CrewCalls? calls = null, int member = 0
         return going with { ThrottleNotch = 0, Buttons = going.Buttons & ~(PlayerButtons.Brake | PlayerButtons.Reverser) };
     }
 
+    /// <summary>
+    /// Note 1009: what the driving is doing this tick, by the part of it that decided (the gate's stand, a stop's leg, the
+    /// six, a ping...; "drive" on the open line, "cruise" when the speed it's held to there stands it). For the harness's
+    /// driver report: every stand outside a stop's legs, and why (the director's playtest of 23 Oct, line 11).
+    /// </summary>
+    public string Why { get; private set; } = "";
+    PlayerIntent Because(string why, PlayerIntent intent)
+    {
+        Why = why;
+        return intent;
+    }
+    /// <summary>Under this (m/s), the speed the open line's held to is a stand (<see cref="Why"/>'s "cruise").</summary>
+    const double StandingCruise = 0.5;
+
     PlayerIntent DecideDriving(in PlayerState self, World world, uint tick, out PlayerState aimed)
     {
         aimed = self;
@@ -3045,14 +3078,14 @@ public sealed partial class ConductorBot(CrewCalls? calls = null, int member = 0
         {
             // On the steps: on up (with nothing held, a hand lets go).
             if (self.Parent == 0 && self.Surface == Surface.Ladder)
-                return new PlayerIntent { MoveZ = 1, Buttons = PlayerButtons.Use };
+                return Because("aboard", new PlayerIntent { MoveZ = 1, Buttons = PlayerButtons.Use });
         }
         if (self.Alive && self.Parent == PlayerState.World && self.Surface == Surface.Ground && world.Run is { Phase: Run.RunPhase.Yard }
             && train.Dynamics.Speed < 0.05 && calls is not null)
         {
             _aloneHand ??= new StopHand(StopJob.None, calls, member);
             if (_aloneHand.SetBackAlone(self, world, null) is { } up)
-                return up;
+                return Because("aboard", up);
         }
         if (Fireman && !_driving)
         {
@@ -3112,15 +3145,24 @@ public sealed partial class ConductorBot(CrewCalls? calls = null, int member = 0
                 ? PeopleLeftSeconds(world) : AllAboardSeconds))
         {
             _boardWait += SimConstants.TickSeconds;
-            return new PlayerIntent { Buttons = PlayerButtons.Brake, ThrottleNotch = -4, Lamp = lamp };
+            return Because("all aboard", new PlayerIntent { Buttons = PlayerButtons.Brake, ThrottleNotch = -4, Lamp = lamp });
+        }
+        // Note 1009 (the director's playtest of 23 Oct, line 7: "takes over being the driver right away ... should maybe default
+        // to the player"): everyone aboard at the gate, the controls are left to someone playing for crew.peopleSeatSeconds.
+        // Whoever works one has them (note 574, TakenOver), and this hands over; a ping of the cab, or nobody taking them in
+        // that time, and it drives out.
+        if (world.Run is { Phase: Run.RunPhase.Yard } && PlayerMotor.InCab(self, train) && train.Dynamics.Speed < 0.1 && LeavingTheSeat(world))
+        {
+            _seatWait += SimConstants.TickSeconds;
+            return Because("the seat", new PlayerIntent { Buttons = PlayerButtons.Brake, ThrottleNotch = -4, Lamp = lamp });
         }
         // The Stoker in the firebox (v1.1 App. A.5): at the firebox door and club it out, brake on, whatever else is going on
         // (every blow burns: it's done while there's health to spare for it, and the brake holds the runaway meanwhile).
         if (FightStoker(self, world) is { } fighting)
-            return fighting with { Lamp = lamp };
+            return Because("stoker", fighting with { Lamp = lamp });
         // A ruptured boiler (T109): the wrench from its rack, and mended at the firebox; the train coasts meanwhile.
         if (Mend(self, world, tick) is { } mending)
-            return mending with { Lamp = lamp };
+            return Because("mending", mending with { Lamp = lamp });
         // A smashed headlamp (note 301, slice 2): mended with the wrench from where the driver stands, at the front windows.
         // Note 641: not while a stop's leg has the train moving under the driver's hand: the mending is Use held, no brake, and
         // the brake lets go of a moving train each tick it isn't held (CabControls.Clears). On seed 16's night a Climber came
@@ -3128,7 +3170,7 @@ public sealed partial class ConductorBot(CrewCalls? calls = null, int member = 0
         // from 1.5 to 12.6 m/s, struck at 5.7, and the engine broke down there. At a stand it mends on the brake.
         bool glazingStood = train.Dynamics.Speed < Net.CabControls.StandingBelow;
         if ((glazingStood || Stops is not { Doing: not StopDriver.Leg.Cruise }) && MendLamp(self, world) is { } glazing)
-            return glazingStood ? glazing with { Lamp = lamp, Buttons = glazing.Buttons | PlayerButtons.Brake, ThrottleNotch = -4 } : glazing with { Lamp = lamp };
+            return Because("lamp", glazingStood ? glazing with { Lamp = lamp, Buttons = glazing.Buttons | PlayerButtons.Brake, ThrottleNotch = -4 } : glazing with { Lamp = lamp });
         // On a generated line, no faster than its authority allows here (linegen plan §9, §16.1): what the boards say.
         double cruise = OpenCruise(world);
         // The Track Doll on the rail ahead in the lamp (v1.1 App. A.2): stop before you hit the doll. Braking to a stand
@@ -3141,35 +3183,35 @@ public sealed partial class ConductorBot(CrewCalls? calls = null, int member = 0
         }
         // Note 367: the six of 8 Oct. Short of Tower Jaw's wreck; stood for a Hotbox or a Knotter, and coupled up after.
         if (ForTheSix(self, world, ref cruise) is { } six)
-            return Work(self, train, six) with { Lamp = lamp };
+            return Because("six", Work(self, train, six) with { Lamp = lamp });
         // Note 653: the cars a dropped pin parted, ahead of the engine or behind it, gone for and coupled back on.
         if (ForTheParted(self, world, cruise) is { } parted)
-            return Work(self, train, parted) with { Lamp = lamp };
+            return Because("parted", Work(self, train, parted) with { Lamp = lamp });
         // Note 258: out of the cab breaking a crewmate out of a Holdout nobody else could, or back up into it after.
         if (_outToBreach && BreachAlone(self, world) is { } outBreaching)
-            return outBreaching with { Lamp = lamp };
+            return Because("breach", outBreaching with { Lamp = lamp });
         // Note 343: a hound pack aboard and nobody else to fight it: stand the train, and cut its car loose.
         if (CutAlone(self, world, tick) is { } cuttingAlone)
-            return cuttingAlone with { Lamp = lamp };
+            return Because("cut", cuttingAlone with { Lamp = lamp });
         // Note 936 (GDD §12 "Ping the bots"): out of the cab to a job pinged for it, the crew's only hands; and the train held
         // for a crewmate's.
         if (OnAPing(self, world, tick) is { } pinged)
-            return pinged with { Lamp = lamp };
+            return Because("ping", pinged with { Lamp = lamp });
         if (self.Alive && PlayerMotor.InCab(self, train) && ForAPing(world) is { } heldForIt)
-            return Work(self, train, heldForIt) with { Lamp = lamp };
+            return Because("ping", Work(self, train, heldForIt) with { Lamp = lamp });
         // Note 720 (GDD §12): a crewmate's lamp signal where the driver can see it: stop, go on, or back up.
         if (self.Alive && PlayerMotor.InCab(self, train) && Signalled(world) is { } signalled)
-            return Work(self, train, signalled) with { Lamp = lamp };
+            return Because("lamp signal", Work(self, train, signalled) with { Lamp = lamp });
         // T96: a crewmate left behind, or back in a lit Holdout: stop for them.
         if (self.Alive && PlayerMotor.InCab(self, train))
         {
             if (ForTheLeftBehind(world) is { } setBack)
-                return Work(self, train, setBack) with { Lamp = lamp };
+                return Because("left behind", Work(self, train, setBack) with { Lamp = lamp });
             if (ForAHoldout(world, ref cruise) is { } standing)
-                return (BreachAlone(self, world) ?? Work(self, train, standing)) with { Lamp = lamp };
+                return Because("holdout", (BreachAlone(self, world) ?? Work(self, train, standing)) with { Lamp = lamp });
             // Note 605: short of a town's gate, stood for the crew to clear the train of what it'd charge for.
             if (ForTheGate(world, ref cruise) is { } clearing)
-                return Work(self, train, clearing) with { Lamp = lamp };
+                return Because("gate", Work(self, train, clearing) with { Lamp = lamp });
         }
         // Running hot (note 376): over the boards and the line's authority (frontier's line speed is 18 m/s, under the hound
         // run's 19), braking only for a bend it would come off on.
@@ -3204,7 +3246,7 @@ public sealed partial class ConductorBot(CrewCalls? calls = null, int member = 0
                 if (_aloneHand.SetBackAlone(self, world, to, _aloneTo) is { } getting)
                 {
                     stops.Decide(self, world); // its clock runs on while it's out of the cab
-                    return getting with { Lamp = lamp, Buttons = getting.Buttons | PlayerButtons.Brake };
+                    return Because("switch alone", getting with { Lamp = lamp, Buttons = getting.Buttons | PlayerButtons.Brake });
                 }
                 _alone = null;
             }
@@ -3212,25 +3254,25 @@ public sealed partial class ConductorBot(CrewCalls? calls = null, int member = 0
             if (WorkOut(self, world, stops) is { } working)
             {
                 stops.Decide(self, world); // its clock runs on while it's out of the cab
-                return working with { Lamp = lamp };
+                return Because("working out", working with { Lamp = lamp });
             }
             stops.CruiseSpeed = cruise;
             stops.CruiseBand = OnTheOpenLine(world, cruise) ? OpenBand : 0;
             stops.ReckonTop = world.LampShining ? CruiseSpeed : DarkCruiseSpeed;
             if (stops.Decide(self, world) is { } stopping)
-                return KeepClear(self, world, Work(self, train, stopping), +1) with { Lamp = lamp };
+                return Because($"stop:{stops.Doing}", KeepClear(self, world, Work(self, train, stopping), +1) with { Lamp = lamp });
         }
         // Greased rail (App. A.2): the controls do nothing on it, so out to the sandbox and sand it, and back after.
         if (Sand(self, world, cruise) is { } sanding)
-            return sanding with { Lamp = lamp };
+            return Because("sanding", sanding with { Lamp = lamp });
         // With no fireman at the blow-off, the driver vents for the Sleepers (or a fading brake) himself, holding the brake (the
         // cab's vent is a step across: T109). Their crews of two ran onto them over the brake as the eights did (note 231).
         if (calls?.FiremanMinding != true && calls?.Venting != true && (HazardAllow(world) < double.MaxValue || train.Dynamics.BrakeEfficiency < FadedBrake || Venting) && Vent(self, world) is { } ventingAlone)
-            return KeepClear(self, world, ventingAlone with { Buttons = ventingAlone.Buttons | PlayerButtons.Brake, ThrottleNotch = -4 }, +1) with { Lamp = lamp };
+            return Because("venting", KeepClear(self, world, ventingAlone with { Buttons = ventingAlone.Buttons | PlayerButtons.Brake, ThrottleNotch = -4 }, +1) with { Lamp = lamp });
         bool open = OnTheOpenLine(world, cruise);
         var intent = Drive(train, tick, cruise, open ? OpenBand : world.TrackPlan is null ? 1.5 : 0.5, open ? OpenBand : 0);
         intent.Lamp = lamp;
-        return KeepClear(self, world, Work(self, train, WatchTheRoad(world, intent)), +1);
+        return Because(cruise < StandingCruise ? "cruise" : "drive", KeepClear(self, world, Work(self, train, WatchTheRoad(world, intent)), +1));
     }
 
     /// <summary>

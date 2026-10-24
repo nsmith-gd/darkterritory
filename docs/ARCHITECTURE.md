@@ -1163,6 +1163,7 @@ written here instead is moved out by `tools/coord/notes.py split`; the Coordinat
 - [1001. The cars' side doors (Ash, nathaniel2; queue #707; `docs/playtest/2026-10-23.md` line 20): every car's body cooked apart](notes/1001.md)
 - [1002. The wall folk's faces: the wall watch and the fort folk from the lookbook (Birch, the Token Budget Manager's worker on nathaniel2; queue…](notes/1002.md)
 - [1004. Every creature foils a behaviour: the creature list again, by the director's verdicts on Moth's nine; a behaviour → foil table, the Close,…](notes/1004.md)
+- [1009. The bot driver works the stops, never stands for nothing, runs into town and leaves the seat to the people (Pine, nathaniel2; queue #699;…](notes/1009.md)
 - [1015. The director's creature verdicts of 23 Oct acted on: the Car Hugger's mouth closed, the Moose Mouse (renamed, bigger antlers), the Choir…](notes/1015.md)
 - [1016. The dining car's pub bar, eight lockers, and the Followers kept inside the cars (Moss, the Token Budget Manager's worker, nathaniel2; queue…](notes/1016.md)
 - [1005. Houses with floors and dark basements (Larch, the Token Budget Manager's worker, nathaniel2; queue #710; the director's 23 Oct review,…](notes/1005.md)

@@ -30,6 +30,9 @@ public partial class StopCrewTests
         Assert.True(r.Departed, said);
         Assert.Contains("restarting the power", r.Doing);
         Assert.Contains("starting the belt", r.Doing);
-        Assert.True(r.LoadedAfter > r.LoadedBefore + 1, $"loaded {r.LoadedBefore} → {r.LoadedAfter}; {said}");
+        // Grain in. Note 1009: since the town's yard has its own limit (tiers.json terminus townYardLimitSpeed), the run home is
+        // reckoned shorter, and with the night's spare for the next stop this loading is called done for it (note 609's
+        // Onward) at 0.8 car-loads, not the 3 it ran to before.
+        Assert.True(r.LoadedAfter > r.LoadedBefore + 0.5, $"loaded {r.LoadedBefore} → {r.LoadedAfter}; {said}");
     }
 }

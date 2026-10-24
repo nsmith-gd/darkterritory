@@ -95,9 +95,15 @@
   // should be the same town that we begin in in the next run"): a terminus that answers is the town the next night
   // departs from, so its yard is as long as the departure yard (the town spans its yard) and levelled as wide (fortress
   // padM); arrivalYardM is then a silent settlement's alone.
+  // townYardLimitSpeed (note 1009; the director's playtest of 23 Oct, line 11: "Why is he stopping outside of town? Just go
+  // into town ... he's going into town, like, literally as slow as possible"): a town's yard limit, its own speed in among
+  // its houses (m/s), not the silent settlement's yardLimitSpeed crawl; the board at yardLimitBoardM reads it. 5 m/s, twice
+  // the crawl and still under the crew's run (player.json run 5.5; systems spec B.3: in a yard "you can chase the train down
+  // and board it"): from the gate to home (run.json homeInsideGateM past it, the train's length on) in half the time.
   "terminus": {
     "skyGlowM": 3000, "yardLimitBoardM": 1000, "spawnBanM": 1200, "wallsResolveM": 300, "arrivalYardM": 450,
-    "yardLimitSpeed": 2.5, "silentFromTier": "deadLines", "homeStraightMinRadius": 1000, "townYard": true
+    "yardLimitSpeed": 2.5, "silentFromTier": "deadLines", "homeStraightMinRadius": 1000, "townYard": true,
+    "townYardLimitSpeed": 5
   },
 
   // Plan §6.3. A turnout on tangent, nearly level track; its lamp seen from 250 m; branches curve away to 300 m

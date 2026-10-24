@@ -1775,6 +1775,8 @@ public sealed record CrewBotsTuning
     public double GateClearWithin { get; init; } = 1500;
     public double GateClearGiveUp { get; init; } = 240;
     public double GateClearMargin { get; init; } = 45;
+    /// <summary>Note 1009: the gate's stand given up once nothing aboard's been struck this long (s); 0, only the give-up.</summary>
+    public double GateClearIdle { get; init; } = 30;
     public double SixDawnMargin { get; init; } = 45;
     public double MournersCarryWithin { get; init; } = 60;
     public double MournersCarrySeconds { get; init; } = 60;
