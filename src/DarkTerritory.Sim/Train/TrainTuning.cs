@@ -206,6 +206,25 @@ public sealed record DiningTuning
 {
     public int Drinks { get; init; } = 8;
     public int DrinkHeals { get; init; }
+    /// <summary>The pub's bar down the car's rear half (note 1016).</summary>
+    public PubBarTuning Bar { get; init; } = new();
+}
+
+/// <summary>The dining car's pub bar (train.json <c>composition.dining.bar</c>; ARCHITECTURE §8 note 1016). Field docs live in that file.</summary>
+public sealed record PubBarTuning
+{
+    public double CounterX { get; init; } = 0.1;
+    public double CounterDepth { get; init; } = 0.5;
+    public double BackBarDepth { get; init; } = 0.15;
+    public double CounterHeight { get; init; } = 1.08;
+    public double CounterLength { get; init; } = 4.8;
+    public double FromRear { get; init; } = 1.3;
+    public double TableGap { get; init; } = 1.2;
+    public double PourReach { get; init; } = 0.6;
+    public int Stools { get; init; } = 5;
+    public double StoolHeight { get; init; } = 0.76;
+    public double StoolOut { get; init; } = 0.32;
+    public double StandOff { get; init; } = 0.4;
 }
 
 /// <summary>The BBQ deck (train.json <c>composition.bbq</c>; ARCHITECTURE §8 note 698). Field docs live in that file.</summary>
