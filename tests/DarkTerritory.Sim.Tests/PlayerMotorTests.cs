@@ -262,11 +262,11 @@ public class PlayerMotorTests
     public void JumpingIntoALadderTakesHoldOfItWhereYouMeetIt()
     {
         // Note 1018 (the director, 24 Oct: "if I jump into a ladder I should automatically grab it"): in the air, moving at
-        // it, no key and no push, a metre up its rungs.
+        // it, no key and no push, a metre up its rungs. A side ladder: nothing of the train under you to come down onto.
         var rig = OnRoof(4, 0, car: 2);
         var car = rig.Train.Frames[2];
-        var ladder = EndLadder(rig);
-        var from = ladder.Foot - ladder.Inward * P.Ladder.GrabRange + new Double3(0, 1, 0);
+        var ladder = car.Shape.Ladders.First(x => Math.Abs(x.Inward.X) > 0.5 && x.Foot.Y == 0);
+        var from = ladder.Foot - ladder.Inward * (P.Ladder.AirReach + 0.3) + new Double3(0, 1, 0);
         rig.Player.Parent = PlayerState.World;
         rig.Player.Surface = Surface.Air;
         rig.Player.Position = car.ToWorld(from);
@@ -313,31 +313,25 @@ public class PlayerMotorTests
     }
 
     [Fact]
-    public void WalkingOutOverAnEndLadderLookingDownItTakesItDown()
+    public void WalkingOffARoofsEndOntoThePlateDoesNotTakeTheEndLadder()
     {
-        // Note 1018: along the roof to its end, eyes down the end ladder, and on: take it and go on down it.
+        // Note 1018: off a roof's end, eyes down at the plate (note 717's way down), you land on the plate: neither that car's
+        // end ladder (down to the ballast) nor the next car's takes you, though you're walking out over the one and falling at
+        // the other.
         var rig = OnRoof(4, 0, car: 2);
-        var car = rig.Train.Frames[2];
         var ladder = EndLadder(rig);
-        rig.Player = PlayerMotor.SpawnOnRoof(rig.Train, 2, ladder.Foot.Z - 1.5, P, 0);
-        rig.Player.Position = rig.Player.Position with { X = ladder.Foot.X };
+        rig.Player = PlayerMotor.SpawnOnRoof(rig.Train, 2, ladder.Foot.Z - 2, P, 0);
+        rig.Player.Position = rig.Player.Position with { X = T.Geometry.PlateX }; // over the plate, a step in from the end ladder
         rig.Player.Yaw = Math.PI; // facing +Z, out over the car's back end
-        rig.Player.Pitch = -(P.Ladder.TopLookDownDegrees + 10) * Math.PI / 180;
-        Assert.Equal(Surface.Roof, rig.Player.Surface);
-        // Held forward the whole way: onto the end ladder, down it, and off its foot onto the ballast in the gap.
-        bool took = false, down = false;
-        rig.Run(4, r =>
-        {
-            took |= r.Player.Surface == Surface.Ladder && r.Player.Parent == 2;
-            down |= took && r.Player.Surface != Surface.Ladder && PlayerMotor.WorldPosition(r.Player, r.Train).Y < car.ToWorld(ladder.Foot).Y + 0.3;
-            return down ? default : Move(0, 1);
-        });
-        Assert.True(took, "took the end ladder");
-        Assert.True(down, $"went down it: on {rig.Player.Surface} of {rig.Player.Parent} at {rig.Player.Position}");
+        rig.Player.Pitch = -1.3;
+        bool took = false;
+        rig.Run(3, r => { took |= r.Player.Surface == Surface.Ladder; return r.Player.Surface == Surface.Coupler ? default : Move(0, 1); });
+        Assert.False(took, $"took a ladder: on {rig.Player.Surface} of {rig.Player.Parent} at {rig.Player.Position}");
+        Assert.Equal(Surface.Coupler, rig.Player.Surface);
     }
 
     [Fact]
-    public void RunningAlongTheRoofToJumpTheGapEyesAheadDoesNotTakeTheEndLadder()
+    public void RunningAlongTheRoofToJumpTheGapDoesNotTakeTheEndLadders()
     {
         var rig = OnRoof(4, 0, car: 2);
         var ladder = EndLadder(rig);

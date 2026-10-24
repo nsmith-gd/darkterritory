@@ -80,15 +80,16 @@
     // ladder with that intention I should automatically grab it"). The walk-in: pushing at a ladder and facing it, both within
     // walkInDegrees of straight up its rungs, takes hold of it from walkInReach of its foot (m; was 0.45 in code), on the
     // ground or in the air. Alongside one, you face along it and walk past. airGrab: jumping or falling into one (moving at it,
-    // relative to it, at airTowards m/s or more, within grabRange, under grabMaxRelativeSpeed) takes hold of it where you
-    // meet it, below its top's last half metre (above that you land on what it serves). From the top (a roof's end ladder,
-    // the hatch from the roof): walking out over it, eyes topLookDownDegrees or more down it, takes it, and holding forward
-    // then climbs down until you let go of it. Letting go is as ever: jump, or Use and back.
+    // relative to it, at airTowards m/s or more, under grabMaxRelativeSpeed) takes hold of it where you meet it: up against
+    // it, within airReach (a body's radius and the ladder's 0.1 m off the car), not across a gap (dropping off a roof's end
+    // onto the plate isn't into the next car's ladder). Not in its top half metre: there you land on what it serves. Never
+    // from its top either: walking off a roof's end steps you down onto the plate (edge.walkOff); the ladder key takes one
+    // from its top. Letting go is as ever: jump, or Use and back.
     "walkInReach": 0.6,
     "walkInDegrees": 45,
     "airGrab": true,
     "airTowards": 0.5,
-    "topLookDownDegrees": 30
+    "airReach": 0.45
   },
   // A VR player's reaching hand (T29; the spec has no VR numbers). Reach is tested from the hand instead of the body:
   // a hand is on a grip (a lever, a handle, a ladder, a crate) within grab of it. The host believes a hand no farther

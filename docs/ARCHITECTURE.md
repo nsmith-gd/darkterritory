@@ -1178,5 +1178,5 @@ written here instead is moved out by `tools/coord/notes.py split`; the Coordinat
 - [1008. The Head Waiter, built behind a flag (Ash, nathaniel2; queue #713; Sloe's design, note 1004, `docs/design/creatures/head-waiter.md`)](notes/1008.md)
 - [1010. The ping: a village means search it, a ping needs line of sight, and it clears when done (Hazel, nathaniel2; queue #700; the director's…](notes/1010.md)
 - [1014. Failing cars holed for real, worse each stage: boards knocked out and roof sheets gone, cut through the car's own body (Sable, queue #717;…](notes/1014.md)
-- [1018. Ladders taken by jumping or walking into them: the walk-in from a fair reach, on the ground or off it; the jump-in; down from the top…](notes/1018.md)
+- [1018. Ladders taken by jumping or walking into them: the walk-in from a fair reach, on the ground or off it; the jump-in where you meet it…](notes/1018.md)
 <!-- end of the notes index -->
