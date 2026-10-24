@@ -41,9 +41,12 @@ public class ClimberTests
     }
 
     [Fact]
-    public void InADarkCarItWaitsLowAndOnTheRoofsItsCrouched()
+    public void InADarkCarItWaitsUnderTheDoorwaysAndOnTheRoofsItsCrouched()
     {
-        Assert.True(Top(Drawn(SpinePhase.Commit, 2, -1, 1)) < 1.3f, "crouched in the corner");
+        // (Since its redo, note 1015, it waits stood up on its hind legs as a stoat stands to look: under the car's 2.1 m
+        // doorways and well under its roof, not folded on the floor.)
+        float waiting = Top(Drawn(SpinePhase.Commit, 2, -1, 1));
+        Assert.True(waiting < 1.6f, $"stood up in the corner, {waiting} high");
         Assert.True(Top(Drawn(SpinePhase.Commit, 2, 2, 1)) < 1.7f, "walking the roof, crouched");
     }
 }

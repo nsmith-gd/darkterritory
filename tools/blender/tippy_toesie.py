@@ -158,8 +158,8 @@ for k in range(22):
     drop = 0.22 + 0.3 * (0.5 + 0.5 * math.sin(k * 2.3 + 1.0))
     pts = [root, root.lerp(over_, 0.55) + out * 0.012 + Vector((0, 0, 0.02)), over_ + out * 0.006,
            over_ + out * 0.014 + Vector((0, 0, -drop * 0.45)), over_ + out * (0.018 + 0.01 * math.sin(k)) + Vector((0.006 * math.sin(k * 1.9), 0, -drop))]
-    head.tube(pts, [(0.009, 0.003), (0.011, 0.0035), (0.01, 0.003), (0.008, 0.0025), (0.002, 0.001)], 4, HAIR, ["head", "neck"],
-              ref=[out] * 5, cap1="point")
+    # (Round cords, not flat ribbons: a ribbon turned away showed only its edges, a wire frame.)
+    head.tube(pts, [0.0045, 0.005, 0.0045, 0.0035, 0.001], 4, HAIR, ["head", "neck"], ref=[out] * 5, cap1="point")
 # (Each a few thin strands, not one band: a band read as tape across its face.)
 for u0, drop in ((-0.3, 0.3), (0.42, 0.16)):
     for m in range(3):
@@ -167,8 +167,7 @@ for u0, drop in ((-0.3, 0.3), (0.42, 0.16)):
         pts = [on_head(u0 * 0.6 + du * 0.5, 0.86, 0.004), on_head(u0 + du, 0.45, 0.012), on_head((u0 + du) * 1.05, 0.0, 0.016 + 0.003 * m),
                on_head((u0 + du) * 1.1, -0.45, 0.016 + 0.003 * m)]
         pts.append(pts[-1] + Vector((0.006 * (m - 1), 0.01, -drop - dd)))
-        head.tube(pts, [(0.004, 0.0018), (0.0045, 0.0018), (0.004, 0.0016), (0.003, 0.0014), (0.001, 0.0008)], 4, HAIR, "head",
-                  ref=[Vector((0, 1, 0))] * 5, cap1="point")
+        head.tube(pts, [0.0025, 0.0028, 0.0025, 0.002, 0.0008], 4, HAIR, "head", ref=[Vector((0, 1, 0))] * 5, cap1="point")
 for k in range(7):
     u = -0.3 + 0.6 * k / 6
     a, b = on_head(u - 0.02, -0.52, 0.001), on_head(u + 0.02, -0.68, 0.001)
@@ -528,12 +527,13 @@ smother.close(48)
 # listening to it. Dead still but for the head coming upright, all at once, and going back over.
 ST = over(BASE, spine_01=(-6, 0, 0), spine_02=(-10, 0, 0), spine_03=(-12, 0, 0), neck=(-28, 0, 0), head=(16, 0, -38),
           thigh_r=(14, 0, 0), calf_r=(-26, 0, 0), thigh_l=(14, 0, 0), calf_l=(-26, 0, 0),
-          upperarm_r=(10, 80, 0), upperarm_l=(10, -80, 0), lowerarm_r=(0, 16, 0), lowerarm_l=(0, -16, 0))
+          upperarm_r=(10, 75, 0), upperarm_l=(10, -75, 0), lowerarm_r=(0, 16, 0), lowerarm_l=(0, -16, 0))   # (out a little: its claws, note 1015)
 stoop = Clip("stoop")
 stoop.key(0, ST, "CONSTANT")
 stoop.key(64, over(ST, head=(14, 0, 10)), "CONSTANT")
 stoop.key(78, ST, "CONSTANT")
-for f, c in ((92, 0.5), (95, -0.2), (98, 0.4), (101, 0.0)):
+# (The ripple opens the fingers since its claws grew, note 1015: curled in, the left's tips crossed the right's.)
+for f, c in ((92, -0.1), (95, -0.25), (98, -0.05), (101, 0.0)):
     stoop.key(f, ST | {"fingers_l": (0, -(12 + 60 * c), 0)}, "CONSTANT")
 stoop.close(120)
 
@@ -593,7 +593,7 @@ hit.key(12, W, "CONSTANT")
 # then up toward GDD §27's budget (a character's, 4-10k): rig.densify rounds the head and hands out (Look Review asks).
 # (More faces kept in the fused skin since note 1015, so its ribs, knuckles and knees stand in the silhouette, not only
 # in the normal map.)
-kit.fuse("body", ["body", "limbs"], voxel=0.0025, faces=3500)
+kit.fuse("body", ["body", "limbs"], voxel=0.0025, faces=3350)
 kit.target_tris = 10000
 kit.build()
 rig.bake(sk, [stalk, wait, flee, recoil, smother, hit, stoop, stalk_stoop, duck], plant=rig.feet_planter(sk, bones=("ball_l", "ball_r"), lowest=0.004))

@@ -238,7 +238,8 @@ for s, sx in (("r", 1), ("l", -1)):
         for f in range(4):
             o = (f - 1.5) * 0.017
             splay = (f - 1.5) * 0.12
-            d = (fwd + across * splay).normalized()
+            # (Flat along the ground from the palm's end: the hind foot slopes down from the hock, and its toes ran on into it.)
+            d = (Vector((fwd.x, fwd.y, 0)).normalized() + across * splay).normalized()
             L = flen * (0.8 + 0.2 * (1 - abs(f - 1.5) / 1.5))
             root = e + across * o
             k1 = root + d * L * 0.4 + Vector((0, 0, 0.012))
@@ -433,9 +434,9 @@ walk.close(WALK)
 
 # Crouch (4 s, loop): inside an unlit car, stood up on its hind legs as a stoat stands to look, the back straight up,
 # the long hands hanging at its chest, the fingers moving; the head turning slowly, cocking over, and snapping back.
-SIT = {"root@loc": (0, 0.0, -0.1 + LIFT), "pelvis": (64, 0, 0), "spine_01": (10, 0, 0), "spine_02": (6, 0, 0), "spine_03": (2, 0, 0),
+SIT = {"root@loc": (0, 0.0, -0.2 + LIFT), "pelvis": (60, 0, 0), "spine_01": (10, 0, 0), "spine_02": (8, 0, 0), "spine_03": (6, 0, 0),
        "neck_01": (-40, 0, 0), "neck_02": (-24, 0, 0), "tail_01": (-62, 0, 26), "tail_02": (-6, 0, 40), "tail_03": (0, 0, 40)}
-SIT_WR = {("f", "r"): (0.1, 0.3, 0.98), ("f", "l"): (-0.1, 0.3, 0.98), ("h", "r"): (0.17, -0.36, 0.045), ("h", "l"): (-0.17, -0.36, 0.045)}
+SIT_WR = {("f", "r"): (0.1, 0.34, 0.86), ("f", "l"): (-0.1, 0.34, 0.86), ("h", "r"): (0.17, -0.36, 0.045), ("h", "l"): (-0.17, -0.36, 0.045)}
 crouch = Clip("crouch")
 for f, (turn, cock, fing) in ((0, (0, 0, 30)), (30, (24, 0, 60)), (60, (24, 30, 40)), (90, (24, 30, 70)), (92, (-20, -6, 40))):
     crouch.key(f, stance(SIT | {"head": (-14, cock, turn), "neck_02": (-24, 0, 0.5 * turn)}, SIT_WR,
