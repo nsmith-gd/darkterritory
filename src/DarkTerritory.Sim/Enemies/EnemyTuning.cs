@@ -35,6 +35,7 @@ public sealed record EnemyTuning(
     public PickersTuning Pickers { get; init; } = new();
     public MouseMooseTuning MouseMoose { get; init; } = new();
     public BruinTuning Bruin { get; init; } = new();
+    public HeadWaiterTuning HeadWaiter { get; init; } = new();
     public DwellingsTuning Dwellings { get; init; } = new();
     public LodgerTuning Lodger { get; init; } = new();
     public HouseholderTuning Householder { get; init; } = new();
@@ -1817,4 +1818,27 @@ public sealed record ClimberFreeSpeed
     /// <summary>Whether a train at <paramref name="speed"/> on <paramref name="tier"/> is one the free Climbers come to.</summary>
     public bool Allows(double speed, Route.RouteTier tier) =>
         speed >= Moving && speed <= Fraction * LineSpeed.GetValueOrDefault(char.ToLowerInvariant(tier.ToString()[0]) + tier.ToString()[1..], 18);
+}
+
+/// <summary>
+/// The Head Waiter (GDD §21; ARCHITECTURE §8 notes 1004, 1008; docs/design/creatures/head-waiter.md §5, the early column of
+/// §8). Built behind <see cref="On"/>, off until the director's verdict. Field docs live in enemies.json.
+/// </summary>
+public sealed record HeadWaiterTuning
+{
+    public bool On { get; init; }
+    public double ComeSeconds { get; init; } = 90;
+    public double MinSpeed { get; init; } = 3;
+    public double Weight { get; init; } = 3;
+    public double ClimbSeconds { get; init; } = 2.5;
+    public double StandOff { get; init; } = 0.7;
+    public double RingSeconds { get; init; } = 1.5;
+    public double WaitSeconds { get; init; } = 15;
+    public double BackToWorkSeconds { get; init; } = 5;
+    public double AwayM { get; init; } = 2.5;
+    public double ClearSeconds { get; init; } = 8;
+    public double ThrowSpeed { get; init; } = 3;
+    public double BowSeconds { get; init; } = 2;
+    public int GoBlows { get; init; } = 3;
+    public int KillBlows { get; init; } = 6;
 }

@@ -58,7 +58,7 @@ public class CreatureBodyTests
 
     /// <summary>Kinds drawn from boxes until they're modelled (as the Mouse Moose was, note 790, until note 796): their body's
     /// checked against that.</summary>
-    static readonly EnemyKind[] StandIns = [EnemyKind.Bruin];
+    static readonly EnemyKind[] StandIns = [EnemyKind.Bruin, EnemyKind.HeadWaiter];
 
     [Fact]
     public void EveryCreatureWithABodyIsDrawn()

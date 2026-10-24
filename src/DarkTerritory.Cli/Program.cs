@@ -1127,7 +1127,7 @@ static object Screenshot(TrainTuning t, string content, string[] args)
     // --upgrades id[,id]: the train as the campaign's upgrades make it (note 184: crewCar, secondGuardCar, armouredCar,
     // roofHandrails...).
     // The dining and diningbar views (note 959), and diningtable and diningdrunk (note 974), fit the dining car.
-    if (Str(args, "--upgrades", view is "dining" or "diningbar" or "diningtable" or "diningdrunk" ? "diningCar" : "") is { Length: > 0 } upgrades)
+    if (Str(args, "--upgrades", view is "dining" or "diningbar" or "diningtable" or "diningdrunk" ? "diningCar" : view is "headwaiter" or "headwaiterdeck" ? "bbqDeck" : "") is { Length: > 0 } upgrades)
         t = DarkTerritory.Sim.Campaign.Campaign.Apply(DataFile.Load<DarkTerritory.Sim.Campaign.CampaignTuning>(Path.Combine(content, DarkTerritory.Sim.Campaign.CampaignTuning.File)),
             upgrades.Split(','), new DarkTerritory.Sim.Campaign.Loadout(t, DataFile.Load<BoilerTuning>(Path.Combine(content, BoilerTuning.File)),
                 DataFile.Load<DarkTerritory.Sim.Combat.CombatTuning>(Path.Combine(content, DarkTerritory.Sim.Combat.CombatTuning.File)), null)).Train;
@@ -2583,6 +2583,14 @@ static object Screenshot(TrainTuning t, string content, string[] args)
         foreach (var (id, pace) in pickerPaces)
             paces[id] = pace;
         scene.StagedPaces = paces;
+    }
+    // --headwaiter serve|wait|clear: the staged Head Waiter on the BBQ deck (note 1008; Staging.HeadWaiter), at the shoulder of
+    // a crewmate sat back in the near chair: the glass ringing (the headwaiter views'), waiting, or clearing them.
+    if (Str(args, "--headwaiter", view is "headwaiter" or "headwaiterdeck" ? "serve" : "") is { Length: > 0 } waiterMode
+        && Staging.HeadWaiter(train, content, waiterMode) is var (waitedOn, waiter) && waiter is not null)
+    {
+        scene.Enemies = [.. scene.Enemies ?? [], waiter];
+        scene.Crew = [.. scene.Crew ?? [], .. waitedOn];
     }
     // --mousemoose yard|drag: the staged Mouse Moose off the line's left (note 790; Staging.MouseMoose): creeping in, tugging a
     // load off, down its hole (the mousemoose view's); close to the one tugging (mousemoosedrag's).

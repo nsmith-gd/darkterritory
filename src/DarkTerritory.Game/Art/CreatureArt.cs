@@ -2030,6 +2030,14 @@ public sealed partial class CreatureArt
         if (Houses(mesh, model, kind, phase, t) is { } houses)
             return houses;
         float pulse = (float)(0.5 + 0.5 * Math.Sin(t * 9));
+        // The Head Waiter (note 1008), its mode in extra2: boxes until it's modelled (CreatureArt.HeadWaiter.cs).
+        if (kind == EnemyKind.HeadWaiter)
+        {
+            HeadWaiterStandIn(mesh, model.Translation, Vector3.Normalize(Vector3.TransformNormal(Vector3.UnitX, model)),
+                Vector3.Normalize(Vector3.TransformNormal(Vector3.UnitY, model)), Vector3.Normalize(Vector3.TransformNormal(Vector3.UnitZ, model)),
+                (HeadWaiterMode)(int)extra2, pulse);
+            return true;
+        }
         switch (kind)
         {
             case EnemyKind.CinderHound:
