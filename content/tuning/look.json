@@ -154,7 +154,10 @@
       "shedLantern": 1.1,
       "shedLanternRange": 10,
       "shedLanternHeight": 3.2,
-      "shedLanternSpacing": 10
+      "shedLanternSpacing": 10,
+      // Note 1005 (the director, 23 Oct: "Those basements should get pretty dark"): down in a house's basement the fill is
+      // this share of a room's, and no candle's lit there: a hand lamp is what you see by.
+      "cellarFill": 0.12
     },
     // The dawn (GDD §21, the run's race to it): over the last leadSeconds of the dawn clock the night goes over to a low
     // grey light coming up in the east, the fog paling, the dark pockets filling. The fog stays (it's the line's).

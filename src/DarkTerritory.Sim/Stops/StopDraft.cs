@@ -36,8 +36,9 @@ sealed class StopDraft(double zoneLength, double maxLateral)
         return Buildings.Count - 1;
     }
 
-    public void Contain(ContainerKind kind, StopZone zone, Pt at, int band, int depth, int building, int track = -1, bool outlier = false, bool floor = false) =>
-        Containers.Add(new StopContainer(Containers.Count, kind, zone, at, band, depth, building, track, outlier, floor));
+    public void Contain(ContainerKind kind, StopZone zone, Pt at, int band, int depth, int building, int track = -1, bool outlier = false, bool floor = false,
+        int level = 0) =>
+        Containers.Add(new StopContainer(Containers.Count, kind, zone, at, band, depth, building, track, outlier, floor, level));
 
     public double RoadDistance(Pt p)
     {

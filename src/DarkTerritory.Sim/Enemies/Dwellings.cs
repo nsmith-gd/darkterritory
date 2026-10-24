@@ -57,7 +57,8 @@ public sealed class Dwelling
     /// <param name="jackpot">It's the stop's jackpot house (note 719): its share's times <c>jackpotShare</c>, never past 1.</param>
     public static EnemyKind? Lives(Route.Route route, Stops.StopLayout stop, StopWalls.OpenHouse house, DwellingsTuning t, Director? director, bool jackpot = false)
     {
-        if (stop.Lairs.Any(l => l.Kind == Stops.LairKind.GauntRoost && l.Building == house.Building))
+        // (Nor a house of floors, note 1005: the house creatures keep to one floor till they're taught the stairs and the cellar.)
+        if (stop.Lairs.Any(l => l.Kind == Stops.LairKind.GauntRoost && l.Building == house.Building) || StopWalls.Storeyed(house.B))
             return null;
         var dice = new Pcg32(route.Seed ^ ((ulong)(uint)house.Feature << 20 | (uint)house.Building), 0x44_5745_4C4CUL);
         if (dice.NextDouble() >= Math.Min(1, t.ShareFor(route.Tier) * (jackpot ? t.JackpotShare : 1)))

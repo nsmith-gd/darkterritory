@@ -139,6 +139,7 @@ public sealed partial class GameAudio
         HandcarSounds(world);
         if (_places is { } places)
         {
+            WorldWoods(train, places, run, ear, front, tunnel, underground, dt);
             WorldNight(world, run, ear, tunnel, underground, dt);
             WorldTunnels(train, places, ear, front, tunnel, dt, primed);
             WorldBridges(train, places, ear, dt);
@@ -270,7 +271,8 @@ public sealed partial class GameAudio
         if (run is null || run.Phase is not (RunPhase.Underway or RunPhase.AtFacility))
             return;
         double dawn = Math.Clamp(run.DawnIn / 300, 0.35, 1);
-        HoldLevel("world-night.night", 0, ear + Double3.Up * 3, Math.Max(Occlusion(PlayerMotor.Outside), AirWalls()), (tunnel || underground ? 0.2 : 1) * dawn);
+        // Stood in the big forests the open country's bed gives way to the woods' own hush (note 1006).
+        HoldLevel("world-night.night", 0, ear + Double3.Up * 3, Math.Max(Occlusion(PlayerMotor.Outside), AirWalls()), (tunnel || underground ? 0.2 : 1) * dawn * (1 - 0.6 * _woods));
         if (tunnel || underground || _time < _nextFar)
             return;
         if (_nextFar > 0)
@@ -399,6 +401,10 @@ public sealed partial class GameAudio
                     exposure = x.Wind;
                     break;
                 }
+        // In the big forests (note 1006) the wind's up in the canopy, 20 m over the roofs, not down among the trunks: the
+        // woods shelter the ear (the sound's alone; the sim's wind and its push on the roofs are as they were).
+        if (places.Plan is { } woodsPlan && !double.IsNaN(earMain))
+            exposure *= 1 - 0.7 * DeepWoods.Of(woodsPlan).Depth(earMain);
         double wind = weather.Wind * exposure;
         if (wind > 0.4)
             HoldLevel("world-wind.gale", 0, ear + Double3.Up, AirWalls(), Math.Clamp((wind - 0.4) / 0.5, 0.25, 1));

@@ -81,6 +81,8 @@ public sealed record InteriorTuning
 {
     /// <summary>A room's fill (rgb), lamplight off the boards: what a corner no lamp reaches is lit by. Null: the old, the night's ambient times (0.55, 0.42, 0.3).</summary>
     public Vector3? Fill { get; init; }
+    /// <summary>Down in a house's basement (note 1005), the share of <see cref="Fill"/> that's left.</summary>
+    public float CellarFill { get; init; } = 1;
     /// <summary>An open house's candle stub: its strength (times the lamp amber) and reach (m).</summary>
     public float Candle { get; init; } = 0.9f;
     public float CandleRange { get; init; } = 5.5f;
@@ -612,6 +614,7 @@ public sealed class Look
             light.LampIntensity = li;
         if (a.Interiors.Fill is { } fill)
             light.IndoorFill = fill;
+        light.CellarDim = 1 - a.Interiors.CellarFill;
         return light;
     }
 

@@ -39,6 +39,12 @@ public enum LairKind : byte { Warren, GauntRoost, FollowerGround, SootCall, Grum
 
 public enum HouseShape : byte { Rect, L, Cross, Pair, Square }
 
+/// <summary>
+/// Note 1005: what an open plain house is built as: one floor (as every house was), a basement under it (the house raised on
+/// its plinth, a hatch and a ladder down), an upstairs (a flight up), or both.
+/// </summary>
+public enum HouseForm : byte { Plain, Basement, Upstairs, UpstairsBasement }
+
 public enum RoadKind : byte { Through, Street, Lane, Stub }
 
 /// <summary>Container kinds (P14): where loot can be. The economy decides what's in each (loot.json).</summary>
@@ -83,6 +89,12 @@ public sealed record StopBuilding(BuildingKind Kind, StopZone Zone, double S, do
     /// face toward the line, and its finds are inside where they'd be kept, not put out on the step.
     /// </summary>
     public bool Open { get; init; }
+    /// <summary>Note 1005: its floors (an open plain house's; every other building is <see cref="HouseForm.Plain"/>).</summary>
+    public HouseForm Form { get; init; }
+    /// <summary>Whether it has an upstairs (note 1005).</summary>
+    [JsonIgnore] public bool Upstairs => Form is HouseForm.Upstairs or HouseForm.UpstairsBasement;
+    /// <summary>Whether it has a basement (note 1005).</summary>
+    [JsonIgnore] public bool Basement => Form is HouseForm.Basement or HouseForm.UpstairsBasement;
     [JsonIgnore] public Pt Centre => new(S, D);
 }
 
@@ -156,7 +168,10 @@ public sealed record StopLair(LairKind Kind, StopZone Zone, Pt At, double Radius
 /// <param name="Band">P2's portability band: 0 under a crane, 1 crates, 2 pocketable off the line.</param>
 /// <param name="Track">For a crane bay, the track whose crane reaches it (−1 otherwise).</param>
 /// <param name="Floor">P12's floor guarantee: the one find a village always has.</param>
-public sealed record StopContainer(int Index, ContainerKind Kind, StopZone Zone, Pt At, int Band, int Depth, int Building, int Track = -1, bool Outlier = false, bool Floor = false);
+/// <param name="Level">Note 1005: which of its house's floors it's on: −1 the basement, 0 the ground floor, 1 upstairs.</param>
+/// <param name="Slot">Note 1005: in a house of floors, which of its kind's places on its floor it's kept in (its rank among them).</param>
+public sealed record StopContainer(int Index, ContainerKind Kind, StopZone Zone, Pt At, int Band, int Depth, int Building, int Track = -1, bool Outlier = false, bool Floor = false,
+    int Level = 0, int Slot = 0);
 
 /// <summary>
 /// What the crew has to do to work the stop (P15, level-design D.1), counted move by move for the tier's typical

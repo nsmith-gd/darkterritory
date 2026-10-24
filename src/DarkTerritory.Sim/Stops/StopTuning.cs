@@ -142,6 +142,29 @@ public sealed record VillageTuning
     public bool OpenHouses { get; init; }
     /// <summary>Whether the barns, outbuildings and a dead town's goods shed stand open to walk into, their finds inside to search (note 417).</summary>
     public bool OpenSheds { get; init; }
+    /// <summary>
+    /// Note 1005: the share of the houses a village's form lays that it keeps (the director, 23 Oct: "we should spawn fewer of
+    /// them"). Unset, all of them.
+    /// </summary>
+    public double Keep { get; init; } = 1;
+    /// <summary>Note 1005: the first this many houses a village lays are all kept (nearest its road in, so the line).</summary>
+    public int KeepFirst { get; init; }
+    /// <summary>Note 1005: an open plain house's floors (an upstairs, a basement). Unset, every house is one floor, as before.</summary>
+    public HouseFormsTuning? Forms { get; init; }
+}
+
+/// <summary>
+/// Note 1005 (the director, 23 Oct: "more complex houses that have multiple levels, including basements"): what an open plain
+/// house (a rectangle or a square) is built as, weighted <see cref="Stops.HouseForm"/> choices; at least
+/// <see cref="LeastBasements"/> of a village's plain houses have a basement where it has that many; and the chance a house
+/// with a basement has a find down there besides its others (<see cref="BasementFind"/>), and with an upstairs one up there.
+/// </summary>
+public sealed record HouseFormsTuning
+{
+    public required IReadOnlyList<Choice> Choices { get; init; }
+    public int LeastBasements { get; init; }
+    public double BasementFind { get; init; }
+    public double UpstairsFind { get; init; }
 }
 
 public sealed record BlocksTuning

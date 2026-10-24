@@ -25,11 +25,19 @@ public static partial class StopGenerator
         var sheds = new List<int>();
         var ends = new List<(Pt V, Pt Dir)>();
         var fit = new Fit(Gap: v.HouseGap, Rail: 6, Road: 2.5, Buffer: tt.Buffer, SMin: reach.SMin, SMax: reach.SMax);
+        // Note 1005's own dice (which lots are built on, the houses' floors, their finds up and down): off R, so what R deals
+        // the village is as it was.
+        var F = new Dice(StopSeed.Of(R.Seed, StopSeed.Forms));
 
         bool TryHouse(StopBuilding h, double maxRoad)
         {
             if (g.RoadDistance(h.Centre) > maxRoad || !g.Fits(h, fit))
                 return false;
+            // Note 1005 (the director, 23 Oct: "we should spawn fewer of them"): past the first village.keepFirst (each form lays
+            // its houses from its road in, so those are the nearest the line), a lot the form would have built on is left
+            // empty at village.keep, counted as built so the form doesn't fill it again.
+            if (v.Keep < 1 && houses.Count >= v.KeepFirst && !F.Chance(v.Keep))
+                return true;
             houses.Add(g.Add(h));
             return true;
         }
@@ -183,16 +191,42 @@ public static partial class StopGenerator
             }
         }
 
+        if (v.Forms is { } forms)
+            BuildForms(g, F, forms, houses);
+
         // P12 + P14: containers only, in a share of the houses that falls with tier; the economy fills them later.
         int before = g.Containers.Count;
         foreach (int hi in houses)
         {
             var h = g.Buildings[hi];
-            if (!R.Chance(tt.Find + (h.Outlier ? v.OutlierFindBonus : 0)))
-                continue;
-            int count = R.Chance(v.SecondFindChance) ? R.Chance(v.ThirdFindChance) ? 3 : 2 : 1;
-            for (int q = 0; q < count; q++)
-                g.Contain(R.Pick(HouseKinds), StopZone.Village, Plan.World(h, R.Range(-0.28, 0.28) * h.Length, R.Range(-0.28, 0.28) * h.Width), Band(h.D), 0, hi, outlier: h.Outlier);
+            if (R.Chance(tt.Find + (h.Outlier ? v.OutlierFindBonus : 0)))
+            {
+                int count = R.Chance(v.SecondFindChance) ? R.Chance(v.ThirdFindChance) ? 3 : 2 : 1;
+                for (int q = 0; q < count; q++)
+                {
+                    var kind = R.Pick(HouseKinds);
+                    // Note 1005: a house with a basement keeps its cellar's find down there, one with an upstairs its cabinet's up there.
+                    int level = kind == ContainerKind.Cellar && h.Basement ? -1 : kind == ContainerKind.Cabinet && h.Upstairs ? 1 : 0;
+                    g.Contain(kind, StopZone.Village, Plan.World(h, R.Range(-0.28, 0.28) * h.Length, R.Range(-0.28, 0.28) * h.Width), Band(h.D), 0, hi,
+                        outlier: h.Outlier, level: level);
+                }
+            }
+            // Note 1005 (the director: "going in that basement should feel like high risk, high reward"): a find down there, and
+            // one up the stairs, besides whatever else the house keeps.
+            if (v.Forms is { } f)
+            {
+                if (h.Basement && F.Chance(f.BasementFind))
+                    g.Contain(ContainerKind.Cellar, StopZone.Village, h.Centre, Band(h.D), 0, hi, outlier: h.Outlier, level: -1);
+                if (h.Upstairs && F.Chance(f.UpstairsFind))
+                    g.Contain(ContainerKind.Cabinet, StopZone.Village, h.Centre, Band(h.D), 0, hi, outlier: h.Outlier, level: 1);
+            }
+        }
+        // Note 1005: in a house of floors, each find's place among its kind's on its floor.
+        for (int k = before; k < g.Containers.Count; k++)
+        {
+            var c = g.Containers[k];
+            if (g.Buildings[c.Building].Form != HouseForm.Plain)
+                g.Containers[k] = c with { Slot = g.Containers.Take(k).Count(o => o.Building == c.Building && o.Level == c.Level && o.Kind == c.Kind) };
         }
         foreach (int si in sheds)
         {
@@ -210,6 +244,25 @@ public static partial class StopGenerator
             g.Valid = false;
         return new VillagePlan(side, offset, form, entry, houses.Count, outliers.Count);
     }
+
+    /// <summary>
+    /// Note 1005: the open plain houses' floors, a <see cref="HouseFormsTuning.Choices"/> draw each in the order they were laid;
+    /// then, where fewer than <see cref="HouseFormsTuning.LeastBasements"/> have a basement, the plain houses furthest from the
+    /// line are given one (the deepest house the darkest).
+    /// </summary>
+    static void BuildForms(StopDraft g, Dice R, HouseFormsTuning t, List<int> houses)
+    {
+        var plain = houses.Where(i => Storeyed(g.Buildings[i])).ToList();
+        foreach (int i in plain)
+            g.Buildings[i] = g.Buildings[i] with { Form = R.Pick<HouseForm>(t.Choices) };
+        int missing = t.LeastBasements - plain.Count(i => g.Buildings[i].Basement);
+        foreach (int i in plain.Where(i => !g.Buildings[i].Basement).OrderByDescending(i => Math.Abs(g.Buildings[i].D)).ThenBy(i => i).Take(Math.Max(0, missing)))
+            g.Buildings[i] = g.Buildings[i] with { Form = g.Buildings[i].Upstairs ? HouseForm.UpstairsBasement : HouseForm.Basement };
+    }
+
+    /// <summary>Whether a house may be built with more than one floor (note 1005): an open plain one, a rectangle or a square.</summary>
+    public static bool Storeyed(StopBuilding b) =>
+        b is { Kind: BuildingKind.House, Open: true } && b.Parts.Count <= 1 && b.Shape is HouseShape.Rect or HouseShape.Square;
 
     /// <summary>
     /// Small things lying on the floors of the open houses (note 738; the director, 14 Oct: "I don't actually ever find
