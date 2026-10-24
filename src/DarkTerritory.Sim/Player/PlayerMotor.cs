@@ -1184,6 +1184,9 @@ public static class PlayerMotor
         var probe = s with { Position = world };
         double groundY = GroundHeight(ref probe, train.Line);
         s.LineHint = probe.LineHint;
+        // Note 1005: in a house's basement the earth's over you; its floor is what's underfoot.
+        if (train.Walls is { } sunk)
+            groundY = sunk.Under(world, groundY);
         bool underGround = world.Y <= groundY + (wasGrounded ? p.StepUp : 0);
         // Ground a long way overhead is a bore or a cutting the terrain doesn't know about, not something to be lifted up
         // onto: under a train's surface it loses, and only catches whoever has nothing else underfoot (T66: a crew on an
@@ -1394,7 +1397,7 @@ public static class PlayerMotor
         }
         // A ladder standing in the world (note 973: a houseboat's, leant against its bow): the same, reached for where it is
         // at the climber's height, as it leans; from its deck, from its top.
-        foreach (var ladder in train.Ladders)
+        foreach (var ladder in WorldLadders(train))
         {
             var on = ladder.At(world.Y);
             double dx = world.X - on.X, dz = world.Z - on.Z;
@@ -1421,12 +1424,15 @@ public static class PlayerMotor
         }
     }
 
+    /// <summary>The ladders standing in the world: a town's (note 973) and the stops' houses' (note 1005: a hatch's, a cellar window's crates).</summary>
+    public static IEnumerable<WorldLadder> WorldLadders(TrainOnLine train) => train.Walls is { } w ? train.Ladders.Concat(w.Ladders) : train.Ladders;
+
     /// <summary>The world's ladder a climber parented to the world is on (note 973): the nearest, where it is at their height.</summary>
     static WorldLadder? HeldWorldLadder(TrainOnLine train, Double3 at)
     {
         WorldLadder? best = null;
         double bestDistance = double.MaxValue;
-        foreach (var ladder in train.Ladders)
+        foreach (var ladder in WorldLadders(train))
         {
             double d = ((at - ladder.At(at.Y)) with { Y = 0 }).Length;
             if (d < bestDistance)

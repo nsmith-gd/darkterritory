@@ -65,7 +65,8 @@ public sealed partial class StopWalls
     /// </summary>
     public static InnerWall? Partition(StopBuilding b)
     {
-        if (b.Kind != BuildingKind.House)
+        // (A storeyed house's floors are its rooms, note 1005: its ground floor's one room, the flight up along its side.)
+        if (b.Kind != BuildingKind.House || Storeyed(b))
             return null;
         if (b.Shape == HouseShape.L && b.Parts.Count == 2)
         {

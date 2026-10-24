@@ -1,0 +1,9 @@
+// Queue #713 (note 1008): the Head Waiter on, for the director to try before the verdict (the inbox's
+// nathaniel2-sloe-conduct-foils). `dt --edition a713-headwaiter ...`, or a dev build's --edition. Never shipped until said.
+{
+  "id": "edition-a713-headwaiter",
+  "name": "a713-headwaiter",
+  "version": "1.0.0",
+  "description": "the Head Waiter on, and a foil of lazing (#713, note 1008)",
+  "order": -1000
+}

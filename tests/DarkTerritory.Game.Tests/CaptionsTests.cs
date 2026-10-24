@@ -74,6 +74,7 @@ public class CaptionsTests
     [InlineData("up-forge.hearth")]
     // Note 809: the Mouse Moose creeping in, and dragging a casting off.
     [InlineData("tell-mouse-moose.squeak")]
+    [InlineData("tell-head-waiter.glass")]
     [InlineData("cs-mouse-moose.drag")]
     // Note 772: dawn coming, and coming for the train; the town's guns on it at the walls.
     [InlineData("tell-wakers.thud")]

@@ -61,6 +61,15 @@ public sealed record MusicReport(string Track, string Mood, double StartedAt, do
 /// </summary>
 public static class AudioBench
 {
+    /// <summary>
+    /// The tells of creatures built behind a flag, off in the shipping tuning and so not staged with the rest (the Head Waiter's
+    /// glass, note 1008): each audited alone over the train (<c>dt audio render --scenario sound:NAME</c>) in its band.
+    /// </summary>
+    public static readonly IReadOnlyDictionary<string, (double Low, double High)> FlaggedTellBands = new Dictionary<string, (double, double)>
+    {
+        ["tell-head-waiter.glass"] = (4600, 5600),
+    };
+
     /// <summary>Each tell's band from spec A.4's collision table.</summary>
     public static readonly IReadOnlyDictionary<string, (double Low, double High)> TellBands = new Dictionary<string, (double, double)>
     {
@@ -381,6 +390,16 @@ public static class AudioBench
             var (_, overAll, _) = Contrast(stem.AsSpan(skip), rest.AsSpan(skip), band);
             if (sounding > 0)
                 levels.Add(new TellLevel(name, band.Low, band.High, Math.Round(tellDb, 1), Math.Round(overBed, 1), Math.Round(overAll, 1), Math.Round(sounding, 2)));
+        }
+        // A flagged creature's tell auditioned alone (FlaggedTellBands): over everything else, which is the bed here.
+        if (single is not null && FlaggedTellBands.TryGetValue(single, out var flagged) && TellStem(tap, single) is { } alone)
+        {
+            var rest = (float[])tap.Total.Clone();
+            for (int i = 0; i < rest.Length; i++)
+                rest[i] -= alone[i];
+            var (tellDb, overBed, sounding) = Contrast(alone.AsSpan(skip), rest.AsSpan(skip), flagged);
+            if (sounding > 0)
+                levels.Add(new TellLevel(single, flagged.Low, flagged.High, Math.Round(tellDb, 1), Math.Round(overBed, 1), Math.Round(overBed, 1), Math.Round(sounding, 2)));
         }
         var stems = tap.Stems.ToDictionary(kv => kv.Key, kv => Math.Round(Meter.Db(kv.Value.AsSpan(skip)), 1));
         string where = feet ? listenerCar == 0 ? "cab" : listenerCar == lastCar ? $"ground beside car {listenerCar}" : $"inside car {listenerCar}"
