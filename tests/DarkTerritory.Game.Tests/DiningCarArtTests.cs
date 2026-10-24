@@ -22,7 +22,7 @@ public class DiningCarArtTests
         (m.Vertices.Aggregate(new Vector3(float.MaxValue), (a, v) => Vector3.Min(a, v.Position)),
          m.Vertices.Aggregate(new Vector3(float.MinValue), (a, v) => Vector3.Max(a, v.Position)));
 
-    static readonly string[] Pieces = ["dining_table", "dining_chair", "dining_place", "dining_candelabrum", "dining_chandelier", "bar_counter", "bar_bell", "bar_back"];
+    static readonly string[] Pieces = ["dining_table", "dining_chair", "dining_place", "dining_candelabrum", "dining_chandelier", "bar_bell", "pub_counter", "pub_back", "pub_stool"];
 
     static CarShape DiningShape()
     {
@@ -48,13 +48,23 @@ public class DiningCarArtTests
         Assert.InRange(tmax.Y, tableH, tableH + 0.015f);
         Assert.InRange(tmax.X - tmin.X, tableW + 0.06f, tableW + 0.2f);
         Assert.InRange(tmax.Z - tmin.Z, 6.6f + 0.06f, 6.6f + 0.2f);
-        // The counter's top at the sim's counter's (a bottle stands on it), its front to the room (-Z) and its rail out from it.
-        var (cmin, cmax) = Bounds(props.Get("bar_counter")!);
-        Assert.InRange(cmax.Y, (float)(d.Counter.Max.Y - d.Counter.Min.Y), 1.4f);
-        Assert.True(cmin.Z < -0.3f - 0.1f && cmax.Z < 0.32f, $"counter {cmin} .. {cmax}");
-        // The back bar stands out from its wall (its origin) into the room, and fits between the counter's end and the car's side.
-        var (bmin, bmax) = Bounds(props.Get("bar_back")!);
-        Assert.True(bmax.Z <= 0.01f && bmin.Z > -0.5f && bmax.X - bmin.X < 1.2f, $"back bar {bmin} .. {bmax}");
+        // The pub's counter (note 1016): its run the sim's along the car, its top at the sim's (the beer engines stand on it),
+        // its front and foot rail out to the aisle (-X), its return across to the wall at its front end (-Z).
+        var (cmin, cmax) = Bounds(props.Get("pub_counter")!);
+        float run = (float)(d.Counter.Max.Z - d.Counter.Min.Z), depth = (float)(d.Counter.Max.X - d.Counter.Min.X);
+        Assert.InRange(cmax.Z - cmin.Z, run, run + 0.12f);
+        Assert.InRange(cmax.Y, (float)(d.Counter.Max.Y - d.Counter.Min.Y) + 0.3f, 1.6f);
+        Assert.True(cmin.X < -depth / 2 - 0.15f, $"counter {cmin} .. {cmax}");
+        Assert.InRange(cmax.X, (float)(d.Return.Max.X - (d.Counter.Min.X + d.Counter.Max.X) / 2) - 0.05f, (float)(d.Return.Max.X - (d.Counter.Min.X + d.Counter.Max.X) / 2) + 0.05f);
+        // The back bar stands out from its wall (its origin) no further than the sim's, along the sim's length.
+        var (bmin, bmax) = Bounds(props.Get("pub_back")!);
+        float back = (float)(d.BackBar.Max.X - d.BackBar.Min.X), length = (float)(d.BackBar.Max.Z - d.BackBar.Min.Z);
+        Assert.True(bmax.X <= 0.01f && bmin.X > -back - 0.07f, $"back bar {bmin} .. {bmax}");
+        Assert.InRange(bmax.Z - bmin.Z, length - 0.05f, length + 0.12f);
+        // A stool's seat at the sim's stools' height.
+        var (smin, smax) = Bounds(props.Get("pub_stool")!);
+        var stool = shape.Lounges.First(l => l.Kind == LoungeKind.Stool);
+        Assert.InRange(smax.Y, (float)(stool.At.Y - d.Table.Min.Y) - 0.01f, (float)(stool.At.Y - d.Table.Min.Y) + 0.04f);
     }
 
     [Fact]
@@ -66,7 +76,8 @@ public class DiningCarArtTests
             Assert.InRange(-props.Socket("dining_chandelier", $"flame_{i}")!.Value.Y, 0.6f, 0.67f);
         for (int i = 0; i < 3; i++)
             Assert.InRange(props.Socket("dining_candelabrum", $"flame_{i}")!.Value.Y, 0.3f, 0.45f);
-        // The room from the pieces: a flame burns at each wick, the chandelier's over the table's middle.
+        // The room from the pieces: a flame burns at each wick, the small chandelier's (its scale on the dining one) over the
+        // stools at the bar.
         var shape = DiningShape();
         var fit = TrainKit.DiningFit(Look, shape);
         int flame = Look.Layer("window_lit");
@@ -75,7 +86,7 @@ public class DiningCarArtTests
         float ceiling = (float)shape.Interior!.Value.Max.Y;
         for (int i = 0; i < 6; i++)
         {
-            var wick = props.Socket("dining_chandelier", $"flame_{i}")!.Value + new Vector3(c.X, ceiling, c.Z);
+            var wick = props.Socket("dining_chandelier", $"flame_{i}")!.Value * TrainKit.ChandelierScale + new Vector3(c.X, ceiling, c.Z);
             Assert.Contains(lit, p => (p - wick).Length() < 0.06f);
         }
         // More than the greybox's boxes: the modelled pieces are in it.
