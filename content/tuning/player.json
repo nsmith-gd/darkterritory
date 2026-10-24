@@ -421,6 +421,15 @@
     // completely"): a voice between the cab and outside it, with either of its side doors open (note 856), comes through
     // occlusion of the cab's wall (mix.json's occlusionDb and occlusionLowpass; 1 the whole wall, 0 none): at 0.5, half the
     // wall's 12 dB and its low-pass up from 900 Hz to about 4.2 kHz. Off: an open door's as shut, for voice.
-    "openCab": { "on": true, "occlusion": 0.5 }
+    "openCab": { "on": true, "occlusion": 0.5 },
+    // The echo canceller (note 1019; the director, 24 Oct: "My guest has a half second delay on their audio when they talk,
+    // they can hear their own voice and its maddening"). A crewmate on speakers with an open mic sends the far crew back their
+    // own voice a round trip late. Each client takes what its speakers just played out of what its mic heard: an adaptive
+    // filter learns the room, tailSeconds of it after the sound leaves the speakers, at step (0..1, quicker to learn and noisier
+    // once learned); what's left is taken down bin by bin by the echo's share of it, times suppression, at most floorDb; a frame
+    // more than gateDb under the echo the filter heard in it is the room's echo and doesn't open the mic. The speakers and the
+    // mic slipping resyncSeconds apart (a hitch) and the room's learned again. `dt voice echo` measures it. Off: the mic as it
+    // comes.
+    "echo": { "on": true, "tailSeconds": 0.3, "step": 0.8, "suppression": 3, "floorDb": -40, "gateDb": 15, "resyncSeconds": 0.25 }
   }
 }
