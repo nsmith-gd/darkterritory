@@ -59,6 +59,39 @@ public class VoiceCodecTests
     }
 
     [Fact]
+    public void ASpeakerUnheardForHalfTheSequencesWrapIsHeardAgainAtOnce()
+    {
+        // The director, 24 Oct: a guest's voice gone after they'd been out of earshot. The sequence runs on through
+        // silence (50 a second), so after about 11 minutes unheard a speaker's next number reads as behind what was played.
+        var enc = new VoiceEncoder();
+        var dec = new VoiceDecoder();
+        var input = SyntheticSpeech.Generate(0.1);
+        var buffer = new byte[VoiceFormat.MaxPacket];
+        var packet = buffer.AsSpan(0, enc.Encode(input.AsSpan(0, VoiceFormat.FrameSamples), buffer)).ToArray();
+        var order = new JitterBuffer<ushort>();
+        var played = new List<ushort>();
+        int samples = 0;
+        void Out(ReadOnlySpan<float> pcm) => samples += pcm.Length;
+        void Hear(ushort seq, double now)
+        {
+            order.Push(seq, seq, now);
+            order.Drain(now, (s, _) => { played.Add(s); dec.Decode(s, packet, Out); });
+        }
+        Hear(100, 0);
+        Hear(101, 0.02);
+        // 12 minutes unheard: 36000 frames on, which is 29536 "behind" 102.
+        ushort back = unchecked((ushort)(101 + 36000));
+        Hear(back, 720);
+        Hear(unchecked((ushort)(back + 1)), 720.02);
+        Assert.Equal([100, 101, back, unchecked((ushort)(back + 1))], played);
+        Assert.Equal(4 * VoiceFormat.FrameSamples, samples);
+        Assert.Equal(0, dec.Dropped);
+        // A packet a few frames late is still dropped, as ever.
+        Hear(unchecked((ushort)(back - 3)), 720.04);
+        Assert.Equal(4, played.Count);
+    }
+
+    [Fact]
     public void VoiceActivityHearsSpeechAndHoldsThroughTheGapsButNotSilence()
     {
         var vad = new VoiceActivity();

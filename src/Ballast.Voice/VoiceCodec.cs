@@ -51,11 +51,15 @@ public sealed class VoiceDecoder
         if (_last is { } last)
         {
             int gap = (ushort)(sequence - last);
-            if (gap == 0 || gap > 0x8000)
+            if (gap == 0 || gap > 0x8000 && (ushort)(last - sequence) <= JitterBuffer<byte>.MaxLate)
             {
                 Dropped++;
                 return;
             }
+            // Farther behind than a late packet can be: the sequence has come round since this speaker was last heard (a new
+            // talk spurt, as a long gap forward is).
+            if (gap > 0x8000)
+                gap = int.MaxValue;
             // A long gap is a new talk spurt, not loss: nothing to conceal.
             for (int i = 1; i < gap && gap <= MaxConcealed + 1; i++)
             {
