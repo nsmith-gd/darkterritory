@@ -4,6 +4,7 @@ using DarkTerritory.Sim.LineGen;
 using DarkTerritory.Sim.Physics;
 using DarkTerritory.Sim.Player;
 using DarkTerritory.Sim.Run;
+using DarkTerritory.Sim.Stops;
 
 namespace DarkTerritory.Sim.Tests;
 
@@ -30,14 +31,20 @@ public class HouseCreatureTests
     /// <summary>The train stood at the first stop with open houses, the stops' walls up; and that stop's one-door house nearest the line.</summary>
     static (Night Night, StopWalls.OpenHouse House) AtAHouse()
     {
-        var f = Frontier.Features.First(x => x.Stop is { } s && s.Buildings.Any(b => b.Open));
+        // (A house of one floor, as the first stop's nearest was before note 1005 built most of them with floors and the
+        // villages with fewer: a plain one where there's one, else an L, else a cross; at the first stop with one.)
+        static int Rank(StopBuilding b) => b.Shape switch { HouseShape.Rect or HouseShape.Square => 0, HouseShape.L => 1, _ => 2 };
+        var line = Frontier.Build();
+        var all = StopWalls.Of(Frontier, line, tuning: Tuning.Run.Walls);
+        bool Fits(StopWalls.OpenHouse h) => all.HouseDoors.Count(d => d.House == h.Index) == 1 && !StopWalls.Storeyed(h.B);
+        var first = all.OpenHouses.Where(Fits).OrderBy(h => Rank(h.B)).ThenBy(h => h.Feature).First();
+        int feature = first.Feature;
+        var f = Frontier.Features[feature];
         var n = new Night(4, speed: 0, route: Frontier, enemies: Quiet, front: f.Start + 60);
         var walls = StopWalls.Of(Frontier, n.Train.Line, tuning: Tuning.Run.Walls);
         n.Train.Walls = walls;
-        int feature = Frontier.Features.ToList().IndexOf(f);
         var near = n.Train.Line.Sample(f.Start).Position;
-        var house = walls.OpenHouses.Where(h => h.Feature == feature && walls.HouseDoors.Count(d => d.House == h.Index) == 1)
-            .OrderBy(h => HouseWays.Flat(h.Middle - near)).First();
+        var house = walls.OpenHouses.Where(h => h.Feature == feature && Fits(h) && Rank(h.B) == Rank(first.B)).OrderBy(h => HouseWays.Flat(h.Middle - near)).First();
         return (n, house);
     }
 
