@@ -75,7 +75,20 @@
     "grabMaxRelativeSpeed": 3.5,
     // Note 704 (the director's playtest: the cab's ladder "should actually go up to the roof"): walking into a hatch ladder
     // indoors (the cab's, a car's) takes hold of it only looking up it at least this far; level, you walk past it working.
-    "hatchLookUpDegrees": 25
+    "hatchLookUpDegrees": 25,
+    // Note 1018 (the director's playtest, 24 Oct: "if I jump into a ladder I should automatically grab it, if I walk into a
+    // ladder with that intention I should automatically grab it"). The walk-in: pushing at a ladder and facing it, both within
+    // walkInDegrees of straight up its rungs, takes hold of it from walkInReach of its foot (m; was 0.45 in code), on the
+    // ground or in the air. Alongside one, you face along it and walk past. airGrab: jumping or falling into one (moving at it,
+    // relative to it, at airTowards m/s or more, within grabRange, under grabMaxRelativeSpeed) takes hold of it where you
+    // meet it, below its top's last half metre (above that you land on what it serves). From the top (a roof's end ladder,
+    // the hatch from the roof): walking out over it, eyes topLookDownDegrees or more down it, takes it, and holding forward
+    // then climbs down until you let go of it. Letting go is as ever: jump, or Use and back.
+    "walkInReach": 0.6,
+    "walkInDegrees": 45,
+    "airGrab": true,
+    "airTowards": 0.5,
+    "topLookDownDegrees": 30
   },
   // A VR player's reaching hand (T29; the spec has no VR numbers). Reach is tested from the hand instead of the body:
   // a hand is on a grip (a lever, a handle, a ladder, a crate) within grab of it. The host believes a hand no farther

@@ -407,6 +407,11 @@ public enum PlayerFlags : uint
     /// front of the train").
     /// </summary>
     GotUp = 2097152,
+    /// <summary>
+    /// Note 1018: took a ladder by walking out over its top (a roof's end ladder, eyes down it), so forward climbs down it
+    /// until forward's let go (then it's up again, as on any ladder).
+    /// </summary>
+    DownLadder = 4194304,
 }
 
 /// <summary>
@@ -831,10 +836,10 @@ public static class PlayerMotor
             Combat.Guns.Slide(train, pushedOn, s.Position.Z - pushedFrom);
 
         // Use while pushing towards it grabs a ladder; Use standing still is for working things (CrewActions). A hand on
-        // the ladder takes hold of it without pushing (T29). Walking straight into the foot of one takes hold of it too
-        // (T90 playtest: nobody found Use + forward). Not while pushing a gun along (Use and walking is that too, T103: the
-        // guard van's hatch ladder comes up through the roof on the gun's way, and took whoever pushed it down inside); the
-        // ladder key still does.
+        // the ladder takes hold of it without pushing (T29). Walking into one takes hold of it too (T90 playtest: nobody found
+        // Use + forward), and so does jumping or falling into one (note 1018), on the ground or off it. Not while pushing a
+        // gun along (Use and walking is that too, T103: the guard van's hatch ladder comes up through the roof on the gun's
+        // way, and took whoever pushed it down inside); the ladder key still does.
         if (s.Surface != Surface.Ladder && (!s.Has(PlayerFlags.Heavy) || s.Has(PlayerFlags.SoloCarry)) && !s.Has(PlayerFlags.Seated))
         {
             bool pushing = s.Has(PlayerFlags.Pushing);
@@ -842,8 +847,8 @@ public static class PlayerMotor
                 TryGrabLadder(ref s, train, p, byHand: false);
             else if (!pushing && intent.Has(PlayerButtons.Use) && (intent.MoveZ > 0.5 || s.Hand != default))
                 TryGrabLadder(ref s, train, p, byHand: intent.MoveZ <= 0.5);
-            else if (!pushing && intent.MoveZ > 0.5 && s.Grounded)
-                TryGrabLadder(ref s, train, p, byHand: false, walkIn: true);
+            else if (!pushing && (intent.MoveX * intent.MoveX + intent.MoveZ * intent.MoveZ > 0.25 || s.Surface == Surface.Air && p.Ladder.AirGrab))
+                TryGrabLadder(ref s, train, p, byHand: false, walkIn: (intent.MoveX, intent.MoveZ));
         }
     }
 
@@ -969,9 +974,6 @@ public static class PlayerMotor
 
     static bool Inside(CarShape shape, Double3 local) =>
         shape.Cab is { } cab && cab.Contains(local) || shape.Interior is { } room && room.Contains(local);
-
-    /// <summary>How close to a ladder's foot walking into it takes hold (tighter than Use's reach, so passing one doesn't).</summary>
-    const double WalkInReach = 0.45;
 
     /// <summary>
     /// GDD §22 wind, spec B.2 "roof run: wind and balance penalty" (note 201): how hard the wind pushes someone on a roof
@@ -1349,41 +1351,38 @@ public static class PlayerMotor
     }
 
     /// <param name="byHand">The reaching hand has to be on the ladder: from its foot to a grab iron over the top rung.</param>
-    /// <param name="walkIn">Walking into it: close to its foot, facing up it, and not already at its top.</param>
-    static void TryGrabLadder(ref PlayerState s, TrainOnLine train, PlayerTuning p, bool byHand, bool walkIn = false)
+    /// <param name="walkIn">Not a key: the stick's push (strafe, forward), and it takes hold only as <see cref="Meant"/> says (note 1018).</param>
+    static void TryGrabLadder(ref PlayerState s, TrainOnLine train, PlayerTuning p, bool byHand, (double X, double Z)? walkIn = null)
     {
         var world = ToWorld(s, train, s.Position);
         var worldVelocity = WorldVelocity(s, train);
         var hand = byHand ? HandWorld(s, train) : null;
         if (byHand && hand is null)
             return;
+        // Facing and pushing in the world (turned into each car's frame below).
+        double yaw = WorldYaw(s, train), sin = DMath.Sin(yaw), cos = DMath.Cos(yaw);
+        var facing = new Double3(-sin, 0, -cos);
+        var push = walkIn is { } m ? new Double3(cos * m.X - sin * m.Z, 0, -sin * m.X - cos * m.Z) : default;
+        double reach = walkIn is null ? p.Ladder.GrabRange : Math.Max(p.Ladder.WalkInReach, p.Ladder.GrabRange);
         foreach (var frame in train.Frames)
         {
             var local = frame.ToLocal(world);
             foreach (var ladder in frame.Shape.Ladders)
             {
                 double dx = local.X - ladder.Foot.X, dz = local.Z - ladder.Foot.Z;
-                double reach = walkIn ? Math.Min(WalkInReach, p.Ladder.GrabRange) : p.Ladder.GrabRange;
                 if (dx * dx + dz * dz > reach * reach)
                     continue;
                 if (local.Y < ladder.Foot.Y - 0.5 || local.Y > ladder.Top + 0.1)
                     continue;
-                if (walkIn)
-                {
-                    // A hatch ladder indoors (the cab's, a car's) only looking up it: in there you walk past them all the time,
-                    // working, but walking at one with your eyes on the hatch means up (note 704: the cab's goes to the roof).
-                    if (local.Y > ladder.Top - 0.5)
-                        continue;
-                    if (Inside(frame.Shape, ladder.Foot + new Double3(0, 0.2, 0)) && s.Pitch < p.Ladder.HatchLookUpDegrees * Math.PI / 180)
-                        continue;
-                    double yaw = WorldYaw(s, train);
-                    var facing = frame.DirToLocal(new Double3(-DMath.Sin(yaw), 0, -DMath.Cos(yaw)));
-                    if (facing.X * ladder.Inward.X + facing.Z * ladder.Inward.Z < 0.7)
-                        continue;
-                }
+                var relative = frame.VelocityToLocal(worldVelocity);
+                bool fromTop = false;
+                // A hatch ladder indoors (the cab's, a car's) only looking up it: in there you walk past them all the time,
+                // working, but walking at one with your eyes on the hatch means up (note 704: the cab's goes to the roof).
+                if (walkIn is not null && !Meant(s, p, frame.DirToLocal(facing), frame.DirToLocal(push), relative, ladder.Inward,
+                    Math.Sqrt(dx * dx + dz * dz), local.Y > ladder.Top - 0.5, Inside(frame.Shape, ladder.Foot + new Double3(0, 0.2, 0)), out fromTop))
+                    continue;
                 if (hand is { } h && !OnLadder(frame.ToLocal(h), ladder, p.Hand.Grab))
                     continue;
-                var relative = frame.VelocityToLocal(worldVelocity);
                 if (Math.Sqrt(relative.X * relative.X + relative.Z * relative.Z) >= p.Ladder.GrabMaxRelativeSpeed * train.Dynamics.Tuning.Kit.GrabIrons)
                     continue;
                 if (s.Parent != frame.Index)
@@ -1392,6 +1391,7 @@ public static class PlayerMotor
                 s.Surface = Surface.Ladder;
                 s.Position = new Double3(ladder.Foot.X, Math.Clamp(local.Y, ladder.Foot.Y, ladder.Top - 0.05), ladder.Foot.Z);
                 s.Velocity = default;
+                s.Flags = fromTop ? s.Flags | PlayerFlags.DownLadder : s.Flags & ~PlayerFlags.DownLadder;
                 return;
             }
         }
@@ -1401,17 +1401,12 @@ public static class PlayerMotor
         {
             var on = ladder.At(world.Y);
             double dx = world.X - on.X, dz = world.Z - on.Z;
-            double reach = walkIn ? Math.Min(WalkInReach, p.Ladder.GrabRange) : p.Ladder.GrabRange;
             if (dx * dx + dz * dz > reach * reach || world.Y < ladder.Foot.Y - 0.5 || world.Y > ladder.Top.Y + 0.1)
                 continue;
-            if (walkIn)
-            {
-                if (world.Y > ladder.Top.Y - 0.5)
-                    continue;
-                double yaw = WorldYaw(s, train);
-                if (-DMath.Sin(yaw) * ladder.Inward.X - DMath.Cos(yaw) * ladder.Inward.Z < 0.7)
-                    continue;
-            }
+            bool fromTop = false;
+            if (walkIn is not null && !Meant(s, p, facing, push, worldVelocity, ladder.Inward, Math.Sqrt(dx * dx + dz * dz),
+                world.Y > ladder.Top.Y - 0.5, hatch: false, out fromTop))
+                continue;
             if (hand is { } h && (h - ladder.At(h.Y)) with { Y = 0 } is var off && off.Length > p.Hand.Grab)
                 continue;
             if (Math.Sqrt(worldVelocity.X * worldVelocity.X + worldVelocity.Z * worldVelocity.Z) >= p.Ladder.GrabMaxRelativeSpeed)
@@ -1420,8 +1415,37 @@ public static class PlayerMotor
             s.Surface = Surface.Ladder;
             s.Position = ladder.At(Math.Clamp(world.Y, ladder.Foot.Y, ladder.Top.Y - 0.05));
             s.Velocity = default;
+            s.Flags = fromTop ? s.Flags | PlayerFlags.DownLadder : s.Flags & ~PlayerFlags.DownLadder;
             return;
         }
+    }
+
+    /// <summary>
+    /// Whether someone who pressed no key means to take this ladder (note 1018), all horizontal, in the ladder's frame:
+    /// walking into it (facing it and pushing at it, both within <see cref="LadderTuning.WalkInDegrees"/> of up its rungs,
+    /// from <see cref="LadderTuning.WalkInReach"/>), on the ground or off it; jumping or falling into it (moving at it at
+    /// <see cref="LadderTuning.AirTowards"/> or more, within <see cref="LadderTuning.GrabRange"/>); or, at its top, walking
+    /// out over it with eyes down it (<paramref name="fromTop"/>: forward goes on down). Alongside one, you face along it.
+    /// </summary>
+    static bool Meant(in PlayerState s, PlayerTuning p, Double3 facing, Double3 push, Double3 velocity, Double3 inward, double distance,
+        bool atTop, bool hatch, out bool fromTop)
+    {
+        var l = p.Ladder;
+        double within = DMath.Cos(l.WalkInDegrees * Math.PI / 180);
+        double pushLength = Math.Sqrt(push.X * push.X + push.Z * push.Z);
+        double faces = facing.X * inward.X + facing.Z * inward.Z, pushes = push.X * inward.X + push.Z * inward.Z;
+        fromTop = atTop;
+        // Over its top from what it serves: on your feet, looking down it, facing and walking out over it. Running along a
+        // roof to jump the gap, eyes ahead, isn't that.
+        if (atTop)
+            return s.Surface != Surface.Air && distance <= l.WalkInReach && s.Pitch <= -l.TopLookDownDegrees * Math.PI / 180
+                && pushLength > 0.5 && -faces >= within && -pushes >= within * pushLength;
+        if (hatch && s.Pitch < l.HatchLookUpDegrees * Math.PI / 180)
+            return false;
+        if (distance <= l.WalkInReach && pushLength > 0.5 && faces >= within && pushes >= within * pushLength)
+            return true;
+        return l.AirGrab && s.Surface == Surface.Air && distance <= l.GrabRange
+            && velocity.X * inward.X + velocity.Z * inward.Z >= l.AirTowards;
     }
 
     /// <summary>The ladders standing in the world: a town's (note 973) and the stops' houses' (note 1005: a hatch's, a cellar window's crates).</summary>
@@ -1459,7 +1483,7 @@ public static class PlayerMotor
             return;
         }
         double climb = s.Has(PlayerFlags.SoloCarry) ? p.SoloBodyClimb : p.LadderClimb;
-        double y = s.Position.Y + Math.Clamp(intent.MoveZ, -1, 1) * climb * dt;
+        double y = s.Position.Y + Climb(ref s, intent) * climb * dt;
         if (y >= ladder.Top.Y)
         {
             // Over the top onto its deck, just in past the edge, and stood there.
@@ -1502,7 +1526,7 @@ public static class PlayerMotor
         double top = ladder.Top;
         // D.9: the last one standing hauls a body up a ladder at a quarter of the pace.
         double climb = s.Has(PlayerFlags.SoloCarry) ? p.SoloBodyClimb : p.LadderClimb;
-        double y = s.Position.Y + Math.Clamp(intent.MoveZ, -1, 1) * climb * dt;
+        double y = s.Position.Y + Climb(ref s, intent) * climb * dt;
         if (y >= top)
         {
             // Over the top onto whatever the ladder serves, just inside the edge: the highest footing at the top rung, not
@@ -1532,6 +1556,21 @@ public static class PlayerMotor
             SetWorld(ref s, train, world, frame.Velocity);
             UpdateSupport(ref s, world, world, train, p, t);
         }
+    }
+
+    /// <summary>
+    /// Up (+) or down (−) the ladder, −1..1: forward climbs, unless it was taken walking out over its top (note 1018), when the
+    /// same forward goes on down it until it's let go.
+    /// </summary>
+    static double Climb(ref PlayerState s, in PlayerIntent intent)
+    {
+        double move = Math.Clamp(intent.MoveZ, -1, 1);
+        if (!s.Has(PlayerFlags.DownLadder))
+            return move;
+        if (move > 0)
+            return -move;
+        s.Flags &= ~PlayerFlags.DownLadder;
+        return move;
     }
 
     static bool OnLadder(Double3 hand, Ladder ladder, double grab)
