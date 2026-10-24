@@ -481,6 +481,14 @@ CUES = {
         L("night", "The wilderness at night, past the train"),
         O("far", "Something far off out there", vars=6),
     ],
+    # The big forests (note 1006; the director, 23 Oct 2026: "some unique sound design out there in the wilds for when
+    # players stop in a forest"): only with the train stood in deep woods (DeepWoods). Never a tell's shape (spec A.3).
+    "world-woods": [
+        L("hush", "The deep woods round a stood train: the wind high up in the canopy, the trunks creaking, close and still"),
+        O("far", "A far call in the woods: owls, and a tree coming down a long way off", vars=4),
+        O("branch", "A branch going somewhere close in the trees: a twig snapped, a limb cracking down, needles shaken", vars=5),
+        O("heavy", "Something big moving out in the trees: heavy steps in the duff, brush pushed aside, then still", vars=4),
+    ],
     "world-tunnels": [
         O("enter", "The train entering a tunnel mouth", vars=2),
         O("exit", "Coming out of the tunnel", vars=2),
