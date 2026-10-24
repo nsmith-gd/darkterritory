@@ -1,0 +1,19 @@
+// The Head Waiter (note 1008; docs/design/creatures/head-waiter.md §4): its tell, a spoon on a wine glass, three clear rings
+// in 4.6-5.6 kHz, right behind the lounger: told from the Fire Flies (9-12 kHz) and the car fire (6-9 kHz) by band and by
+// being rung, from the cab's bell (1.2 kHz) by pitch. A synth stand-in until the audio chat's takes (no line yet: AU1's).
+{
+  "tier": 1, "loop": false, "duration": 1.7, "maxInstances": 2, "minDistance": 3, "maxDistance": 60, "rolloff": 1, "gainDb": 4,
+  "layers": [
+    { "source": "sine", "frequency": 5080, "gain": 0.5, "envelope": [[0, 0], [0.004, 1], [0.25, 0.35], [0.55, 0]],
+      "vibrato": { "rate": 5.5, "depth": 0.002 } },
+    { "source": "sine", "frequency": 5340, "gain": 0.22, "envelope": [[0, 0], [0.004, 1], [0.2, 0.25], [0.45, 0]] },
+    { "source": "sine", "frequency": 5080, "gain": 0.5, "delay": 0.42, "envelope": [[0, 0], [0.004, 1], [0.25, 0.35], [0.55, 0]],
+      "vibrato": { "rate": 5.5, "depth": 0.002 } },
+    { "source": "sine", "frequency": 5340, "gain": 0.22, "delay": 0.42, "envelope": [[0, 0], [0.004, 1], [0.2, 0.25], [0.45, 0]] },
+    { "source": "sine", "frequency": 5080, "gain": 0.55, "delay": 0.84, "envelope": [[0, 0], [0.004, 1], [0.3, 0.4], [0.8, 0]],
+      "vibrato": { "rate": 5.5, "depth": 0.002 } },
+    { "source": "sine", "frequency": 5340, "gain": 0.24, "delay": 0.84, "envelope": [[0, 0], [0.004, 1], [0.25, 0.3], [0.6, 0]] },
+    { "source": "noise", "gain": 0.25, "filters": [{ "type": "bandPass", "frequency": 5100, "q": 6 }],
+      "envelope": [[0, 0], [0.002, 1], [0.02, 0], [0.42, 0], [0.422, 1], [0.44, 0], [0.84, 0], [0.842, 1], [0.86, 0]] }
+  ]
+}
