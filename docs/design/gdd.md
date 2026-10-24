@@ -916,6 +916,11 @@ A mutant rat the size of a dog, mangy and hunched, with a little pair of moose a
 > **RULE: keep an eye on the castings, and stand by the one it wants.**
 A while after the train stands at a yard with a crane, it creeps in out of the dark and fastens its teeth on one of the castings waiting to be craned. Then it drags it away from the gantry, very slowly. Once the casting is out from under the crane, out of the hook's reach, it's lost: nobody can get it back. Come within 6 m of it, or strike it, and it lets go and bolts for its hole. It hides there a while, then comes back for the same casting, so once you know which one it wants, you can guard it. After the fifth scare it gives that casting up and goes for another. It never hurts anyone, and nothing kills it. It goes when the train leaves the yard.
 
+**THE BRUIN** · *out of the forest, into a car* *(the director, 2026-10-23; Sloe's design, note 1004; built behind its flag, note 1007)*
+What's left of a great bear: twice the weight it should be, its fur gone to grey moss, its chest opened and something pale breathing in there.
+> **RULE: never alone with it; never face it.**
+Stand the train in the wild too long with cargo aboard and it comes out of the trees, huffing, to the car with the most in it, climbs in and feeds. It turns to face whoever's nearest, and whoever stays in front of it it rises over and charges: caught, they're mauled to death. From the front it barely feels a blow. From the side or behind, a blow staggers it, makes it drop whoever it has and turns it on the hitter: two or three round its sides keep it turning and never let it land a maul. Enough blows drive it back to the trees; more kill it. It never comes to a moving train, but aboard it rides along feeding. (Spec B.21.)
+
 **THE LODGER** · *in the dark of a village house* *(the director, 2026-10-09)*
 A long, starved thing folded into the corner of a back room, breathing.
 > **RULE: when it shrieks, put a door between you.**

@@ -1,6 +1,6 @@
 # THE BRUIN — the bear that gets into the car
 
-*Creature proposal, Sloe (queue #709, ARCHITECTURE §8 note 1004), 23 Oct 2026: one of the forest's heavies (`docs/playtest/2026-10-23.md` line 36: "big, kind of scary, that come out of the trees ... they can kill the player pretty easily if they get grabbed ... They can get into cars and cause problems ... relatively hard to take down. Like, stopping in the wild feels like it should feel scary"), for #711's big forests (Oak, note 1006). **Status: a proposal for the director; nothing is built until the director approves it.** Numbers are a first pass in the roster's units.*
+*Creature proposal, Sloe (queue #709, ARCHITECTURE §8 note 1004), 23 Oct 2026: one of the forest's heavies (`docs/playtest/2026-10-23.md` line 36: "big, kind of scary, that come out of the trees ... they can kill the player pretty easily if they get grabbed ... They can get into cars and cause problems ... relatively hard to take down. Like, stopping in the wild feels like it should feel scary"), for #711's big forests (Oak, note 1006). **Status: built behind a flag, off, awaiting the director's verdict** (`enemies.json` `bruin.on`; the `r712-bruin` edition turns it on; Rook, queue #712, note 1007; the inbox's `nathaniel2-sloe-forest-heavies`). Numbers are a first pass in the roster's units.*
 
 > **Never alone with it; never face it.**
 

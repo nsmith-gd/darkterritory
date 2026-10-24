@@ -550,6 +550,18 @@ A car fire burns on cells (decided 6 Oct, GDD App. F.1; ARCHITECTURE note 267). 
 | **Let go** | once it's jumped and both have hold, either off it **0.3 s** parts it there and then |
 | Left | once jumped, parts after **60 s** of running (a pin worked loose: 90 s); holds while the train stands |
 
+## B.21 The Bruin
+
+*The director's playtest of 2026-10-23, line 36: "big, kind of scary, that come out of the trees ... they can kill the player pretty easily if they get grabbed ... They can get into cars and cause problems ... relatively hard to take down"* (GDD §21; Sloe's `docs/design/creatures/bruin.md`; `bruin` in `content/tuning/enemies.json`, **off** until the director answers `nathaniel2-sloe-forest-heavies`; ARCHITECTURE §8 note 1007). `SpecTableTests.TheBruinMatchesB21` pins this table.
+
+| Parameter | Value |
+|---|---|
+| **Comes** | the train stood in the wilderness (no stop, halt or facility) **45 s**, with a car of cargo; one at a time; out of the trees **40 m** off that car at **4 m/s**, huffing at least **10 s** before it climbs in |
+| Feeds | **0.01** of the car's cargo a second; rides along if the train moves off; leaves after **40 s** fed (Local, Frontier), **90 s** (Dead Lines), never (Deep Territory) |
+| **Charges** | whoever stays within **50°** of its front for **3 s**, within **6 m**; caught within **3 m**, the maul: dead in **8 s** |
+| **Flank** | a blow from the front **×0.2**, and it keeps hold; from the side or behind it's staggered **1.2 s**, drops whoever it's mauling and turns on the hitter |
+| Health | **20** blows; **8** in its car drive it out to the trees |
+
 # PART C — DEATH AND REVIVAL
 
 > **Superseded by GDD v1.2 Appendix D (Death, Holdouts and Return).** The Vigil is cut. A dead player returns only through a Holdout at a halt, village or yard; bodies are loot (D.9). This part is kept for the record.

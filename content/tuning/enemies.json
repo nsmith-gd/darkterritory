@@ -183,6 +183,8 @@
     "pickers": [[0.3, 0.3]],
     // A dog-sized rat, low to the ground (note 790).
     "mouseMoose": [[0.35, 0.3]],
+    // The Bruin (note 1007): on all fours, a man's shoulder high and long; its body, its shoulders, its head.
+    "bruin": [[0.7, 0.8], [0.6, 1.3]],
     // The house creatures (notes 583–586): the Lodger and the Householder man-sized; the Hanger's sac, up in the roof.
     "lodger": [[0.35, 0.5], [0.3, 1.2]],
     "householder": [[0.35, 0.5], [0.3, 1.3]],
@@ -512,6 +514,28 @@
     "scareWithin": 6, "scaresToGiveUp": 5, "hideSeconds": 25, "creep": 1.2, "run": 5, "drag": 0.15, "dragAway": 0.5,
     "biteSeconds": 1.5, "grip": 0.7, "holeOut": 22, "atHole": 0.5, "reachEvery": 15, "leaveBeyond": 300,
     "tierWeights": { "local": 1, "frontier": 1.25, "deadLines": 1.5, "deepTerritory": 1.5 }
+  },
+
+  // THE BRUIN · scent · outside, then interior (GDD §21; the director's playtest of 23 Oct 2026, line 36: "big, kind of scary,
+  // that come out of the trees ... kill the player pretty easily if they get grabbed ... get into cars ... relatively hard to
+  // take down. Like, stopping in the wild feels like it should feel scary"; Sloe's docs/design/creatures/bruin.md, note 1004;
+  // ARCHITECTURE §8 note 1007; spec App. A.6 "The Bruin"). Spawns (on): the train stood in the wilderness (the director's
+  // stance, note 999: no stop, halt or facility) standSeconds, with a car of cargo it can climb into; one at a time; tierWeights.
+  // It comes out of the trees comeFromM out from that car at come m/s, huffing (the telegraph: at least huffSeconds before
+  // it climbs in); the train moving off past giveUpAbove m/s before it's in, it goes back. In the car it feeds,
+  // feedPerSecond of the car's cargo a second (riding along if the train moves off), and leaves of its own accord after
+  // leaveAfter s fed by tier (negative: never) or the cargo gone. It turns (turnDegreesPerSecond) to face whoever's nearest
+  // within reach m; whoever stays within frontDegrees of its front windupSeconds it rises over and charges: within
+  // chargeReach m, the maul (a grab: dead in maulSeconds). A blow from the front does ×frontFactor and it keeps hold; from the
+  // side or behind it's staggered staggerSeconds, drops whoever it's mauling and turns on the hitter. driveOffBlows blows in
+  // its car and it leaves for the trees (gone leaveFarM from the engine or there); health gone, it's dead (the crew's kill).
+  // on: false until the director answers nathaniel2-sloe-forest-heavies (the r712-bruin edition turns it on).
+  "bruin": {
+    "on": false, "standSeconds": 45, "comeFromM": 40, "come": 4, "huffSeconds": 10, "giveUpAbove": 2, "feedPerSecond": 0.01,
+    "reach": 6, "turnDegreesPerSecond": 90, "frontDegrees": 50, "windupSeconds": 3, "chargeReach": 3, "maulSeconds": 8,
+    "health": 20, "frontFactor": 0.2, "staggerSeconds": 1.2, "driveOffBlows": 8, "leaveFarM": 150,
+    "leaveAfter": { "local": 40, "frontier": 40, "deadLines": 90, "deepTerritory": -1 },
+    "tierWeights": { "local": 0.5, "frontier": 1, "deadLines": 1.5, "deepTerritory": 2 }
   },
 
   // THE HEAD WAITER (GDD §21; ARCHITECTURE §8 notes 1004, 1008; docs/design/creatures/head-waiter.md §5 and §8's early column;
@@ -1626,7 +1650,7 @@
           "hiding": ["tippyToesie", "passenger", "carHugger", "fireFlies", "carFire"],
           "walking": ["gannet", "climbers", "draggers", "whistler", "fireFlies", "brakeman"],
           "riding": ["tippyToesie", "fireFlies", "passenger", "carHugger"],
-          "afield": ["followers", "sootChildren", "grumbler", "moose", "ribbits", "towerJaw"]
+          "afield": ["followers", "sootChildren", "grumbler", "moose", "ribbits", "towerJaw", "bruin"]
         },
         // The behaviours the director foils (note 999 §2b; the director's playtest of 23 Oct, line 36: "track some things about
         // player behavior ... in a performant way ... and build foils for that ... pushing players for adaptability or towards
@@ -1648,7 +1672,7 @@
           "foils": {
             "lootingAlone": ["gaunt", "followers"],
             "cellarAlone": ["gaunt"],
-            "straggling": ["followers", "sootChildren", "moose"],
+            "straggling": ["followers", "sootChildren", "moose", "bruin"],
             "gunAlone": ["climbers", "cinderHounds", "gannet"],
             "lazing": ["gannet"],
             "silent": ["gaunt"],
@@ -1703,7 +1727,7 @@
     "costs": { "followers": 2, "draggers": 2, "fireFlies": 2, "trackDoll": 3, "cinderHounds": 3, "climbers": 3,
       "whistler": 3, "stoker": 3, "ribbits": 3, "carHugger": 4, "tippyToesie": 4, "gaunt": 4, "sootChildren": 4, "grumbler": 4,
       "passenger": 5, "moose": 3, "gannet": 4, "freightBeetle": 1, "towerJaw": 3, "brakeman": 3, "hotbox": 2, "knotter": 3,
-      "mouseMoose": 2, "headWaiter": 1 },
+      "mouseMoose": 2, "bruin": 4, "headWaiter": 1 },
     // App. B.3/B.8 weights.
     "houndsLivestockWeight": 2.5,
     "houndsHotBoilerWeight": 1.5,

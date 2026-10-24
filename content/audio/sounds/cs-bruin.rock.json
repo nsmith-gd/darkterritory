@@ -1,0 +1,16 @@
+// The Bruin feeding in a car (note 1007; bruin.md §4): the car rocking on its springs, louder than its own creak, and crates
+// torn, in an uneven rhythm. A synth stand-in until the audio chat's takes (cues.py "cs-bruin"). Held while it's in its car.
+{
+  "drift": { "semitones": 0.5, "db": 2, "seconds": 2 },
+  "tier": 2, "loop": true, "maxInstances": 2, "minDistance": 3, "maxDistance": 50, "gainDb": 5,
+  "layers": [
+    { "source": "impulse", "gain": 1.2, "frequency": 1.6,
+      "filters": [{ "type": "bandPass", "frequency": 420, "q": 5 }, { "type": "peak", "frequency": 610, "q": 6, "gainDb": 6 }],
+      "tremolo": { "rate": 0.8, "depth": 0.6, "duty": 0.6, "jitter": 0.5 } },
+    { "source": "impulse", "gain": 0.6, "frequency": 0.7,
+      "filters": [{ "type": "bandPass", "frequency": 1600, "q": 2 }],
+      "tremolo": { "rate": 0.5, "depth": 1, "duty": 0.4, "jitter": 0.6 } },
+    { "source": "noise", "gain": 0.2, "filters": [{ "type": "bandPass", "frequency": 260, "q": 2 }],
+      "tremolo": { "rate": 1.6, "depth": 1, "duty": 0.3, "jitter": 0.3 } }
+  ]
+}

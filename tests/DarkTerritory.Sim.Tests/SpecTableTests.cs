@@ -174,6 +174,15 @@ public class SpecTableTests
     }
 
     [Fact]
+    public void TheBruinMatchesB21()
+    {
+        var b = Tuning.Enemies.Bruin;
+        Assert.Equal((45.0, 40.0, 4.0, 10.0), (b.StandSeconds, b.ComeFromM, b.Come, b.HuffSeconds));
+        Assert.Equal((6.0, 50.0, 3.0, 3.0, 8.0), (b.Reach, b.FrontDegrees, b.WindupSeconds, b.ChargeReach, b.MaulSeconds));
+        Assert.Equal((20.0, 0.2, 8, 0.01), (b.Health, b.FrontFactor, b.DriveOffBlows, b.FeedPerSecond));
+    }
+
+    [Fact]
     public void HotboxMatchesB19()
     {
         var h = Tuning.Enemies.Hotbox;
