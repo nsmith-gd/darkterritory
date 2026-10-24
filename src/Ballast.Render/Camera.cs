@@ -104,6 +104,8 @@ public struct FrameLighting
     public float Ambient;
     /// <summary>Inside a room (<see cref="Room"/>), the fill in the moon's place (rgb); zero: the ambient times a warm tint.</summary>
     public Vector3 IndoorFill;
+    /// <summary>Inside a dark room (<see cref="Room.Dark"/>: a house's basement), the share of the room's fill taken away (0: none).</summary>
+    public float CellarDim;
     public Double3 LampPosition;
     public Vector3 LampDirection;
     public float LampRange;

@@ -1127,7 +1127,7 @@ static object Screenshot(TrainTuning t, string content, string[] args)
     // --upgrades id[,id]: the train as the campaign's upgrades make it (note 184: crewCar, secondGuardCar, armouredCar,
     // roofHandrails...).
     // The dining and diningbar views (note 959), and diningtable and diningdrunk (note 974), fit the dining car.
-    if (Str(args, "--upgrades", view is "dining" or "diningbar" or "diningtable" or "diningdrunk" ? "diningCar" : "") is { Length: > 0 } upgrades)
+    if (Str(args, "--upgrades", view is "dining" or "diningbar" or "diningtable" or "diningdrunk" ? "diningCar" : view is "headwaiter" or "headwaiterdeck" ? "bbqDeck" : "") is { Length: > 0 } upgrades)
         t = DarkTerritory.Sim.Campaign.Campaign.Apply(DataFile.Load<DarkTerritory.Sim.Campaign.CampaignTuning>(Path.Combine(content, DarkTerritory.Sim.Campaign.CampaignTuning.File)),
             upgrades.Split(','), new DarkTerritory.Sim.Campaign.Loadout(t, DataFile.Load<BoilerTuning>(Path.Combine(content, BoilerTuning.File)),
                 DataFile.Load<DarkTerritory.Sim.Combat.CombatTuning>(Path.Combine(content, DarkTerritory.Sim.Combat.CombatTuning.File)), null)).Train;
@@ -2048,11 +2048,42 @@ static object Screenshot(TrainTuning t, string content, string[] args)
             return Print(new { error = $"{Str(args, "--route", "")} has no cupboards" });
         var (f, c) = pieces[(int)keptAt % pieces.Count];
         var b = f.Stop!.Buildings[c.Building];
-        var (x, y, fx, fy) = DarkTerritory.Sim.Run.StopWalls.Kept(b, c.Kind, c.Index);
+        var (x, y, fx, fy) = DarkTerritory.Sim.Run.StopWalls.Kept(b, c);
         Double3 At(double px, double py, double up) => DarkTerritory.Sim.Run.Run.StopWorld(line, f, DarkTerritory.Sim.Run.StopWalls.InHouse(b, px, py), up);
         camera = floorKind.Length > 0
             ? Camera.LookAt(At(x + fx * 1.5 - fy * 0.6, y + fy * 1.5 + fx * 0.6, 1.65), At(x, y, 0.2), 70)
             : Camera.LookAt(At(x + fx * 2.1 - fy * 0.7, y + fy * 2.1 + fx * 0.7, 1.65), At(x, y, 0.95), 70);
+    }
+    // --storey basement|upstairs|stairs|ground|outside [--house n] (note 1005): the night's nth house with floors (one with a
+    // basement for basement, with an upstairs for upstairs and stairs): down in its basement from the ladder's foot toward its
+    // deep end and its chests; upstairs from its back wall toward the stairwell; at the foot of its flight, up it; on its
+    // ground floor from inside its front door; or from outside, its plinth, steps and cellar windows. With --lantern, a hand lamp.
+    if (Str(args, "--storey", "") is { Length: > 0 } storey && generated is not null)
+    {
+        var storeyed = generated.Features.Where(f => f.Stop is not null)
+            .SelectMany(f => f.Stop!.Buildings.Select((b, i) => (Feature: f, Building: b, Index: i)))
+            .Where(x => DarkTerritory.Sim.Run.StopWalls.Storeyed(x.Building) && DarkTerritory.Sim.Run.StopWalls.Walled(x.Feature.Stop!, x.Index)
+                && (storey != "basement" || x.Building.Basement) && (storey is not ("upstairs" or "stairs") || x.Building.Upstairs)).ToList();
+        if (storeyed.Count == 0)
+            return Print(new { error = $"{Str(args, "--route", "")} has no house with floors for --storey {storey}" });
+        var (f, b, _) = storeyed[(int)Opt(args, "--house", 0) % storeyed.Count];
+        int e = DarkTerritory.Sim.Run.StopWalls.BackEnd(b), side = DarkTerritory.Sim.Run.StopWalls.StairSide(b);
+        double ix = b.Length / 2 - DarkTerritory.Sim.Run.StopWalls.WallThickness, iy = b.Width / 2 - DarkTerritory.Sim.Run.StopWalls.WallThickness;
+        // Heights over the house's ground (its middle's), as the sim has them.
+        double ground = DarkTerritory.Sim.Run.Run.StopWorld(line, f, b.Centre).Y;
+        Double3 At(double x, double y, double up) => DarkTerritory.Sim.Run.Run.StopWorld(line, f, DarkTerritory.Sim.Run.StopWalls.InHouse(b, x, y)) with { Y = ground + up };
+        double Floor(int level) => DarkTerritory.Sim.Run.StopWalls.FloorAt(b, level);
+        var (fx, fy) = DarkTerritory.Sim.Run.StopWalls.Front(b);
+        camera = storey switch
+        {
+            "basement" => Camera.LookAt(At(e * (ix - 0.9), side * 0.6, Floor(-1) + 1.6), At(-e * ix, -side * 0.4, Floor(-1) + 0.5), 80),
+            "upstairs" => Camera.LookAt(At(e * (ix - 0.5), -side * (iy - 0.6), Floor(1) + 1.65), At(-e * ix, side * iy * 0.5, Floor(1) + 0.4), 80),
+            // (stairs: from the ground floor at the flight's foot, up it.)
+            "stairs" when DarkTerritory.Sim.Run.StopWalls.Stair(b) is var (x0, dir, y0, y1) =>
+                Camera.LookAt(At(x0 - dir * 0.5, (y0 + y1) / 2 - side * 2.4, Floor(0) + 1.65), At(x0 + dir * 3.0, (y0 + y1) / 2, Floor(0) + 1.8), 80),
+            "outside" => Camera.LookAt(At(fx * (b.Length / 2 + 7) - fy * 3, fy * (b.Width / 2 + 7) + fx * 3, 1.7), At(0, 0, Floor(0) + 1.2), 70),
+            _ => Camera.LookAt(At(fx * (b.Length / 2 - 1.0), fy * (b.Width / 2 - 1.0), Floor(0) + 1.65), At(-fx * ix + e * 0.5, -fy * iy + side * 0.5, Floor(0) + 0.6), 80),
+        };
     }
     // --gun-laid yaw,pitch (degrees): every gun turned and elevated so, as a seated gunner lays it (T112).
     if (Str(args, "--gun-laid", "") is { Length: > 0 } laid)
@@ -2583,6 +2614,14 @@ static object Screenshot(TrainTuning t, string content, string[] args)
         foreach (var (id, pace) in pickerPaces)
             paces[id] = pace;
         scene.StagedPaces = paces;
+    }
+    // --headwaiter serve|wait|clear: the staged Head Waiter on the BBQ deck (note 1008; Staging.HeadWaiter), at the shoulder of
+    // a crewmate sat back in the near chair: the glass ringing (the headwaiter views'), waiting, or clearing them.
+    if (Str(args, "--headwaiter", view is "headwaiter" or "headwaiterdeck" ? "serve" : "") is { Length: > 0 } waiterMode
+        && Staging.HeadWaiter(train, content, waiterMode) is var (waitedOn, waiter) && waiter is not null)
+    {
+        scene.Enemies = [.. scene.Enemies ?? [], waiter];
+        scene.Crew = [.. scene.Crew ?? [], .. waitedOn];
     }
     // --mousemoose yard|drag: the staged Mouse Moose off the line's left (note 790; Staging.MouseMoose): creeping in, tugging a
     // load off, down its hole (the mousemoose view's); close to the one tugging (mousemoosedrag's).

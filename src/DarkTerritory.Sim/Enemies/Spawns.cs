@@ -565,6 +565,18 @@ public static class Spawns
             c.Add(i => Knotter.Into(i, c.Train, car, c.Tuning.Knotter));
             return c.Placed();
         }),
+        // The Head Waiter (note 1008; Sloe's design, note 1004): for a crewmate the behaviour reader's seen lounging on the
+        // cosmetics headWaiter.comeSeconds without a break, the train running. Off unless headWaiter.on (the director's verdict).
+        new(EnemyKind.HeadWaiter, c =>
+            !c.Once(EnemyKind.HeadWaiter) || HeadWaiter.Comes(c.World, c.Director.Behaviours, c.Tuning.HeadWaiter) is null ? null : c.Tuning.HeadWaiter.Weight,
+        c =>
+        {
+            if (HeadWaiter.Comes(c.World, c.Director.Behaviours, c.Tuning.HeadWaiter) is not { } diner)
+                return SpawnContext.Failed(SpawnFailure.Gated);
+            var state = c.World.CrewThisTick.First(p => p.Id == diner).State;
+            c.Add(i => HeadWaiter.For(i, c.Train, diner, state, c.Tuning.HeadWaiter));
+            return c.Placed();
+        }),
         // B.4 · The Gannet (note 340; the orchestrator's S3): over a train run fast a while in open country (not a tunnel), a
         // train of two or more; every tier, more the harder; by the line's biome; up per walker on the roofs. Once a run:
         // it peels off and comes back on its own, until it's killed or gives up.

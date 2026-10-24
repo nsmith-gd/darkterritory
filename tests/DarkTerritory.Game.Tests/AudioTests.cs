@@ -341,6 +341,21 @@ public class AudioTests
         Assert.InRange(mimic.Formant!.Shift, 1.05, 1.4);
     }
 
+    [Theory]
+    [InlineData(0)]
+    [InlineData(5)]
+    public void AFlaggedCreaturesTellCutsThroughTheTrainAtSpeed(int listenerCar)
+    {
+        // The Head Waiter's glass (note 1008): off in the shipping tuning, so not among the demo's staged tells; auditioned
+        // alone 6 m off a listener in the cab and on the last roof of a 20-car train at 22 m/s, its band over the bed.
+        foreach (var (sound, _) in AudioBench.FlaggedTellBands)
+        {
+            var (report, _) = AudioBench.Render(Content, "sound:" + sound, cars: 20, speed: 22, listenerCar: listenerCar == 5 ? 19 : 0, seconds: 3);
+            var tell = Assert.Single(report.Tells, t => t.Sound == sound);
+            Assert.True(tell.OverBedDb >= 6, $"{sound} is only {tell.OverBedDb} dB over the bed");
+        }
+    }
+
     [Fact]
     public void EveryEnemyTellIsSentAsFarAsItCanBeHeard()
     {
@@ -349,7 +364,7 @@ public class AudioTests
         // enemy is sent to everyone wherever it is (Enemy.Far, T57).
         var bank = new SoundBank(Path.Combine(Content, "audio", "sounds"));
         var enemies = DataFile.Load<DarkTerritory.Sim.Enemies.EnemyTuning>(Path.Combine(Content, DarkTerritory.Sim.Enemies.EnemyTuning.File));
-        Assert.All(AudioBench.TellBands.Keys.Where(t => t is not ("choir-voice" or "train-whistle")),
+        Assert.All(AudioBench.TellBands.Keys.Where(t => t is not ("choir-voice" or "train-whistle")).Concat(AudioBench.FlaggedTellBands.Keys),
             t => Assert.True(bank.Get(t)!.MaxDistance <= enemies.InterestRadius, $"{t} carries {bank.Get(t)!.MaxDistance} m, past the {enemies.InterestRadius} m interest radius"));
     }
 
