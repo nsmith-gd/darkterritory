@@ -137,7 +137,8 @@ public static class Protocol
     // 86: the dining car's bar (note 959): the body kind Drink (26), a drink poured at the bar; the dining car's drinks left
     //     ride in its vehicle record's cooler field (the 33rd), as the BBQ deck's beers do.
     // 87: a mended rupture's patch (note 991): the boiler record's flags bit 7, Patched.
-    public const int Version = 87;
+    // 88: the Head Waiter (note 1008): EnemyKind 50 on the wire (48 and 49 are the Bruin and the Tapper), its mode in the enemy record's extra2.
+    public const int Version = 88;
 }
 
 public enum MessageType : byte

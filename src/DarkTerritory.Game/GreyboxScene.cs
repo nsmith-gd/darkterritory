@@ -3118,6 +3118,10 @@ public sealed partial class GreyboxScene
                         Draw(carrying ? x * 3.6 : x, carrying ? 0.6 : 0.2, carrying ? 0 : -0.15, 0.02, 0.2, 0.02, Palette.SootBlack);
                     break;
                 }
+            case EnemyKind.HeadWaiter:
+                // (Its boxes, until it's modelled: CreatureArt.HeadWaiter.cs.)
+                Art.CreatureArt.HeadWaiterStandIn(mesh, o, r, u, b, e is Sim.Enemies.HeadWaiter hw ? hw.Mode : Sim.Enemies.HeadWaiterMode.Wait, pulse);
+                break;
             case EnemyKind.MouseMoose:
                 {
                     // A dog-sized grey-brown rat with a little pair of antlers (note 790). Down its hole: nothing.
