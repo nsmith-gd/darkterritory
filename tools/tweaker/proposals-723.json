@@ -8,7 +8,7 @@
    "replyAt": "2026-10-24T20:30:00Z",
    "proposals723": {
     "note": 1020,
-    "pr": "alder-crew-of-two-723",
+    "pr": "https://github.com/nsmith-gd/darkterritory/pull/1753",
     "crewLoad": {
      "proposed": {
       "2": 0.6
