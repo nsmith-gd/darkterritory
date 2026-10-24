@@ -1,0 +1,72 @@
+[
+ {
+  "op": "update",
+  "collection": "settings",
+  "doc_id": "night",
+  "data": {
+   "reply": "Queue #723 (note 1020), from your two-player Frontier night of 24 Oct. Measured on frontier:7 with 2, 3 and 4 bots, 6 nights each. Today a crew of two meets as many monsters a night as a crew of three (19.5 against 18.8), about 1.45 times a three's per head: 28.6 / 26.1 / 19.7 encounters a head an hour at the start, middle and end, against a three's 19.2 / 18.2 / 15.4. (The Crew scale knob on this page isn't read since the one pacing model went in, so it can't fix this; two new settings can.) Your choices: (1) A crew of two at 0.6 of today's load (crewLoad 2: 0.6). With (2) it gives 21.5 / 18.3 / 13.1 a head an hour, 13.5 monsters a night instead of 19.5; crews of three and more untouched. Or 0.67 (a gentler cut), or as is. (2) Frontier's end eased: the night rises to x3 at the terminus instead of x4 (escalationTier frontier: 2); the start is the same and it still rises. For a crew of three the end goes from 15.4 to 12.2 a head an hour. Or 1.5 (x2.5; a crew of two's end halved), or as is. (3) Repeats: the variety settings barely change anything, because on a moving train the Cinder Hounds are often the only creature that fits. With (1), back-to-back repeats for two fell from 16% to 3%. A real fix is code: hold instead of sending the same creature again when it's the only fit, and let more creatures onto a moving train. Say if you want it. (4) A breather after a fight: (1) alone makes the gaps of 90 s or more go from 21% to 34%. A pause after every fight won, longer for a small crew, is code: say if you want it. Nothing has changed in the game until you answer.",
+   "replyAt": "2026-10-24T20:30:00Z",
+   "proposals723": {
+    "note": 1020,
+    "pr": "alder-crew-of-two-723",
+    "crewLoad": {
+     "proposed": {
+      "2": 0.6
+     },
+     "alternatives": [
+      {
+       "2": 0.67
+      },
+      {}
+     ],
+     "today": {}
+    },
+    "escalationTier": {
+     "proposed": {
+      "frontier": 2
+     },
+     "alternatives": [
+      {
+       "frontier": 1.5
+      },
+      {}
+     ],
+     "today": {},
+     "escalation": 3
+    },
+    "measured": {
+     "today": {
+      "2": [
+       28.6,
+       26.1,
+       19.7
+      ],
+      "3": [
+       19.2,
+       18.2,
+       15.4
+      ],
+      "4": [
+       16.0,
+       14.7,
+       18.3
+      ]
+     },
+     "proposed": {
+      "2": [
+       21.5,
+       18.3,
+       13.1
+      ],
+      "3": [
+       17.2,
+       13.4,
+       12.2
+      ]
+     },
+     "unit": "encounters a head an hour: gate, middle, end; frontier:7, seeds 1-6, dt harness --as-app"
+    }
+   }
+  }
+ }
+]
