@@ -214,7 +214,8 @@ public static partial class StopGenerator
             Warrens(StopZone.Village, houses.Min(x => x.b.S) - 20, houses.Max(x => x.b.S) + 20, houses.Min(x => x.b.D) - 20, houses.Max(x => x.b.D) + 20);
 
         // The Gaunt: asleep in the building furthest from the train, on foot (a village house before a yard shed).
-        var roosts = houses.Count > 0 ? houses
+        // (Not in a house of floors, note 1005: its nest is a ground floor's, and the Gaunt's not been taught the stairs.)
+        var roosts = houses.Any(x => !Run.StopWalls.Storeyed(x.b)) ? houses.Where(x => !Run.StopWalls.Storeyed(x.b)).ToList()
             : g.Buildings.Select((b, i) => (b, i)).Where(x => x.b.Kind is BuildingKind.Shed or BuildingKind.Hero).ToList();
         var roost = roosts.Select(x => (x.b, x.i, m: walk.To(DoorOf(x.b, stopPoint)))).Where(x => x.m is not null).OrderByDescending(x => x.m).FirstOrDefault();
         if (roost.b is not null)

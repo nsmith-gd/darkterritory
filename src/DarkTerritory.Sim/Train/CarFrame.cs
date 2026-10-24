@@ -179,13 +179,17 @@ public readonly record struct LockerBay(int Index, Box Box, string Name)
 public sealed record BbqLayout(IReadOnlyList<Double3> Chairs, Double3 Cooler, Double3 Grill, double Front);
 
 /// <summary>
-/// The dining car's room (upgrades.md §8.5, note 959), in its frame: the table laid for eight down the middle, the bar's
-/// counter across its rear end, where you stand to order (<see cref="Bar"/>, the bar's <see cref="InteractableKind.Bar"/>).
+/// The dining car's room (upgrades.md §8.5, note 959), in its frame: the table laid down the front half, and the pub's bar
+/// down the rear half (note 1016): its long <see cref="Counter"/> along the right, its <see cref="Return"/> closing the
+/// counter's front end to the wall, the barman's walkway <see cref="Behind"/> it (in from the rear end) and the
+/// <see cref="BackBar"/> along the wall behind that; and behind the counter, where you stand to pour, the <see cref="Bar"/>
+/// (the bar's <see cref="InteractableKind.Bar"/>). Its stools are the car's <see cref="CarShape.Lounges"/>
+/// (<see cref="LoungeKind.Stool"/>), down the counter's front.
 /// </summary>
-public sealed record DiningLayout(Box Table, Box Counter, Double3 Bar);
+public sealed record DiningLayout(Box Table, Box Counter, Double3 Bar, Box Return, Box Behind, Box BackBar);
 
-/// <summary>A whimsy's place to lie or soak (note 744): the hammock, the hot tub; or a big cab's bench seat (note 905).</summary>
-public enum LoungeKind : byte { Hammock, HotTub, Bench }
+/// <summary>A whimsy's place to lie or soak (note 744): the hammock, the hot tub; a big cab's bench seat (note 905); or a dining car's bar stool (note 1016).</summary>
+public enum LoungeKind : byte { Hammock, HotTub, Bench, Stool }
 
 /// <summary>
 /// Somewhere to lounge that isn't a Muskoka chair (note 744): where a crewmate's set in it (their feet's place in the car's
@@ -281,11 +285,12 @@ public sealed record CarShape(Box Bounds, IReadOnlyList<Solid> Solids, IReadOnly
     }
 
     /// <param name="lockers">This car has the crew lockers (the repair kit's car, ARCHITECTURE §8 note 173).</param>
-    public static CarShape Build(GeometryTuning g, VehicleKind kind, bool hasCarBehind, LockerTuning? lockers = null) =>
+    /// <param name="dining">The dining car's bar (train.json <c>composition.dining</c>, note 1016); its defaults unset.</param>
+    public static CarShape Build(GeometryTuning g, VehicleKind kind, bool hasCarBehind, LockerTuning? lockers = null, DiningTuning? dining = null) =>
         lockers is { Names.Count: > 0 } && kind != VehicleKind.Engine && g.Interior is not null
-            ? WithLockers(Build(g, kind, hasCarBehind), lockers) : Build(g, kind, hasCarBehind);
+            ? WithLockers(Build(g, kind, hasCarBehind, dining), lockers) : Build(g, kind, hasCarBehind, dining);
 
-    public static CarShape Build(GeometryTuning g, VehicleKind kind, bool hasCarBehind) => kind switch
+    public static CarShape Build(GeometryTuning g, VehicleKind kind, bool hasCarBehind, DiningTuning? dining) => kind switch
     {
         // The engine's rail is the cab roof's (T93; note 276): the gun stands at its front, and behind it is the boiler.
         VehicleKind.Engine => Engine(g, hasCarBehind) with
@@ -294,7 +299,7 @@ public sealed record CarShape(Box Bounds, IReadOnlyList<Solid> Solids, IReadOnly
         },
         VehicleKind.Guard => Guard(g, hasCarBehind) with { RoofRail = (-g.CarLength / 2 + RailEnd, g.CarLength / 2 - RailEnd) },
         VehicleKind.Utility => Utility(g, hasCarBehind) with { RoofRail = (-g.CarLength / 2 + RailEnd, g.CarLength / 2 - RailEnd) },
-        VehicleKind.Dining => DiningRoom(g, hasCarBehind) with { RoofRail = (-g.CarLength / 2 + RailEnd, g.CarLength / 2 - RailEnd) },
+        VehicleKind.Dining => DiningRoom(g, dining ?? new(), hasCarBehind) with { RoofRail = (-g.CarLength / 2 + RailEnd, g.CarLength / 2 - RailEnd) },
         _ => Car(g, hasCarBehind) with { RoofRail = (-g.CarLength / 2 + RailEnd, g.CarLength / 2 - RailEnd) },
     };
 
@@ -363,12 +368,15 @@ public sealed record CarShape(Box Bounds, IReadOnlyList<Solid> Solids, IReadOnly
 
     /// <summary>
     /// The dining car (upgrades.md §8.5, note 959; the director, 13 Oct: "If we have a dining car, we should be able to order
-    /// drinks at the bar"): a cargo car converted, walled like the crew car (no side doors, no freight). Its table laid for
-    /// eight stands down the middle right of the aisle, the aisle from end door to end door on the left (the end doors stand
-    /// left of centre); the bar's counter is across its rear end on the right, the aisle past it to the rear door, and Use at
-    /// the counter's front orders a drink.
+    /// drinks at the bar"): a cargo car converted, walled like the crew car (no side doors, no freight). The aisle runs from
+    /// end door to end door on the left (the end doors stand left of centre), past the crew lockers when it's the kit's car
+    /// (along the left wall at the front). Its table laid for eight stands down the front half, right of the aisle; the pub's
+    /// bar down the rear half (note 1016; the director's Look Review verdict, 23 Oct: "a cool classic wooden english pub bar
+    /// ... at the back of the car clearly not obstructing the doors ... away from the lockers"): the counter along the right,
+    /// stools down its front, and behind it the barman's walkway, in from the rear end beside the rear door (not across it),
+    /// where Use pours a drink (train.json <c>composition.dining</c>'s bar: its numbers).
     /// </summary>
-    static CarShape DiningRoom(GeometryTuning g, bool hasCarBehind)
+    static CarShape DiningRoom(GeometryTuning g, DiningTuning t, bool hasCarBehind)
     {
         if (g.Interior is not { } i)
             return SolidCar(g, hasCarBehind);
@@ -376,13 +384,37 @@ public sealed record CarShape(Box Bounds, IReadOnlyList<Solid> Solids, IReadOnly
         var room = car.Interior!.Value;
         double floor = i.FloorHeight;
         var solids = car.Solids.ToList();
-        var table = new Box(new Double3(0.05, floor, room.Min.Z + 2.6), new Double3(0.85, floor + 0.76, room.Max.Z - 4.6));
-        var counter = new Box(new Double3(0.15, floor, room.Max.Z - 2.2), new Double3(room.Max.X, floor + 1.08, room.Max.Z - 1.6));
+        var b = t.Bar;
+        double c0 = b.CounterX, c1 = c0 + b.CounterDepth, back = room.Max.Z - b.FromRear, front = back - b.CounterLength;
+        var table = new Box(new Double3(0.05, floor, room.Min.Z + 0.6), new Double3(0.85, floor + 0.76, front - b.TableGap));
+        var counter = new Box(new Double3(c0, floor, front), new Double3(c1, floor + b.CounterHeight, back));
+        var ret = new Box(new Double3(c1, floor, front), new Double3(room.Max.X, floor + b.CounterHeight, front + b.CounterDepth));
+        var backBar = new Box(new Double3(room.Max.X - b.BackBarDepth, floor, ret.Max.Z), new Double3(room.Max.X, room.Max.Y - 0.2, back));
+        var behind = new Box(new Double3(c1, floor, ret.Max.Z), new Double3(backBar.Min.X, floor + b.CounterHeight, room.Max.Z));
         solids.Add(new Solid(table, SurfaceKind.Deck, PartKind.Furniture));
         solids.Add(new Solid(counter, SurfaceKind.Deck, PartKind.Furniture));
-        var bar = new Double3((counter.Min.X + counter.Max.X) / 2, floor, counter.Min.Z - 0.35);
-        var interactables = car.Interactables.Append(new Interactable(InteractableKind.Bar, bar, 0.9)).ToList();
-        return car with { Solids = solids, Interactables = interactables, Dining = new DiningLayout(table, counter, bar) };
+        solids.Add(new Solid(ret, SurfaceKind.Deck, PartKind.Furniture));
+        solids.Add(new Solid(backBar, SurfaceKind.Deck, PartKind.Furniture));
+        // The pumps, behind the counter's middle: only a hand behind the bar reaches them (from the stools it's the counter's
+        // depth and more away).
+        var bar = new Double3((behind.Min.X + behind.Max.X) / 2, floor, (counter.Min.Z + counter.Max.Z) / 2);
+        var interactables = car.Interactables.Append(new Interactable(InteractableKind.Bar, bar, b.PourReach)).ToList();
+        // The stools down the counter's front, facing it (+X: a player's yaw of −π/2); sat on from the aisle in front of each.
+        var stools = new List<Lounge>();
+        double pitch = (back - front) / Math.Max(1, b.Stools);
+        for (int k = 0; k < b.Stools; k++)
+        {
+            double z = front + pitch * (k + 0.5);
+            stools.Add(new Lounge(LoungeKind.Stool, new Double3(c0 - b.StoolOut, floor + b.StoolHeight, z), -Math.PI / 2));
+            interactables.Add(new Interactable(InteractableKind.Bench, new Double3(c0 - b.StoolOut - b.StandOff, floor, z), SeatReach, k, Aim: b.StoolHeight));
+        }
+        return car with
+        {
+            Solids = solids,
+            Interactables = interactables,
+            Lounges = stools,
+            Dining = new DiningLayout(table, counter, bar, ret, behind, backBar),
+        };
     }
 
     /// <summary>

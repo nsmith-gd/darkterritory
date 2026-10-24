@@ -87,7 +87,9 @@ public class HouseInteriorArtTests
         Assert.True(piece.Select(v => v.Color).Distinct().Count() >= 4);
         // In the sim's box (the kit's frame is the building's turned: TownKit.OpenHouse's K), but a few centimetres.
         var box = StopWalls.Furniture(b, [c]).Single();
-        const double Floor = 0.17, Proud = 0.04 + 1e-3;
+        // (On its own floor in a house with floors, note 1005.)
+        double Floor = 0.17 + TownKit.LevelLift(b, c.Level);
+        const double Proud = 0.04 + 1e-3;
         foreach (var v in piece)
         {
             double x = -v.Position.Z, y = v.Position.X;

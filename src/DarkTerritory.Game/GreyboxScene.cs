@@ -4669,7 +4669,11 @@ public sealed partial class GreyboxScene
     /// out (note 488).
     /// </summary>
     sealed record OpenHouse(Double3 Origin, Double3 X, Double3 Y, IReadOnlyList<Sim.Stops.FootprintPart> Parts, Double3? Light, bool Lamp, int Id, float Height = 3.0f, bool Shed = false, bool Dark = false,
-        int Feature = -1, int Building = -1);
+        int Feature = -1, int Building = -1)
+    {
+        /// <summary>A house with a basement (note 1005): how far under its ground floor's boards the basement's floor is, its dark room.</summary>
+        public float Cellar { get; init; }
+    }
 
     /// <summary>The light indoors (note 475): the look's, or the old numbers for the greybox.</summary>
     InteriorTuning Interiors => Look?.Tuning.Atmosphere.Interiors ?? DefaultInteriors;
@@ -4723,16 +4727,20 @@ public sealed partial class GreyboxScene
                         continue;
                     // Its floor, as the art stands it (WorldArt.Building: the frame 0.15 m under the ground at its middle,
                     // the boards 0.17 over that).
-                    double floor = Sim.Run.Run.StopWorld(line, f, b.Centre, Art.WorldArt.Ground(route, f.Start + b.S, (float)b.D, (float)ValleyDepth) - 0.15 + 0.17).Y;
+                    // (A house with floors' ground floor, raised on its plinth, note 1005.)
+                    double floor = Sim.Run.Run.StopWorld(line, f, b.Centre, Art.WorldArt.Ground(route, f.Start + b.S, (float)b.D, (float)ValleyDepth) - 0.15 + 0.17
+                        + Art.TownKit.LevelLift(b, 0)).Y;
                     Double3 At(double x, double y) => Sim.Run.Run.StopWorld(line, f, Sim.Run.StopWalls.InHouse(b, x, y)) with { Y = floor };
                     var o = At(0, 0);
                     int index = i;
                     var light = Art.TownKit.HouseLight(b, stop.Containers.Where(c => c.Building == index),
                         Sim.Run.StopWalls.ClutterOf(stop, index), Sim.Run.StopWalls.Nest(stop, index));
                     var parts = b.Parts.Count > 0 ? b.Parts : [new Sim.Stops.FootprintPart(0, 0, b.Length, b.Width)];
+                    bool storeyed = Sim.Run.StopWalls.Storeyed(b);
                     houses.Add(new OpenHouse(o, (At(1, 0) - o).Normalized, (At(0, 1) - o).Normalized, parts,
                         light is var (lx, ly, height, _) ? At(lx, ly) + Double3.Up * height : null, light?.Lamp ?? false, (int)(f.Start * 7 + i),
-                        Feature: fi, Building: i));
+                        storeyed ? Art.TownKit.Eaves(b) - 0.17f - Art.TownKit.LevelLift(b, 0) : 3.0f, Feature: fi, Building: i)
+                    { Cellar = b.Basement && storeyed ? (float)Sim.Run.StopWalls.Cellar : 0 });
                 }
             }
             _openHouses = cached = (route, line, houses);
@@ -4763,6 +4771,13 @@ public sealed partial class GreyboxScene
                 const float Under = 0.3f;
                 var centre = h.Origin + h.X * part.X + h.Y * part.Y + Double3.Up * ((wallHeight - Under) / 2);
                 mesh.Rooms.Add(new Room(Vector3.Transform(V(centre, eye), moved.Moved), right, up, back, new Vector3((float)part.Length / 2, (wallHeight + Under) / 2, (float)part.Width / 2)));
+                // Its basement (note 1005), a dark room under the boards: lit by little but a hand lamp.
+                if (h.Cellar > 0)
+                {
+                    float deep = h.Cellar - (float)Sim.Run.StopWalls.Slab + Under;
+                    var under = h.Origin + h.X * part.X + h.Y * part.Y + Double3.Up * (-h.Cellar - Under + deep / 2);
+                    mesh.Rooms.Add(new Room(Vector3.Transform(V(under, eye), moved.Moved), right, up, back, new Vector3((float)part.Length / 2, deep / 2, (float)part.Width / 2)) { Dark = true });
+                }
                 // A barn's, a shed's or a yard shed length's hurricane lantern turned low, hung from a beam in its middle
                 // (note 475: the director's "functional"), steady and dim: enough to see the stacks, the loft, the bench by.
                 // A long yard shed has one each shedLanternSpacing along it. The Gaunt's has none (note 488).
@@ -4916,7 +4931,9 @@ public sealed partial class GreyboxScene
             // (an open barn's or shed's, 0.21: WorldArt.OpenShed's boards over the shell's concrete).
             var b = stop.Buildings[spot.Container.Building];
             double boards = Sim.Run.StopWalls.OpenShed(b) ? 0.21 : 0.17;
-            float floor = (float)(Sim.Run.Run.StopWorld(line, f, b.Centre, Art.WorldArt.Ground(Route, f.Start + b.S, (float)b.D, (float)ValleyDepth) - 0.15 + boards).Y);
+            // (On its own floor in a house with floors, note 1005.)
+            float floor = (float)(Sim.Run.Run.StopWorld(line, f, b.Centre, Art.WorldArt.Ground(Route, f.Start + b.S, (float)b.D, (float)ValleyDepth) - 0.15 + boards
+                + Art.TownKit.LevelLift(b, spot.Container.Level)).Y);
             // A house a creature's moved carries what's been searched in it (GreyboxScene.Houses); come down, it's under it.
             var moved = _movedHouses.Count > 0 && Route is not null && _movedHouses.TryGetValue((FeatureIndex(f), spot.Container.Building), out var how)
                 ? how : (Moved: Matrix4x4.Identity, Down: false, Kept: false);
@@ -4965,6 +4982,13 @@ public sealed partial class GreyboxScene
                         var drawer = Look.Art.Piece("sideboard-drawer", () => Art.TownKit.FrontPiece(Look, 2 * half, tall, Art.TownKit.DrawerFrame, half, tall / 2, drawer: 0.34f));
                         var corner = At(face + 0.3f, Art.TownKit.DrawerFrom, -half);
                         mesh.Instances.Add(new MeshInstance(drawer, new Matrix4x4(side.X, side.Y, side.Z, 0, 0, 1, 0, 0, into.X, into.Y, into.Z, 0, corner.X, corner.Y, corner.Z, 1)));
+                        break;
+                    }
+                case Sim.Stops.ContainerKind.Cellar when Look is not null && spot.Container.Level < 0:
+                    {
+                        // A basement's chest (note 1005) opened, its lid up.
+                        var laid = new Matrix4x4(side.X, side.Y, side.Z, 0, 0, 1, 0, 0, into.X, into.Y, into.Z, 0, 0, 0, 0, 1) * Matrix4x4.CreateTranslation(At(0, 0));
+                        mesh.Instances.Add(new MeshInstance(Look.Art.Piece("cellar-chest-open", () => Art.TownKit.CellarChest(Look, open: true)), laid));
                         break;
                     }
                 case Sim.Stops.ContainerKind.Cellar when Look is not null:

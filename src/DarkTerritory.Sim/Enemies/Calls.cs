@@ -330,7 +330,7 @@ public static class Calls
     {
         if (world.Route is not { } route || world.Train.Walls is not { } walls)
             return "no open houses here";
-        var houses = walls.OpenHouses.Where(h => h.Feature >= 0 && h.Feature < route.Features.Count && route.Features[h.Feature].Stop is not null)
+        var houses = walls.OpenHouses.Where(h => h.Feature >= 0 && h.Feature < route.Features.Count && route.Features[h.Feature].Stop is not null && !StopWalls.Storeyed(h.B))
             .Where(h => kind != EnemyKind.Householder || route.Features[h.Feature].Stop!.Containers.Any(c => c.Building == h.Building))
             .Where(h => !world.ActiveEnemies.Any(e => !e.Gone && e.Kind is EnemyKind.Lodger or EnemyKind.Householder or EnemyKind.HollowHouse or EnemyKind.Hanger && (int)e.Extra2 == h.Index))
             .OrderBy(h => Flat(h.Middle - you) < 12 ? double.MaxValue : Flat(h.Middle - you)).ToList();

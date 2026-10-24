@@ -79,6 +79,9 @@ public static class ArtCatalog
         // A house's cellar and loose boards, shut and searched (note 991).
         list.Add(new("cellar-hatch", SmallProp, () => TownKit.CellarHatch(look)));
         list.Add(new("cellar-open", SmallProp, () => TownKit.CellarOpen(look)));
+        // Note 1005: a basement's chest, shut and searched.
+        list.Add(new("cellar-chest", SmallProp, () => TownKit.CellarChest(look, open: false)));
+        list.Add(new("cellar-chest-open", SmallProp, () => TownKit.CellarChest(look, open: true)));
         list.Add(new("loose-boards", SmallProp, () => TownKit.LooseBoards(look)));
         list.Add(new("underfloor-open", SmallProp, () => TownKit.UnderFloorOpen(look)));
         list.Add(new("hatch-lid", SmallProp, () => TrainKit.HatchLid(look, new System.Numerics.Vector3(1.4f, 0.15f, 2.4f))));
