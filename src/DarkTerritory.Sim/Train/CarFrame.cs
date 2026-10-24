@@ -410,7 +410,9 @@ public sealed record CarShape(Box Bounds, IReadOnlyList<Solid> Solids, IReadOnly
         }
         return car with
         {
-            Solids = solids, Interactables = interactables, Lounges = stools,
+            Solids = solids,
+            Interactables = interactables,
+            Lounges = stools,
             Dining = new DiningLayout(table, counter, bar, ret, behind, backBar),
         };
     }

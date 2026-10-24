@@ -124,8 +124,15 @@ public class DiningCarTests
         var shape = w.Train.Frames[car].Shape;
         var d = shape.Dining!;
         // Stood at the stools, facing the pumps across the counter: nothing.
-        var front = new PlayerState { Parent = car, Position = new Double3(d.Counter.Min.X - 0.35, d.Bar.Y, d.Bar.Z), Surface = Surface.Deck, Health = P.Health,
-            Yaw = -Math.PI / 2, Kit = P.StartingKit };
+        var front = new PlayerState
+        {
+            Parent = car,
+            Position = new Double3(d.Counter.Min.X - 0.35, d.Bar.Y, d.Bar.Z),
+            Surface = Surface.Deck,
+            Health = P.Health,
+            Yaw = -Math.PI / 2,
+            Kit = P.StartingKit
+        };
         for (int i = 0; i < 3; i++)
         {
             Tick(w, ref front, Use);
