@@ -1234,7 +1234,7 @@ public sealed class TrainOnLine
         bool extras = bbq || gramophone || hammock || tub || launcher;
         if (!_shapes.TryGetValue((kind, hasCarBehind, lockers, tenths, extras), out var shape))
         {
-            shape = CarShape.Build(g, kind, hasCarBehind, lockers ? Tuning.Kit.Lockers : null);
+            shape = CarShape.Build(g, kind, hasCarBehind, lockers ? Tuning.Kit.Lockers : null, Tuning.Composition.Dining);
             if (tenths > 0)
                 shape = CarShape.Knotted(shape, g, tenths / 10.0);
             if (bbq)

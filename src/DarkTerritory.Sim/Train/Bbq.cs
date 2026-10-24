@@ -94,12 +94,12 @@ public static class Bbq
     public static void GetUp(ref PlayerState s) => s.Flags &= ~PlayerFlags.Lounging;
 
     /// <summary>
-    /// Up out of the seat: a chair, the hammock or the tub where it is; off a bench's seat (note 905), stood on the floor in
-    /// front of it (<see cref="EnginePlan.SeatStand"/>), not on the bench.
+    /// Up out of the seat: a chair, the hammock or the tub where it is; off a bench's seat (note 905) or a bar stool (note
+    /// 1016), stood on the floor in front of it (where it's sat on from), not on the seat.
     /// </summary>
     public static void GetUp(ref PlayerState s, TrainOnLine train)
     {
-        if (LoungingIn(s, train) is { Kind: LoungeKind.Bench } seat)
+        if (LoungingIn(s, train) is { Kind: LoungeKind.Bench or LoungeKind.Stool } seat)
         {
             var shape = train.Frames[s.Parent].Shape;
             foreach (var i in shape.Interactables)
