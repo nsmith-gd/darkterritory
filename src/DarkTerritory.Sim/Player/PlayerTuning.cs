@@ -242,6 +242,24 @@ public sealed record VoicesTuning
     public LevellerTuning Leveller { get; init; } = new();
     /// <summary>Note 862: a voice through the cab's wall with a side door open (player.json <c>voices.openCab</c>).</summary>
     public OpenCabTuning OpenCab { get; init; } = new();
+    /// <summary>Note 1019: the far crew's voice out of the speakers taken out of the mic (player.json <c>voices.echo</c>).</summary>
+    public EchoTuning Echo { get; init; } = new();
+}
+
+/// <summary>
+/// Note 1019 (the director, 24 Oct: "My guest has a half second delay on their audio when they talk, they can hear their own
+/// voice"): the capture path's echo canceller and gate, client side (Ballast.Voice.EchoCanceller). Field docs live in
+/// player.json <c>voices.echo</c>.
+/// </summary>
+public sealed record EchoTuning
+{
+    public bool On { get; init; } = true;
+    public double TailSeconds { get; init; } = 0.3;
+    public double Step { get; init; } = 0.8;
+    public double Suppression { get; init; } = 3;
+    public double FloorDb { get; init; } = -40;
+    public double GateDb { get; init; } = 15;
+    public double ResyncSeconds { get; init; } = 0.25;
 }
 
 /// <summary>

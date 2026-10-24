@@ -177,6 +177,9 @@ return args switch
         listenerZ: Opt(args, "--listener-z", 0), micDb: Opt(args, "--mic", 0), wav: Str(args, "--out", "") is { Length: > 0 } wav ? wav : null,
         // Note 862: --cab-door left|right|both, the cab's side doors held open.
         cabDoors: Str(args, "--cab-door", "") switch { "left" => 4, "right" => 8, "both" => 12, _ => 0 })),
+    // Note 1019: A's voice through B's speakers into B's open mic, and what of it B's canceller sends back.
+    ["voice", "echo", ..] => Print(Ballast.Voice.EchoBench.Run(DarkTerritory.Game.Sound.VoiceChat.Settings(player.Voices.Echo), Opt(args, "--delay", 0.05),
+        Opt(args, "--rt60", 0.3), Opt(args, "--coupling", -10), Opt(args, "--latency", 0.1), seed: (int)Opt(args, "--seed", 1))),
 
     _ => Usage(),
 };
@@ -5069,6 +5072,9 @@ static int Usage()
                       [--listener-cab | --listener-car n --listener-z m] [--mic dB] [--cab-door left|right|both] [--out file.wav]
                      one speaker to a listener on car 3 through host routing, Opus and the mixer (spec A.5); restDb is
                      everything else they hear in the voice band, overRestDb the voice's margin over it (note 855)
+          voice echo [--delay s] [--rt60 s] [--coupling dB] [--latency s] [--seed n]
+                     A's voice out of B's speakers into B's open mic, a room's delay and tail on it: what B's echo canceller
+                     and gate send back to A (suppressionDb), when, and how much of B's own voice is kept (note 1019)
         """);
     return 2;
 }

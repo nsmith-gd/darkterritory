@@ -460,7 +460,13 @@ frontEnd.Cue = sound.Ui;
 using var speaker = args.Contains("--mute") ? null : AudioOut.Open(Audio.SampleRate, out var audioError) is { } s ? s : Warn(audioError);
 // Note 667 (the director, 13 Oct: "I'm getting audio skips"): the speaker's fed from a thread of its own, not the frame, so
 // a slow frame is late on screen and never a gap in the ears. Disposed before the speaker (declared after it).
-using var pump = speaker is null ? null : new AudioPump(sound.Mixer, () => speaker.QueuedSeconds, block => speaker.Write(block), sound.Mixer.Mix.DeviceLead,
+// Note 1019: what the speakers play, as it's queued, for voice chat's echo canceller (it's taken back out of the mic).
+var played = speaker is null ? null : new Ballast.Voice.EchoReference();
+using var pump = speaker is null ? null : new AudioPump(sound.Mixer, () => speaker.QueuedSeconds, block =>
+{
+    speaker.Write(block);
+    played!.Write(block, speaker.QueuedSeconds);
+}, sound.Mixer.Mix.DeviceLead,
     sound.Mixer.Mix.DeviceLeadMax);
 int gapsLogged = 0;
 // Since the last slow frame's line: the times the device ran dry (FrameWatch's lines, note 549).
@@ -1100,7 +1106,7 @@ CampaignState? Play(IPlaySession session, CampaignState? campaign)
     }
     if (proto is not null)
         proto.Controls.Throttle = double.Parse(Arg("--throttle", "0"));
-    var voice = net is null ? null : new VoiceChat(sound.Mixer) { PushToTalk = settings.PushToTalk || args.Contains("--push-to-talk"), Muted = net.IsMuted };
+    var voice = net is null ? null : new VoiceChat(sound.Mixer) { PushToTalk = settings.PushToTalk || args.Contains("--push-to-talk"), Muted = net.IsMuted, Played = played };
     // The radio's own clicks, squelch and static (voice-radio-sfx) follow what it's doing.
     sound.Voice = voice;
     using var mic = voice is null || settings.Mute || args.Contains("--mute") || args.Contains("--no-mic") ? null
