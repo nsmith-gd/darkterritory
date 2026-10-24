@@ -55,7 +55,7 @@ public sealed partial class GameAudio
             var now = s.Alive && Bbq.LoungingIn(s, train) is { } lounge ? lounge : (Lounge?)null;
             var was = _loungeWas.GetValueOrDefault(id);
             if (primed && now?.Kind != was && (now?.Kind ?? was) is { } kind && At(train, s) is { } feet)
-                Cue(kind switch { LoungeKind.Hammock => "up-lounge.hammock", LoungeKind.Bench => "up-lounge.bench", _ => "up-lounge.tub-in" },
+                Cue(kind switch { LoungeKind.Hammock => "up-lounge.hammock", LoungeKind.Bench or LoungeKind.Stool => "up-lounge.bench", _ => "up-lounge.tub-in" },
                     feet + Double3.Up * 0.5, Occlusion(PlayerMotor.Space(s, train)));
             _loungeWas[id] = now?.Kind;
             if (now is { Kind: LoungeKind.Hammock } hammock)

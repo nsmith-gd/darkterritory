@@ -2776,9 +2776,10 @@ public static partial class Hud
             // The BBQ deck (note 698): a chair, the cooler, the grill.
             case InteractableKind.Chair:
                 return "SIT : [E]";
-            // The big cab's benches (note 905).
+            // The big cab's benches (note 905); the dining car's bar stools (note 1016) are sat on the same way.
             case InteractableKind.Bench:
-                return "SIT ON THE BENCH : [E]";
+                return CrewActions.NearestInteractable(p, train, hand) is ({ } bench, var benchCar) && train.Frames[benchCar].Shape.Lounges is var seats
+                    && bench.Index < seats.Count && seats[bench.Index].Kind == LoungeKind.Stool ? "SIT AT THE BAR : [E]" : "SIT ON THE BENCH : [E]";
             // The hammock and the hot tub (note 744).
             case InteractableKind.Hammock:
                 return "LIE IN THE HAMMOCK : [E]";
@@ -2787,9 +2788,10 @@ public static partial class Hud
             // The tennis-ball launcher (note 745).
             case InteractableKind.Launcher:
                 return "FIRE A BALL : [E]";
-            // The dining car's bar (upgrades.md §8.5, note 959): what the fortress's cellar sold the crew tonight.
+            // The dining car's bar (upgrades.md §8.5, note 959): what the fortress's cellar sold the crew tonight, poured from
+            // behind the counter (note 1016).
             case InteractableKind.Bar:
-                return train.Vehicles[p.Parent].Beers is > 0 and var drinks ? $"ORDER A DRINK : [E]   {drinks} LEFT" : "THE BAR'S DRY";
+                return train.Vehicles[p.Parent].Beers is > 0 and var drinks ? $"POUR A DRINK : [E]   {drinks} LEFT" : "THE BAR'S DRY";
             case InteractableKind.Cooler:
                 return train.Vehicles[p.Parent].Beers is > 0 and var beers ? $"A BEER : [E]   {beers} LEFT" : "THE COOLER'S EMPTY";
             // The gramophone (note 715).
