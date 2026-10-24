@@ -27,16 +27,16 @@ void main() {
     else {
         // A soft blob: brightest in the middle, gone at the edge of the quad.
         float r = length(vUv * 2.0 - 1.0);
-        t = vec4(1.0, 1.0, 1.0, smoothstep(1.0, 0.0, r));
+        t = vec4(1.0, 1.0, 1.0, 1.0 - smoothstep(0.0, 1.0, r)); // (edges low to high: the other way is undefined; note 1017)
     }
     vec4 c = t * vColour;
     float f = fogAmount(vPos);
     if (draw.tint.a > 0.5) {
         // Additive: light fades into the fog rather than turning grey, and the lamp still reaches further.
-        outColor = vec4(c.rgb * c.a * (1.0 - f * 0.7), 1.0);
+        outColor = vec4(finite(c.rgb * c.a * (1.0 - f * 0.7)), 1.0);
     } else {
         if (c.a < 0.004)
             discard;
-        outColor = vec4(mix(c.rgb, frame.fog.rgb, f), c.a);
+        outColor = vec4(finite(mix(c.rgb, frame.fog.rgb, f)), c.a);
     }
 }

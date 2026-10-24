@@ -56,7 +56,7 @@ void main() {
     } else {
         // Lens fringing: red and blue a hair apart toward the corners, as the era's cameras-in-games had it.
         vec2 shift = (vUv - 0.5) * post.c.y * edge;
-        c = vec3(texture(scene, EYE_UV(vUv + shift)).r, texture(scene, EYE_UV(vUv)).g, texture(scene, EYE_UV(vUv - shift)).b);
+        c = finite(vec3(texture(scene, EYE_UV(vUv + shift)).r, texture(scene, EYE_UV(vUv)).g, texture(scene, EYE_UV(vUv - shift)).b));
         // Blurred (a drink's, the game's): two rings of taps round the pixel, as far as a hundredth of the frame and more.
         if (post.d.x > 0.0) {
             vec3 soft = vec3(0.0);
@@ -70,11 +70,15 @@ void main() {
         // The occlusion, blurred over a few of its texels (four bilinear taps: a 4x4 box), darkening the scene, but not a
         // light's core: a lamp burning in a corner is still a lamp.
         vec2 ot = vec2(post.c.w, post.c.w * post.b.y);
-        float ao = 0.25 * (texture(occlusion, EYE_UV(vUv + ot * vec2(-0.75, -0.75))).r + texture(occlusion, EYE_UV(vUv + ot * vec2(0.75, -0.75))).r
-                         + texture(occlusion, EYE_UV(vUv + ot * vec2(-0.75, 0.75))).r + texture(occlusion, EYE_UV(vUv + ot * vec2(0.75, 0.75))).r);
-        float lit = clamp(dot(c, vec3(0.299, 0.587, 0.114)) - 0.8, 0.0, 1.0);
-        c *= mix(1.0, ao, post.c.z * (1.0 - lit));
-        c += (texture(bloom, EYE_UV(vUv)).rgb * (1.0 - post.c.x) + texture(bloomWide, EYE_UV(vUv)).rgb * post.c.x) * post.a.x;
+        // (Each read only where it's on: the safe path, note 1017, leaves the occlusion and the bloom out entirely.)
+        if (post.c.z > 0.0) {
+            float ao = 0.25 * (texture(occlusion, EYE_UV(vUv + ot * vec2(-0.75, -0.75))).r + texture(occlusion, EYE_UV(vUv + ot * vec2(0.75, -0.75))).r
+                             + texture(occlusion, EYE_UV(vUv + ot * vec2(-0.75, 0.75))).r + texture(occlusion, EYE_UV(vUv + ot * vec2(0.75, 0.75))).r);
+            float lit = clamp(dot(c, vec3(0.299, 0.587, 0.114)) - 0.8, 0.0, 1.0);
+            c *= mix(1.0, ao, post.c.z * (1.0 - lit));
+        }
+        if (post.a.x > 0.0)
+            c += finite(texture(bloom, EYE_UV(vUv)).rgb * (1.0 - post.c.x) + texture(bloomWide, EYE_UV(vUv)).rgb * post.c.x) * post.a.x;
         c = toSrgb(filmic(max(c, 0.0) * post.b.w));
     }
     c = texture(grade, c * (15.0 / 16.0) + 0.5 / 16.0).rgb;
