@@ -213,7 +213,10 @@ public sealed record OffTheHookTuning
         return (int)Math.Round(MaxKnock * k);
     }
 }
-public sealed record LadderTuning(double GrabRange, double GrabMaxRelativeSpeed, double HatchLookUpDegrees = 25);
+/// <summary>Taking hold of a ladder (field docs live in player.json; note 1018: the walk-in and the jump-in).</summary>
+public sealed record LadderTuning(
+    double GrabRange, double GrabMaxRelativeSpeed, double HatchLookUpDegrees = 25, double WalkInReach = 0.45,
+    double WalkInDegrees = 45, bool AirGrab = false, double AirTowards = 0.5, double AirReach = 0.45);
 /// <summary>A VR player's reaching hand (T29). Field docs live in player.json.</summary>
 public sealed record HandTuning(double Arm, double Overhead, double Grab);
 
