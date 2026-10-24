@@ -10,7 +10,7 @@ public sealed partial class SceneArt
     /// <summary>
     /// The wreck yard's heaps (GDD §18 "pull cargo off derailed trains. Unstable, unlit"; note 187) as the last train's
     /// cars (note 394): each the train's own car body, empty, on its side with its roof toward the line and its trucks
-    /// in the air, wearing the derailment's wrecked damage (DamageKit) and its scars full, rusted and sooted. Placed as
+    /// in the air, wearing the derailment's wrecked damage (DamageKit) and its holes (note 1014), and its scars full, rusted and sooted. Placed as
     /// the sim's heap lies (GreyboxScene.Wreckage's frame: along the track's heading where it lies, turned by its own
     /// yaw, rolled a little further each time it's shifted, shuddering while it groans) and shedding dust then. False
     /// with no car in the train to draw it as (the greybox draws its boxes).
@@ -42,8 +42,10 @@ public sealed partial class SceneArt
             // Two liveries among them, by the heap, so a yard of them isn't one car over and over; empty, their doors torn.
             var livery = heap.Index % 2 == 0 ? TrainKit.Livery.Planked : TrainKit.Livery.Steel;
             int variant = heap.Index % 2, seed = 700 + heap.Index;
-            var body = Piece($"car:{ShapeKey(shape)}:{livery}:{variant}:False:empty", () => TrainKit.Car(Look, shape, livery, variant, load: false));
-            var torn = Piece($"damage:{ShapeKey(shape)}:2:{seed}", () => DamageKit.Car(Look, shape, 2, seed));
+            // Holed as a car come apart on the line is (note 1014), its boards gone and its roof open.
+            var body = Piece($"car:{ShapeKey(shape)}:{livery}:{variant}:False:empty:holes{DamageKit.MostHoles}:{seed}",
+                () => TrainKit.Car(Look, shape, livery, variant, load: false, holes: DamageKit.CarHoles(shape, DamageKit.MostHoles, seed)));
+            var torn = Piece($"damage:{ShapeKey(shape)}:2:{seed}:open", () => DamageKit.Car(Look, shape, 2, seed, open: true));
             var scar = new Vector2(damage.ScarOf(0), Bite.ScarSeed(seed));
             mesh.Instances.Add(new MeshInstance(body, m, 0.06f, Tint: WreckTint, Scar: scar));
             mesh.Instances.Add(new MeshInstance(torn, m, 0.06f, Tint: WreckTint, Scar: scar));
