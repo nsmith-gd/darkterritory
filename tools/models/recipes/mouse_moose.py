@@ -1,4 +1,4 @@
-"""THE MOUSE MOOSE (GDD §21 outside; note 790, docs/design/creatures/mouse-moose.md; note 796): tools/blender/mouse_moose.py's
+"""THE MOOSE MOUSE (renamed from the Mouse Moose, 23 Oct; note 1015) (GDD §21 outside; note 790, docs/design/creatures/mouse-moose.md; note 796): tools/blender/mouse_moose.py's
 dog-sized mutant rat with its moose's antlers, its colour and its fine relief baked into one 1024 atlas (the Pickers' way,
 tools/models/recipes/picker.py; the eyes kept lit, the Gannet's and the Brakeman's).
 
@@ -154,7 +154,7 @@ def kind_of(m):
 
 
 atlas = overbake.Atlas("mouse_moose", parts, BAKED, kind_of, size=S)
-atlas.unwrap(boosts={FACE: 1.6, ANTLERS: 1.8})
+atlas.unwrap(boosts={FACE: 1.6, ANTLERS: 1.3})   # (the antlers twice the span since note 1015: less boost for the same texels)
 groups = {name: (atlas.part_of == pi, highs[name]) for pi, name in enumerate(BAKED)}
 atlas.bake(groups, cages={"body": (0.005, 0.02), "jaw": (0.004, 0.012), "fine": (0.003, 0.01)}, samples=16, height=0.6)
 
@@ -271,5 +271,5 @@ ao = atlas.maps["AO"][..., 0]
 base = base * (0.35 + 0.65 * ao)[..., None]
 k = np.clip((1 - ao) * 2.0, 0, 1) * 0.45
 base = base * (1 - k)[..., None] + np.array((0.02, 0.018, 0.016), np.float32) * k[..., None]
-atlas.finish(base, kit, arm, made=make.provenance("mouse_moose", "the Mouse Moose, modelled in tools/blender/mouse_moose.py, its colour painted here"),
+atlas.finish(base, kit, arm, made=make.provenance("mouse_moose", "the Moose Mouse, modelled in tools/blender/mouse_moose.py, its colour painted here"),
              rough=rough, lod=0.4)

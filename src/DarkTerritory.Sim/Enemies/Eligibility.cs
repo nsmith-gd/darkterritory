@@ -67,7 +67,7 @@ public static class Eligibility
         or EnemyKind.Dragger or EnemyKind.Whistler or EnemyKind.TippyToesie or EnemyKind.FireFlies or EnemyKind.Ribbit or EnemyKind.Gaunt
         or EnemyKind.Moose or EnemyKind.TowerJaw or EnemyKind.FreightBeetle or EnemyKind.MouseMoose or EnemyKind.Brakeman or EnemyKind.Hotbox
         or EnemyKind.Knotter or EnemyKind.Gannet or EnemyKind.Follower or EnemyKind.SootChildren or EnemyKind.Passenger or EnemyKind.Grumbler
-        or EnemyKind.HeadWaiter;
+        or EnemyKind.Bruin or EnemyKind.HeadWaiter;
 
     /// <summary>The kind's own rule's gates (<see cref="Spawns"/>), each named for what it reads, in the rule's order.</summary>
     public static List<GateCheck> Gates(EnemyKind kind, SpawnContext c)
@@ -158,6 +158,11 @@ public static class Eligibility
             EnemyKind.MouseMoose =>
             [
                 G("stopped", c.Stopped), G("at a facility", c.AtFacility), G("none about", c.None(kind)), G("a crane with castings to take", Spawns.MouseMooseCranes(c).Count > 0),
+            ],
+            EnemyKind.Bruin =>
+            [
+                G("on (bruin.on)", et.Bruin.On), G("stood in the wilderness long enough", Bruin.Wild(c)), G("none about", c.None(kind)),
+                G("a car of cargo to climb into", Bruin.CarFor(c.Train) >= 0),
             ],
             EnemyKind.Brakeman =>
             [

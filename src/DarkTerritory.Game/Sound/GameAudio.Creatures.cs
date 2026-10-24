@@ -252,6 +252,9 @@ public sealed partial class GameAudio
             case MouseMoose mm:
                 MouseMooseSounds(mm, was, at, occ, dt);
                 break;
+            case Bruin b:
+                BruinSounds(b, was, at, occ);
+                break;
             case HeadWaiter hw:
                 // Its tell (note 1008): the spoon on the glass, once, as it sets the plate down; then only the waiting.
                 if (hw.Mode == HeadWaiterMode.Serve && (HeadWaiterMode)(int)was.Extra2 != HeadWaiterMode.Serve)
