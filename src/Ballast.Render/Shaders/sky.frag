@@ -81,8 +81,10 @@ void main() {
         elevation -= radians(frame.stirColour.a) * toward * smoothstep(0.35, 0.9, swell);
     }
     float v = 0.85 - elevation / frame.sky2.x;
+    // Sampled before the branch (note 1017): an implicit level of detail inside it is undefined where a 2x2 quad straddles
+    // the band's edge, and a stricter driver may pick its mip from garbage there.
+    vec4 band = texture(backdrop, vec2(azimuth, clamp(v, 0.0, 1.0)));
     if (v >= 0.0 && v <= 1.0) {
-        vec4 band = texture(backdrop, vec2(azimuth, v));
         // Aerial perspective, anchored to the fog: the band's darkest layer (the forest line) is exactly the fog colour,
         // continuous with fogged geometry in front of it, and its paler, farther ridges lift toward the haze. The band's
         // own values only say which layer is which. Lit windows cut through.
@@ -94,10 +96,10 @@ void main() {
     }
     // Below the horizon: the ground's haze.
     if (dir.y < 0.0)
-        colour = mix(colour, horizon * 0.85, smoothstep(0.0, -0.08, dir.y));
+        colour = mix(colour, horizon * 0.85, 1.0 - smoothstep(-0.08, 0.0, dir.y));
     // The hole probe (dt holes, note 433): sky seen lower than the land could hide it is a hole in the land. Bright, so
     // the grade and the tone curve leave it magenta.
     if (frame.probe.x < 0.0 && dir.y < frame.probe.x)
         colour = vec3(8.0, 0.0, 8.0);
-    outColor = vec4(colour, 1.0);
+    outColor = vec4(finite(colour), 1.0);
 }

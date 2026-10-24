@@ -69,6 +69,8 @@ if (crashesDir is null && DarkTerritory.Dev.TestReports.GameLogs() is { } gameLo
     (crashesDir, logsDir) = (Path.Combine(gameLogs, "reports"), gameLogs);
 #endif
 var crashes = CrashReports.Install(crashesDir, logs: logsDir);
+// The renderer's safe path for this launch (note 1017), in every build: a player with black squares tries it.
+bool gpuSafeFlag = args.Contains("--gpu-safe");
 #if DEVTOOLS
 // A developer build's tools (note 514): reached only here and under the other DEVTOOLS hooks; a player's build has none of it.
 var dev = DarkTerritory.Dev.DevTools.Start(args, crashes, logsDir);
@@ -77,6 +79,8 @@ if (dev.Marked)
     DarkTerritory.Game.Hud.LinkTop = 24;
 // The creature gym (GDD §34.1, note 676): the night it's on, while it's on.
 DarkTerritory.Dev.Gym.CreatureGym? gym = null;
+// A small GPU's limits on this machine (note 1017): --gpu-limits [small|layers=N,image=PX,bytes=MIB,heap=MIB].
+args = Ballast.Dev.GpuFlags.Take(args);
 #endif
 
 // The system's file browser on a folder (note 411): Explorer, Finder, or whatever xdg-open hands it to; or, given an address
@@ -326,7 +330,9 @@ VrView? StartVr()
 }
 using var ownGpu = vr is null ? new GpuContext("Dark Territory", Window.VulkanInstanceExtensions(), window.CreateSurface) : null;
 var gpu = vr?.Gpu ?? ownGpu!;
-crashes.Context("gpu", gpu.Description);
+// The safe path (note 1017: a Linux player's black squares): --gpu-safe, or SAFE GRAPHICS in the settings, from the next start.
+gpu.Safe = gpuSafeFlag || startSettings.GpuSafe;
+crashes.Context("gpu", gpu.Description + (gpu.Safe ? "; safe graphics" : ""));
 crashes.Context("vr", vr is null ? "off" : "on");
 // --crash-test (note 452): stops the game on purpose once it's up, so the whole path (the report, its twin, the notice on
 // the next launch, the mail) can be tried on any machine.

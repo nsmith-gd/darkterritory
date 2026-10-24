@@ -195,11 +195,11 @@ public sealed unsafe class GreyboxRenderer : IDisposable
     }
 
     /// <summary>What a set of material arrays is made from: the very layers (by reference: a look's are read once), sized and sampled alike.</summary>
-    readonly record struct MaterialKey(IReadOnlyList<MaterialLayer> Layers, int LayerSize, int HeroSize, int BigHeroSize, float MipBias)
+    readonly record struct MaterialKey(IReadOnlyList<MaterialLayer> Layers, int LayerSize, int HeroSize, int BigHeroSize, float MipBias, int Shift)
     {
         public bool Equals(MaterialKey other) => ReferenceEquals(Layers, other.Layers) && LayerSize == other.LayerSize && HeroSize == other.HeroSize
-            && BigHeroSize == other.BigHeroSize && MipBias.Equals(other.MipBias);
-        public override int GetHashCode() => HashCode.Combine(RuntimeHelpers.GetHashCode(Layers), LayerSize, HeroSize, BigHeroSize, MipBias);
+            && BigHeroSize == other.BigHeroSize && MipBias.Equals(other.MipBias) && Shift == other.Shift;
+        public override int GetHashCode() => HashCode.Combine(RuntimeHelpers.GetHashCode(Layers), LayerSize, HeroSize, BigHeroSize, MipBias, Shift);
     }
 
     static readonly ConditionalWeakTable<GpuContext, Dictionary<MaterialKey, MaterialArrays>> SharedMaterials = new();
@@ -588,13 +588,14 @@ public sealed unsafe class GreyboxRenderer : IDisposable
         nameof(_bigDiffuse), nameof(_bigSpec), nameof(_bigNormal))]
     MaterialArrays TakeMaterials(RenderAssets assets)
     {
-        var key = new MaterialKey(assets.Layers, assets.LayerSize, assets.HeroSize, assets.BigHeroSize, assets.Post.MipBias);
+        int shift = FitShift(assets);
+        var key = new MaterialKey(assets.Layers, assets.LayerSize, assets.HeroSize, assets.BigHeroSize, assets.Post.MipBias, shift);
         var shared = SharedMaterials.GetValue(_gpu, _ => []);
         MaterialArrays m;
         lock (shared)
         {
             if (!shared.TryGetValue(key, out m!))
-                shared[key] = m = UploadMaterials(assets);
+                shared[key] = m = UploadMaterials(assets, shift);
             m.Users++;
         }
         (_diffuse, _spec, _normal) = (m.Diffuse, m.Spec, m.Normal);
@@ -622,21 +623,83 @@ public sealed unsafe class GreyboxRenderer : IDisposable
         m.Dispose();
     }
 
-    MaterialArrays UploadMaterials(RenderAssets assets)
+    /// <summary>
+    /// How many times the material arrays are halved to fit this device (note 1017): none on a desktop GPU; one for the safe
+    /// path (<see cref="GpuContext.Safe"/>); more while an array is wider than <see cref="GpuLimits.Image2D"/>, holds more bytes
+    /// than <see cref="GpuLimits.ImageBytes"/>, or all of them more than the device-local heap can spare (all of it less a
+    /// gigabyte, and at least half, for the targets, the meshes and the driver). Said in the log, so a report shows it.
+    /// </summary>
+    int FitShift(RenderAssets assets)
     {
-        int size = assets.LayerSize;
+        var limits = _gpu.Limits;
+        ulong budget = limits.DeviceLocalBytes - Math.Min(limits.DeviceLocalBytes / 2, 1UL << 30);
+        int shift = _gpu.Safe ? 1 : 0;
+        for (; ; shift++)
+        {
+            var (size, heroSize, bigSize, heroes, bigs) = Sizes(assets, shift);
+            int layers = Math.Min(Math.Max(assets.Layers.Count, 1), limits.ArrayLayers);
+            ulong largest = Math.Max(Bytes(size, layers), Math.Max(Bytes(heroSize, heroes), Bytes(bigSize, bigs)));
+            ulong total = 3 * (Bytes(size, layers) + Bytes(heroSize, heroes) + Bytes(bigSize, bigs));
+            bool fits = bigSize <= limits.Image2D && largest <= limits.ImageBytes && total <= budget;
+            if (fits || size <= 64)
+            {
+                if (shift > 0 || !fits)
+                    Console.WriteLine($"gpu: material textures at {size}/{heroSize}/{bigSize} px, {total >> 20} MiB ({(fits ? "fitted" : "STILL PAST")} {limits}"
+                        + $"{(_gpu.Safe ? "; safe graphics" : "")})");
+                return shift;
+            }
+        }
+    }
+
+    /// <summary>An RGBA8 array's bytes with its mip chains (a third more than the top levels).</summary>
+    static ulong Bytes(int size, int layers) => (ulong)size * (ulong)size * 4UL * (ulong)layers * 4UL / 3UL;
+
+    /// <summary>
+    /// The arrays' sizes, halved <paramref name="shift"/> times, and how many layers the hero and big arrays take: each
+    /// layer by its own authored width, halved the same, so a halving moves nothing between them (<see cref="UploadHeroes"/>).
+    /// </summary>
+    static (int Size, int HeroSize, int BigSize, int Heroes, int Bigs) Sizes(RenderAssets assets, int shift)
+    {
+        int size = Math.Max(4, assets.LayerSize >> shift);
+        int heroSize = Math.Max(size, Math.Max(assets.LayerSize, assets.HeroSize) >> shift);
+        int bigSize = Math.Max(heroSize, assets.BigHeroSize >> shift);
+        int heroes = 0, bigs = 0;
+        for (int i = 0; i < assets.Layers.Count && i < LayerTable; i++)
+        {
+            int width = assets.Layers[i].Diffuse.Width >> shift;
+            if (width > heroSize && bigSize > heroSize && bigs < BigHero)
+                bigs++;
+            else if (width > size && heroes < BigHero)
+                heroes++;
+        }
+        return (size, heroSize, bigSize, Math.Max(heroes, 1), Math.Max(bigs, 1));
+    }
+
+    /// <summary>The anisotropy the material samplers take: none on the safe path.</summary>
+    float Anisotropy => _gpu.Safe ? 0 : _gpu.MaxAnisotropy;
+
+    MaterialArrays UploadMaterials(RenderAssets assets, int shift)
+    {
+        int size = Sizes(assets, shift).Size;
         var layers = assets.Layers.Count > 0 ? assets.Layers : [new MaterialLayer("white", Image.Solid(size, 255, 255, 255), Image.Solid(size, 0, 0, 0))];
+        // Past the device's array layers (never on a desktop GPU: 2048 there, the spec's floor 256), the last ones are left
+        // out, said in the log, and draw as the last layer kept rather than whatever an over-long array samples.
+        if (layers.Count > _gpu.Limits.ArrayLayers)
+        {
+            Console.WriteLine($"gpu: {layers.Count} material layers, past the device's {_gpu.Limits.ArrayLayers}: the last {layers.Count - _gpu.Limits.ArrayLayers} left out");
+            layers = [.. layers.Take(_gpu.Limits.ArrayLayers)];
+        }
         var diffuse = GpuTexture.MipChains([.. layers.Select(l => l.Diffuse)], size);
         var spec = GpuTexture.MipChains([.. layers.Select(l => l.Spec)], size);
         float bias = assets.Post.MipBias;
         // Trilinear and anisotropic: the 2008-2012 look the benchmarks set (BioShock 2, Dead Space). The PS2 comparison
         // mode swaps in the point-sampled, positively biased sampler instead (_crunchy).
         var d = new GpuTexture(_gpu, GpuTexture.Kind.Array2D, VkFormat.R8G8B8A8Srgb, size, size, diffuse, VkFilter.Linear,
-            VkSamplerAddressMode.Repeat, VkSamplerAddressMode.Repeat, bias, anisotropy: _gpu.MaxAnisotropy);
+            VkSamplerAddressMode.Repeat, VkSamplerAddressMode.Repeat, bias, anisotropy: Anisotropy);
         var s = new GpuTexture(_gpu, GpuTexture.Kind.Array2D, VkFormat.R8G8B8A8Unorm, size, size, spec, VkFilter.Linear,
-            VkSamplerAddressMode.Repeat, VkSamplerAddressMode.Repeat, bias, anisotropy: _gpu.MaxAnisotropy);
-        var n = UploadNormals(assets);
-        var (hd, hs, hn, bd, bs, bn, slot) = UploadHeroes(assets);
+            VkSamplerAddressMode.Repeat, VkSamplerAddressMode.Repeat, bias, anisotropy: Anisotropy);
+        var n = UploadNormals(layers, size, bias);
+        var (hd, hs, hn, bd, bs, bn, slot) = UploadHeroes(assets, shift);
         return new MaterialArrays
         {
             Diffuse = d,
@@ -681,10 +744,9 @@ public sealed unsafe class GreyboxRenderer : IDisposable
     /// <see cref="RenderAssets.HeroSize"/>, in arrays of their own; <see cref="_heroSlot"/> says which layer is where. With
     /// none, one flat layer each, so the bindings are always there.
     /// </summary>
-    (GpuTexture, GpuTexture, GpuTexture, GpuTexture, GpuTexture, GpuTexture, int[] Slot) UploadHeroes(RenderAssets assets)
+    (GpuTexture, GpuTexture, GpuTexture, GpuTexture, GpuTexture, GpuTexture, int[] Slot) UploadHeroes(RenderAssets assets, int shift)
     {
-        int size = Math.Max(assets.LayerSize, assets.HeroSize);
-        int bigSize = Math.Max(size, assets.BigHeroSize);
+        var (layerSize, size, bigSize, _, _) = Sizes(assets, shift);
         var heroes = new List<MaterialLayer>();
         var bigs = new List<MaterialLayer>();
         var slot = new int[assets.Layers.Count];
@@ -692,12 +754,13 @@ public sealed unsafe class GreyboxRenderer : IDisposable
         {
             var l = assets.Layers[i];
             slot[i] = -1;
-            if (l.Diffuse.Width > size && bigSize > size && i < LayerTable && bigs.Count < BigHero)
+            int width = l.Diffuse.Width >> shift;
+            if (width > size && bigSize > size && i < LayerTable && bigs.Count < BigHero)
             {
                 slot[i] = BigHero + bigs.Count;
                 bigs.Add(l);
             }
-            else if (l.Diffuse.Width > assets.LayerSize && i < LayerTable && heroes.Count < BigHero)
+            else if (width > layerSize && i < LayerTable && heroes.Count < BigHero)
             {
                 slot[i] = heroes.Count;
                 heroes.Add(l);
@@ -711,7 +774,7 @@ public sealed unsafe class GreyboxRenderer : IDisposable
             var list = layers.Count > 0 ? layers : [new MaterialLayer("none", Image.Solid(at, 255, 255, 255), Image.Solid(at, 0, 0, 0))];
             GpuTexture Array(Func<MaterialLayer, Image> map, VkFormat format) => new(_gpu, GpuTexture.Kind.Array2D, format, at, at,
                 GpuTexture.MipChains([.. list.Select(map)], at), VkFilter.Linear,
-                VkSamplerAddressMode.Repeat, VkSamplerAddressMode.Repeat, assets.Post.MipBias, anisotropy: _gpu.MaxAnisotropy);
+                VkSamplerAddressMode.Repeat, VkSamplerAddressMode.Repeat, assets.Post.MipBias, anisotropy: Anisotropy);
             return (Array(l => l.Diffuse, VkFormat.R8G8B8A8Srgb), Array(l => l.Spec, VkFormat.R8G8B8A8Unorm), Array(l => l.Normal ?? flat, VkFormat.R8G8B8A8Unorm));
         }
         var (d, s, n) = Arrays(heroes, size);
@@ -720,14 +783,12 @@ public sealed unsafe class GreyboxRenderer : IDisposable
     }
 
     /// <summary>Every layer's normal map (flat where a layer has none), filtered like the diffuse, linear (not sRGB).</summary>
-    GpuTexture UploadNormals(RenderAssets assets)
+    GpuTexture UploadNormals(IReadOnlyList<MaterialLayer> layers, int size, float bias)
     {
-        int size = assets.LayerSize;
         var flat = Image.Solid(size, 128, 128, 255);
-        var layers = assets.Layers.Count > 0 ? assets.Layers : [new MaterialLayer("white", Image.Solid(size, 255, 255, 255), Image.Solid(size, 0, 0, 0))];
         var normals = GpuTexture.MipChains([.. layers.Select(l => l.Normal ?? flat)], size);
         return new GpuTexture(_gpu, GpuTexture.Kind.Array2D, VkFormat.R8G8B8A8Unorm, size, size, normals, VkFilter.Linear,
-            VkSamplerAddressMode.Repeat, VkSamplerAddressMode.Repeat, assets.Post.MipBias, anisotropy: _gpu.MaxAnisotropy);
+            VkSamplerAddressMode.Repeat, VkSamplerAddressMode.Repeat, bias, anisotropy: Anisotropy);
     }
 
     /// <summary>Draws the mesh (camera-relative positions) and returns the frame as RGBA8, top row first.</summary>
@@ -1333,9 +1394,10 @@ public sealed unsafe class GreyboxRenderer : IDisposable
         // 4: the composite (tonemapped, graded) into the LDR frame; FXAA and the overlay into the final one.
         var composite = new PostConstants
         {
-            A = new Vector4(Post.BloomStrength, Post.Vignette, Post.Grain, Post.ColourLevels),
+            // The safe path (note 1017) reads neither the bloom nor the occlusion back: composite.frag skips both at nought.
+            A = new Vector4(_gpu.Safe ? 0 : Post.BloomStrength, Post.Vignette, Post.Grain, Post.ColourLevels),
             B = new Vector4((float)(lighting.Time * 30 % 997), (float)Width / Height, Post.Ps2 ? 1 : 0, Post.Exposure),
-            C = new Vector4(Post.WideBloom, Post.LensFringe, Post.Ps2 ? 0 : Post.Occlusion, 1f / _ao.Width),
+            C = new Vector4(Post.WideBloom, Post.LensFringe, Post.Ps2 || _gpu.Safe ? 0 : Post.Occlusion, 1f / _ao.Width),
             D = new Vector4(Post.Blur, 0, 0, 0),
         };
         Transition(cmd, _ldr.Image, VkImageAspectFlags.Color, VkImageLayout.Undefined, VkImageLayout.ColorAttachmentOptimal);
@@ -1498,8 +1560,12 @@ public sealed unsafe class GreyboxRenderer : IDisposable
         {
             imageView = target.View,
             imageLayout = VkImageLayout.ColorAttachmentOptimal,
-            loadOp = VkAttachmentLoadOp.DontCare,
+            // Cleared, not DontCare (note 1017): every pass covers its target today (the sky the scene's, a full-screen
+            // triangle the rest), but a pixel one ever left would show whatever the GPU's tiles held, and a half-float target's
+            // leftovers can be NaN, which the bloom spreads into black squares. On lavapipe the clear costs next to nothing.
+            loadOp = VkAttachmentLoadOp.Clear,
             storeOp = VkAttachmentStoreOp.Store,
+            clearValue = new VkClearValue { color = new VkClearColorValue(0f, 0f, 0f, 1f) },
         };
         var depthAttachment = new VkRenderingAttachmentInfo
         {

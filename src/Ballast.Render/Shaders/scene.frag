@@ -60,7 +60,8 @@ const vec3 SKY_FILL = vec3(0.75, 0.85, 1.05);
 vec3 envAt(vec3 r) {
     vec3 horizon = frame.fog.rgb * frame.sky2.z;
     vec3 c = mix(horizon, frame.sky.rgb, smoothstep(0.02, 0.6, r.y));
-    c = mix(c, frame.fog.rgb * 0.45, smoothstep(0.0, -0.25, r.y));
+    // (Edges low to high: GLSL leaves a smoothstep with them the other way round undefined; note 1017.)
+    c = mix(c, frame.fog.rgb * 0.45, 1.0 - smoothstep(-0.25, 0.0, r.y));
     // (The moon itself is left to the direct specular: in a reflection, off a bumpy normal map, it scatters into sparkle.)
     // What a reflection sees along the horizon and under it is mostly the world, not the sky: the other cars, the
     // cab's own walls, trees. Without a probe to say so, it's darker there.
@@ -582,5 +583,5 @@ void main() {
     // The untextured probe (dt holes --untextured, note 433): a surface drawn without a texture, cyan through the fog.
     if (frame.probe.y > 0.5 && !textured)
         colour = vec3(0.0, 8.0, 8.0);
-    outColor = vec4(colour, 1.0);
+    outColor = vec4(finite(colour), 1.0);
 }
