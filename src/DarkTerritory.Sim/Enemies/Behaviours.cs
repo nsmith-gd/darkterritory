@@ -52,6 +52,8 @@ public sealed class Behaviours
         public double Heard;
         public double Seconds;
         public double Nearest = double.PositiveInfinity;
+        /// <summary>Seconds lazing without a break (note 1008: the Head Waiter's come).</summary>
+        public double Lazed;
         public readonly double[] ByDoing = new double[Enum.GetValues<Doing>().Length];
         public Behaviour Now;
     }
@@ -77,6 +79,12 @@ public sealed class Behaviours
     /// <summary>What <paramref name="player"/> shows now.</summary>
     public Behaviour Of(int player) => _p.TryGetValue(player, out var t) ? t.Now : Behaviour.None;
 
+    /// <summary>
+    /// Seconds <paramref name="player"/> has been lazing (in a deck chair, the hot tub, the hammock, playing the band) without a
+    /// break, as the reader saw it once a second (note 1008: the Head Waiter comes for a long one).
+    /// </summary>
+    public double LazedSeconds(int player) => _p.TryGetValue(player, out var t) ? t.Lazed : 0;
+
     /// <summary>Crew-seconds of each behaviour tonight, by its name.</summary>
     public IReadOnlyDictionary<string, double> Seconds => _seconds;
 
@@ -100,6 +108,7 @@ public sealed class Behaviours
             p.InDoing = p.Doing == c.Doing ? p.InDoing + 1 : 1;
             p.Doing = c.Doing;
             p.Nearest = c.Nearest;
+            p.Lazed = c.Lazing ? p.Lazed + 1 : 0;
             bool alone = c.Nearest > t.AloneM;
             if (counting)
             {

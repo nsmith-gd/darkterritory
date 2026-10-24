@@ -59,7 +59,7 @@ public sealed class EnemyContext
     public void Lift(int playerId, Double3 to) => Carries.Add((playerId, to, true));
 
     /// <summary>Pulls a player off the train over the side (App. A.4, the Draggers): at speed, that's death.</summary>
-    public void Pull(int playerId, Double3 outward) => Damage.Add(new DamageEvent(playerId, 0, DeathCause.Dragged, outward));
+    public void Pull(int playerId, Double3 outward, DeathCause cause = DeathCause.Dragged) => Damage.Add(new DamageEvent(playerId, 0, cause, outward));
 
     /// <summary>Rounds fired lately (tick, muzzle), newest last, for enemies that react to sustained fire.</summary>
     public IReadOnlyList<(uint Tick, Double3 Muzzle)> RecentRounds { get; init; } = [];

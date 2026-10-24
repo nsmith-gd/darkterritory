@@ -2257,6 +2257,7 @@ public sealed class Director
                 EnemyKind.MouseMoose => new MouseMoose(0),
                 EnemyKind.Bruin => new Bruin(0),
                 EnemyKind.Tapper => new Tapper(0),
+                EnemyKind.HeadWaiter => new HeadWaiter(0),
                 _ => new ChoirGhost(0),
             };
             d[kind] = (e.Zone, e.Sense, e.Want);

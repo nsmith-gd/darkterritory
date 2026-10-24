@@ -92,6 +92,7 @@ whoever has to hear it.
 | The Gannet *(added 7 Oct, note 340; the sounds are the audio chat's to make)* | The fold: a crack of wings, then a rising whistle of air for 1.6 s; overhead, harsh "arrah" calls that stop when it picks a walker; the bank: a long rising scream | whistle 2–5 kHz rising; calls 1–3 kHz | tell-gannet-* (note 384) |
 | The Choir | Layered voices, multiplying as it gathers | 300Hz–4k, wide | choir-voice |
 | Car fire *(App. C.5)* | Crackle and pop through the boards | 6–9k | car-fire |
+| The Head Waiter *(Sloe's proposal, note 1004; built behind `headWaiter.on`, off until the director's verdict, note 1008; a synth stand-in until the audio chat's takes)* | A spoon on a wine glass, three clear rings, from right behind the lounger: told from the low clearance's cord slaps (4–7k) by being rung, from the Fire Flies and the car fire by band, from the cab's bell by pitch | 4.6–5.6k | tell-head-waiter.glass (audited alone: `AudioBench.FlaggedTellBands`) |
 | Marsh *(hazard, formerly the Drift)* | Dry reeds rustling, in slow creeping swells | 12–15k | drift-rustle |
 | Low clearance *(the line's roof warning, a tunnel's mouth ahead; added 5 Oct, note 260)* | The telltales: a run of cord slaps over the roof | 4–7k | warn-low-clearance |
 | Bend too fast *(the line's roof warning, riders up over a posted speed; added 5 Oct, note 260)* | The roof irons chattering, rocking in and out | 2.5–4.5k | warn-curve |

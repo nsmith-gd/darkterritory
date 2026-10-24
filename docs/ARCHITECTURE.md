@@ -1164,4 +1164,6 @@ written here instead is moved out by `tools/coord/notes.py split`; the Coordinat
 - [1004. Every creature foils a behaviour: the creature list again, by the director's verdicts on Moth's nine; a behaviour → foil table, the Close,…](notes/1004.md)
 - [1007. The Bruin: the first of the forest's heavies, a rotten bear that comes out of the trees at a train stood in the wild, climbs into the cargo…](notes/1007.md)
 - [1011. The Tapper: a long folded thing that comes over the roof behind a gunner left alone on their gun, taps twice, and lifts them off the train…](notes/1011.md)
+- [1008. The Head Waiter, built behind a flag (Ash, nathaniel2; queue #713; Sloe's design, note 1004, `docs/design/creatures/head-waiter.md`)](notes/1008.md)
+- [1010. The ping: a village means search it, a ping needs line of sight, and it clears when done (Hazel, nathaniel2; queue #700; the director's…](notes/1010.md)
 <!-- end of the notes index -->
