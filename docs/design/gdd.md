@@ -921,6 +921,11 @@ What's left of a great bear: twice the weight it should be, its fur gone to grey
 > **RULE: never alone with it; never face it.**
 Stand the train in the wild too long with cargo aboard and it comes out of the trees, huffing, to the car with the most in it, climbs in and feeds. It turns to face whoever's nearest, and whoever stays in front of it it rises over and charges: caught, they're mauled to death. From the front it barely feels a blow. From the side or behind, a blow staggers it, makes it drop whoever it has and turns it on the hitter: two or three round its sides keep it turning and never let it land a maul. Enough blows drive it back to the trees; more kill it. It never comes to a moving train, but aboard it rides along feeding. (Spec B.21.)
 
+**THE TAPPER** · *the roof behind a gun* *(the director, 2026-10-23; Sloe's design, note 1004; built behind its flag, note 1011)*
+A long, folded thing that rides the roofs, arms twice the length of its body. Two knuckle-knocks on the gun's iron, from behind you.
+> **RULE: when it taps, look round. Or have someone at your back.**
+Sit on a gun alone too long at speed and it comes over the roof from behind, where a gun's eyes aren't, and taps twice. A few seconds later it lifts you out of the seat and drops you off the train. Get up and look round at it and it flinches flat and backs off a while; anyone else on the car and it goes over the side; a blow knocks it off, and a friend's makes it drop you. (Spec B.22.)
+
 **THE LODGER** · *in the dark of a village house* *(the director, 2026-10-09)*
 A long, starved thing folded into the corner of a back room, breathing.
 > **RULE: when it shrieks, put a door between you.**

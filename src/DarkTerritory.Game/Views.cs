@@ -160,6 +160,8 @@ public static class Views
             "mousemoose" or "mousemoosedrag" or "mousemooseface" or "mousemoosehole" => Staging.MouseMooseCamera(train, name),
             // (Not one of Names.) The staged Bruin (Staging.Bruin; note 1007): coming out of the trees to its car, and risen in it.
             "bruin" or "bruincar" => Staging.BruinCamera(train, name),
+            // (Not one of Names.) The staged Tapper (Staging.Tapper; note 1011): crawling along the rear gun's roof, and at the tap.
+            "tapper" or "tappertap" => Staging.TapperCamera(train, name),
             // (Not one of Names.) The staged Head Waiter on the BBQ deck (Staging.HeadWaiter, note 1008): off the deck's front
             // corner back at the chair and it, or close on it ringing the glass.
             "headwaiter" or "headwaiterdeck" => Staging.HeadWaiterCamera(train, name),

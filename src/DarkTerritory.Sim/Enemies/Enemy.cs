@@ -43,6 +43,8 @@ public enum EnemyKind : byte
     MouseMoose = 47,
     // The Bruin (GDD §21, the director's playtest of 23 Oct 2026, line 36; note 1007).
     Bruin = 48,
+    // The Tapper (GDD §21, the director's playtest of 23 Oct 2026, line 36; note 1011).
+    Tapper = 49,
     // The Head Waiter (GDD §21, Sloe's proposal, note 1004; built behind a flag, note 1008: awaiting the director's verdict).
     HeadWaiter = 50
 }
@@ -260,6 +262,7 @@ public abstract class Enemy
         EnemyKind.Hanger => new Hanger(id),
         EnemyKind.MouseMoose => new MouseMoose(id),
         EnemyKind.Bruin => new Bruin(id),
+        EnemyKind.Tapper => new Tapper(id),
         EnemyKind.HeadWaiter => new HeadWaiter(id),
         _ => new ChoirGhost(id),
     };

@@ -562,6 +562,19 @@ A car fire burns on cells (decided 6 Oct, GDD App. F.1; ARCHITECTURE note 267). 
 | **Flank** | a blow from the front **×0.2**, and it keeps hold; from the side or behind it's staggered **1.2 s**, drops whoever it's mauling and turns on the hitter |
 | Health | **20** blows; **8** in its car drive it out to the trees |
 
+## B.22 The Tapper
+
+*The director's playtest of 2026-10-23, line 36: "I am sitting on the back gun alone for too long ... every creature's purpose is to foil some sort of behavior ... a clear tell and a clear counter"* (GDD §21; Sloe's `docs/design/creatures/tapper.md`; `tapper` in `content/tuning/enemies.json`, **off** until the director's verdict; ARCHITECTURE §8 note 1011). `SpecTableTests.TheTapperMatchesB22` pins this table.
+
+| Parameter | Value |
+|---|---|
+| **Comes** | the train at **8 m/s** or more, a crewmate seated at a gun with nobody within **12 m** (the behaviour reader's `aloneM`) for **90 s** (Local, Frontier), 60 s (Dead Lines), **45 s** (Deep Territory); never on Local's weights; one at a time |
+| **Tap** | over the roof behind them, two knocks on the gun; the lift **5 s** on (Frontier), 3 s (Deep Territory) |
+| **Look** | the gunner facing it within **30°** for **1 s** (seated, the view stays in the gun's arc: they have to stand): it flinches flat and backs off **30 s** (Frontier) to **10 s** (Deep Territory) |
+| Company | anyone else on its car or within **4 m**: it goes over the side |
+| **Lift** | a grab, **10 s**, then dropped off the train; a friend's blow drops them on the roof |
+| Health | a blow knocks it off; **3** at once kill it. Under **3 m/s** it goes |
+
 # PART C — DEATH AND REVIVAL
 
 > **Superseded by GDD v1.2 Appendix D (Death, Holdouts and Return).** The Vigil is cut. A dead player returns only through a Holdout at a halt, village or yard; bodies are loot (D.9). This part is kept for the record.

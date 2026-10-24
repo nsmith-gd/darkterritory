@@ -183,6 +183,15 @@ public class SpecTableTests
     }
 
     [Fact]
+    public void TheTapperMatchesB22()
+    {
+        var t = Tuning.Enemies.Tapper;
+        Assert.Equal((8.0, 3.0, 90.0, 45.0), (t.BoardAbove, t.LeaveBelow, t.Dwell["frontier"], t.Dwell["deepTerritory"]));
+        Assert.Equal((5.0, 3.0, 30.0, 1.0), (t.TapSeconds["frontier"], t.TapSeconds["deepTerritory"], t.LookDegrees, t.LookSeconds));
+        Assert.Equal((30.0, 10.0, 4.0, 10.0, 3.0), (t.HoldSeconds["frontier"], t.HoldSeconds["deepTerritory"], t.CompanyM, t.LiftSeconds, t.Health));
+    }
+
+    [Fact]
     public void HotboxMatchesB19()
     {
         var h = Tuning.Enemies.Hotbox;
