@@ -34,6 +34,7 @@ public sealed record EnemyTuning(
     public MournersTuning Mourners { get; init; } = new();
     public PickersTuning Pickers { get; init; } = new();
     public MouseMooseTuning MouseMoose { get; init; } = new();
+    public BruinTuning Bruin { get; init; } = new();
     public HeadWaiterTuning HeadWaiter { get; init; } = new();
     public DwellingsTuning Dwellings { get; init; } = new();
     public LodgerTuning Lodger { get; init; } = new();
@@ -1560,6 +1561,32 @@ public sealed record MouseMooseTuning
     public int ReachEvery { get; init; } = 15;
     public double LeaveBeyond { get; init; } = 300;
     public Dictionary<string, double> TierWeights { get; init; } = new() { ["local"] = 1, ["frontier"] = 1.25, ["deadLines"] = 1.5, ["deepTerritory"] = 1.5 };
+}
+
+/// <summary>The Bruin (GDD §21; the director's playtest of 23 Oct 2026, line 36; ARCHITECTURE §8 note 1007). Field docs live in enemies.json.</summary>
+public sealed record BruinTuning
+{
+    public bool On { get; init; }
+    public double StandSeconds { get; init; } = 45;
+    public double ComeFromM { get; init; } = 40;
+    public double Come { get; init; } = 4;
+    public double HuffSeconds { get; init; } = 10;
+    public double GiveUpAbove { get; init; } = 2;
+    public double FeedPerSecond { get; init; } = 0.01;
+    public double Reach { get; init; } = 6;
+    public double TurnDegreesPerSecond { get; init; } = 90;
+    public double FrontDegrees { get; init; } = 50;
+    public double WindupSeconds { get; init; } = 3;
+    public double ChargeReach { get; init; } = 3;
+    public double MaulSeconds { get; init; } = 8;
+    public double Health { get; init; } = 20;
+    public double FrontFactor { get; init; } = 0.2;
+    public double StaggerSeconds { get; init; } = 1.2;
+    public int DriveOffBlows { get; init; } = 8;
+    public double LeaveFarM { get; init; } = 150;
+    /// <summary>Seconds fed before it leaves its car of its own accord, by tier; negative, never.</summary>
+    public Dictionary<string, double> LeaveAfter { get; init; } = new() { ["local"] = 40, ["frontier"] = 40, ["deadLines"] = 90, ["deepTerritory"] = -1 };
+    public Dictionary<string, double> TierWeights { get; init; } = new() { ["local"] = 0.5, ["frontier"] = 1, ["deadLines"] = 1.5, ["deepTerritory"] = 2 };
 }
 
 /// <summary>The Freight Beetle (GDD §21, App. A.6, B.6; ARCHITECTURE §8 note 366). Field docs live in enemies.json.</summary>
