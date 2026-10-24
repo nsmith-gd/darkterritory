@@ -154,6 +154,11 @@ public sealed record Settings
     public string Resolution { get; init; } = "1280x720";
     /// <summary>T83: a fraction of <see cref="Resolution"/> the scene's drawn at and scaled up from (a slower GPU's friend).</summary>
     public double RenderScale { get; init; } = 1;
+    /// <summary>
+    /// The renderer's safe path from the next start (note 1017; <c>--gpu-safe</c> for one launch): no bloom or occlusion, the
+    /// material textures at half size, for a driver that draws black squares over the full path (a Linux player's, 16 Oct).
+    /// </summary>
+    public bool GpuSafe { get; init; }
     /// <summary>The player's own key for a control (T80), by control name; the rest are <see cref="Controls.Defaults"/>.</summary>
     public Dictionary<string, string> Keys { get; init; } = new();
 
@@ -283,13 +288,13 @@ public sealed record Settings
         && InvertMouse == other.InvertMouse && FieldOfView == other.FieldOfView && CameraShake == other.CameraShake && Outfit == other.Outfit && Hat == other.Hat
         && MaskColour == other.MaskColour && MaskStencil == other.MaskStencil && MaskInk == other.MaskInk
         && TextSize == other.TextSize && Colours == other.Colours && FirstNights == other.FirstNights && Captions == other.Captions && ToggleHolds == other.ToggleHolds && TextBacking == other.TextBacking
-        && Display == other.Display && VSync == other.VSync && Resolution == other.Resolution && RenderScale == other.RenderScale
+        && Display == other.Display && VSync == other.VSync && Resolution == other.Resolution && RenderScale == other.RenderScale && GpuSafe == other.GpuSafe
         && PlayerName == other.PlayerName && PublicLobby == other.PublicLobby && LobbyName == other.LobbyName
         && LobbyPassword == other.LobbyPassword && Mood == other.Mood
         && Keys.Count == other.Keys.Count && Keys.All(k => other.Keys.GetValueOrDefault(k.Key) == k.Value);
 
     public override int GetHashCode() => HashCode.Combine(Mute, PushToTalk, Hud, VrTurn, VrVignette, MouseSpeed, Keys.Count,
-        HashCode.Combine(Display, VSync, Resolution, RenderScale, PublicLobby, LobbyName, HashCode.Combine(MasterVolume, EffectsVolume, MusicVolume, VoiceVolume, MicDevice, MicLevel),
+        HashCode.Combine(Display, VSync, Resolution, HashCode.Combine(RenderScale, GpuSafe), PublicLobby, LobbyName, HashCode.Combine(MasterVolume, EffectsVolume, MusicVolume, VoiceVolume, MicDevice, MicLevel),
             HashCode.Combine(InvertMouse, FieldOfView, CameraShake, Outfit, ControlHints, TextSize, Colours, HashCode.Combine(FirstNights, Captions, ToggleHolds, TextBacking, LobbyPassword, Mood, HashCode.Combine(MaskColour, MaskStencil, MaskInk)))));
 
     /// <summary>The field of view the eyes are drawn at (note 297): the setting if it's one on offer, else 75.</summary>

@@ -1550,6 +1550,9 @@ public sealed class FrontEnd
             new(new($"RENDER SCALE: {Settings.RenderScale * 100:0}%", "Draws the scene smaller and scales it up: faster, softer."), Toggle(s => s with { RenderScale = Settings.Cycle(Settings.RenderScales, s.RenderScale, 1) }),
                 by => Change(Settings with { RenderScale = Settings.Cycle(Settings.RenderScales, Settings.RenderScale, by) })),
             new(new($"VSYNC: {(Settings.VSync ? "ON" : "OFF")}"), Toggle(s => s with { VSync = !s.VSync }), _ => Change(Settings with { VSync = !Settings.VSync })),
+            // Note 1017: for black squares on some Linux drivers; the textures load at the start, so from the next one.
+            new(new($"SAFE GRAPHICS: {(Settings.GpuSafe ? "ON" : "OFF")}", "Black squares on the screen? Plainer effects and textures. From the next start."),
+                Toggle(s => s with { GpuSafe = !s.GpuSafe }), _ => Change(Settings with { GpuSafe = !Settings.GpuSafe })),
             Heading("CONTROLS AND COMFORT"),
             new(new($"MOUSE SPEED: {Settings.MouseSpeed:0.0}", "Left and right to change."), null, by => Change(Settings with { MouseSpeed = Math.Clamp(Math.Round(Settings.MouseSpeed + by * 0.1, 1), 0.2, 3) })),
             // Note 297: comfort.

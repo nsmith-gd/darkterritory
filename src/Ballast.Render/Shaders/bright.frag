@@ -8,7 +8,7 @@ layout(location = 0) in vec2 vUv;
 layout(location = 0) out vec4 outColor;
 
 void main() {
-    vec3 c = texture(scene, EYE_UV(vUv)).rgb;
+    vec3 c = finite(texture(scene, EYE_UV(vUv)).rgb); // (note 1017: a bad texel here is a black square after the blurs)
     float luma = dot(c, vec3(0.299, 0.587, 0.114));
     outColor = vec4(c * max(luma - post.a.x, 0.0) / max(luma, 1e-4), 1.0);
 }

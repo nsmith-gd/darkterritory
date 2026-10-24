@@ -6,6 +6,26 @@ namespace Ballast.Render;
 public sealed class GpuUnavailableException(string message) : Exception(message);
 
 /// <summary>
+/// What the renderer fits its textures to (note 1017: a Linux player's screen had black squares where the textured quads
+/// were, on a GPU and driver nobody knew; past a limit, a driver may say yes and sample zeros). The material arrays are
+/// checked against these before they're made, and scaled down or cut short, loudly, rather than handed to the driver.
+/// </summary>
+/// <param name="ArrayLayers">How many layers a 2D array image may have (<c>maxImageArrayLayers</c>; the spec's floor is 256).</param>
+/// <param name="Image2D">How wide and tall a 2D image may be (<c>maxImageDimension2D</c>).</param>
+/// <param name="ImageBytes">The most one sampled RGBA8 array may hold: the format's <c>maxResourceSize</c> and the device's
+/// <c>maxMemoryAllocationSize</c>, whichever is less.</param>
+/// <param name="DeviceLocalBytes">The largest device-local memory heap: a small integrated GPU's carve-out, or the card's VRAM.</param>
+public sealed record GpuLimits(int ArrayLayers, int Image2D, ulong ImageBytes, ulong DeviceLocalBytes)
+{
+    /// <summary>Each of this device's limits held to <paramref name="by"/>'s where that's lower (a developer's small GPU, --gpu-limits).</summary>
+    public GpuLimits Within(GpuLimits by) => new(Math.Min(ArrayLayers, by.ArrayLayers), Math.Min(Image2D, by.Image2D), Math.Min(ImageBytes, by.ImageBytes),
+        Math.Min(DeviceLocalBytes, by.DeviceLocalBytes));
+
+    public override string ToString() =>
+        $"{ArrayLayers} array layers, {Image2D} px images, {ImageBytes >> 20} MiB an image, {DeviceLocalBytes >> 20} MiB device-local";
+}
+
+/// <summary>
 /// Makes the Vulkan instance and device in place of <see cref="GpuContext"/>. OpenXR's XR_KHR_vulkan_enable2 does
 /// this: the runtime adds the extensions its compositor needs and picks the GPU the headset is on.
 /// </summary>
@@ -48,6 +68,25 @@ public sealed unsafe class GpuContext : IDisposable
     /// its path from this (<see cref="StereoPath"/>, ARCHITECTURE §8 note 221).
     /// </summary>
     public bool Multiview { get; private set; }
+
+    /// <summary>The limits the renderer fits its textures to (<see cref="GpuLimits"/>), already held to <see cref="LimitsOverride"/>.</summary>
+    public GpuLimits Limits { get; }
+
+    /// <summary>
+    /// A small GPU's limits to hold every device made after to (a developer's <c>--gpu-limits</c>, Ballast.Dev; note 1017):
+    /// what a 2 GB card or an old integrated GPU would make of the textures, on any machine. Null in a player's game.
+    /// </summary>
+    public static GpuLimits? LimitsOverride { get; set; }
+
+    /// <summary>
+    /// The safe path (<c>--gpu-safe</c>, the SAFE GRAPHICS setting; note 1017): the post effects that read the frame back at
+    /// lower resolution (bloom, the occlusion) off, and the material textures at half size without anisotropy, for a driver
+    /// that draws the full path wrong. Read when a renderer loads its textures and every frame.
+    /// </summary>
+    public bool Safe { get; set; } = SafeByDefault;
+
+    /// <summary>What <see cref="Safe"/> starts as on every device made after (a developer's <c>--gpu-safe</c> to `dt`, Ballast.Dev).</summary>
+    public static bool SafeByDefault { get; set; }
 
     /// <summary>Nanoseconds per GPU timestamp tick, or 0 when the graphics queue can't time its work.</summary>
     public double TimestampPeriod { get; private set; }
@@ -110,6 +149,9 @@ public sealed unsafe class GpuContext : IDisposable
         VkPhysicalDeviceMemoryProperties mem;
         InstanceApi.vkGetPhysicalDeviceMemoryProperties(PhysicalDevice, &mem);
         _memory = mem;
+        Limits = ReadLimits(InstanceApi, PhysicalDevice, props, mem);
+        if (LimitsOverride is { } small)
+            Limits = Limits.Within(small);
 
         float priority = 1;
         var queueInfo = new VkDeviceQueueCreateInfo { queueFamilyIndex = QueueFamily, queueCount = 1, pQueuePriorities = &priority };
@@ -189,6 +231,23 @@ public sealed unsafe class GpuContext : IDisposable
         return $"{deviceName} ({kind}); driver {driverName} {driverInfo}".TrimEnd()
             + $" ({driver.driverID}), driver version {driverVersion.Major}.{driverVersion.Minor}.{driverVersion.Patch} (0x{props.driverVersion:x8}), "
             + $"Vulkan {apiVersion.Major}.{apiVersion.Minor}.{apiVersion.Patch}, vendor 0x{props.vendorID:x4} device 0x{props.deviceID:x4}";
+    }
+
+    static GpuLimits ReadLimits(VkInstanceApi api, VkPhysicalDevice device, in VkPhysicalDeviceProperties props, in VkPhysicalDeviceMemoryProperties mem)
+    {
+        var maintenance3 = new VkPhysicalDeviceMaintenance3Properties();
+        var props2 = new VkPhysicalDeviceProperties2 { pNext = &maintenance3 };
+        api.vkGetPhysicalDeviceProperties2(device, &props2);
+        ulong image = maintenance3.maxMemoryAllocationSize;
+        VkImageFormatProperties format;
+        if (api.vkGetPhysicalDeviceImageFormatProperties(device, VkFormat.R8G8B8A8Srgb, VkImageType.Image2D, VkImageTiling.Optimal,
+                VkImageUsageFlags.Sampled | VkImageUsageFlags.TransferDst, 0, &format) == VkResult.Success)
+            image = Math.Min(image, format.maxResourceSize);
+        ulong local = 0;
+        for (int i = 0; i < mem.memoryHeapCount; i++)
+            if ((mem.memoryHeaps[i].flags & VkMemoryHeapFlags.DeviceLocal) != 0)
+                local = Math.Max(local, mem.memoryHeaps[i].size);
+        return new GpuLimits((int)props.limits.maxImageArrayLayers, (int)props.limits.maxImageDimension2D, image, local);
     }
 
     (VkPhysicalDevice, uint) PickDevice()

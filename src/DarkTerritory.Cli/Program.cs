@@ -18,6 +18,8 @@ using DarkTerritory.Sim.Train;
 var baseContent = DataFile.FindContentRoot(Environment.CurrentDirectory);
 // Mods (T49) laid over the content like the game does (--no-mods for the base game). The editor edits the base content.
 args = Mods.TakeArgs(args);
+// A small GPU's limits and the safe path on any machine (note 1017): --gpu-limits [small|layers=N,...], --gpu-safe.
+args = Ballast.Dev.GpuFlags.Take(args);
 bool noMods = args.Contains("--no-mods");
 args = [.. args.Where(a => a != "--no-mods")];
 var content = args is ["edit", ..] or ["mods", ..] or ["edition", "bake", ..] ? baseContent : Mods.Mount(baseContent, enabled: !noMods);
