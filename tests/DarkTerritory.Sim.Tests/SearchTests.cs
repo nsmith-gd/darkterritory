@@ -142,7 +142,8 @@ public class SearchTests
             Assert.Equal(1, h.Facing.Length, 6);
             Assert.Equal(0, h.Facing.Y);
             var ahead = (h.At - h.Kept) with { Y = 0 };
-            if (h.Container.Kind is ContainerKind.Cupboard or ContainerKind.Cabinet or ContainerKind.Bench or ContainerKind.Hayloft)
+            // (A basement's find is kept in a chest against its wall, note 1005, as a cupboard's is.)
+            if (h.Container.Kind is ContainerKind.Cupboard or ContainerKind.Cabinet or ContainerKind.Bench or ContainerKind.Hayloft || h.Container.Level < 0)
             {
                 Assert.True(ahead.Length > 0.3, $"{h.Container.Kind}'s find is in it");
                 Assert.True(Double3.Dot(ahead.Normalized, h.Facing) > 0.999, $"{h.Container.Kind}'s find isn't in front of it");

@@ -151,6 +151,9 @@ public static class PlanImages
                 (px, py) = (x, y);
             }
         }
+        // The big forests (note 1006): a broad dark green band under the main line where the woods close in.
+        foreach (var w in DeepWoods.Of(plan).Stretches)
+            Draw(line, w.S0, w.S1, (20, 70, 30), 9);
         foreach (var e in plan.Alignment)
             Draw(Of(e.Edge), 0, Of(e.Edge).Length, EdgeColours[e.Role], 1);
         foreach (var piece in plan.Pieces.Where(p => p.Kind != "region"))

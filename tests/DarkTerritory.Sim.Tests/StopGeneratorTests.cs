@@ -61,7 +61,9 @@ public class StopGeneratorTests
         Assert.InRange(withFinds, 0.6, 0.97);
         Assert.Contains(0, houses);
         Assert.Contains(3, houses);
-        Assert.InRange(houses.Average(), 0.9, 1.6);
+        // Note 1005: fewer houses (village.keep), and a basement's or an upstairs' find besides in the houses of floors: about
+        // as many finds a village as before, more of them a house.
+        Assert.InRange(houses.Average(), 0.9, 2.2);
     }
 
     [Theory]

@@ -244,7 +244,7 @@ public static class Eyes
         if (s.Parent < 0 || s.Parent >= frames.Count)
             return false;
         foreach (var l in frames[s.Parent].Shape.Lounges)
-            if (l.Kind == Sim.Train.LoungeKind.Bench && (l.At - s.Position).Length < 0.05)
+            if (l.Kind is Sim.Train.LoungeKind.Bench or Sim.Train.LoungeKind.Stool && (l.At - s.Position).Length < 0.05)
                 return true;
         return false;
     }
