@@ -75,6 +75,7 @@ public static class ArtCatalog
         // A car's damage rides on its body (the car class's budget, what the body leaves of it: the kit's are 9-11k).
         // The boiler's tear and the plate bolted over it once mended (note 991).
         list.Add(new("rupture-tear", SmallProp, () => TrainKit.RuptureTear(look)));
+        list.Add(new("rupture-tear-open", SmallProp, () => TrainKit.RuptureTear(look, open: true)));
         list.Add(new("rupture-patch", SmallProp, () => TrainKit.RupturePatch(look)));
         // A house's cellar and loose boards, shut and searched (note 991).
         list.Add(new("cellar-hatch", SmallProp, () => TownKit.CellarHatch(look)));

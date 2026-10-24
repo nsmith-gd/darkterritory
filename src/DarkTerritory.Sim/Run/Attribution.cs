@@ -105,6 +105,8 @@ public sealed class Attribution
     /// wheel, the throttle): in place of what jumped it, so the parting names them ("Driver" is who let go).
     /// </summary>
     public void LetGo(int car, LooseCause how, int who, double speed) => _loosened[car] = (how, who, speed, 0);
+    /// <summary>Note 1003: what worked loose the pin behind <paramref name="car"/> last, or null.</summary>
+    public (LooseCause Cause, int Driver, double Speed, int Board)? LoosenedPin(int car) => _loosened.TryGetValue(car, out var l) ? l : null;
     /// <summary>What worked loose the pin that parted this car from the train, or null.</summary>
     public (LooseCause Cause, int Driver, double Speed, int Board)? LooseOf(int vehicle) =>
         _parted.TryGetValue(vehicle, out int pin) && _loosened.TryGetValue(pin, out var l) ? l : null;

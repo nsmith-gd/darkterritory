@@ -45,6 +45,7 @@ PLATE_AT = [np.array(g["on_body"](y, ang)[0], np.float32) for y, ang, _, _ in g[
 # and lips paler, the gums red-black).
 DRESS = {
     "flesh.hugger_pale": (lambda: make.lib("flesh", 3.0, (1.75, 1.85, 1.95), 0.4), 2),
+    "flesh.hugger_lip": (lambda: make.lib("flesh", 3.0, (1.75, 1.85, 1.95), 0.4), 2),
     "flesh.hugger_gum": (lambda: make.lib("flesh", 5.0, (0.62, 0.12, 0.15), 0.25), 2),
     "flesh.hugger": (lambda: make.flat("hide", (0.28, 0.25, 0.27), rough=0.35), 2),
     "tar.throat": (lambda: make.flat("throat", (0.012, 0.005, 0.005), rough=0.3), 1),
@@ -94,7 +95,7 @@ def gum(p, n):
     return 0.005 * np.sin(rel[:, 1] * 60) + 0.003 * cook.noise_np(p, 121, 25.0)
 
 
-SHAPE = {"flesh.hugger_pale": pale, "flesh.hugger_gum": gum, "flesh.hugger": hide,
+SHAPE = {"flesh.hugger_pale": pale, "flesh.hugger_lip": pale, "flesh.hugger_gum": gum, "flesh.hugger": hide,
          "rust_heavy.eaten": lambda p, n: 0.002 * (ridged(p, 131, 40.0) ** 3 - 0.4)}
 BAKED = ["body", "hands", "mouth", "iron"]   # (the arms grown into the body: rig.fuse)
 highs = {name: overbake.high_of(parts[name], dress, SHAPE) for name in BAKED}
@@ -141,7 +142,7 @@ def marbling(p, kind):
     """R: fine mottling (the skin's own unevenness); G: marbling, the dark branching a drowned body shows under the skin;
     B: pallor, blotches gone waxy white. The hide only: the rest wears the library's."""
     out = np.zeros((len(p), 3), np.float32)
-    if kind.startswith("flesh.hugger") and not kind.startswith(("flesh.hugger_pale", "flesh.hugger_gum")):
+    if kind.startswith("flesh.hugger") and not kind.startswith(("flesh.hugger_pale", "flesh.hugger_lip", "flesh.hugger_gum")):
         out[:, 0] = np.clip(0.5 + 0.35 * cook.noise_np(p, 221, 14.0) + 0.15 * cook.noise_np(p, 222, 40.0), 0.05, 1)
         out[:, 1] = smooth01(0.7, 0.9, ridged(p, 223, 3.2)) * smooth01(-0.1, 0.5, cook.noise_np(p, 224, 1.3))
         out[:, 2] = smooth01(0.35, 0.8, cook.noise_np(p, 225, 2.2))
@@ -182,7 +183,7 @@ MOUTHK = 1
 
 
 def kind_of(m):
-    return MOUTHK if m.name.startswith("flesh.hugger_gum") or m.name.startswith("skin.tooth") else 0
+    return MOUTHK if m.name.startswith(("flesh.hugger_gum", "flesh.hugger_lip", "skin.tooth")) else 0
 
 
 # 2048: it wraps most of a car (48 m² of skin), and GDD §27 wants 256 px/m on what's seen close (look.json

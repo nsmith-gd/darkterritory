@@ -83,6 +83,7 @@ FRILL = Mat("skin.choir_frill", hexc("#8d959b"), shine=0.3)
 LIP = Mat("skin.choir_face", hexc("#6c6670"), shine=0.4)
 HOLE = Mat("tar.choir_hole", hexc("#050404"), shine=0.9)
 TEETH = Mat("skin.choir_teeth", hexc("#b4ab98"), shine=0.4)
+ORGAN = Mat("skin.choir_organ", hexc("#3a2430"), shine=0.5)
 
 
 def bell(x):
@@ -121,20 +122,34 @@ def hood(i, j, a, th, p):
     return p + Vector((0, 0, 0.004 * noise3(p * 14, 151, 1.0)))
 
 
-body.blob(BC, BR, 22, 12, SKIN, (["bell"] + RIM_NAMES, 4.0), shape=hood)
-# The frilled skirt round the rim: a ruffled band of membrane hanging off it.
-skirt = []
-for k in range(36):
-    a = 2 * math.pi * k / 36
-    skirt.append(Vector((math.sin(a) * (RIM_R + 0.01), math.cos(a) * (RIM_R + 0.01), RIM_Z - 0.035 + 0.02 * math.sin(a * 9))))
-skirt = []
-for k in range(48):
-    a = 2 * math.pi * k / 48
-    # Ruffled: in and out round the rim, and scalloped, longer and shorter.
-    r = RIM_R + 0.012 + 0.014 * math.sin(a * 14)
-    skirt.append(Vector((math.sin(a) * r, math.cos(a) * r, RIM_Z - 0.05)))
-body.tube(skirt, [(0.004, 0.055)] * 48, 4, FRILL, (["bell"] + RIM_NAMES, 6.0), ref=[Vector((0, 0, 1))] * 48, loop=True,
-          shape=lambda i, j, a, p, fr: Vector(p) + Vector((0, 0, -0.03)) * (0.5 + 0.5 * math.sin(i * 1.7)) * (math.cos(a) < 0))
+body.blob(BC, BR, 32, 16, SKIN, (["bell"] + RIM_NAMES, 4.0), shape=hood)
+# The velum round the rim (note 1015, the Look Review's quality pass: it read as a stiff band): two dozen scalloped
+# lappets of membrane hanging off it and flaring out, thin as a film, longer and shorter by turns, each one ruffled at
+# its edge, so the rim is a soft frill that ripples as the rim's flaps pulse.
+frills = kit.part("ghost_frills")
+for k in range(24):
+    a = 2 * math.pi * (k + 0.5) / 24
+    out = Vector((math.sin(a), math.cos(a), 0))
+    L = 0.075 + 0.035 * (k % 2) + 0.012 * math.sin(k * 2.7)
+    z0 = RIM_Z - 0.035
+    pts = [out * (RIM_R + 0.004) + Vector((0, 0, z0 + 0.01)), out * (RIM_R + 0.02) + Vector((0, 0, z0 - L * 0.35)),
+           out * (RIM_R + 0.034) + Vector((0, 0, z0 - L * 0.75)), out * (RIM_R + 0.038) + Vector((0, 0, z0 - L))]
+    w = 2 * math.pi * RIM_R / 24 * 0.62
+    frills.tube(pts, [(w, 0.0025), (w * 1.05, 0.002), (w * 0.8, 0.0018), (w * 0.3, 0.0012)], 4, FRILL, (["bell"] + RIM_NAMES, 6.0),
+                ref=[out] * 4, cap1="point",
+                shape=lambda i, j, an, p, fr, k=k: Vector(p) + fr[0] * 0.006 * math.sin(i * 2.4 + k) * abs(math.cos(an)))
+
+# Inside the bell, seen through its membrane: four horseshoe organs round the crown, as a moon jelly's are, dim and
+# blood-dark, and the gut's knot under them (solid: the screen-door membrane shows them, face on, as shapes in it).
+organs = kit.part("organs")
+for k in range(4):
+    a = math.radians(45 + 90 * k)
+    c = Vector((math.sin(a) * 0.105, math.cos(a) * 0.105, BC.z + 0.015))
+    arc = [c + Vector((math.sin(a + t) * 0.055, math.cos(a + t) * 0.055, -0.012 * math.cos(t))) for t in [math.radians(d) for d in range(-150, 151, 30)]]
+    organs.tube(arc, [0.011 + 0.004 * math.sin(math.pi * i / (len(arc) - 1)) for i in range(len(arc))], 5, ORGAN, "bell",
+                ref=(0, 0, 1), cap0=True, cap1=True)
+organs.blob(BC + Vector((0, 0, -0.04)), (0.055, 0.055, 0.04), 10, 6, ORGAN, "bell",
+            shape=lambda i, j, a, th, p: Vector(p) + (Vector(p) - BC).normalized() * 0.008 * math.sin(a * 5 + th * 3))
 
 # --- the mouth: a child's lips held open in an O, small blunt teeth, the dark of the throat --------------------------
 mouth = kit.part("mouth")
@@ -158,17 +173,26 @@ for k in range(12):
 
 # --- the tendrils, and the curtains under the bell -------------------------------------------------------------
 hang = kit.part("ghost_tendrils")
-for names, a in TENDRILS:
+for k, (names, a) in enumerate(TENDRILS):
     pts = [H(names[0])] + [H(n).lerp(T(n), f) for n in names for f in (0.5, 1.0)]
-    rr = [0.022 - 0.019 * (i / (len(pts) - 1)) ** 0.7 for i in range(len(pts))]
-    hang.tube(pts, rr, 5, SKIN, (names, 6.0), ref=(1, 0, 0), cap1=True,
+    # (Thin as a jellyfish's, not legs: the Look Review's quality pass, note 1015.) Each chain is a cord with two finer
+    # filaments peeling off it, splaying out down its length, all on the same bones.
+    rr = [0.012 - 0.0105 * (i / (len(pts) - 1)) ** 0.7 for i in range(len(pts))]
+    hang.tube(pts, rr, 5, SKIN, (names, 6.0), ref=(1, 0, 0), cap1="point",
               shape=lambda i, j, an, p, fr: Vector(p) + (fr[0] * math.sin(an) + fr[1] * math.cos(an)) * 0.003 * math.sin(i * 3.1))
-for names, a in CURTAINS:
-    pts = [H(names[0])] + [H(n).lerp(T(n), f) for n in names for f in (0.5, 1.0)]
     out = Vector((math.sin(a), math.cos(a), 0))
-    rr = [(0.05 * (1 - 0.6 * i / (len(pts) - 1)), 0.008) for i in range(len(pts))]
-    hang.tube(pts, rr, 6, FRILL, (names, 6.0), ref=[out] * len(pts),
-              shape=lambda i, j, an, p, fr: Vector(p) + fr[1] * 0.02 * math.sin(an * 3 + i * 1.7) * abs(math.sin(an)))
+    side_ = Vector((math.cos(a), -math.sin(a), 0))
+    for m, sgn in enumerate((-1, 1)):
+        n_pts = len(pts) - 2 - m
+        fil = [pts[i] + (side_ * sgn * 0.6 + out * 0.4) * (0.006 + 0.05 * (i / n_pts) ** 1.3) for i in range(n_pts + 1)]
+        hang.tube(fil, [0.005 - 0.004 * i / n_pts for i in range(n_pts + 1)], 4, SKIN, (names, 6.0), ref=(1, 0, 0), cap1="point")
+for names, a in CURTAINS:
+    pts = [H(names[0])] + [H(n).lerp(T(n), f) for n in names for f in (0.33, 0.67, 1.0)]
+    out = Vector((math.sin(a), math.cos(a), 0))
+    # The curtains (oral arms) ruffled down both edges, the ruffles tighter toward the tips, the tips curling.
+    rr = [(0.055 * (1 - 0.55 * i / (len(pts) - 1)), 0.006) for i in range(len(pts))]
+    hang.tube(pts, rr, 8, FRILL, (names, 6.0), ref=[out] * len(pts), cap1="point",
+              shape=lambda i, j, an, p, fr: Vector(p) + fr[1] * 0.028 * math.sin(an * 2 + i * 2.3) * abs(math.sin(an)) ** 2)
 
 
 # ----------------------------------------------------------------------------------------------------------------
@@ -323,8 +347,9 @@ hit.key(2, done(trail(sing(pulse({"root": (20, 0, 30), "root@loc": (0, -0.1, 0.0
 hit.key(8, done(trail(sing(pulse({}, 0.3), 0.6), 2.0, sway=0.1)), "LINEAR")
 hit.key(12, REST, "CONSTANT")
 
-# Up toward GDD §27's budget (a swarm's, kept under 3k): rig.densify rounds the forms out (a Look Review ask).
-kit.target_tris = 2950
+# Up toward GDD §27's budget: rig.densify rounds the forms out (a Look Review ask). A swarm's, kept low; raised from 2,950 to
+# about 5,200 for the velum, the filaments and the organs (note 1015: a handful at once, each with its distance copy past 14 m).
+kit.target_tris = 5200
 kit.build()
 rig.bake(sk, [drift, swoop, seize, besiege, hit])
 print("[dt] choir", {p.name: p.tris() for p in kit.parts}, "total", kit.tris(), "bones", len(sk.bones))
