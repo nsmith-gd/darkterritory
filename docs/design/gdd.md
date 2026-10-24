@@ -1864,9 +1864,13 @@ The lamps-off answer blinds you to the Track Doll. **That contradiction is the p
 IDLE      pack of 2–4 (never more than crew size) in yards and villages
 HOP       toward the nearest group, in bursts averaging ~4 m/s
 COUNT     a group is players within 8m of each other
-IGNORE    group size ≥ pack size → no attack
+IGNORE    group size ≥ pack size → no attack; the pack still closes in and sits
+          ~10m off the nearest on foot, out of the tongues' lash, for the first
+          to walk off alone (note 1003)
 TONGUE    pack outnumbers the target and is within ~4m
           └ TELEGRAPH: throats swell, the pack halts and lines up
+          └ OUTRUN: past ~9m before the tongues fire. A run gets there, a walk
+            doesn't (note 1003)
 GRAB      target frozen, can still talk; pack hops in slowly (~8s)
           └ interrupt: friends arrive and the count evens, or bludgeon them
 PUNISH    the pack devours

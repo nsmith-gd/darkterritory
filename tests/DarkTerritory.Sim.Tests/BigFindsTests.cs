@@ -27,6 +27,8 @@ public class BigFindsTests
 
     /// <summary>The loot with loose things riding in the cars (note 719's part 4), whatever loot.json's flag says.</summary>
     static LootTuning Riding => L with { Ride = L.Ride! with { Enabled = true } };
+    /// <summary>Note 1003: the ride's grip as it was before (0.05 g, sliding 0.03 g), for the tests of what a slide does on a bend.</summary>
+    static LootTuning Icy => L with { Ride = L.Ride! with { Enabled = true, Grip = 0.05, Slide = 0.03 } };
 
     /// <summary>The loot with every frontier stop given a jackpot house and a jackpot in it, its extras all of one kind.</summary>
     static LootTuning Sure(string extra = "mantelClock") => L with
@@ -467,7 +469,8 @@ public class BigFindsTests
     [Fact]
     public void LooseFindsInACarSlideOutwardOnABendAndLieStillOnTheStraight()
     {
-        var (world, car, side) = OnABend(Riding);
+        // The mechanic, on the old icy grip (note 1003 raised it: the next test).
+        var (world, car, side) = OnABend(Icy);
 
         var find = Lying(world, car, 0, 0);
         // Settled where they're put, at the bend's speed: 18 m/s round under 500 m is over the grip.
@@ -488,6 +491,27 @@ public class BigFindsTests
         var at = lying.Centre;
         Ride(still, 18, 3);
         Assert.True(Math.Abs(lying.Centre.X - at.X) < 0.05, $"moved {lying.Centre - at}");
+    }
+
+    /// <summary>
+    /// Note 1003 (the director's playtest of 23 Oct, line 31: "it slides really easily, like it's sitting on ice"): on loot.json's
+    /// own grip a find lying loose holds where it was put round a bend at line speed (felt at 0.05-0.16 g).
+    /// </summary>
+    [Fact]
+    public void OnTheRidesOwnGripALooseFindHoldsRoundABendAtAnySpeed()
+    {
+        foreach (double speed in new[] { 12.0, 18, 22 })
+        {
+            var (world, car, _) = OnABend(Riding);
+            // Brought up to the bend's speed in the test's one tick (a snatch no train makes), then round it.
+            Ride(world, speed, 1);
+            // Put down, it drops to the floor (drifting outward as it falls, as anything does in the air in a turning car).
+            var find = Lying(world, car, 0, 0);
+            Ride(world, speed, 3);
+            var at = find.Centre;
+            Ride(world, speed, 4);
+            Assert.True((find.Centre - at).Length < 0.05, $"at {speed} m/s it moved {(find.Centre - at).Length:0.00} m");
+        }
     }
 
     [Fact]
@@ -533,7 +557,7 @@ public class BigFindsTests
     [Fact]
     public void OneByAnOpenSideDoorOnTheBendsOutsideFallsOutAndIsntPaidFor()
     {
-        var (world, car, side) = OnABend(Riding);
+        var (world, car, side) = OnABend(Icy);
         var shape = world.Train.Frames[car.Id].Shape;
         var room = shape.Interior!.Value;
         var door = shape.DoorList.First(d => d.Box.Max.Z - d.Box.Min.Z > d.Box.Max.X - d.Box.Min.X && Math.Sign(d.Box.Centre.X) == side);

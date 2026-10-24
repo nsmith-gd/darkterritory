@@ -2701,9 +2701,13 @@ public static partial class Hud
             return train.Vehicles[jumped].Pinned ? Hold("DRIVE THE PIN HOME", p.ActionProgress / jt.Jump.DriveSeconds)
                 : "HOLD THE PIN : HOLD [E]   TAKES TWO: BRAKE WHEEL OR THROTTLE SHUT";
         // A loose coupling (note 356): the wrench in the gap tightens it; without it in hand, the key that puts it there.
-        if (train.Loose is { Enabled: true } lt && Couplings.Within(p, train, lt) is not null)
+        // Note 1003 (the director's playtest of 23 Oct, line 30: "I don't know why that coupling is loose"): it says what did it.
+        if (train.Loose is { Enabled: true } lt && Couplings.Within(p, train, lt) is { } gap)
+        {
+            string loose = Couplings.CauseWords(train.Vehicles[gap].LooseCause) is { } why ? $"THE COUPLING'S LOOSE ({why})" : "THE COUPLING'S LOOSE";
             return Couplings.Tightens(p, train) ? Hold("TIGHTEN THE COUPLING", p.ActionProgress / lt.TightenSeconds)
-                : Repairs.WrenchKey(p) is var wrench and > 0 ? $"THE COUPLING'S LOOSE   WRENCH : [{wrench}]" : "THE COUPLING'S LOOSE   NO WRENCH";
+                : Repairs.WrenchKey(p) is var wrench and > 0 ? $"{loose}   WRENCH : [{wrench}]" : $"{loose}   NO WRENCH";
+        }
         if (p.Parent > 0 && p.Parent < train.Frames.Count && train.Vehicles[p.Parent].Breached && PlayerMotor.Indoors(p, train))
             return "THE CAR'S BREACHED";
         // Sat in a Muskoka chair on the BBQ deck (note 698): getting up is all there is to do.

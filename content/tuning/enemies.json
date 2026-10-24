@@ -341,7 +341,17 @@
     // minCrew (note 795, was 2): a crew of one meets a lone Ribbit (the pack is never more than the crew); it can struggle
     // free of the tongue (grab.soloStruggleChance).
     "packSize": [2, 4], "minCrew": 1, "hopSpeed": 4, "groupRadius": 8, "tongueReach": 4, "devourSeconds": 8, "giveUpBeyond": 45,
-    "spawnOut": 35, "health": 2, "perGroundWeight": 0.5, "fan": 100, "ringOut": 1.05, "fanFrom": 10, "spacing": 1.15
+    "spawnOut": 35, "health": 2, "perGroundWeight": 0.5, "fan": 100, "ringOut": 1.05, "fanFrom": 10, "spacing": 1.15,
+    // Note 1003 (the director's playtest of 23 Oct, lines 24-25: "they should start moving towards us, they should put
+    // pressure on us"; "if I just like walk backwards from them, they always get up to rear on their back legs ... But just
+    // my walking pace can defeat them"). tongueLash: out past it in the telegraph (minReactionSeconds, 1.5 s), the catch has
+    // outrun the tongues; it was 1.5 × tongueReach (6 m), and a walk (player.json walk, 2.4 m/s) backward from tongueReach
+    // made 7.6 m, so the pack reared, broke off, hopped up and reared again for as long as you walked. At 9 a walk is
+    // tongued and a run (5.5 m/s, 12.25 m) still gets away. stalkAt: a pack with nobody it outnumbers no longer sits where
+    // it came out: it closes in on the nearest crewmate on foot within stalkFrom m (its sight; a warren's pack comes out up to
+    // sites.warrenReach and more from the crew, past giveUpBeyond, and sat there) and sits stalkAt m off them (out of the
+    // lash), till one walks off alone; stalkAt 0, it sits where it is (as before).
+    "tongueLash": 9, "stalkAt": 10, "stalkFrom": 120
   },
 
   // GRUMBLER · sound · corrupted human (App. A.8, B.8). Gnaws the food crates at a facility; hit, it hunts the last to hit
