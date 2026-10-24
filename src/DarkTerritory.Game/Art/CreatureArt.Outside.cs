@@ -31,7 +31,7 @@ public sealed partial class CreatureArt
     void ForgetOutside()
     {
         (_mournerMode, _beetleMode, _towerJawMode, _outsideSince, _outsidePace) = (null, null, null, -1, 0);
-        (_pickerMode, _lodgerMode, _householderMode, _mouseMooseMode) = (null, null, null, null);
+        (_pickerMode, _lodgerMode, _householderMode, _mouseMooseMode, _bruinMode, _tapperMode) = (null, null, null, null, null, null);
     }
 
     /// <summary>The live enemy's mode and pace for its draw; the basis it's drawn at (Tower Jaw set back of its jaws).</summary>
@@ -54,6 +54,12 @@ public sealed partial class CreatureArt
                 return model;
             case MouseMoose mm:
                 _mouseMooseMode = mm.Mode;
+                return model;
+            case Bruin br:
+                _bruinMode = br.Mode;
+                return model;
+            case Tapper tp:
+                _tapperMode = tp.Mode;
                 return model;
             case Lodger l:
                 _lodgerMode = l.Mode;
@@ -168,6 +174,12 @@ public sealed partial class CreatureArt
             case EnemyKind.MouseMoose:
                 // (Its boxes, where its model isn't there: CreatureArt.MouseMoose.cs.)
                 return MouseMooseStandIn(mesh, model, _mouseMooseMode ?? MouseMooseModeOf(phase), since);
+            case EnemyKind.Bruin:
+                // THE BRUIN (note 1007; CreatureArt.Bruin.cs): its boxes, until it's modelled.
+                return BruinStandIn(mesh, model, _bruinMode ?? BruinModeOf(phase), since);
+            case EnemyKind.Tapper:
+                // THE TAPPER (note 1011; CreatureArt.Tapper.cs; a roof creature, drawn here with the other stand-ins): its boxes.
+                return TapperStandIn(mesh, model, _tapperMode ?? TapperModeOf(phase), since);
             case EnemyKind.Waker when _models.ContainsKey("waker"):
                 // THE WAKER, the Peat Man (note 679; tools/blender/waker.py; CreatureArt.Waker.cs).
                 return DrawWaker(mesh, model, phase, t, extra);

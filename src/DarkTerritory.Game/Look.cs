@@ -275,6 +275,12 @@ public sealed record DamageTuning
 
     /// <summary>How much of the scar mask shows, 0..1.</summary>
     public float ScarOf(double integrity) => Math.Clamp((ScarsFrom - (float)integrity) / Math.Max(1e-3f, ScarsFrom - ScarsFull), 0, 1);
+
+    /// <summary>The bite's fractions (BiteTuning.Fraction) at which an eaten car's holes go to each level (note 1014).</summary>
+    public float[] EatenHoles { get; init; } = [0.15f, 0.35f, 0.6f];
+
+    /// <summary>How holed a car being eaten is by its bite's fraction alone: 0 none, to DamageKit.MostHoles.</summary>
+    public int HolesOfEaten(double fraction) => EatenHoles.Count(f => fraction >= f);
 }
 
 public sealed record LookTuning

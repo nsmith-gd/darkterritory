@@ -1,0 +1,9 @@
+// Queue #712's measurement (note 1007): the shipping content with the Bruin on (bruin.on), until the director answers
+// nathaniel2-sloe-forest-heavies. `dt --edition r712-bruin director sweep ...`. Measurement only; never shipped.
+{
+  "id": "edition-r712-bruin",
+  "name": "r712-bruin",
+  "version": "1.0.0",
+  "description": "the Bruin on: enemies.json bruin.on (#712, note 1007)",
+  "order": -1000
+}

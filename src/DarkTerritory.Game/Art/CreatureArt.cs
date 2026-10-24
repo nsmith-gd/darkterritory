@@ -2194,11 +2194,11 @@ public sealed partial class CreatureArt
                 }
             case EnemyKind.Climber when _models.ContainsKey("climber"):
                 {
-                    // The Climbers (GDD v1.2 §21, App. A.4; tools/blender/climber.py; note 136): long, low, soot-black, six
-                    // limbs splayed like a gecko's, hooked hands, an eyeless wedge of a head with a lamprey's sucker under
-                    // it. Pacing the train it runs low, snaking; at a gap it goes up between the cars, facing in (Enemy(e)
-                    // turns it); on the roofs it creeps flattened for the engine; inside an unlit car (extra −1) it waits
-                    // folded in a corner; on a lone player it rears over them, the sucker on their face.
+                    // The Climbers (GDD v1.2 §21, App. A.4; tools/blender/climber.py; notes 136, 1015): a starved, mangy
+                    // climbing thing a man's length, long-fingered hands, a lipless weasel's skull. Pacing the train it
+                    // bounds; at a gap it goes up between the cars hand over hand, facing in (Enemy(e) turns it); on the
+                    // roofs it slinks for the engine; inside an unlit car (extra −1) it stands up on its hind legs and
+                    // watches; on a lone player it rears onto them, its hands over their head, its jaws at their face.
                     bool inside = extra < 0;
                     string clip = phase switch
                     {
@@ -3415,7 +3415,7 @@ public sealed partial class CreatureArt
                 m = Matrix4x4.CreateRotationY(-MathF.Sign((float)e.Extra2 == 0 ? 1 : (float)e.Extra2) * MathF.PI / 2) * model;
                 break;
             case EnemyKind.Mourners or EnemyKind.FreightBeetle or EnemyKind.TowerJaw or EnemyKind.Pickers or EnemyKind.Lodger or EnemyKind.Householder
-                or EnemyKind.MouseMoose:
+                or EnemyKind.MouseMoose or EnemyKind.Bruin or EnemyKind.Tapper:
                 // What it's doing (the sim's mode) and how fast it's going (CreatureArt.Outside.cs).
                 m = OutsideIn(e, model, pace);
                 break;

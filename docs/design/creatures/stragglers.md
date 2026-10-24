@@ -61,7 +61,7 @@ built to be numerous and individually weak, so it scales by count, not lethality
 
 - **Stragglers + Hotbox / Knotter:** both are only answered at a stand; the gang comes for every second you stand.
 - **Stragglers + Whistler:** the Whistler strikes only at a stand, from a gap, while everyone's at the doors.
-- **Stragglers + Pickers / Mouse Moose:** the crates go down the drains while you hold the steps.
+- **Stragglers + Pickers / Moose Mouse:** the crates go down the drains while you hold the steps.
 - **Stragglers + the Choir:** shoving them off is loud.
 
 ## 8. Early versus late
@@ -92,5 +92,5 @@ art, one sound.
 
 1. Do they board, or only hold the train (a crowd on the steps that has to be shoved off before it can leave)? Moth's
    call: they board, so the fight comes aboard.
-2. At the yards too, or only halts and villages (the yards have the Pickers and the Mouse Moose)? Moth's call: everywhere,
+2. At the yards too, or only halts and villages (the yards have the Pickers and the Moose Mouse)? Moth's call: everywhere,
    fewer at a yard.

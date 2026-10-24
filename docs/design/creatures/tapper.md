@@ -1,6 +1,6 @@
 # THE TAPPER — the hand on the gunner's shoulder
 
-*Creature proposal, Sloe (queue #709, ARCHITECTURE §8 note 1004), 23 Oct 2026, for the director's rule "every creature's purpose is to foil some sort of behavior" (`docs/playtest/2026-10-23.md` line 36). **Status: a proposal for the director; nothing is built until the director approves it.** Numbers are a first pass in the roster's units.*
+*Creature proposal, Sloe (queue #709, ARCHITECTURE §8 note 1004), 23 Oct 2026, for the director's rule "every creature's purpose is to foil some sort of behavior" (`docs/playtest/2026-10-23.md` line 36). **Status: built behind a flag, off, awaiting the director's verdict** (`enemies.json` `tapper.on`; the `r714-tapper` edition turns it on; Rook, queue #714, note 1011). Numbers are a first pass in the roster's units.*
 
 > **When it taps, look round. Or have someone at your back.**
 

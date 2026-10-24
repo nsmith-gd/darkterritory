@@ -223,12 +223,29 @@ def shift_marks(p, kind):
     return out
 
 
+KNEE = g["KNEE"]
+MOUTH_Z = float(HC[2] - 0.6 * HR[2])
+
+
 def glass_and_blotch(p, kind):
-    """R: the eyes' glass; G: the skin's blotching, uneven as old plaster is; B: nothing."""
+    """R: the eyes' glass; G: the skin's blotching, uneven as old plaster is; B: what's dead in it (note 1015's pass
+    "for more creepies"): the blood pooled livid in its shins and its feet, as in a body that's lain, bruises in blotches
+    at the joints, and dark streaks run down from the eyes and the sewn mouth, over the chin and down the throat."""
     out = np.zeros((len(p), 3), np.float32)
     out[:, 0] = kind.startswith("glass_dirty.tippy_eye")
     if kind.startswith("skin.tippy"):
         out[:, 1] = np.clip(0.5 + 0.35 * cook.noise_np(p, 801, 6.0) + 0.15 * cook.noise_np(p, 802, 25.0), 0, 1)
+        livid = smooth01(KNEE - 0.05, 0.1, p[:, 2]) * (0.55 + 0.45 * cook.noise_np(p, 803, 7.0))
+        bruise = smooth01(0.55, 0.85, cook.noise_np(p, 804, 3.5)) * 0.7
+        front = smooth01(HC[1] + 0.02, HC[1] + 0.07, p[:, 1])
+        streak = np.zeros(len(p), np.float32)
+        for e in EYES.values():
+            wob = 0.004 * np.sin(p[:, 2] * 90 + e[0] * 50)
+            streak = np.maximum(streak, bell((p[:, 0] - e[0] - wob) / 0.005) * smooth01(e[2] - 0.16, e[2] - 0.01, p[:, 2]) * front)
+        seep = bell((p[:, 0] + 0.006 * np.sin(p[:, 2] * 60)) / 0.012) * smooth01(TOP - 0.1, MOUTH_Z, p[:, 2]) * smooth01(MOUTH_Z + 0.01, MOUTH_Z - 0.005, p[:, 2])
+        seep *= smooth01(-0.02, 0.03, p[:, 1])
+        # (One channel for both: up to 0.4 the lividity and the bruises, over it the streaks.)
+        out[:, 2] = 0.4 * np.clip(np.maximum(livid, bruise), 0, 1) + 0.6 * np.clip(1.3 * np.maximum(streak, seep), 0, 1)
     return out
 
 
@@ -294,9 +311,12 @@ base = paint(base, (0.1, 0.075, 0.09), face[..., 0] * 0.8)        # bruised sock
 base = paint(base, (0.19, 0.11, 0.1), face[..., 2] * 0.7)         # raw rims
 base = paint(base, (0.13, 0.1, 0.095), face[..., 1] * 0.75)       # the pucker
 base = paint(base, (0.2, 0.17, 0.1), cloth[..., 1] * 0.3)         # linen gone yellow
-base = paint(base, (0.07, 0.04, 0.025), cloth[..., 0] * 0.7)      # the stain
+base = paint(base, (0.06, 0.03, 0.02), cloth[..., 0] * 0.9)       # the stain (darker since note 1015)
 base = paint(base, (0.05, 0.045, 0.04), cloth[..., 2] * 0.5)      # grime in the folds
 base = paint(base, (0.035, 0.03, 0.028), skin[..., 1] * 0.85)     # dirt
+dead = glass[..., 2]
+base = paint(base, (0.16, 0.13, 0.18), np.clip(dead / 0.4, 0, 1) * 0.55)       # livid, bruised (note 1015)
+base = paint(base, (0.05, 0.03, 0.03), np.clip((dead - 0.4) / 0.6, 0, 1) * 0.85)  # the streaks from the eyes and the mouth
 
 # Dry skin, the bone's drawn skin a little glossier, wet eyes and a wet pucker; the linen and the hair dull.
 rough = np.full(base.shape[:2], 0.9, np.float32)

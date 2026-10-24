@@ -2959,12 +2959,34 @@ public sealed partial class GreyboxScene
             back = Double3.Cross(right, Double3.Up).Normalized;
         }
         else if (e.Kind is EnemyKind.Moose or EnemyKind.Gannet or EnemyKind.Mourners or EnemyKind.FreightBeetle or EnemyKind.TowerJaw
-                     or EnemyKind.Pickers or EnemyKind.Lodger or EnemyKind.Householder or EnemyKind.MouseMoose or EnemyKind.Waker && e.Attached == Enemy.Loose)
+                     or EnemyKind.Pickers or EnemyKind.Lodger or EnemyKind.Householder or EnemyKind.MouseMoose or EnemyKind.Bruin or EnemyKind.Waker && e.Attached == Enemy.Loose)
         {
             // The Moose goes its own way (note 339): it faces its heading (Moose.Yaw, a player's yaw: −Z at 0), not the train.
             // So does a Gannet down on someone on the ground (note 340), and the Mourners, the Freight Beetle and Tower Jaw
             // (their Lateral; notes 362, 366, 363), the Pickers and the house creatures (notes 574, 583, 584).
             origin = e.Local;
+            back = new Double3(Math.Sin(e.Lateral), 0, Math.Cos(e.Lateral));
+            right = Double3.Cross(Double3.Up, back).Normalized;
+        }
+        else if (e.Kind == EnemyKind.Tapper && e.Attached >= 0)
+        {
+            // The Tapper on its car's roof (note 1011): facing along the car toward the gunner (its Lateral is which way's behind
+            // them, so it faces the other way).
+            if (e.Attached >= frames.Count)
+                return;
+            var f = frames[e.Attached];
+            origin = f.ToWorld(e.Local);
+            up = f.Up;
+            back = f.Back * (e.Lateral >= 0 ? 1 : -1);
+            right = Double3.Cross(up, back).Normalized;
+        }
+        else if (e.Kind == EnemyKind.Bruin && e.Attached >= 0)
+        {
+            // The Bruin in its car (note 1007): on the car's floor, facing its heading (its Lateral: a world yaw, as loose).
+            if (e.Attached >= frames.Count)
+                return;
+            var f = frames[e.Attached];
+            origin = f.ToWorld(e.Local);
             back = new Double3(Math.Sin(e.Lateral), 0, Math.Cos(e.Lateral));
             right = Double3.Cross(Double3.Up, back).Normalized;
         }
@@ -3116,6 +3138,59 @@ public sealed partial class GreyboxScene
                     Draw(0, 0.36, -0.3, 0.04, 0.03, 0.06, Palette.IronGrey * 0.5f);
                     foreach (double x in new[] { -0.11, 0.11 })
                         Draw(carrying ? x * 3.6 : x, carrying ? 0.6 : 0.2, carrying ? 0 : -0.15, 0.02, 0.2, 0.02, Palette.SootBlack);
+                    break;
+                }
+            case EnemyKind.Bruin:
+                {
+                    // A great rotten bear (note 1007): on all fours, shoulder-high to a man, moss-grey; rising, up on its hind legs
+                    // with its head in the roof; the opened chest's pale thing showing. Until it's modelled (it still needs its
+                    // rig and clips: come, climb, feed, rise, charge, maul, turn, stagger, death).
+                    var mode = e is Sim.Enemies.Bruin bruin ? bruin.Mode : Sim.Enemies.BruinMode.Come;
+                    var moss = Palette.IronGrey * 0.55f;
+                    if (mode is Sim.Enemies.BruinMode.Rise or Sim.Enemies.BruinMode.Maul)
+                    {
+                        Draw(0, 1.1, 0.1, 0.55, 0.85, 0.45, moss);
+                        Draw(0, 2.05, -0.15, 0.3, 0.28, 0.32, moss);
+                        Draw(0, 1.3, -0.4, 0.22, 0.3, 0.06, Palette.BoardEnamel * 0.8f);
+                        foreach (double x in new[] { -0.7, 0.7 })
+                            Draw(x, 1.7, -0.5, 0.14, 0.14, 0.5, moss);
+                        foreach (double x in new[] { -0.3, 0.3 })
+                            Draw(x, 0.25, 0.2, 0.16, 0.25, 0.18, moss);
+                    }
+                    else
+                    {
+                        bool staggered = mode == Sim.Enemies.BruinMode.Stagger;
+                        Draw(staggered ? 0.15 : 0, 0.95, 0.1, 0.6, 0.45, 1.1, moss);
+                        Draw(0, 1.0, -1.25, 0.3, 0.28, 0.35, moss);
+                        Draw(0, 0.75, -0.75, 0.25, 0.2, 0.05, Palette.BoardEnamel * 0.8f);
+                        foreach (double x in new[] { -0.4, 0.4 })
+                            foreach (double z in new[] { -0.7, 0.8 })
+                                Draw(x, 0.28, z, 0.15, 0.28, 0.15, moss);
+                    }
+                    break;
+                }
+            case EnemyKind.Tapper:
+                {
+                    // A long folded thing with arms twice its length (note 1011): flat on the roof like a broken umbrella, crawling or
+                    // flinched; up on its knees at the tap, an arm out over the gunner's shoulder; lifting, both arms up. Until it's
+                    // modelled (it still needs its rig and clips: crawl, tap, reach, lift, flinch, knocked, death).
+                    var mode = e is Sim.Enemies.Tapper tapper ? tapper.Mode : Sim.Enemies.TapperMode.Crawl;
+                    var grey = Palette.BoardEnamel * 0.5f;
+                    if (mode is Sim.Enemies.TapperMode.Crawl or Sim.Enemies.TapperMode.Flinch)
+                    {
+                        Draw(0, 0.12, 0, 0.25, 0.1, 0.5, grey);
+                        Draw(0, 0.15, -0.55, 0.1, 0.08, 0.1, grey);
+                        foreach (double x in new[] { -0.6, 0.6 })
+                            Draw(x, 0.08, -0.2, 0.45, 0.03, 0.03, grey);
+                    }
+                    else
+                    {
+                        bool lifting = mode == Sim.Enemies.TapperMode.Lift;
+                        Draw(0, 0.6, 0, 0.18, 0.55, 0.15, grey);
+                        Draw(0, 1.25, -0.05, 0.09, 0.1, 0.09, grey);
+                        foreach (double x in new[] { -0.25, 0.25 })
+                            Draw(x, lifting ? 1.7 : 1.05, lifting ? -0.2 : -0.9, 0.03, lifting ? 0.6 : 0.03, lifting ? 0.03 : 0.8, grey);
+                    }
                     break;
                 }
             case EnemyKind.HeadWaiter:
@@ -5217,7 +5292,7 @@ public sealed partial class GreyboxScene
                     tagged |= 1u << b.Locker;
         if (Look is not null && Look.Art.Car(mesh, frame, eye, vehicle, Emergency, Tick, CutEnds(frame.Index), burnt?.Char ?? 0, utility, openLockers, Handrails,
             dark: frame.Shape.Cab is null && (CarDark(frame.Index) || frame.Index >= (Vehicles?.Count ?? int.MaxValue) - LampsOut), taggedLockers: tagged, paint: Livery,
-            failing: StageOf(vehicle)))
+            failing: StageOf(vehicle), ruptured: Ruptured))
         {
             if (engine)
                 Look.Art.Gear(mesh, frame, eye, _travelled, Emergency ? 0.06f : 1);

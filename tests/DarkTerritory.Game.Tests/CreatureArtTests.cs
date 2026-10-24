@@ -65,13 +65,17 @@ public class CreatureArtTests(CreatureArtTests.TurntableRig rig) : IClassFixture
         // A large monster (GDD §27: 8-16k is the ceiling), on a chain: a spine of four, the mouth and its teeth rings, four arms.
         ["car_hugger"] = new(4000, 14000, 20, 40, ["lurk", "feed", "swallow"], ["latch", "release", "hit"]),
         // A character (App. A.5), SK_Human stretched: over two metres on its points, so it stoops indoors and ducks through doors.
-        ["tippy_toesie"] = new(3000, 9000, 20, 60, ["stalk", "wait", "flee", "smother", "stoop", "stalk_stoop", "duck"], ["hit", "recoil"]),
+        // Up to a character's 10k (GDD §27) since the Look Review's pass "for more creepies" (note 1015): its hair, its
+        // sewn mouth and its claws, and more of its ribs kept in the fused skin.
+        ["tippy_toesie"] = new(3000, 10000, 20, 60, ["stalk", "wait", "flee", "smother", "stoop", "stalk_stoop", "duck"], ["hit", "recoil"]),
         // A character (App. A.4), SK_Human stretched, its right forearm long for the cord: it folds up to fit a coupling gap.
         ["whistler"] = new(3000, 9000, 20, 60, ["fold", "whistle", "watch", "run", "carry"], ["hit"]),
         // A beast's (App. A.6), on its own rig (SK_Ribbit): a throat sac to swell, a jaw, a tongue, long ears.
         ["ribbit"] = new(2000, 8000, 20, 40, ["sit", "hop", "swell", "tongue", "creep", "devour"], ["hit"]),
-        // A swarm's (App. A.7): several at once, so light; SK_Human at a child's size, the legs hidden in its strips.
-        ["choir"] = new(1000, 3000, 20, 60, ["drift", "swoop", "seize", "besiege"], ["hit"]),
+        // A swarm's (App. A.7): several at once, so light; SK_Choir, a bell, its rim's flaps, six tendrils and three curtains.
+        // Up to 6k since the Look Review's quality pass (note 1015): the velum's lappets, the filaments and the organs (a
+        // handful at once, each with its distance copy past 14 m).
+        ["choir"] = new(1000, 6000, 20, 60, ["drift", "swoop", "seize", "besiege"], ["hit"]),
         // A character (App. A.6), SK_Human stretched to near three metres: down on its arms and squatted aboard (note 118).
         ["gaunt"] = new(3000, 9000, 20, 60, ["sleep", "follow", "listen", "attack", "crawl", "squat", "smash", "carry", "carry_low"], ["stir", "hit"]),
         // A character's (App. A.8), SK_Human with a jaw and a second pair of arms out of its ribs: down like a spider.
@@ -80,7 +84,8 @@ public class CreatureArtTests(CreatureArtTests.TurntableRig rig) : IClassFixture
         ["stoker"] = new(1500, 5000, 20, 40, ["peer", "reach"], ["hit"]),
         // A hand's (App. A.6), on its own rig (SK_Follower: a palm, a stump, five three-boned fingers, a mouth): hand-sized.
         ["follower"] = new(600, 3000, 15, 25, ["cling", "crawl", "nest"], ["hit"]),
-        // A character's (App. A.4), SK_Human drawn out: one of the crew, the gas mask grown into its face.
+        // A character's (App. A.4), kept light for a pack: SK_Climber, a starved, mangy climbing thing on four limbs, a
+        // jaw and a tail (redone, note 1015).
         ["climber"] = new(2000, 9000, 20, 60, ["run", "scrabble", "walk", "crouch", "grab"], ["hit"]),
         // A swarm's (App. A.5): a moth, up to a couple of dozen of them at a lamp, so light; on its own rig (SK_FireFly).
         ["fire_fly"] = new(600, 1500, 10, 20, ["flutter", "settle"], []),

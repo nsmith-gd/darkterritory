@@ -63,6 +63,10 @@
     "bendSeconds": 2,
     "holds": true,
     "partAfter": 90,
+    // Note 1003 (the director's playtest of 23 Oct, line 30: "I can hear the sound of one of the couplings is loose ... I don't
+    // know why"): the line at the jump lasts news.seconds, the knock partAfter. At retellAt s of knocking the crew are told
+    // again, "COUPLING STILL LOOSE BEHIND CAR 3 · A HARD BRAKE AT 54 KM/H"; 0 never. A jumped pin's told twice already.
+    "retellAt": 45,
     "tightenSeconds": 4,
     "reach": 2.2,
     // Two on the run (note 865, queue #592; Otis's call 5 in note 861, the director, 19 Oct: "Yes but not on solo nights";

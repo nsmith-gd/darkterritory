@@ -1,4 +1,8 @@
-# The Mouse Moose
+# The Moose Mouse
+
+*Renamed by the director on the Look Review, 23 Oct 2026: "rename them Moose Mouse" (note 1015). The quote below keeps its
+first name; the code keeps `MouseMoose`, `mouseMoose` and `mouse_moose` (the wire, the recordings and the Tweaker are keyed by
+them).*
 
 *The director, 15 Oct 2026 (A1's chat); built by A1, queue #515, ARCHITECTURE §8 note 790. GDD §21.*
 

@@ -215,9 +215,9 @@ public sealed record JackpotHouseTuning
 public sealed record RideTuning
 {
     public bool Enabled { get; init; }
-    public double Grip { get; init; } = 0.05;
+    public double Grip { get; init; } = 0.2;
     public double StackGrip { get; init; } = 0.3;
-    public double Slide { get; init; } = 0.03;
+    public double Slide { get; init; } = 0.2;
     public double HeavyGrip { get; init; } = 2;
     public int LiveCap { get; init; } = 12;
     public double MaxFelt { get; init; } = 12;

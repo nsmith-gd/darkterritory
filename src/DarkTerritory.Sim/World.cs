@@ -501,7 +501,8 @@ public sealed partial class World
         Train.SeizedRepair = tuning.Hotbox;
         if (!authority)
             return;
-        Director = new Director(tuning.Director, route, seed, Train.Dynamics.Consist.CarCount, crew);
+        Director = new Director(tuning.Director, route, seed, Train.Dynamics.Consist.CarCount, crew,
+            [.. Spawns.Rules.Where(r => r.Enabled?.Invoke(tuning) == false).Select(r => Director.Key(r.Kind))]);
         Encounters = new EncounterLog(tuning.Director.Telemetry, tuning.Director.Threats);
         // Note 266: off unless a mod brings them back (the director's decision, 2026-10-06).
         if (route is not null && tuning.Sleepers.Enabled && Director.Allows(EnemyKind.Sleepers))
@@ -2466,6 +2467,15 @@ public sealed partial class World
             int parted = pins.Step(Train, Math.Max(1, _actors.Count(a => a.State.Alive)), SafeYard || TrainInFort || CallOnly, pack, _actors, Hand);
             if (pins.Loosened is { } l)
                 PinLoosened(l.Car, l.Cause, l.Speed, l.Cause == LooseCause.Bend ? Train.LurchBoardKmh : 0);
+            // Note 1003: still knocking, told again what did it, as it was said at the jump.
+            if (pins.Retold >= 0 && Attribution.LoosenedPin(pins.Retold) is { } still)
+            {
+                var news = new Sim.Run.NewsEvent(_nextFx, Tick, Sim.Run.NewsKind.StillLoose, [pins.Retold], (byte)still.Cause,
+                    (byte)Math.Clamp(still.Board, 0, 255), still.Driver, still.Speed);
+                NewsLog.Add(news);
+                News.Add(news);
+                _nextFx = _nextFx % 0xFFFFFF + 1;
+            }
             // Note 865: a jumped pin let go by one of the two: the report and the line name who, and what they let go of.
             if (pins.LetGo is { } letGo)
                 Attribution.LetGo(letGo.Car, letGo.How, letGo.Who, letGo.Speed);
