@@ -47,8 +47,7 @@ public static class Onboarding
             $"USE : {K(Control.Use)}   SWING : {K(Control.Swing)}   LADDER : {K(Control.Ladder)}",
             // Note 985 (the TBM, before the director's multiplayer try): the mic's open unless PUSH TO TALK's on, and a card
             // saying HOLD [V] had friends holding a key that does nothing.
-            // Note 1019: on speakers an open mic sends the crew their own voices back (the director's guest, 24 Oct).
-            $"TALK : {(keys.PushToTalk ? $"{Hold(Control.Talk)}{K(Control.Talk)}" : "JUST TALK (HEADPHONES RECOMMENDED)")}   RADIO : {Hold(Control.Radio)}{K(Control.Radio)}",
+            $"TALK : {(keys.PushToTalk ? $"{Hold(Control.Talk)}{K(Control.Talk)}" : "JUST TALK")}   RADIO : {Hold(Control.Radio)}{K(Control.Radio)}",
             $"CREW : {Hold(Control.Roster)}{K(Control.Roster)}   ROUTE CARD : {K(Control.RouteCard)}   SUPPLIES : {K(Control.Supplies)}",
             $"MENU : [ESC]",
         ];

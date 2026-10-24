@@ -102,13 +102,13 @@ public sealed class FirstNightsTests : IDisposable
     [Fact]
     public void WithTheMicOpenHeadphonesAreRecommended()
     {
-        // Note 1019 (the director, 24 Oct: a guest heard their own voice back off a crewmate's speakers): said on the yard's card
-        // a new player's first nights, and on SETTINGS' VOICE line.
-        Assert.Contains(Onboarding.Card(new Settings()), r => r.Contains("JUST TALK (HEADPHONES RECOMMENDED)", StringComparison.Ordinal));
-        Assert.DoesNotContain(Onboarding.Card(new Settings { PushToTalk = true }), r => r.Contains("HEADPHONES", StringComparison.Ordinal));
+        // Note 1019 (the director, 24 Oct: a guest heard their own voice back off a crewmate's speakers): said on SETTINGS' VOICE
+        // line while it's OPEN MIC. (Not on the yard's card: its TALK row would break in two at the largest TEXT SIZE in a small
+        // window, and the card run off the screen, TextSizeTests.)
         var m = Menu(_dir);
         m.Show(Screen.Settings);
         Assert.Contains(m.Items, i => i.Label == "VOICE: OPEN MIC" && i.Detail is { } d && d.StartsWith("Headphones recommended with OPEN MIC", StringComparison.Ordinal));
+        Assert.DoesNotContain(m.Items, i => i.Label.StartsWith("VOICE: PUSH", StringComparison.Ordinal) && i.Detail is not null);
     }
 
     [Fact]
