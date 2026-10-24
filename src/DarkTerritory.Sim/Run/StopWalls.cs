@@ -25,6 +25,12 @@ public readonly record struct Wall(Double3 Centre, Double3 Axis, double HalfLeng
     /// <summary>Which coaling tower it's part of (1 up; 0 for none): it stands only while the tower does (<see cref="StopWalls.Fell"/>).</summary>
     public int Tower { get; init; }
 
+    /// <summary>
+    /// A house with floors' floor, step, lintel or rail (note 1005): stood on or walked under, never in a bot's way across
+    /// the ground floor (<see cref="Bots.FootPath"/>).
+    /// </summary>
+    public bool Level { get; init; }
+
     /// <summary>Which stop building it's part of (1 up, alike on every machine; 0 for none): all of a building's walls share its axis.</summary>
     public int Owner { get; init; }
 
@@ -188,10 +194,23 @@ public sealed partial class StopWalls
     /// against a side wall, the cellar's hatch and the loose floorboards out on the floor, a second of a kind across the
     /// room from the first. Never in the doorway.
     /// </summary>
-    public static (double X, double Y) InsideLocal(StopBuilding b, ContainerKind kind, int index)
+    /// <summary>Where a container's find lies inside its open house, in its own frame (<see cref="InsideLocal(StopBuilding, ContainerKind, int, int)"/>; on its floor and in its slot, note 1005).</summary>
+    public static (double X, double Y) InsideLocal(StopBuilding b, StopContainer c) => InsideLocal(b, c.Kind, Storeyed(b) ? c.Slot : c.Index, c.Level);
+
+    /// <summary>What a container's kept in in its open house (<see cref="Kept(StopBuilding, ContainerKind, int, int)"/>; on its floor and in its slot, note 1005).</summary>
+    public static (double X, double Y, double FaceX, double FaceY) Kept(StopBuilding b, StopContainer c) => Kept(b, c.Kind, Storeyed(b) ? c.Slot : c.Index, c.Level);
+
+    /// <param name="index">The container's index (in a house of floors, its <see cref="StopContainer.Slot"/>).</param>
+    /// <param name="level">Which floor it's on (note 1005; <see cref="StopContainer.Level"/>).</param>
+    public static (double X, double Y) InsideLocal(StopBuilding b, ContainerKind kind, int index, int level = 0)
     {
         if (OpenShed(b))
             return ShedFind(b, kind, index);
+        if (Storeyed(b))
+        {
+            var k = KeptStoreyed(b, kind, index, level);
+            return (k.FindX, k.FindY);
+        }
         if (Composite(b))
         {
             var k = KeptComposite(b, kind, index);
@@ -221,10 +240,17 @@ public sealed partial class StopWalls
     /// wall or the cabinet on a side wall (each with its find out in front of it), or the hatch or the boards (under it), and
     /// the way it faces into the room (a unit vector). The art stands the furniture here, and a searched one is drawn opened.
     /// </summary>
-    public static (double X, double Y, double FaceX, double FaceY) Kept(StopBuilding b, ContainerKind kind, int index)
+    /// <param name="index">The container's index (in a house of floors, its <see cref="StopContainer.Slot"/>).</param>
+    /// <param name="level">Which floor it's on (note 1005; <see cref="StopContainer.Level"/>).</param>
+    public static (double X, double Y, double FaceX, double FaceY) Kept(StopBuilding b, ContainerKind kind, int index, int level = 0)
     {
         if (OpenShed(b))
             return ShedKept(b, index);
+        if (Storeyed(b))
+        {
+            var k = KeptStoreyed(b, kind, index, level);
+            return (k.X, k.Y, k.FaceX, k.FaceY);
+        }
         if (Composite(b))
         {
             var k = KeptComposite(b, kind, index);
@@ -262,7 +288,7 @@ public sealed partial class StopWalls
             if (c.Kind is not (ContainerKind.Cupboard or ContainerKind.Cabinet))
                 continue;
             // Its back to the wall it faces away from: its depth along the way it faces.
-            var (x, y, faceX, _) = Kept(b, c.Kind, c.Index);
+            var (x, y, faceX, _) = Kept(b, c);
             (double depth, double width) = c.Kind == ContainerKind.Cupboard ? (CupboardDepth, CupboardWidth) : (CabinetDepth, CabinetWidth);
             bool deepAlongX = Math.Abs(faceX) > 0.5;
             yield return (c.Kind, x, y, deepAlongX ? depth : width, deepAlongX ? width : depth);
@@ -285,7 +311,7 @@ public sealed partial class StopWalls
         }
         if (Walled(stop, c.Building) && b.Open)
         {
-            var (x, y) = InsideLocal(b, c.Kind, c.Index);
+            var (x, y) = InsideLocal(b, c);
             return Plan.World(b, x, y);
         }
         return Walled(stop, c.Building) ? Doorstep(b, c.Index) : c.At;
@@ -590,10 +616,20 @@ public sealed partial class StopWalls
             {
                 var b = stop.Buildings[i];
                 owner++;
+                int index = i;
+                // A storeyed house (note 1005): its floors' solids, its basement and its ladders, over its middle's ground.
+                if (Walled(stop, i) && b.Open && Storeyed(b))
+                {
+                    double ground = Run.StopWorld(line, f, b.Centre).Y;
+                    walls.AddStoreyed(stop, i, owner, t,
+                        (x, y, hx, hy, lo, hi) => Placed(x, y, hx, hy, 0) with { Bottom = ground + lo, Top = ground + hi },
+                        (x, y, h) => Run.StopWorld(line, f, Plan.World(b, x, y)) with { Y = ground + h });
+                    walls.AddHouse(fi, i, b, line, f, (x, y, hx, hy, key) => Placed(x, y, hx, hy, t.TopM) with { Door = key });
+                    continue;
+                }
                 // An open house stands as its four walls with a door, its cupboards and cabinets, and the heavy furniture a
                 // ransack left against its walls (note 326); the rest of the shut ones as their footprints' boxes; a shed, the hero
                 // and a Holdout as their shells by their doors (note 279).
-                int index = i;
                 IEnumerable<(double X, double Y, double HalfX, double HalfY, double Top)> boxes = !Walled(stop, i)
                     ? Shelled(stop, i) ? Shell(stop, i, t).Select(w => (w.Part.X, w.Part.Y, w.Part.Length / 2, w.Part.Width / 2, w.Top))
                         .Concat(Benches(stop, i).Select(x => (x.X, x.Y, x.HalfX, x.HalfY, t.TopM))).Concat(Van(stop, i)) : []
@@ -689,6 +725,7 @@ public sealed partial class StopWalls
             if (w.Fort || (w.Owner > 0 ? !gone.Contains(w.Owner) : !at.Any(p => Within(w, p, reach))))
                 kept.Add(w);
         kept.KeepDoors(this);
+        kept.KeepStoreys(this, gone);
         return kept;
     }
 

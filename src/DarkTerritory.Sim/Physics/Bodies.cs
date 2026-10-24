@@ -1749,7 +1749,9 @@ public sealed class Bodies
             touchedCar = -2;
         }
         double hint = b.LineHint;
-        double ground = PlayerMotor.GroundAt(world, train.Line, ref hint) + r;
+        double ground = PlayerMotor.GroundAt(world, train.Line, ref hint);
+        // Note 1005: down in a house's basement, its floor.
+        ground = (train.Walls?.Under(world, ground) ?? ground) + r;
         b.LineHint = hint;
         if (world.Y < ground && ground - world.Y > bestDepth)
         {
