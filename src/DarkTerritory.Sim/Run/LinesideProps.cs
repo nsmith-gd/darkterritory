@@ -299,6 +299,8 @@ public sealed partial class LinesideProps
             yield return p;
         foreach (var p in Shores(from, to, reach))
             yield return p;
+        foreach (var p in Mudflats(from, to, reach))
+            yield return p;
         foreach (var p in Blocks(from, to, reach))
             yield return p;
         foreach (var p in LineLeavings(from, to))

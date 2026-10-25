@@ -119,6 +119,12 @@ public static class TownForms
         const double BandSlack = 1.2;
         /// <summary>A boardwalk's width, a stage's lip past its houses' backs, and a jetty's length out over the water (m).</summary>
         const double BoardwalkWidth = 2.5, StageLip = 0.6, JettyLength = 10;
+
+        /// <summary>
+        /// How often a pier has a boat tied alongside it (half as often a second, the other side), and how far a boat lies
+        /// from its pier's foot and its end (m; note 1031).
+        /// </summary>
+        const double PierBoats = 0.75, BoatClear = 5;
         /// <summary>How far apart a drowned ward's boardwalks are (m: two stages' depth and a channel), and their planks' height over the yard (a step up from a causeway).</summary>
         const double BoroughEvery = 36, StageLevel = 0.6;
         /// <summary>A borough's clusters of houses along its walk, and the open water between them (m, from-to).</summary>
@@ -1097,6 +1103,7 @@ public static class TownForms
             Works(-L * 0.55, -36, 12, quay - 1, 1, "harbour");
             // The piers, out over the water, a T at the end of the longer ones.
             var prng = _rngFor("form.piers");
+            var boats = _rngFor("form.boats");
             for (double u = -L + 120; u < -95; u += prng.Range(55, 80))
             {
                 double len = prng.Range(40, 75);
@@ -1107,6 +1114,7 @@ public static class TownForms
                     District(DistrictKind.Deck, "pier", Rect(u - 12, u + 12, edge + len - 6, edge + len), 0.9, named: false);
                     Way([(u - 11, edge + len - 3), (u + 11, edge + len - 3)], 6, deck: true, level: 0.9);
                 }
+                Moored(u, 3, edge, len - (len > 55 ? 8 : 2), ref boats);
             }
             // The slip and the boat yard by the way in: a hard sloping into the water, the sheds on it.
             District(DistrictKind.Yard, "slip", Rect(-L + 15, -L + 90, 18, wr * 0.6));
@@ -1464,6 +1472,23 @@ public static class TownForms
         }
 
         /// <summary>
+        /// The boats at a pier (maritime-rules §4, note 1031): a dory or two tied alongside the pier at <paramref name="u"/>
+        /// (<paramref name="half"/> its deck's half-width), out from <paramref name="from"/> along its first
+        /// <paramref name="len"/> metres, each its own side, its bow out the way the pier runs. On a stream of their own, so the
+        /// piers lie where they did.
+        /// </summary>
+        void Moored(double u, double half, double from, double len, ref Pcg32 rng)
+        {
+            int n = rng.Chance(PierBoats) ? rng.Chance(PierBoats * 0.5) ? 2 : 1 : 0, side = rng.Chance(0.5) ? 1 : -1;
+            for (int i = 0; i < n; i++, side = -side)
+            {
+                var (bhs, _, _) = TownFixtures.Size("dory");
+                double at = from + rng.Range(BoatClear, Math.Max(BoatClear, len - BoatClear));
+                Landmark("dory", u + side * (half + bhs + 0.4), at, 0, 1, pad: 0.3);
+            }
+        }
+
+        /// <summary>
         /// A dock basin on the platform's side (note 692): water from <paramref name="d0"/> out to the wall between u0 and u1,
         /// its mouth through the sea wall to the sea between mu0 and mu1 (the wall's run along <paramref name="wallD"/>), a
         /// quay along its near edge, piers out over it, a barge moored.
@@ -1477,11 +1502,13 @@ public static class TownForms
             District(DistrictKind.Quarter, "quay", Rect(u0, u1, d0 - 10, d0), named: false);
             Way([(u0 + 4, d0 - 5), (u1 - 4, d0 - 5)], 6);
             var rng = _rngFor("form.docks." + stream);
+            var boats = _rngFor("form.boats." + stream);
             for (double u = u0 + 18; u < u1 - 16; u += rng.Range(34, 50))
             {
                 double len = Math.Min(rng.Range(30, 50), wallD - 14 - d0);
                 District(DistrictKind.Deck, "pier", Rect(u - 3, u + 3, d0 - 1, d0 + len), 0.9, named: false);
                 Way([(u, d0), (u, d0 + len)], 5, deck: true, level: 0.9);
+                Moored(u, 3, d0, len - 2, ref boats);
             }
             Landmark("barge", (u0 + u1) / 2 + 8, d0 + (wallD - d0) * 0.55, 1, 0, pad: 0.5);
             Landmark("crane", u0 + 10, d0 - 4, 0, 1);

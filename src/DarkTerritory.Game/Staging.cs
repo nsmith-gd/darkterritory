@@ -151,6 +151,24 @@ public static partial class Staging
             return Ballast.Render.Camera.LookAt(front + town.Direction(fs, 0, -house.Side) * 18 + town.Direction(fs, 1, 0) * 10 + Double3.Up * 3,
                 front + Double3.Up * (where == "fires" ? 5 : 1.5), 62);
         }
+        // A harbour's wharf (note 1031): "wharf" stood on it at one end, looking along its edge over the water, its traps
+        // and the piers' boats; "wharfover" from over the water off it, higher, the length of it.
+        if (where is "wharf" or "wharfover" && plan.Districts.FirstOrDefault(x => x.Kind == Sim.Towns.DistrictKind.Quarter && x.Id is "wharf" or "quay") is { } wharf)
+        {
+            double w0 = wharf.Outline.Min(p => p.S), w1 = wharf.Outline.Max(p => p.S), wd0 = wharf.Outline.Min(p => p.D), wd1 = wharf.Outline.Max(p => p.D);
+            var ground = Sim.Towns.TownGround.Of(plan);
+            double wm = (w0 + w1) / 2, edge = ground.Water(wm, wd1 + 2.5) is not null ? wd1 : wd0;
+            int sea = edge == wd1 ? 1 : -1;
+            // (Its end over the water: a harbour's wharf runs on past the basin's corner.)
+            while (w1 > w0 + 40 && ground.Water(w1 - 4, edge + sea * 2.5) is null)
+                w1 -= 2;
+            if (where == "wharf")
+                return Ballast.Render.Camera.LookAt(town.World(w1 - 4, edge - sea * 4, 2.4), town.World(w1 - 34, edge - sea * 0.5, 0.8), 64);
+            // Over the boat tied at a pier nearest the wharf's far end, from up the wharf and over the water.
+            var tied = plan.Fixtures.Where(f => f.Kind == "dory" && Math.Abs(f.D - edge) < 60 && f.S > w0 && f.S < w1).OrderByDescending(f => f.S).FirstOrDefault();
+            var (bs, bd) = tied is null ? (w1 - 40, edge + sea * 10) : (tied.S, tied.D);
+            return Ballast.Render.Camera.LookAt(town.World(bs + 13, bd - sea * 3, 9), town.World(bs, bd, -1), 60);
+        }
         // What stands between the houses (note 989): "between" a fish shed (the nearest the square's middle that has a stack
         // of traps by it, else any), from a few steps out in front of it and to one side; "betweenover" from higher and further
         // back over it, its neighbours round it.

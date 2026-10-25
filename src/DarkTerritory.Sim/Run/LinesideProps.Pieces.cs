@@ -245,6 +245,35 @@ public sealed partial class LinesideProps
     }
 
     /// <summary>
+    /// The boats on the mud (maritime-rules.md §4, note 1031): along a Fundy shore and past a dyke's salt marsh, now and then
+    /// a dory the tide went out from, on the near half of the mudflat (the half above low water), lying any way round, tied
+    /// to a stake. A cell of 20 m along the shore as the shore's own, on a stream of its own, so nothing else moves.
+    /// </summary>
+    IEnumerable<LinesideProp> Mudflats(double from, double to, double reach)
+    {
+        foreach (var sh in _plan.Shores)
+        {
+            if (sh.Kind is not (ShoreKind.Fundy or ShoreKind.Dyke) || sh.S1 <= from || sh.S0 >= to)
+                continue;
+            for (double s = Math.Ceiling(Math.Max(from, sh.S0 + ShoreEndsM) / ShoreCellM) * ShoreCellM; s < Math.Min(sh.S1 - ShoreEndsM, to); s += ShoreCellM)
+            {
+                var rng = Streams.Rng(_seed, "lineside-mud", sh.Id, (long)Math.Round(s / ShoreCellM));
+                double chance = rng.NextDouble(), at = rng.NextDouble(), out_ = rng.NextDouble(), turn = rng.NextDouble();
+                int variant = Variant("doryAground", rng.NextDouble());
+                if (chance > MudBoats || !Clear(s))
+                    continue;
+                double along = s + at * ShoreCellM, lateral = sh.Side * (_terrain.ShoreEdge(sh, along) + MudBoatOut * out_ * sh.FlatM);
+                var boat = PieceOf("doryAground", along, lateral, turn * 2 * Math.PI, 1, 0.1, variant, GroundAt(along, lateral));
+                if (Free(along, lateral) && Within(boat, reach))
+                    yield return boat;
+            }
+        }
+    }
+
+    /// <summary>How often a 20 m cell of mudflat has a boat on it, and how far out across the flat it lies at most (of its width).</summary>
+    const double MudBoats = 0.09, MudBoatOut = 0.4;
+
+    /// <summary>
     /// What people left, and what the ice left (biomes.json `props`): by the 150 m block, each prop its own stream, as the
     /// biome has it: its chance, how far out, how many. A building where its ground is the woods' and a block either way
     /// is clear; a stone wall's lengths run along the line with gaps where it's fallen; an old field grown in with spruce;
