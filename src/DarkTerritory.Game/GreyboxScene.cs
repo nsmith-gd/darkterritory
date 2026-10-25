@@ -596,6 +596,13 @@ public sealed partial class GreyboxScene
                     foreach (var crane in site?.Cranes ?? [])
                         if ((crane.HookAt - eye).Length < DrawDistance)
                         {
+                            // Its gantry brought down by Tower Jaw (note 1029): the run's, so a crewmate joining after sees it so.
+                            if (GantryDown(site!, crane) is { } gantry and not Sim.Run.StructureDown.Standing)
+                            {
+                                if (Look?.Art.FallenCrane(mesh, crane, frames, eye, gantry == Sim.Run.StructureDown.Cleared) != true)
+                                    Castings(mesh, crane, frames, eye, loadedOnly: false);
+                                continue;
+                            }
                             if (Look?.Art.Crane(mesh, crane, frames, eye, Time) != true)
                                 Crane(mesh, crane, frames, eye);
                             CraneLamps(mesh, crane, frames, eye);
@@ -961,6 +968,9 @@ public sealed partial class GreyboxScene
                         continue;
                     // The Hanger and the Hollow House are drawn in their houses (GreyboxScene.Houses, notes 585, 586).
                     if (e.Kind is EnemyKind.Hanger or EnemyKind.HollowHouse && Look is not null)
+                        continue;
+                    // A gantry Tower Jaw's brought down is drawn with its crane (note 1029), not as the coaling tower's wreck.
+                    if (e is Sim.Enemies.TowerJaw { Mode: Sim.Enemies.TowerJawMode.Wreck } && FallenGantryAt(e.Local))
                         continue;
                     // The Mourners', the Freight Beetle's and Tower Jaw's too (notes 362, 366, 363), the Pickers' and the house
                     // creatures' (notes 574, 583, 584), and what they did before; Tower Jaw's tower, once it's down, lies across
@@ -2807,18 +2817,25 @@ public sealed partial class GreyboxScene
         return best;
     }
 
-    // Coaling towers Tower Jaw's brought down this night, by facility, and whether the wreck's been cleared off the line
-    // (its creature gone): the scene remembers what the wire's done with.
-    readonly Dictionary<int, bool> _towersDown = new();
+    /// <summary>A site's crane's gantry tonight (note 1029): only the facility's own is Tower Jaw's.</summary>
+    Sim.Run.StructureDown GantryDown(Sim.Run.Site site, Sim.Run.Crane crane) =>
+        Run is { } run && ReferenceEquals(site.Crane, crane) ? run.Gantry(site.Index) : Sim.Run.StructureDown.Standing;
+
+    /// <summary>Whether a fallen gantry lies at <paramref name="at"/> (a Tower Jaw's wreck there is the crane's to draw).</summary>
+    bool FallenGantryAt(Double3 at) =>
+        Run is { } run && run.Sites.Any(s => s?.Crane is { } c && run.Gantry(s.Index) != Sim.Run.StructureDown.Standing
+            && ((c.OverTrack - at) with { Y = 0 }).Length < 3);
 
     /// <summary>
     /// A coaling tower's state for its drawing (note 363): leaning as far as the Tower Jaw gnawing it has got (any of the
-    /// enemies near it: its facility isn't on the wire), or down (its wreck the creature's draw), or down and cleared.
+    /// enemies near it: its facility isn't on the wire), or down (its wreck the creature's draw), or down and cleared. Down
+    /// and cleared are the run's (note 1029), so a crewmate who joins later, or is out of the wreck's interest, sees it so;
+    /// <c>Wreck</c> says the scene draws the wreck itself, its creature not here to.
     /// </summary>
-    (float Lean, Art.TowerDown Down) TowerState(RailLine line, RouteFeature f)
+    (float Lean, Art.TowerDown Down, bool Wreck) TowerState(RailLine line, RouteFeature f)
     {
         if (Run is not { } run)
-            return (0, Art.TowerDown.Standing);
+            return (0, Art.TowerDown.Standing, false);
         int index = -1;
         for (int i = 0; i < run.Facilities.Count; i++)
             if (ReferenceEquals(run.Facilities[i], f))
@@ -2827,19 +2844,18 @@ public sealed partial class GreyboxScene
                 || j.FacilityIndex < 0 && TowerAt(line, j.Local) is { } near && ReferenceEquals(near, f)))
             .FirstOrDefault();
         if (jaw is { Mode: Sim.Enemies.TowerJawMode.Wreck })
+            return (0, Art.TowerDown.Fallen, false);
+        switch (run.Tower(index))
         {
-            _towersDown[index] = false;
-            return (0, Art.TowerDown.Fallen);
-        }
-        if (_towersDown.ContainsKey(index))
-        {
-            _towersDown[index] = true;
-            return (0, Art.TowerDown.Cleared);
+            case Sim.Run.StructureDown.Fallen:
+                return (0, Art.TowerDown.Fallen, true);
+            case Sim.Run.StructureDown.Cleared:
+                return (0, Art.TowerDown.Cleared, false);
         }
         if (jaw is null)
-            return (0, Art.TowerDown.Standing);
+            return (0, Art.TowerDown.Standing, false);
         var tune = Look?.Art.Creatures.TowerJawTuning ?? new Sim.Enemies.TowerJawTuning();
-        return (Art.CreatureArt.TowerLean(jaw.Gnawed, tune, Time), Art.TowerDown.Standing);
+        return (Art.CreatureArt.TowerLean(jaw.Gnawed, tune, Time), Art.TowerDown.Standing, false);
     }
 
     // What each Gannet was doing when last drawn, since when (scene time), and what it was doing before that.
@@ -5197,8 +5213,15 @@ public sealed partial class GreyboxScene
     void Facility(MeshBuilder mesh, RailLine line, Double3 eye, RouteFeature f)
     {
         // A coaling tower Tower Jaw's at leans as it's gnawed, and once it's down isn't standing (note 363).
-        var (lean, down) = f.Facility == FacilityKind.CoalingTower ? TowerState(line, f) : (0, Art.TowerDown.Standing);
+        var (lean, down, wreck) = f.Facility == FacilityKind.CoalingTower ? TowerState(line, f) : (0, Art.TowerDown.Standing, false);
         FacilityBuildings(mesh, line, eye, f.Facility, (f.Start + f.End) / 2, f.Side, push: 0, lean, down);
+        // Down, its creature not here to draw the wreck (note 1029): the scene lays it across the line at the spout, as it would.
+        if (wreck && Run is { } run && Look?.Art.Creatures is { } art && (line.Sample(run.ChuteAt(f, line).SpoutAlong).Position - eye).Length < DrawDistance + 120)
+        {
+            var t = line.Sample(run.ChuteAt(f, line).SpoutAlong);
+            var right = Double3.Cross(t.Tangent, Double3.Up).Normalized * (f.Side < 0 ? -1 : 1);
+            art.TowerWreck(mesh, Art.CreatureArt.Basis(V(t.Position, eye), ToF(right), Vector3.UnitY, ToF(Double3.Cross(right, Double3.Up).Normalized)));
+        }
     }
 
     /// <summary>A facility's buildings beside a track (the main line, or its spur), centred along it at <paramref name="mid"/>.</summary>

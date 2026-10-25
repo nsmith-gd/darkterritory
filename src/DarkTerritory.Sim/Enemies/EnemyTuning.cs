@@ -1508,6 +1508,16 @@ public sealed record DwellingsTuning
     /// its houses' own too (note 912; note 887 found they did); false, its houses stand empty, as nothing else new comes there.
     /// </summary>
     public bool InHomeStretch { get; init; }
+    /// <summary>
+    /// Note 1023: the kinds (<see cref="Weights"/>' keys) that live in a house with floors (note 1005), on its floors; a house
+    /// with floors whose dice draw another kind stands empty. Their art draws a one-floor house round them, so not yet the
+    /// Householder, the Hollow House or the Hanger.
+    /// </summary>
+    public string[] Storeyed { get; init; } = ["lodger"];
+    /// <summary>Note 1023: a creature's pace up or down a house's flight, as a share of its pace on the floor.</summary>
+    public double StairsPace { get; init; } = 0.7;
+    /// <summary>Note 1023: how fast a creature goes up or down a basement's hatch (m/s).</summary>
+    public double HatchClimb { get; init; } = 1.2;
 
     /// <summary>The share of a stop's open houses with something in them, at <paramref name="tier"/> (0.25 where it isn't listed).</summary>
     public double ShareFor(Route.RouteTier tier) =>
@@ -1531,6 +1541,8 @@ public sealed record LodgerTuning
     public double Walk { get; init; } = 1.6;
     public double RestSeconds { get; init; } = 3;
     public double Health { get; init; } = 4;
+    /// <summary>Note 1023: in a house with floors it notices only who's on its own floor (and anyone close and in reach).</summary>
+    public bool OwnFloor { get; init; } = true;
 }
 
 /// <summary>The Householder (GDD §21; ARCHITECTURE §8 note 584). Field docs live in enemies.json.</summary>

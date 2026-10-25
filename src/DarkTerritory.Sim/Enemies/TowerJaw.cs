@@ -20,7 +20,9 @@ public enum TowerJawTarget : byte { CoalingTower, Gantry }
 /// gnawed and groans its last seconds. Come near and it rears and slaps its tail; come close and it lunges (a hurt, never a
 /// kill). Four blows in a short while drive it off (it comes back to finish the job, its gnawing kept); twelve kill it.
 /// Ignored, the structure comes down: whoever's under it is crushed (a hurt), the coaling tower's wreck blocks the line
-/// (a train is stopped against it and damaged by its speed) and its chute's coal is gone; the gantry's is the crane's end.
+/// (a train is stopped against it and damaged by its speed) and its chute's coal is gone; the gantry falls across its loading
+/// track (note 1029), closing it the same way, and it's the crane's end. Either stays down for the night, on the wire (the
+/// run's), so a crewmate joining later sees it down or cleared.
 /// The crew clears the line's wreck by hand (Use held at it, crew-seconds). Rule: hear the chewing, find the tower, get it
 /// off before it falls.
 /// </summary>
@@ -39,8 +41,8 @@ public sealed class TowerJaw(int id) : Enemy(id)
     Double3 _knock;
     readonly List<uint> _blows = [];
     // Its structure: which facility, what kind, its support (where it gnaws), and where it falls (the line's distance the
-    // wreck closes, on the main path; NaN for one that closes no line).
-    int _facility = -1;
+    // wreck closes, on its path; NaN for one that closes no line).
+    int _facility = -1, _path = RailLine.MainPath;
     TowerJawTarget _target;
     Double3 _support, _fallsAt;
     double _blocks = double.NaN;
@@ -64,9 +66,11 @@ public sealed class TowerJaw(int id) : Enemy(id)
     public double Cleared => Extra2;
     public TowerJawTarget Target => _target;
     public int FacilityIndex => _facility;
-    /// <summary>Where the structure comes down (the wreck), in the world.</summary>
-    public Double3 FallsAt => _fallsAt;
-    /// <summary>The line's distance its wreck closes on the main path, if it closes one.</summary>
+    /// <summary>Where the structure comes down (the wreck), in the world: once down, where it lies (as every client has it).</summary>
+    public Double3 FallsAt => Mode == TowerJawMode.Wreck ? Local : _fallsAt;
+    /// <summary>The path its wreck closes: the main line (the coaling tower's), or the gantry's loading track.</summary>
+    public int BlocksPath => _path;
+    /// <summary>The path distance its wreck closes on <see cref="BlocksPath"/>, if it closes one.</summary>
     public double? Blocks => double.IsNaN(_blocks) ? null : _blocks;
 
     /// <summary>
@@ -81,18 +85,30 @@ public sealed class TowerJaw(int id) : Enemy(id)
         var on = world.Train.Line.Sample(spout);
         var right = Double3.Cross(on.Tangent, Double3.Up).Normalized;
         var leg = on.Position + right * (f.Side * t.TowerLegOut);
-        return Make(id, world, t, facility, TowerJawTarget.CoalingTower, leg, on.Position, spout, gnawed);
+        return Make(id, world, t, facility, TowerJawTarget.CoalingTower, leg, on.Position, spout, RailLine.MainPath, gnawed);
     }
 
-    /// <summary>At the loading crane's gantry of <paramref name="site"/>'s facility: one of its legs; it falls on the facility.</summary>
+    /// <summary>
+    /// At the loading crane's gantry of facility <paramref name="facility"/>: one of its legs. It falls across its loading track
+    /// at the gantry's middle (note 1029), closing that track (the spur, or the main line where the facility has none) as the
+    /// coaling tower's wreck closes the line; a yard's other gantries close nothing.
+    /// </summary>
     public static TowerJaw AtGantry(int id, World world, int facility, Run.Crane crane, TowerJawTuning t, double gnawed = 0)
     {
         var leg = crane.Corner(1, 1);
-        var middle = (crane.Corner(0, 0) + crane.Corner(1, 1)) * 0.5;
-        return Make(id, world, t, facility, TowerJawTarget.Gantry, leg, middle, double.NaN, gnawed);
+        double blocks = double.NaN;
+        int path = RailLine.MainPath;
+        if (world.Run?.Sites.ElementAtOrDefault(facility) is { } site && ReferenceEquals(site.Crane, crane))
+        {
+            path = site.Spur;
+            double toe = path == RailLine.MainPath ? 0 : world.Train.Line.Branches[path].Toe;
+            blocks = toe + Math.Clamp(site.Mid + crane.MiddleAlong, 0, site.Track.Length);
+        }
+        return Make(id, world, t, facility, TowerJawTarget.Gantry, leg, crane.OverTrack, blocks, path, gnawed);
     }
 
-    static TowerJaw Make(int id, World world, TowerJawTuning t, int facility, TowerJawTarget target, Double3 leg, Double3 falls, double blocks, double gnawed)
+    static TowerJaw Make(int id, World world, TowerJawTuning t, int facility, TowerJawTarget target, Double3 leg, Double3 falls, double blocks, int path,
+        double gnawed)
     {
         double hint = world.Train.Dynamics.Distance;
         var away = (leg - falls) with { Y = 0 };
@@ -115,6 +131,7 @@ public sealed class TowerJaw(int id) : Enemy(id)
         j._support = leg;
         j._fallsAt = falls;
         j._blocks = blocks;
+        j._path = path;
         j._home = at;
         return j;
     }
@@ -263,14 +280,14 @@ public sealed class TowerJaw(int id) : Enemy(id)
         {
             if (_target == TowerJawTarget.CoalingTower)
                 run.TowerDown(_facility);
-            else if (run.Sites.ElementAtOrDefault(_facility)?.Crane is { } crane)
-                crane.Wreck();
+            else
+                run.GantryDown(_facility);
         }
         world.TowersDown++;
         SetMode(TowerJawMode.Wreck);
         Enter(ctx, SpinePhase.Punish);
         Local = _fallsAt;
-        if (Blocks is { } along)
+        if (Blocks is { } along && _path == RailLine.MainPath)
             LineDistance = along;
         Extra2 = 0;
     }
@@ -283,11 +300,13 @@ public sealed class TowerJaw(int id) : Enemy(id)
     {
         var train = ctx.Train;
         foreach (var (p, intent) in ctx.Crew)
-            if (p.State.Alive && intent.Has(PlayerButtons.Use) && Flat(PlayerMotor.WorldPosition(p.State, train) - _fallsAt) <= t.ClearReach)
+            if (p.State.Alive && intent.Has(PlayerButtons.Use) && Flat(PlayerMotor.WorldPosition(p.State, train) - FallsAt) <= t.ClearReach)
                 Extra2 = Cleared + SimConstants.TickSeconds;
         if (Cleared >= t.ClearCrewSeconds)
         {
             ctx.World.TowersCleared++;
+            if (ctx.World.Authority)
+                ctx.World.Run?.WreckCleared(_facility, _target == TowerJawTarget.Gantry);
             Enter(ctx, SpinePhase.Gone);
             return;
         }
@@ -295,7 +314,7 @@ public sealed class TowerJaw(int id) : Enemy(id)
             return;
         foreach (var rake in train.Rakes)
         {
-            if (rake.Path != RailLine.MainPath)
+            if (rake.Path != _path)
                 continue;
             double front = rake.Distance, rear = rake.RearDistance;
             if (front < along - t.WreckHalf || rear > along + t.WreckHalf)

@@ -629,7 +629,14 @@
     // A stop on the run in to the terminus (the line's terminus_safe stretch or route.json's final approach, where nothing
     // else new comes) has its houses' own only with inHomeStretch (note 912; note 887 found they always did). The director's
     // call (the inbox, 21 Oct 2026, n1-B1-houses-on-the-home-stretch: "yes"; note 970): true, its houses have their own.
-    "inHomeStretch": true
+    "inHomeStretch": true,
+    // Houses with floors (#710's, note 1005; queue #726, note 1023): the kinds that live in one, on its floors (the Lodger waits
+    // in the dark of its basement, or upstairs where there's no basement); a house with floors whose dice draw another kind
+    // stands empty (their art draws a one-floor house round them). Any creature that goes indoors after a crewmate takes the
+    // flight at stairsPace of its pace and the basement's hatch at hatchClimb m/s, and reaches a crewmate on another floor by
+    // those only: nothing through the boards.
+    "storeyed": ["lodger"],
+    "stairsPace": 0.7, "hatchClimb": 1.2
   },
   // THE LODGER · sound · outside (note 583; docs/design/creatures/lodger.md). Folded in the house's darkest corner (the spot
   // furthest from its doors, hideInset m off the walls), breathing. Someone in its house noticeSeconds, or within
@@ -638,10 +645,14 @@
   // call). Missed, it chases (chase m/s) and shrieks again before every lunge; a shut door in its way it breaks open in
   // breakSeconds; anyone further than pursuitRadius m from its house's middle it gives up on, and walks back (walk m/s) to
   // its corner, resting there restSeconds. Only blows from behind as it walks back hurt it (health in blows).
+  // In a house with floors (note 1023) its corner is on its lowest floor (the basement's, by the chest; upstairs where there's
+  // none), and with ownFloor it notices only who's on that floor; it comes up the hatch or the flight after them, and its
+  // lunge is only ever along a floor.
   "lodger": {
     "hideInset": 0.6, "noticeSeconds": 2.5, "shriekWithin": 4.5, "shriekSeconds": 1.5,
     "lungeSpeed": 9, "lungeReach": 4.5, "killWithin": 0.9, "killWindow": 0.25,
-    "chase": 5.0, "pursuitRadius": 25, "breakSeconds": 2, "walk": 1.6, "restSeconds": 3, "health": 4
+    "chase": 5.0, "pursuitRadius": 25, "breakSeconds": 2, "walk": 1.6, "restSeconds": 3, "health": 4,
+    "ownFloor": true
   },
   // THE HOUSEHOLDER · sight · outside (note 584; docs/design/creatures/householder.md). Sat at its set table, watching whoever's
   // in its house; harmless to guests. Everything lying in its house is its own. Anything of yours left lying on its table

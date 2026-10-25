@@ -642,6 +642,21 @@
   // The forge (note 697): the blacksmith's, beside the engine in every town's yard. Its board is lettered to read from the
   // cab (the art's); this is what it says read close to.
   "forge": { "title": "the blacksmith's forge", "text": "A board over the forge, lettered by hand in white: BLACKSMITH. TRAIN UPGRADES. FITTED BEFORE THE GATE. Under it, smaller: NO CREDIT. NOT EVEN FOR YOU." },
+  // The buyer's stall (note 1027): beside the forge, its board lettered to read from the train.
+  // What the buyer says of a find brought to them: what they paid ({price} scrip for the {find}), or, with the find still in
+  // the crew's hands, that the night's tally paid for it already (a find stowed aboard as the train came home).
+  "buyerSays": {
+    "paid": [
+      "{price} for the {find}. On the counter. Count it if you like.",
+      "The {find}. {price}, and I'm being kind. Don't tell the clerk.",
+      "{price}. That's what a {find} is worth inside the walls. Outside it's worth nothing at all."
+    ],
+    "tallied": [
+      "The clerk's paid you for that one already. I can read a tally sheet.",
+      "That came home in your car. The company's paid for it. I don't buy the company's things."
+    ]
+  },
+  "buyerStall": { "title": "the buyer's stall", "text": "A board over the counter, lettered by hand in white: BUYER. FINDS BOUGHT. Under it, smaller: CASH SCRIP. NO QUESTIONS. SOME ANSWERS." },
   "roles": {
     "gatekeeper": { "title": "gatekeeper", "lines": [
       "Gate opens when your wheels turn. Not before. Not for anyone. Not for anyone who asks nicely, either.",
@@ -681,6 +696,13 @@
       "I can make her stop faster, shoot faster, burn longer. I can't make her come back.",
       "Somebody asked me for chairs on the front. Chairs. And a grill. I did it. It's the best work I've done.",
       "The clerk reads out what I fit, every night. I've never heard him sound impressed. I live in hope." ] },
+    "buyer": { "title": "buyer", "lines": [
+      "Bring me what you find out there and I'll pay you for it here. The clerk pays better. The clerk wants it in your car.",
+      "Watches, clocks, the good spoons. Whatever the dead kept in a drawer. I don't ask whose.",
+      "I pay in scrip, on the counter, in front of you. The clerk pays at the gate, after. Some crews like to see it.",
+      "Knock it about and I pay less. Everyone does. The thing remembers being dropped.",
+      "Had a crew sell me a comb. A comb. Paid them for it. It's still on the shelf. Nobody wants a stranger's comb."
+      ] },
     "fitter": { "title": "fitter", "lines": [
       "Your boiler's sound. Sound as anything round here. Don't let it sit at the red.",
       "The engineering kit lives in the fitter's locker. If it's not there, it's somewhere worse.",
@@ -1215,6 +1237,10 @@
       "Prices are up for your crew. The council's fine for the yard comes out of my forge too, and I'm not paying it for you.",
       "I'll fit your train. Same work, dearer. Call it what the houses by the yard cost.",
       "Half the town says I shouldn't serve you. The other half says charge you double. I've split the difference."
+    ],
+    "buyer": [
+      "I'll take what you bring. I'll pay you less for it. The yard's houses are on your account, and I'm the one who's paying.",
+      "Your crew's finds are worth less in {town} this week. Not to me. To the people who buy them off me."
     ]
   }
 }

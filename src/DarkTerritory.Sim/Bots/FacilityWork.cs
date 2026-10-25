@@ -21,6 +21,12 @@ public sealed record FacilityWorkReport(string Facility, bool Departed, double S
     /// </summary>
     public IReadOnlyList<(int Id, double Load, CargoKind Cargo)> PickedUp { get; init; } = [];
     public int StillStanding { get; init; }
+    /// <summary>
+    /// Note 1028: derelicts still on the sidings the yard's layout blocked, and derelicts in the engine's rake when it ended (a
+    /// clearance given up keeps them ahead of the engine).
+    /// </summary>
+    public int StillBlocked { get; init; }
+    public int DerelictsAboard { get; init; }
     public IReadOnlyList<int> Order { get; init; } = [];
     /// <summary>The wreck yard's heaps (note 187): found by a lamp or not, salvage left unfound, how often each shifted.</summary>
     public IReadOnlyList<(bool Found, int Unfound, int Shifts, double Stability)> Heaps { get; init; } = [];
@@ -126,6 +132,8 @@ public static class FacilityWork
         {
             PickedUp = [.. train.Dynamics.Consist.Vehicles.Where(v => v.YardCar).Select(v => (v.Id, Math.Round(v.Load, 3), v.Cargo))],
             StillStanding = world.Run.YardTracks(facility).Sum(b => Sim.Run.Run.StandingOn(train, b)),
+            StillBlocked = world.Run.BlockedTracks(line, facility).Sum(b => Sim.Run.Run.DerelictsOn(train, b.Branch)),
+            DerelictsAboard = train.Dynamics.Consist.Vehicles.Count(v => v.Derelict),
             Order = [.. train.Dynamics.Consist.Vehicles.Select(v => v.Id)],
             Heaps = [.. site.Heaps.Select(h => (h.Found, h.Salvage, h.Shifts, Math.Round(h.Stability, 2)))],
             LampsLeft = world.Bodies.All.Count(b => b.Kind == Physics.BodyKind.Lamp && b.Parent == PlayerState.World && b.Carrier < 0),

@@ -92,7 +92,8 @@ public static partial class TownGenerator
     /// its centrepiece have them, then the households (after their own story), the board's reader, the gate, the rest at
     /// work; the street gets the town's other habits and its trade.
     /// </summary>
-    static int Precedence(Spot spot) => spot.Street ? 6 : spot.House >= 0 ? 2 : spot.Role switch
+    // (The buyer, note 1027, says theirs after everyone, so nobody else's lines moved when they came.)
+    static int Precedence(Spot spot) => spot.Role == "buyer" ? 7 : spot.Street ? 6 : spot.House >= 0 ? 2 : spot.Role switch
     {
         // The keeper, and the hands at the works (note 353): the trade's lines are theirs first.
         "keeper" or "hand" => 0,
@@ -418,6 +419,10 @@ public static partial class TownGenerator
         // the town between the hours' tubs of coal.
         foreach (var f in fixtures.Where(f => f.Kind == "lighthouse" && f.House < 0).Take(1))
             spots.Add(new("flamekeeper", f.S + f.FaceS * (f.SolidS + 1.2), f.D + f.FaceD * (f.SolidD + 1.2), f.FaceS, f.FaceD, 0));
+        // The buyer (note 1027; GDD §3.1's "turning loot into scrip in the town itself"), in front of their stall beside the
+        // forge, facing the line: after everyone else, so who everybody else is and what they're called is as it was.
+        if (t.Buyer is { Enabled: true } buyer)
+            spots.Add(new("buyer", site.Gate + buyer.FromGate, side * (buyer.Out - buyer.Stand), 0, -side, 0));
 
         // Who they are: a name each, a household's sharing its surname.
         var names = new HashSet<string>();
@@ -455,7 +460,8 @@ public static partial class TownGenerator
             }
             people.Add((role, mind.Name, spot, mind));
         }
-        string[] everyone = [.. people.Select(p => p.Name)];
+        // (Not the buyer, note 1027: who's named in anybody's lines is as it was before they came.)
+        string[] everyone = [.. people.Where(p => p.Role != "buyer").Select(p => p.Name)];
         var places = w.Places.Length > 0 ? w.Places : [.. content.Surnames];
         string founded = w.Founded.Length > 0 ? Rng("founded").Pick(w.Founded) : "";
         var fill = new Fill(new Dictionary<string, string>
@@ -639,6 +645,9 @@ public static partial class TownGenerator
         // The forge, last of the fixtures (so every other one's number is as it was): its board lettered to read from the cab.
         if (t.Smithy is { } forge)
             Fix("forge", w.Forge?.Title ?? "the forge", fill.In(w.Forge?.Text ?? "", null), site.Gate + forge.FromGate, side * forge.Out, 0, -side);
+        // The buyer's stall (note 1027), after it: its board lettered to read from the train, as the forge's is.
+        if (t.Buyer is { Enabled: true } stall)
+            Fix("buyerstall", w.BuyerStall?.Title ?? "the buyer's stall", fill.In(w.BuyerStall?.Text ?? "", null), site.Gate + stall.FromGate, side * stall.Out, 0, -side);
 
         var plan = new TownPlan(site.Name, population, former, culture.Id, culture.Creature, culture.Law.Replace("{town}", site.Name), culture.Hall,
             industry?.Name ?? site.Industry, [.. quirks.Select(q => q.Id)], square, buildings, homes.Houses, townsfolk, papers, fixtures, homes.Character, homes.Bounds,
@@ -742,6 +751,8 @@ public static partial class TownGenerator
             {
                 "gatekeeper" => (said.Standing, 1.0),
                 "blacksmith" => (t.Dearer > 0 ? said.Smith : [], 1.0),
+                // Note 1027: the buyer says they pay less now (towns.json buyer.colder).
+                "buyer" => (said.Buyer, 1.0),
                 "guard" => ([], 0.0),
                 _ => (said.Wary, t.Wary * c),
             };
@@ -968,6 +979,8 @@ public static class TownFixtures
         "bell" => (1.3, 0.9, 3.6),
         // Note 687: the blacksmith's forge, its hood and its board (the chimney's above).
         "forge" => (1.7, 1.1, 3.4),
+        // Note 1027: the buyer's stall, an awning stall's size with its board across the front.
+        "buyerstall" => (1.4, 1.2, 2.7),
         "post" => (0.35, 0.35, 2.4),
         "tally" => (1.2, 0.25, 2.4),
         "lamps" => (1.6, 0.45, 2.2),
