@@ -140,7 +140,8 @@ public static class Protocol
     // 88: the Head Waiter (note 1008): EnemyKind 50 on the wire (48 and 49 are the Bruin and the Tapper), its mode in the enemy record's extra2.
     // 89: the Bruin (note 1007): EnemyKind 48 on the wire.
     // 90: the Tapper (note 1011): EnemyKind 49 on the wire.
-    public const int Version = 90;
+    // 91: the Close (note 1013): EnemyKind 51 on the wire.
+    public const int Version = 91;
 }
 
 public enum MessageType : byte

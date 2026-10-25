@@ -68,6 +68,8 @@ public static class AudioBench
     public static readonly IReadOnlyDictionary<string, (double Low, double High)> FlaggedTellBands = new Dictionary<string, (double, double)>
     {
         ["tell-head-waiter.glass"] = (4600, 5600),
+        // The Close's creaking roof (note 1013): the boards' groan, what carries over the wheels.
+        ["tell-close.bow"] = (480, 680),
     };
 
     /// <summary>Each tell's band from spec A.4's collision table.</summary>

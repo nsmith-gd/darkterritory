@@ -3193,6 +3193,11 @@ public sealed partial class GreyboxScene
                     }
                     break;
                 }
+            case EnemyKind.Close:
+                // A soft grey sack along its car's roof (note 1013): procedural (CreatureArt.Close.cs), the same shapes as the art's.
+                Art.CreatureArt.CloseStandIn(mesh, Art.CreatureArt.Basis(o, r, u, b), e is Sim.Enemies.Close cl ? cl.Mode : Sim.Enemies.CloseMode.Bow,
+                    e is Sim.Enemies.Close cs ? cs.ModeSeconds : e.PhaseSeconds, e.Extra > 1 ? (float)e.Extra : 6);
+                break;
             case EnemyKind.HeadWaiter:
                 // (Its boxes, until it's modelled: CreatureArt.HeadWaiter.cs.)
                 Art.CreatureArt.HeadWaiterStandIn(mesh, o, r, u, b, e is Sim.Enemies.HeadWaiter hw ? hw.Mode : Sim.Enemies.HeadWaiterMode.Wait, pulse);

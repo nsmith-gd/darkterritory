@@ -192,6 +192,15 @@ public class SpecTableTests
     }
 
     [Fact]
+    public void TheCloseMatchesB23()
+    {
+        var c = Tuning.Enemies.Close;
+        Assert.Equal((8.0, 3, 2, 3), (c.BoardAbove, c.Crowd, c.CrowdSmall, c.SmallCrew));
+        Assert.Equal((60.0, 40.0, 30.0, 10.0, 4.0), (c.Settle["local"], c.Settle["frontier"], c.Settle["deepTerritory"], c.BowSeconds, c.PourSeconds));
+        Assert.Equal((6.0, 4.0, 5.0, 20.0, 1.0, 3.0), (c.CrushAfter["frontier"], c.CrushAfter["deepTerritory"], c.CrushPerSecond, c.KillSeconds, c.GetOutSeconds, c.Health));
+    }
+
+    [Fact]
     public void HotboxMatchesB19()
     {
         var h = Tuning.Enemies.Hotbox;

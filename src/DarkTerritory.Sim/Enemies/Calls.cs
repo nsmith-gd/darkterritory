@@ -141,6 +141,8 @@ public static class Calls
                 return BruinCall(world, you, t);
             case EnemyKind.Tapper:
                 return TapperCall(world, t);
+            case EnemyKind.Close:
+                return CloseCall(world, you, t);
             case EnemyKind.Pickers:
                 {
                     var crates = Crates(world, you, min, max, 3);
@@ -281,6 +283,24 @@ public static class Calls
                 return $"over the roof behind the gunner on car {car}: when it taps, look round";
             }
         return "nobody at a gun: sit at one and call again";
+    }
+
+    /// <summary>
+    /// The Close (note 1013) on the roof of the car with the most of the crew inside it, else the nearest car with a room to
+    /// you: bowing it in, as if they'd crowded in there its settle.
+    /// </summary>
+    static string CloseCall(World world, Double3 you, EnemyTuning t)
+    {
+        var train = world.Train;
+        int car = world.CrewThisTick.Where(c => Close.InCar(c.State, train, c.State.Parent)).GroupBy(c => c.State.Parent)
+            .OrderByDescending(g => g.Count()).ThenBy(g => g.Key).Select(g => g.Key).FirstOrDefault(-1);
+        if (car < 0)
+            car = train.Dynamics.Consist.Vehicles.Where(v => v.Id > 0 && train.Frames[v.Id].Shape.Interior is not null)
+                .OrderBy(v => (train.Frames[v.Id].ToWorld(Double3.Zero) - you).Length).Select(v => v.Id).FirstOrDefault(-1);
+        if (car < 0)
+            return "no car with a room for it to lie on";
+        world.AddEnemy(n => Close.Over(n, car, train, t.Close));
+        return $"on car {car}'s roof, bowing it in: go inside and it pours in and pins you; burst it from the roof, or open the door";
     }
 
     static string BruinCall(World world, Double3 you, EnemyTuning t)

@@ -46,7 +46,9 @@ public enum EnemyKind : byte
     // The Tapper (GDD §21, the director's playtest of 23 Oct 2026, line 36; note 1011).
     Tapper = 49,
     // The Head Waiter (GDD §21, Sloe's proposal, note 1004; built behind a flag, note 1008: awaiting the director's verdict).
-    HeadWaiter = 50
+    HeadWaiter = 50,
+    // The Close (GDD §21, the director's playtest of 23 Oct 2026, line 36; Sloe's design, note 1004; built behind a flag, note 1013).
+    Close = 51
 }
 
 /// <summary>
@@ -264,6 +266,7 @@ public abstract class Enemy
         EnemyKind.Bruin => new Bruin(id),
         EnemyKind.Tapper => new Tapper(id),
         EnemyKind.HeadWaiter => new HeadWaiter(id),
+        EnemyKind.Close => new Close(id),
         _ => new ChoirGhost(id),
     };
 

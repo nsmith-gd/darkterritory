@@ -36,6 +36,7 @@ public sealed record EnemyTuning(
     public MouseMooseTuning MouseMoose { get; init; } = new();
     public BruinTuning Bruin { get; init; } = new();
     public TapperTuning Tapper { get; init; } = new();
+    public CloseTuning Close { get; init; } = new();
     public HeadWaiterTuning HeadWaiter { get; init; } = new();
     public DwellingsTuning Dwellings { get; init; } = new();
     public LodgerTuning Lodger { get; init; } = new();
@@ -1632,6 +1633,30 @@ public sealed record TapperTuning
     public double LiftSeconds { get; init; } = 10;
     public double Health { get; init; } = 3;
     public Dictionary<string, double> TierWeights { get; init; } = new() { ["local"] = 0, ["frontier"] = 1, ["deadLines"] = 1.5, ["deepTerritory"] = 2 };
+}
+
+/// <summary>The Close (GDD §21; the director's playtest of 23 Oct 2026, line 36; ARCHITECTURE §8 note 1013). Field docs live in enemies.json.</summary>
+public sealed record CloseTuning
+{
+    public bool On { get; init; }
+    public double BoardAbove { get; init; } = 8;
+    public int Crowd { get; init; } = 3;
+    public int CrowdSmall { get; init; } = 2;
+    public int SmallCrew { get; init; } = 3;
+    /// <summary>Seconds the car's been crowded and shut before it settles on the roof, by tier.</summary>
+    public Dictionary<string, double> Settle { get; init; } = new() { ["local"] = 60, ["frontier"] = 40, ["deadLines"] = 35, ["deepTerritory"] = 30 };
+    public double BowSeconds { get; init; } = 10;
+    public double PourSeconds { get; init; } = 4;
+    /// <summary>Seconds pinned before the crush starts, by tier.</summary>
+    public Dictionary<string, double> CrushAfter { get; init; } = new() { ["local"] = 8, ["frontier"] = 6, ["deadLines"] = 5, ["deepTerritory"] = 4 };
+    public double CrushPerSecond { get; init; } = 5;
+    public double KillSeconds { get; init; } = 20;
+    public double GetOutSeconds { get; init; } = 1;
+    public double Health { get; init; } = 3;
+    public Dictionary<string, double> TierWeights { get; init; } = new() { ["local"] = 0.5, ["frontier"] = 1, ["deadLines"] = 1.5, ["deepTerritory"] = 2 };
+
+    /// <summary>How many in one car make a crowd for a crew of <paramref name="crew"/> (Sloe's "3, or 2 on a crew of 2–3").</summary>
+    public int CrowdFor(int crew) => crew <= SmallCrew ? CrowdSmall : Crowd;
 }
 
 /// <summary>The Freight Beetle (GDD §21, App. A.6, B.6; ARCHITECTURE §8 note 366). Field docs live in enemies.json.</summary>
