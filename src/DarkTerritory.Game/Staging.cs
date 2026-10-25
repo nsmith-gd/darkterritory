@@ -408,6 +408,11 @@ public static partial class Staging
                 Ballast.Render.Camera.LookAt(town.World(smith.S + 7, side * 2.6, 1.7), town.World(smith.S - 0.5, smith.D + side * 1.6, 1.9), 66),
             "smithyfront" when plan.People.FirstOrDefault(p => p.Role == "blacksmith") is { } atForge =>
                 Ballast.Render.Camera.LookAt(town.World(atForge.S + 1.2, side * 3.2, 1.7), town.World(atForge.S - 0.4, atForge.D + side * 2.2, 1.7), 72),
+            // Note 1027: the buyer at their stall beside the forge, from the line, and close to, as the crew comes up with a find.
+            "buyer" when plan.People.FirstOrDefault(p => p.Role == "buyer") is { } buyer =>
+                Ballast.Render.Camera.LookAt(town.World(buyer.S + 7, side * 2.6, 1.7), town.World(buyer.S - 0.5, buyer.D + side * 1.6, 1.9), 66),
+            "buyerfront" when plan.People.FirstOrDefault(p => p.Role == "buyer") is { } atStall =>
+                Ballast.Render.Camera.LookAt(town.World(atStall.S + 1.2, side * 3.2, 1.7), town.World(atStall.S - 0.4, atStall.D + side * 2.2, 1.7), 72),
             "gate" => Ballast.Render.Camera.LookAt(town.World(plan.People[0].S + 2.5, plan.People[0].D + 1.6, 1.7), town.World(plan.People[0].S - 30, side * 8, 1.5), 65),
             "centre" => Ballast.Render.Camera.LookAt(town.World(centre.S + 5, centre.D - side * 5, 1.8), town.World(centre.S, centre.D, 1.2), 60),
             "street" => Ballast.Render.Camera.LookAt(town.World(mid + 18, -side * 6, 2.2), town.World(mid - 10, side * 18, 2.0), 70),

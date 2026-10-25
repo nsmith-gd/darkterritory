@@ -171,6 +171,8 @@ public static class ArtCatalog
             int variant = v;
             list.Add(new($"square-marketstall-{v}", MediumProp, () => SquareKit.Fixture(look, "marketstall", variant)));
         }
+        // The buyer's stall (note 1027), beside the forge.
+        list.Add(new("square-buyerstall", MediumProp, () => SquareKit.Fixture(look, "buyerstall")));
         list.Add(new("works-slag", LargeProp, () => WorksKit.Piece(look, "slag")));
         list.Add(new("works-coal", LargeProp, () => WorksKit.Piece(look, "coal")));
         // A fortress town begun and stamped flat by a Waker (note 824), out beside the line: a large prop's budget each.
