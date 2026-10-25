@@ -2553,6 +2553,13 @@ public sealed partial class StopHand(StopJob job, CrewCalls calls, int member)
             ? calls.Lend(StopJob.Shunter, j => p.PairWork(world, j), p.CrateWork(world, calls.HeavyHands)) : StopJob.None;
         if (job == StopJob.Shunter && _lent == StopJob.None && self.Has(PlayerFlags.Heavy))
             return Press();
+        // On a house's hatch ladder, on a village errand (note 1023): on down to the basement, or up and out of it.
+        if (self.Surface == Surface.Ladder && self.Parent == PlayerState.World && (_spot is not null || calls.IsOut(member)))
+        {
+            var goal = _spot is { } down ? Front(down) : PlayerMotor.WorldPosition(self, train) with { Y = double.MaxValue };
+            if (Floors(self, train, ref goal) is { } climbing)
+                return climbing;
+        }
         // Mid-air, nothing to do; on a ladder or inside a car, the walker knows the way out (unless it's in there to load).
         var part = Part(p, world);
         if (self.Surface == Surface.Air)
