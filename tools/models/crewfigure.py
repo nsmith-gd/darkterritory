@@ -476,7 +476,8 @@ def build(name, style):
         # The game mesh's head: the scan decimated, on the head bone, blending into the neck under the collar.
         head_low = cook.duplicate(head)
         if style.face:
-            faces.decimate(head_low, style.head_tris, LM)
+            # (The skull let go first only under what's modelled over it: a bare head's is seen.)
+            faces.decimate(head_low, style.head_tris, LM, first=1.2 if style.garments is not None else None)
         else:
             cook.decimate(head_low, style.head_tris)
         for o in head_low:
