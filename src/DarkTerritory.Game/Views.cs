@@ -442,6 +442,12 @@ public static class Views
             "cutoff" => CutOffCamera(train),
             // (Not one of Names.) In this car's aisle, looking across and along its load side: a livestock car's pen and its
             // sheep (dt screenshot --cargo livestock), or whatever cases its cargo comes in.
+            // (Not one of Names.) A loaded cargo car from its yard side, as a crew walking up to it reads it (note 1025): its
+            // side door cracked on what's in it and its placard (dt screenshot --view cargo<kind>: Program's CargoView loads
+            // it); cargolivestock close at the crack, at the beast's head and breath.
+            "cargolivestock" => Camera.LookAt(target.ToWorld(new Double3(4.4, 1.9, -1.2)), target.ToWorld(new Double3(1.4, 1.75, -0.75)), 50),
+            "cargopowder" or "cargochemicals" or "cargomedicine" or "cargocomet" or "cargogoods" or "cargospoiled" or "cargolost"
+                => Camera.LookAt(target.ToWorld(new Double3(7.5, 1.8, -3.2)), target.ToWorld(new Double3(1.5, 1.9, 1.2)), 58),
             "pen" => Camera.LookAt(target.ToWorld(new Double3(-0.9, Floor(train) + 1.45, -target.Shape.HalfLength + 4.6)),
                 target.ToWorld(new Double3(0.9, Floor(train) + 0.45, -target.Shape.HalfLength + 2.2)), 70),
             // (Not one of Names.) Crouched in the aisle at the pen's rail, at the sheep's faces: who they're looking at (note

@@ -1108,6 +1108,20 @@ static int ScreenshotBatch(TrainTuning t, string content, string file, bool chec
     return differ.Count == 0 ? 0 : 1;
 }
 
+// The cargo<kind> views (note 1025): the cargo they load, its integrity, and the night's cold; ("", 1, 0) for any other view.
+static (string Cargo, double Spoil, double Cold) CargoView(string view) => view switch
+{
+    "cargolivestock" => ("livestock", 1, 1),
+    "cargopowder" => ("ammunition", 1, 0),
+    "cargochemicals" => ("chemicals", 1, 0),
+    "cargomedicine" => ("medicine", 1, 0),
+    "cargocomet" => ("comet", 1, 0),
+    "cargogoods" => ("goods", 1, 0),
+    "cargospoiled" => ("chemicals", 0.3, 0),
+    "cargolost" => ("livestock", 0, 0),
+    _ => ("", 1, 0),
+};
+
 static object Screenshot(TrainTuning t, string content, string[] args)
 {
     // --form: every town the one type (towns.json forms.force; note 692), "street" the street town of note 335.
@@ -1120,6 +1134,17 @@ static object Screenshot(TrainTuning t, string content, string[] args)
         args = [.. args, "--arrival", "photo"];
     if (view == "lostcrews" && !args.Contains("--town"))
         args = [.. args, "--town", "lostcrews"];
+    // Note 1025: a cargo car read from outside, a view per kind (Views' cargo<kind>), loaded as that kind unless --cargo says;
+    // cargospoiled and cargolost with their cargo's integrity down (--spoil), cargolivestock on a cold night (its breath).
+    if (CargoView(view) is var (cargoKind, spoil, cold) && cargoKind.Length > 0)
+    {
+        if (!args.Contains("--cargo"))
+            args = [.. args, "--cargo", cargoKind];
+        if (spoil < 1 && !args.Contains("--spoil"))
+            args = [.. args, "--spoil", spoil.ToString(System.Globalization.CultureInfo.InvariantCulture)];
+        if (cold > 0 && !args.Contains("--cold"))
+            args = [.. args, "--cold", cold.ToString(System.Globalization.CultureInfo.InvariantCulture)];
+    }
     string lineName = Str(args, "--line", "test-loop");
     int cars = (int)Opt(args, "--cars", 6);
     int width = (int)Opt(args, "--width", 1280), height = (int)Opt(args, "--height", 720), scale = (int)Opt(args, "--scale", 1);
@@ -1892,6 +1917,15 @@ static object Screenshot(TrainTuning t, string content, string[] args)
         int k = 0;
         foreach (var v in train.Vehicles.Where(v => v.Kind == VehicleKind.Cargo))
             v.Cargo = each[Math.Min(k++, each.Length - 1)];
+    }
+    // --spoil a[,b,...]: each cargo car's cargo integrity, front to back, the last repeating (spec F.1; note 1025: what's spoiled
+    // or lost shows outside it).
+    if (Str(args, "--spoil", "") is { Length: > 0 } spoils)
+    {
+        var each = spoils.Split(',').Select(x => double.Parse(x, System.Globalization.CultureInfo.InvariantCulture)).ToArray();
+        int k = 0;
+        foreach (var v in train.Vehicles.Where(v => v.Kind == VehicleKind.Cargo))
+            v.CargoIntegrity = Math.Clamp(each[Math.Min(k++, each.Length - 1)], 0, 1);
     }
     // --fill a[,b,...]: each cargo car's poured load, front to back, the last repeating (note 659: its heap, Solid.BoxIn).
     if (Str(args, "--fill", "") is { Length: > 0 } fills)

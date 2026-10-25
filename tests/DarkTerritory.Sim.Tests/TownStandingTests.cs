@@ -132,10 +132,12 @@ public class TownStandingTests
         // The blacksmith says what it costs now.
         var smith = cold.People.Single(p => p.Role == "blacksmith");
         Assert.Contains(smith.Lines[0], said.Smith);
+        // And the buyer what they pay now (note 1027).
+        Assert.Contains(cold.People.Single(p => p.Role == "buyer").Lines[0], said.Buyer.Select(l => l.Replace("{town}", cold.Name)));
 
         // Of everyone else, about wary x cold open on a wary line, and the rest say what they said.
         var wary = said.Wary.Select(l => l.Replace("{town}", cold.Name)).ToHashSet();
-        var folk = cold.People.Where(p => p.Role is not ("gatekeeper" or "guard" or "blacksmith")).ToList();
+        var folk = cold.People.Where(p => p.Role is not ("gatekeeper" or "guard" or "blacksmith" or "buyer")).ToList();
         int opened = folk.Count(p => wary.Contains(p.Lines[0]));
         Assert.InRange(opened, (int)(folk.Count * S.Wary * 0.8 * 0.6), (int)Math.Ceiling(folk.Count * Math.Min(1, S.Wary * 0.8 * 1.4)));
         foreach (var p in folk)

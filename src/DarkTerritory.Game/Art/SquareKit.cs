@@ -474,6 +474,9 @@ public static class SquareKit
             case "marketstall":
                 MarketStall(k, x, z, h, count);
                 break;
+            case "buyerstall":
+                BuyerStall(k, x, z, h);
+                break;
             case "crate":
                 k.Use("wood_crate", Palette.DeepBrown, 0.8f, 0.05f, tile: 1);
                 k.Box(new Vector3(-x, 0, -z), new Vector3(x, h, z));
@@ -552,6 +555,46 @@ public static class SquareKit
         k.Use("lantern_pane", Palette.LampAmber, 0, 0, tile: 0.25f);
         k.Emissive = 1;
         k.BoxAt(new Vector3(0, by - bh / 2 - 0.3f, bz - 0.2f), new Vector3(0.09f, 0.13f, 0.09f));
+        k.Emissive = 0;
+    }
+
+    /// <summary>
+    /// The buyer's stall (ARCHITECTURE §8 note 1027): an awning stall as the night market's are, its counter to the line, a
+    /// brass pair of scales on it, and across the front under the awning a dark board lettered BUYER over FINDS BOUGHT in lit
+    /// white, a lantern beside it, to read from the train as the forge's board is.
+    /// </summary>
+    static void BuyerStall(Kit k, float x, float z, float h)
+    {
+        Awning(k, x, z, h, 1, new Random(1027));
+        // The scales on the counter, their pans level.
+        k.Use("brass", Palette.TarnishedBrass, 0.4f, 0.6f);
+        var foot = new Vector3(x - 0.55f, 1.0f, -z + 0.35f);
+        k.Cylinder(foot, foot + new Vector3(0, 0.38f, 0), 0.025f, 6);
+        k.Rod(foot + new Vector3(-0.26f, 0.38f, 0), foot + new Vector3(0.26f, 0.38f, 0), 0.015f);
+        foreach (float px in new[] { -0.26f, 0.26f })
+        {
+            k.Rod(foot + new Vector3(px, 0.38f, 0), foot + new Vector3(px, 0.16f, 0), 0.006f);
+            k.Disc(foot + new Vector3(px, 0.15f, 0), Vector3.UnitY, 0.1f, 10);
+        }
+        // The board across the front, stood on the counter's front edge on two irons, under the lantern: dark, lettered in white.
+        float bh = 0.44f, by = 1.46f, bz = -z - 0.06f;
+        Iron(k);
+        foreach (float px in new[] { -x + 0.3f, x - 0.3f })
+            k.Rod(new Vector3(px, 1.0f, bz + 0.02f), new Vector3(px, by - bh / 2, bz + 0.02f), 0.015f);
+        k.Use("paint_black", new Vector3(0.12f, 0.1f, 0.09f), 0.7f, 0.05f);
+        k.Box(new Vector3(-x + 0.1f, by - bh / 2, bz - 0.04f), new Vector3(x - 0.1f, by + bh / 2, bz + 0.02f));
+        var font = BitmapFont.Default;
+        k.Use("notice_paper", new Vector3(0.92f, 0.9f, 0.82f), 0.6f, 0, tile: 1);
+        k.Emissive = 0.55f;
+        const string Name = "BUYER", Trade = "FINDS BOUGHT";
+        float w = 2 * x - 0.2f;
+        float big = MathF.Min(0.034f, w * 0.8f / font.Measure(Name)), small = MathF.Min(0.02f, w * 0.8f / font.Measure(Trade));
+        float top = by + bh / 2 - 0.04f;
+        k.With(Matrix4x4.CreateTranslation(0, 0, bz - 0.041f), () =>
+        {
+            Ink(k, font, Name, font.Measure(Name) * big / 2, top, big);
+            Ink(k, font, Trade, font.Measure(Trade) * small / 2, top - font.LineHeight * big - 0.02f, small);
+        });
         k.Emissive = 0;
     }
 
