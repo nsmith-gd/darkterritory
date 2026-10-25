@@ -354,7 +354,7 @@ Some are S-bends (note 359; tiers.json `sBends`, the chance a hard bend is one):
 
 ## B.4 Not yet
 - **Hard bends on alternates and dead lines.** Only the main line carries them; the alternates keep their trade-offs.
-- **Boarding at tight curves.** The `curve_tight` tag is there for the boarding rules (A1.8's queue #22) to read; nothing does yet.
+- ~~**Boarding at tight curves.**~~ *In: the Climbers board as often again on a tight bend (enemies.json `climbers.bendWeight`, `tightBendRadius`); note 1026.*
 
 ---
 
