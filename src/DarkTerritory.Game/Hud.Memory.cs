@@ -1,6 +1,7 @@
 using System.Numerics;
 using Ballast.Render;
 using DarkTerritory.Sim.Campaign;
+using DarkTerritory.Sim.Run;
 
 namespace DarkTerritory.Game;
 
@@ -33,6 +34,67 @@ public static partial class Hud
         o.Rect(x, y, PrintWidth + 2 * border, PrintHeight + 2 * border + 6, new Vector4(0.9f, 0.88f, 0.82f, 1));
         o.Image(x + border, y + border, PrintWidth, PrintHeight, photo.Rgba, photo.Width, photo.Height, PrintWidth * 2, PrintHeight * 2, levels: 24);
         o.Text(Overlay.Snap(x + border + (PrintWidth - o.Measure(PrintCaption, Fine)) / 2, Fine), y + border + PrintHeight + 1, PrintCaption, PaperInk, Fine, shadow: false);
+    }
+
+    /// <summary>The yard photographer's gallery for the end card (note 1030): the latest prints as thumbnails, and how many in all.</summary>
+    [ThreadStatic] static (IReadOnlyList<GalleryPrint> Prints, int Total)? _gallery;
+
+    /// <summary>
+    /// The yard photographer's gallery on a night's end card (note 1030): a row at the top right, over the headline and across
+    /// from the crew photo's print, the campaign's latest prints, tonight's at the right. As many as fit beside the print
+    /// at this TEXT SIZE, smaller where the headline's nearer the top. Every night's end card, or (memory.json
+    /// <c>gallery.everyNight</c> off) only the one whose night ends the campaign.
+    /// </summary>
+    static void EndGallery(Overlay o, int width, int height, IPlaySession s, RunReport r)
+    {
+        var t = Remembering.Gallery;
+        if (_gallery is not { Prints.Count: > 0 } g || !t.EveryNight && !(r.End == RunEnd.DawnMissed && s.World.DawnEndsCampaign))
+            return;
+        const float top = 8, mount = 4, gap = 4;
+        int line = o.Font.LineHeight;
+        float right = width - 12, left = _photo is null ? 12 : 12 + PrintWidth + 6 + 10;
+        float lettering = MathF.Ceiling(line * Fine) * 2 + 4;
+        float h = MathF.Min(t.CardHeight, MathF.Floor(height * 0.28f - 6 - top - lettering - mount)), w = MathF.Round(h * t.CardWidth / t.CardHeight);
+        int fits = (int)((right - left + gap) / (w + mount + gap));
+        if (h < 12 || fits < 1)
+            return;
+        var shown = g.Prints.Skip(Math.Max(0, g.Prints.Count - fits)).ToList();
+        using var plate = UiStyle.OnPlate(o);
+        Gallery(o, right, top, shown, g.Total, w, h, shown.Count, Fine);
+    }
+
+    /// <summary>
+    /// The gallery drawn (note 1030), its top right at (<paramref name="right"/>, <paramref name="top"/>): its heading in fine
+    /// print, then the prints <paramref name="w"/> × <paramref name="h"/> in rows of <paramref name="columns"/>, each on its
+    /// cream mount with its night under it, the latest at the right of the last row. The menu's campaign end draws it too.
+    /// Returns the y under it.
+    /// </summary>
+    public static float Gallery(Overlay o, float right, float top, IReadOnlyList<GalleryPrint> prints, int total, float w, float h, int columns, float fine)
+    {
+        if (prints.Count == 0)
+            return top;
+        const float border = 2, gap = 4;
+        int line = o.Font.LineHeight;
+        float caption = MathF.Ceiling(line * fine) + 1;
+        var (at, blockW, blockH) = YardGallery.Layout(prints.Count, columns, w + 2 * border, h + 2 * border, gap, caption);
+        float left = right - blockW;
+        string heading = YardGallery.Heading(prints.Count, total);
+        o.Text(Overlay.Snap(right - o.Measure(heading, fine), fine), top, heading, Ink, fine);
+        top += MathF.Ceiling(line * fine) + 3;
+        for (int i = 0; i < prints.Count; i++)
+        {
+            var (night, print) = prints[i];
+            float x = left + at[i].X, y = top + at[i].Y;
+            o.Rect(x + 1, y + 1, w + 2 * border, h + 2 * border + caption, new Vector4(0, 0, 0, 0.45f));
+            o.Rect(x, y, w + 2 * border, h + 2 * border + caption, new Vector4(0.9f, 0.88f, 0.82f, 1));
+            o.Image(x + border, y + border, w, h, print.Rgba, print.Width, print.Height, print.Width, print.Height, levels: 24);
+            // "NIGHT 12" where it goes under the print, the number alone where it doesn't.
+            string text = YardGallery.Caption(night);
+            if (o.Measure(text, fine) > w)
+                text = night.ToString(System.Globalization.CultureInfo.InvariantCulture);
+            o.Text(Overlay.Snap(x + border + (w - o.Measure(text, fine)) / 2, fine), y + border + h + 1, text, PaperInk, fine, shadow: false);
+        }
+        return top + blockH;
     }
 
     /// <summary>

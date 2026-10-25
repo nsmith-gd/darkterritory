@@ -2113,8 +2113,13 @@ CampaignState? Play(IPlaySession session, CampaignState? campaign)
             scene.Build(mesh, session.Train.Line, frames, session.Train.Dynamics.Distance, lens.Position);
             photographer.Keep(renderer.Render(mesh, lens, lighting, lighting.FogColor), renderer.Width, renderer.Height, now);
             (scene.Crew, scene.Own, scene.HeldHere) = (shownCrew, shownOwn, shownHeld);
-            if (photographer.Save(album.Night) is { } photoFile)
+            string? photoFile = photographer.Save(album.Night);
+            if (photoFile is not null)
                 Console.WriteLine($"yard photographer: the crew's picture is kept in {photoFile}");
+            // Note 1030: tonight's page carries it, and the campaign's prints so far are laid out on a sheet in the night's folder.
+            crewMemory.Snapped(photographer.Photo!, photoFile);
+            if (crewMemory.CrewKey.Length > 0 && YardGallery.Save(album.Night, crewMemory.YardPrints(), crewMemory.Crew, Hud.Remembering.Gallery) is { } sheet)
+                Console.WriteLine($"yard photographer: the crew's gallery is kept in {sheet}");
         }
         scene.PhotoFlash = photographer.Flash(now);
         scene.Build(mesh, session.Train.Line, frames, session.Train.Dynamics.Distance, camera.Position);
@@ -2177,7 +2182,7 @@ CampaignState? Play(IPlaySession session, CampaignState? campaign)
         if (hudOn)
         {
             Hud.Build(overlay, UiWidth, UiHeight, session, stills: stills.Stills, pixels: (float)renderer.Height / UiHeight, talk: townTalk, figures: figureTalk, now: now,
-                photo: crewMemory.Photo,
+                photo: crewMemory.Photo, gallery: session.World.Run?.Report is null ? null : crewMemory.EndGallery(),
                 // The first nights' card gives way to a panel opened over it (note 351: it showed through the supplies).
                 firstNight: firstNight && !cardHidden && !Held(Control.Roster) && !showSupplies && cardPage < 0 && !showPlan,
                 captions: frontEnd.Settings.Captions ? captions.Lines() : null);

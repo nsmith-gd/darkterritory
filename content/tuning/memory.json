@@ -47,5 +47,26 @@
     // Reach (metres from the eye to the book) and how near the view's centre it has to be (degrees).
     "reach": 1.9,
     "lookDegrees": 22
+  },
+  // The yard photographer's gallery (docs/design/upgrades.md §4: "the campaign's end card shows every one"; note 1030): his
+  // print of the crew leaving the yard, a night each, from this crew's logbook on this machine, tonight's last.
+  "gallery": {
+    // On every night's end card, the campaign so far (true); or only on the end card of the night that ends the campaign
+    // (false). The campaign's own end, on the slot's page in the menu, shows them either way.
+    "everyNight": true,
+    // The night's end card (canvas pixels, a row at the top right over the headline, across from the crew photo's print):
+    // each print's size (smaller at a bigger TEXT SIZE, where the headline's nearer the top), and the most in the row (the
+    // latest; fewer where fewer fit, and the heading says how many there are in all).
+    "cardWidth": 48,
+    "cardHeight": 30,
+    "cardMost": 5,
+    // The campaign's end in the menu (canvas pixels, under the list): the same, bigger, more of them.
+    "menuWidth": 72,
+    "menuHeight": 45,
+    "menuColumns": 5,
+    "menuMost": 10,
+    // The sheet kept in the night's folder, every print at full size (pixels): how many to a row, and the margin round each.
+    "sheetColumns": 4,
+    "sheetMargin": 16
   }
 }
