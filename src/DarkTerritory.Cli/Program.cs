@@ -1261,6 +1261,16 @@ static object Screenshot(TrainTuning t, string content, string[] args)
                     Carrying = x == site && x.Has(DarkTerritory.Sim.Run.ModuleKind.Conveyor) && args.Contains("--conveying") && !args.Contains("--jam"),
                     Jam = x == site && x.Has(DarkTerritory.Sim.Run.ModuleKind.Conveyor) ? Opt(args, "--jam", -1) : -1,
                 })]);
+            // --gantry down|cleared with --crane (note 1029): its gantry brought down by Tower Jaw across its loading track, or
+            // that wreck cleared off it; the train stood back short of where it lies.
+            if (Str(args, "--gantry", "") is "down" or "cleared" && site.Crane is { } fallen)
+            {
+                run.GantryDown(site.Index);
+                if (Str(args, "--gantry", "") == "cleared")
+                    run.WreckCleared(site.Index, gantry: true);
+                double toe = site.Spur >= 0 ? line.Branches[site.Spur].Toe : 0;
+                at = toe + site.Mid + fallen.MiddleAlong - fallen.Length * 0.5 - 6;
+            }
         }
     }
     if (towerJawMode.Length > 0)

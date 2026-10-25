@@ -1,7 +1,9 @@
 using Ballast;
 using DarkTerritory.Sim.Enemies;
+using DarkTerritory.Sim.Net;
 using DarkTerritory.Sim.Player;
 using DarkTerritory.Sim.Route;
+using DarkTerritory.Sim.Run;
 using DarkTerritory.Sim.Train;
 
 namespace DarkTerritory.Sim.Tests;
@@ -227,5 +229,92 @@ public class TowerJawTests
         Assert.True(jaw.Gone);
         Assert.True(s.World.Run!.ChuteLeft(s.Facility) > 0);
         Assert.Equal(0, s.World.TowersDown);
+    }
+    /// <summary>A client that joins now: a fresh world, given the host's records once (note 1029).</summary>
+    static World Joiner(World host, FacilityTuning? facilities = null)
+    {
+        var client = new World(new TrainOnLine(new TrainDynamics(Consist.Uniform(Tuning.Train, 4, 1)), host.Train.Line, 1000, Tuning.Boiler));
+        client.EnableRun(Tuning.Run, host.Run!.Route, 600, authority: false, facilities);
+        var controls = new TrainControls();
+        WorldRecords.Apply(WorldRecords.Capture(host, controls, []), client, ref controls, []);
+        return client;
+    }
+
+    [Fact]
+    public void AJoinerAfterTheFallSeesTheTowerDownAndAfterTheClearingCleared()
+    {
+        // Note 1029 (tower-jaw.md "Not yet": "a client joining after the clearing sees the tower standing"): the tower's state
+        // is the run's, on the wire, not the scene's memory of a creature it saw.
+        var (s, jaw) = AtTheTower(gnawed: 0.95);
+        Assert.Equal(StructureDown.Standing, Joiner(s.World).Run!.Tower(s.Facility));
+        s.Run(0.05 * J.GnawFor(RouteTier.Frontier) + 0.5);
+        Assert.Equal(TowerJawMode.Wreck, jaw.Mode);
+        Assert.Equal(StructureDown.Fallen, s.World.Run!.Tower(s.Facility));
+        var late = Joiner(s.World);
+        Assert.Equal(StructureDown.Fallen, late.Run!.Tower(s.Facility));
+        Assert.Equal(0, late.Run.ChuteLeft(s.Facility));
+        s.Crew[1] = s.Ground(jaw.FallsAt + new Double3(1.5, 0, 0));
+        s.Run(J.ClearCrewSeconds + 1, id => new PlayerIntent { Buttons = PlayerButtons.Use });
+        Assert.True(jaw.Gone);
+        Assert.Equal(StructureDown.Cleared, s.World.Run.Tower(s.Facility));
+        s.Run(5);
+        Assert.DoesNotContain(s.World.ActiveEnemies, e => e is TowerJaw);
+        Assert.Equal(StructureDown.Cleared, Joiner(s.World).Run!.Tower(s.Facility));
+    }
+
+    /// <summary>A foundry's crane, the train stood down its spur, Tower Jaw at the gantry's leg <paramref name="gnawed"/> through.</summary>
+    static (FacilityTests.Stop Stop, Crane Crane, TowerJaw Jaw) AtTheGantry(double gnawed)
+    {
+        var stop = new FacilityTests.Stop(ModuleKind.Crane);
+        stop.World.EnableEnemies(Tuning.Enemies, stop.World.Run!.Route, 1, crew: 4, authority: true);
+        var crane = stop.Site.Crane!;
+        var jaw = stop.World.AddEnemy(id => TowerJaw.AtGantry(id, stop.World, stop.Site.Index, crane, J, gnawed));
+        return (stop, crane, jaw);
+    }
+
+    [Fact]
+    public void GnawedThroughTheGantryFallsAcrossItsTrackAndClosesIt()
+    {
+        // Note 1029 (tower-jaw.md "Not yet": "the loading crane's gantry doesn't lean or fall; the crane's Wrecked only stops
+        // it"): it comes down across its loading track at its middle, the crane dead, and a train run at it down the spur is
+        // stopped short of it, as at the coaling tower's.
+        var (stop, crane, jaw) = AtTheGantry(0.95);
+        Assert.Equal(stop.Site.Spur, jaw.BlocksPath);
+        stop.Step(0.05 * J.GnawFor(RouteTier.Frontier) + 0.5, []);
+        Assert.Equal(TowerJawMode.Wreck, jaw.Mode);
+        Assert.True(crane.Wrecked);
+        Assert.Equal(StructureDown.Fallen, stop.World.Run!.Gantry(stop.Site.Index));
+        Assert.True(((jaw.FallsAt - crane.OverTrack) with { Y = 0 }).Length < 1e-6);
+        double along = jaw.Blocks!.Value;
+        Assert.InRange(along, stop.Train.Line.Branches[stop.Site.Spur].Toe, stop.Train.Line.Branches[stop.Site.Spur].End);
+        stop.StandAt(along - J.WreckHalf - 30);
+        for (int i = 0; i < 20 * SimConstants.TickRate; i++)
+        {
+            stop.Train.Dynamics.Velocity = 3;
+            stop.World.BeginTick();
+            stop.World.Step(new TrainControls { Reverser = 1 });
+        }
+        Assert.Equal(stop.Site.Spur, stop.Train.Dynamics.Path);
+        Assert.InRange(stop.Train.Dynamics.Distance, along - J.WreckHalf - 0.5, along - J.WreckHalf + 0.2);
+    }
+
+    [Fact]
+    public void AJoinerAfterTheGantryFallsSeesItDownAndTheCraneDeadThenCleared()
+    {
+        var (stop, crane, jaw) = AtTheGantry(0.95);
+        stop.Step(0.05 * J.GnawFor(RouteTier.Frontier) + 0.5, []);
+        Assert.Equal(TowerJawMode.Wreck, jaw.Mode);
+        var late = Joiner(stop.World, FacilityTests.F);
+        Assert.Equal(StructureDown.Fallen, late.Run!.Gantry(stop.Site.Index));
+        Assert.True(late.Run.Sites[stop.Site.Index]!.Crane!.Wrecked);
+        stop.Crew.Add(stop.OnTheGround(jaw.FallsAt + new Double3(1.5, 0, 0)));
+        stop.Step(J.ClearCrewSeconds + 1, [new PlayerIntent { Buttons = PlayerButtons.Use }]);
+        Assert.True(jaw.Gone);
+        Assert.Equal(StructureDown.Cleared, stop.World.Run!.Gantry(stop.Site.Index));
+        Assert.True(crane.Wrecked);
+        late = Joiner(stop.World, FacilityTests.F);
+        Assert.Equal(StructureDown.Cleared, late.Run!.Gantry(stop.Site.Index));
+        Assert.Equal(StructureDown.Standing, late.Run.Tower(stop.Site.Index));
+        Assert.True(late.Run.Sites[stop.Site.Index]!.Crane!.Wrecked);
     }
 }

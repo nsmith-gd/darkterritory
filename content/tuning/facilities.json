@@ -403,6 +403,10 @@
     "villageShare": 0.5,
     "villageReach": 150,
     "villageDawnSpare": 900,
+    // Note 1023 (queue #726; the director, 23 Oct: a basement is "high risk, high reward"): the hands search a house's upstairs
+    // and its basement too, up the flight and down the hatch's ladder, and bring the find back up and out; false, they keep
+    // to the ground floor (note 1005).
+    "villageFloors": true,
     // Note 934 (found under #609, note 895: the bot driver never stopped at a halt, so no bot night stood at one): a driver
     // bot stands haltStandSeconds at each halt on the line (an abandoned village's on the main line, the route card's "halt"
     // rows) with at least haltAllowance (s) of the night in hand past the run home, before going on. 0: it drives past them,
