@@ -37,4 +37,5 @@ def garments(fit):
             tf.bottles(fit)]
 
 
-tf.recipe("townsfolk_lamplighter", "lamplighter", DRESS, garments)
+# (His face is under the facepiece and the hood: its triangles go where they show, the figure inside GDD §27's 10k.)
+tf.recipe("townsfolk_lamplighter", "lamplighter", DRESS, garments, head_tris=1700)
