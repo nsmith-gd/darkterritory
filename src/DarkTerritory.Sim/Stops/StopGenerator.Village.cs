@@ -224,6 +224,23 @@ public static partial class StopGenerator
                     g.Contain(ContainerKind.Cabinet, StopZone.Village, h.Centre, Band(h.D), 0, hi, outlier: h.Outlier, level: 1);
             }
         }
+        // Note 1022: a house of parts whose ground floor keeps something where its flight or its hatch would be keeps one floor
+        // (what was to be kept down there or up there is kept on the ground floor, as in any).
+        foreach (int hi in houses.Where(i => Run.StopWalls.PartFloored(g.Buildings[i])))
+        {
+            var b = g.Buildings[hi];
+            var clear = Run.StopWalls.PartKeepClear(b).ToList();
+            bool On(double x, double y) => clear.Any(q => Math.Abs(q.X - x) < q.HalfX + 0.4 && Math.Abs(q.Y - y) < q.HalfY + 0.4);
+            bool blocked = g.Containers.Any(c => c.Building == hi && c.Level == 0
+                && (Run.StopWalls.Kept(b, c.Kind, c.Index) is var (kx, ky, _, _) && On(kx, ky)
+                    || Run.StopWalls.InsideLocal(b, c.Kind, c.Index) is var (fx, fy) && On(fx, fy)));
+            if (!blocked)
+                continue;
+            g.Buildings[hi] = b with { Form = HouseForm.Plain };
+            for (int k = before; k < g.Containers.Count; k++)
+                if (g.Containers[k].Building == hi)
+                    g.Containers[k] = g.Containers[k] with { Level = 0 };
+        }
         // Note 1005: in a house of floors, each find's place among its kind's on its floor.
         for (int k = before; k < g.Containers.Count; k++)
         {

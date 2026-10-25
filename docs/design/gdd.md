@@ -328,7 +328,7 @@ Use talks to someone, and Use again hears their next line. They turn to face you
 - ~~fish sheds, fences, granite and lobster traps between the houses~~ *(in: note 989, #689)*;
 - ~~buying and upgrading in the town itself~~ *(in: the blacksmith, note 697)*; turning loot into scrip in the town itself, not the tally *(in progress: queue #657, note 1027)*;
 - ~~faces of their own for the townspeople~~ *(in: the survivors' figure with their masks, note 353, and the director's lookbook dressed onto it, note 694, queue #426; on their rounds since note 353, #389)*;
-- upstairs in the towns' open houses *(in progress: queue #725; the villages' houses have floors and dark basements since note 1005, #710: an upstairs by a flight, a basement by a hatch and a ladder, cellar windows to climb out of)*;
+- ~~upstairs in the towns' open houses~~ *(in: note 1022, #725: an open house of two storeys has its bedrooms up a flight and a window onto the porch roof out the back, most a dark cellar down a hatch, a burnt house keeps its cellar, and a boarded one or two are left as they were inside; the villages' houses have floors since note 1005, #710, and their L, cross and pair houses since note 1022)*;
 - ~~things everyone hears when one person does them (ringing the bell)~~ *(in: note 730, #1038)*;
 - ~~notes found out along the line~~ *(in: notes 961, 965; #1503, #1542)*.
 

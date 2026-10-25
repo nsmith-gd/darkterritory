@@ -289,48 +289,33 @@ public sealed partial class StopWalls
             .OrderByDescending(r => r.Length).ThenBy(r => r.AlongX).ThenBy(r => r.At).ThenBy(r => r.A).ToList();
         if (runs.Count == 0)
             return (0, 0, 1, 0, 0, 0);
-        // (A house of parts with floors keeps its flight and its hatch clear, note 1022: the next run along that's clear of them.)
-        var clear = PartFloored(b) ? PartKeepClear(b).ToList() : [];
-        (double, double, double, double, double, double)? first = null;
-        for (int j = 0; j < runs.Count; j++)
+        var r = runs[index % runs.Count];
+        double t = WallThickness, inward = -r.Out;
+        // Furniture along the run, clear of the walls at its ends; a hatch or the boards in the middle of it.
+        double half = kind == ContainerKind.Cupboard ? CupboardWidth : CabinetWidth;
+        double f = kind switch
         {
-            var k = Along(runs[(index + j) % runs.Count]);
-            first ??= k;
-            if (!clear.Any(q => Math.Abs(q.X - k.Item1) < q.HalfX + 0.5 && Math.Abs(q.Y - k.Item2) < q.HalfY + 0.5
-                || Math.Abs(q.X - k.Item5) < q.HalfX + 0.4 && Math.Abs(q.Y - k.Item6) < q.HalfY + 0.4))
-                return k;
-        }
-        return first!.Value;
-
-        (double, double, double, double, double, double) Along(WallRun r)
+            ContainerKind.Cupboard => index % 2 == 0 ? 0.3 : 0.7,
+            ContainerKind.Cabinet => index % 2 == 0 ? 0.7 : 0.3,
+            // (A small thing lying on the floor, in the corner at the run's end: note 738.)
+            ContainerKind.Loose => index % 2 == 0 ? 0.1 : 0.9,
+            _ => 0.5,
+        };
+        double along = Math.Clamp(r.A + r.Length * f, r.A + t + half + 0.1, r.B - t - half - 0.1);
+        if (r.A + t + half + 0.1 > r.B - t - half - 0.1)
+            along = (r.A + r.B) / 2;
+        var (nx, ny) = r.AlongX ? (0.0, inward) : (inward, 0.0);
+        var (px, py) = r.AlongX ? (along, r.At) : (r.At, along);
+        double depth = kind switch
         {
-            double t = WallThickness, inward = -r.Out;
-            // Furniture along the run, clear of the walls at its ends; a hatch or the boards in the middle of it.
-            double half = kind == ContainerKind.Cupboard ? CupboardWidth : CabinetWidth;
-            double f = kind switch
-            {
-                ContainerKind.Cupboard => index % 2 == 0 ? 0.3 : 0.7,
-                ContainerKind.Cabinet => index % 2 == 0 ? 0.7 : 0.3,
-                // (A small thing lying on the floor, in the corner at the run's end: note 738.)
-                ContainerKind.Loose => index % 2 == 0 ? 0.1 : 0.9,
-                _ => 0.5,
-            };
-            double along = Math.Clamp(r.A + r.Length * f, r.A + t + half + 0.1, r.B - t - half - 0.1);
-            if (r.A + t + half + 0.1 > r.B - t - half - 0.1)
-                along = (r.A + r.B) / 2;
-            var (nx, ny) = r.AlongX ? (0.0, inward) : (inward, 0.0);
-            var (px, py) = r.AlongX ? (along, r.At) : (r.At, along);
-            double depth = kind switch
-            {
-                ContainerKind.Cupboard => t + CupboardDepth,
-                ContainerKind.Cabinet => t + CabinetDepth,
-                ContainerKind.Cellar => t + 1.3,
-                ContainerKind.Loose => t + 0.45,
-                _ => t + 1.7,
-            };
-            double find = kind is ContainerKind.Cupboard or ContainerKind.Cabinet ? t + FindOut : depth;
-            return (px + nx * depth, py + ny * depth, nx, ny, px + nx * find, py + ny * find);
-        }
+            ContainerKind.Cupboard => t + CupboardDepth,
+            ContainerKind.Cabinet => t + CabinetDepth,
+            ContainerKind.Cellar => t + 1.3,
+            ContainerKind.Loose => t + 0.45,
+            _ => t + 1.7,
+        };
+        double find = kind is ContainerKind.Cupboard or ContainerKind.Cabinet ? t + FindOut : depth;
+        return (px + nx * depth, py + ny * depth, nx, ny, px + nx * find, py + ny * find);
     }
 
     /// <summary>
