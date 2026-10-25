@@ -55,16 +55,23 @@ public class CargoOutsideTests
     {
         var mesh = CargoKit.Placards(null, Shape, cargo);
         Assert.InRange(mesh.Vertices.Length / 3, 1, ArtCatalog.MediumProp.MaxTriangles);
-        double w = Shape.HalfWidth;
-        Assert.Contains(mesh.Vertices, v => v.Position.X > w);
-        Assert.Contains(mesh.Vertices, v => v.Position.X < -w);
-        Assert.All(mesh.Vertices, v => Assert.True(Math.Abs(v.Position.X) > w, "on the outside of the wall"));
+        double w = Shape.HalfWidth, h = Shape.RoofHeight;
+        var sides = mesh.Vertices.Where(v => v.Position.Y < h - 0.1).ToList();
+        var roof = mesh.Vertices.Where(v => v.Position.Y >= h - 0.1).ToList();
+        Assert.Contains(sides, v => v.Position.X > w);
+        Assert.Contains(sides, v => v.Position.X < -w);
+        Assert.All(sides, v => Assert.True(Math.Abs(v.Position.X) > w, "on the outside of the wall"));
         // Behind the side door, past where its leaf slides to fully open: never under the door or its leaf.
         foreach (var door in Shape.DoorList.Where(Side))
         {
             double open = door.Box.Max.Z + (door.Box.Max.Z - door.Box.Min.Z) * Math.Max(0, door.Slide);
-            Assert.All(mesh.Vertices, v => Assert.True(v.Position.Z > open, $"{cargo}: at z {v.Position.Z} under the door's slide (to {open})"));
+            Assert.All(sides, v => Assert.True(v.Position.Z > open, $"{cargo}: at z {v.Position.Z} under the door's slide (to {open})"));
         }
+        // On the roof, either side of the walk, on the roof (not under it, not floating), clear of the hatch.
+        Assert.Contains(roof, v => v.Position.X > 0.45);
+        Assert.Contains(roof, v => v.Position.X < -0.45);
+        Assert.All(roof, v => Assert.True(Math.Abs(v.Position.X) is > 0.45f and < 1.5f && v.Position.Y < h + 0.02
+            && (Shape.Hatch is not { } hatch || v.Position.Z < hatch.Min.Z), $"{cargo}: roof paint at {v.Position}"));
         Assert.True(CargoKit.Stencil(cargo).Word.Length > 0);
     }
 

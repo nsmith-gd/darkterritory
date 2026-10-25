@@ -50,6 +50,13 @@ public static class CargoKit
         return -l + 0.06f + 6.5f * (2 * l - 0.12f) / 8;
     }
 
+    // The roof's word: out from the walk's centreline (the walk is 0.45 m either side of it), its pixel.
+    const float RoofWordX = 0.98f, RoofPixel = 0.055f;
+
+    /// <summary>Where along the roof the cargo's name is painted: a third of the way back from the front, clear of the
+    /// number at the front end and the hatch behind the middle.</summary>
+    public static float RoofWordZ(CarShape shape) => -(float)shape.HalfLength / 2.3f;
+
     /// <summary>
     /// The placards and stencils of <paramref name="cargo"/> on both sides of a car shaped <paramref name="shape"/>: a board
     /// bolted over the bay's bracing, an enamelled diamond on it with its emblem (the powder's burst, the chemicals' flask,
@@ -100,6 +107,22 @@ public static class CargoKit
             Letter(k, font, word, new Vector3(centre.X, wordY, z), n, up, right, WordPixel);
             Letter(k, font, warning, new Vector3(centre.X, warnY, z), n, up, right, WarnPixel);
         }
+        // On the roof too, for a crew walking the train's roofs: the cargo's name painted along the car either side of the
+        // walk, in its placard's colour (the comet's lit), its foot toward the walk. Ahead of the hatch, behind the number.
+        var roofPaint = cargo == CargoKind.Comet ? emblem : ground;
+        k.Use("enamel", roofPaint, 0.6f, 0.05f);
+        k.Tint = roofPaint;
+        k.Emissive = cargo == CargoKind.Comet ? 0.6f : 0;
+        float h = (float)shape.RoofHeight;
+        // Laid on the roof's arch (TrainKit.Car's profile: down 0.035 m at the eaves, by the square of the way out).
+        Vector3 OnRoof(Vector3 p) => p with { Y = h - 0.005f - 0.035f * MathF.Pow(MathF.Min(1, MathF.Abs(p.X) / (w + 0.02f)), 2) + 0.01f };
+        foreach (int side in new[] { -1, 1 })
+        {
+            var across = new Vector3(side, 0, 0);
+            Letter(k, font, word, new Vector3(side * RoofWordX, h, RoofWordZ(shape)), Vector3.UnitY, across,
+                Vector3.Normalize(Vector3.Cross(across, Vector3.UnitY)), RoofPixel, OnRoof);
+        }
+        k.Emissive = 0;
         return k.Build($"cargo-placard-{Cargoes.Key(cargo)}");
     }
 
@@ -141,7 +164,8 @@ public static class CargoKit
     }
 
     /// <summary>A line of the HUD's pixel font painted on the face, centred at <paramref name="centre"/>, each row's run of pixels one quad.</summary>
-    static void Letter(Kit k, BitmapFont font, string line, Vector3 centre, Vector3 n, Vector3 up, Vector3 right, float px)
+    static void Letter(Kit k, BitmapFont font, string line, Vector3 centre, Vector3 n, Vector3 up, Vector3 right, float px,
+        Func<Vector3, Vector3>? onto = null)
     {
         float x = -font.Measure(line) * px / 2, y0 = font.Height * px / 2;
         foreach (char ch in line)
@@ -156,7 +180,8 @@ public static class CargoKit
                     while (gx + run < g.GetLength(1) && g[gy, gx + run])
                         run++;
                     float xm = x + (gx + run / 2f) * px, ym = y0 - (gy + 0.5f) * px;
-                    k.Panel(centre + right * xm + up * ym, n, up, run * px, px);
+                    var at = centre + right * xm + up * ym;
+                    k.Panel(onto?.Invoke(at) ?? at, n, up, run * px, px);
                 }
             x += font.Advance * px;
         }
