@@ -346,6 +346,59 @@ public sealed partial class SceneArt(Look look)
         }
     }
 
+    /// <summary>The bits (<see cref="Vehicle.DoorsOpen"/>'s) of a car's side doors, which a loaded car's stand cracked (note 1025).</summary>
+    static int SideDoors(CarShape shape) => shape.DoorList.Where(d => d.Box.Max.Z - d.Box.Min.Z > d.Box.Max.X - d.Box.Min.X)
+        .Aggregate(0, (bits, d) => bits | 1 << d.Index);
+
+    /// <summary>
+    /// The middle of a side door's crack (note 1025), car frame: the gap it leaves at its trailing edge, slid
+    /// <paramref name="crack"/> of its slide, <paramref name="inward"/> m in from the wall's outer face, halfway up the door.
+    /// </summary>
+    static Double3 CrackAt(Door door, double crack, double inward)
+    {
+        var box = door.Box;
+        double gap = (box.Max.Z - box.Min.Z) * crack;
+        double z = door.Slide > 0 ? box.Min.Z + gap / 2 : box.Max.Z - gap / 2;
+        int side = box.Min.X < 0 ? -1 : 1;
+        double face = side < 0 ? box.Min.X : box.Max.X;
+        return new Double3(face - side * inward, box.Centre.Y, z);
+    }
+
+    /// <summary>
+    /// A beast at a livestock car's cracked side door (note 1025; GDD Part Eleven question 7): stood just inside, its head
+    /// in the gap, looking out at whoever's come up to it (note 455's look); and its breath out of the gap as the night's cold
+    /// shows it (<see cref="Breath"/>).
+    /// </summary>
+    const float CrackTurn = 0.3f, CrackMouth = 0.8f;
+
+    void AtTheCrack(MeshBuilder mesh, in CarFrame frame, Double3 eye, long tick, Door door, double crack, int vehicle)
+    {
+        var m = FrameMatrix(frame, eye);
+        double t = (tick < 0 ? 0 : tick) / (double)Sim.SimConstants.TickRate;
+        int side = door.Box.Min.X < 0 ? -1 : 1;
+        // Its head (sheep.py: 0.8 forward of its feet, 0.55 up) in the gap, its nose at the wall's face, its feet on the floor;
+        // turned only a little toward whoever's there, so it stays in the gap and out of the jambs.
+        var gap = CrackAt(door, crack, 0.02);
+        double floorY = frame.Shape.Interior?.Min.Y ?? 1.1;
+        var feet = new Double3(gap.X - side * 0.8, floorY + 0.05, gap.Z);
+        float yaw = -side * MathF.PI / 2;
+        var (turn, tip) = SheepLook((frame.Index, 1000 + door.Index), frame, feet, yaw, t, 3);
+        turn = Math.Clamp(turn, -CrackTurn, CrackTurn);
+        var at = Matrix4x4.CreateRotationY(yaw) * Matrix4x4.CreateTranslation(ToF(feet)) * m;
+        uint h = (uint)(vehicle * 2654435761u ^ (uint)door.Index * 40503u);
+        double phase = t + (h % 97) * 0.13;
+        double inRound = phase - (int)(phase / 9) * 9;
+        var (clip, ct) = inRound < 2.4 ? ("bleat", inRound) : ("idle", inRound);
+        Creatures.DrawTurned(mesh, "sheep", clip, ct, true, at, turn, tip, seed: (int)(h % 13));
+        if (Breath > 0)
+        {
+            // Its muzzle, a little below the top of its head (sheep.py's head bone is at SheepHead; the face hangs under it).
+            var mouth = frame.ToWorld(CrackAt(door, crack, -0.12) with { Y = floorY + 0.05 + CrackMouth }).RelativeTo(eye);
+            var facing = Vector3.Normalize(Vector3.TransformNormal(new Vector3(side, 0, 0), m));
+            Effects.Breath(mesh, mouth, facing, Breath, t, vehicle * 7 + door.Index, inRound < 2.4);
+        }
+    }
+
     /// <summary>
     /// Who's about to be looked at (note 455): the eye and the crew's heads, world (GreyboxScene, before the cars are drawn).
     /// </summary>
@@ -1579,6 +1632,12 @@ public sealed partial class SceneArt(Look look)
         string key = (engine ? $"engine:{ShapeKey(shape)}" : $"car:{ShapeKey(shape)}:{livery}:{variant}:{shape.Gun is not null}") + (paint != 0 ? $":paint{paint}" : "");
         // The load's drawn apart from the body (TrainKit.Load), in its cargo's cases, when the scene knows the cargo.
         bool loadApart = !engine && vehicle is not null;
+        // Its cargo read from outside (note 1025): a loaded cargo car's side doors stand cracked on what's in it, until what's in
+        // it is lost and one hangs off its runner instead.
+        var cargoOut = Look.Tuning.CargoOutside;
+        bool showsCargo = !engine && !utility && shape.Dining is null && cargoOut.Shows(vehicle);
+        bool cargoLost = showsCargo && cargoOut.Lost(vehicle!);
+        double crack = showsCargo && !cargoLost ? cargoOut.Crack : 0;
         // The engine's drivers and rods are drawn apart, turning (Gear), where their modelled parts are there to turn.
         bool turning = engine && GearParts is not null;
         string bodyKey = loadApart ? key + ":empty" : turning ? key + ":turning" : key;
@@ -1705,8 +1764,10 @@ public sealed partial class SceneArt(Look look)
             float fill = HeapFill(vehicle);
             mesh.Instances.Add(new MeshInstance(Piece($"load:{ShapeKey(shape)}:{cargo}:{variant}:{fill}", () => TrainKit.Load(Look, shape, cargo, variant, fill)), m,
                 emergency ? 0.06f : 1, Scar: scar, Bite: cut, BiteFloor: floor));
-            if (cargo == CargoKind.Livestock && (frame.Origin - eye).Length < 120)
-                Livestock(mesh, frame, eye, tick, vehicle.Bulk);
+            // As many as are left of what was driven in (note 1025): what the creatures took, or what died of the cold, gone.
+            double herd = !showsCargo ? vehicle.Bulk : cargoLost ? 0 : vehicle.Bulk * vehicle.CargoIntegrity;
+            if (cargo == CargoKind.Livestock && herd > 0 && (frame.Origin - eye).Length < 120)
+                Livestock(mesh, frame, eye, tick, herd);
             // Comet-derived material (GDD §19 "attracts everything; should look like it"): a sick green light from the cracks
             // in its caskets, breathing slowly, out through the car's gaps and doors, and a glow over each stack.
             if (cargo == CargoKind.Comet && (frame.Origin - eye).Length < 220)
@@ -1726,7 +1787,7 @@ public sealed partial class SceneArt(Look look)
                 // and wide by how far the gap there has warped open (the same on every frame: hashed by where it is).
                 mesh.Emissive = 1;
                 int seam = 0;
-                foreach (var (a, b, normal) in CometSeams(shape, vehicle.DoorsOpen))
+                foreach (var (a, b, normal) in CometSeams(shape, vehicle.DoorsOpen | (crack > 0 ? SideDoors(shape) : 0)))
                 {
                     var wa = Vector3.Transform(a, m);
                     var wb = Vector3.Transform(b, m);
@@ -1759,6 +1820,12 @@ public sealed partial class SceneArt(Look look)
                         var c = frame.ToWorld(door.Box.Centre).RelativeTo(eye);
                         mesh.Billboard(c, 1.6f * breath, 0, new Vector4(CometGlow * 0.22f * breath, 1), -1, FxBlend.Additive);
                     }
+                    else if (sideDoor && crack > 0)
+                    {
+                        // Cracked (note 1025): a thin wash of it in the gap.
+                        var c = frame.ToWorld(CrackAt(door, crack, 0)).RelativeTo(eye);
+                        mesh.Billboard(c, 0.9f * breath, 0, new Vector4(CometGlow * 0.3f * breath, 1), -1, FxBlend.Additive, stretch: 2.2f);
+                    }
                     if (sideDoor && (frame.Origin - eye).Length < 60)
                     {
                         // Out at the foot of a side door, open or shut, a little of it on the step and the ballast.
@@ -1780,6 +1847,21 @@ public sealed partial class SceneArt(Look look)
         if (!engine && Look.Layer("stencil_numerals") >= 0)
             mesh.Instances.Add(new MeshInstance(Piece($"number:{ShapeKey(shape)}:{number}", () => TrainKit.CarNumber(Look, shape, number)), m,
                 emergency ? 0.06f : 1, Scar: scar, Bite: cut, BiteFloor: floor));
+        // What's in it, on its sides (note 1025): the placards and stencils of what's dangerous or precious, and once what's in
+        // it has spoiled, the stain run out under its doors.
+        if (showsCargo && (frame.Origin - eye).Length < cargoOut.PlacardWithin)
+        {
+            var cargo = vehicle!.Cargo;
+            if (CargoKit.Placarded(cargo))
+                mesh.Instances.Add(new MeshInstance(Piece($"placard:{ShapeKey(shape)}:{cargo}", () => CargoKit.Placards(Look, shape, cargo)), m,
+                    emergency ? 0.06f : 1, Scar: scar, Bite: cut, BiteFloor: floor));
+            if (cargoOut.Spoiled(vehicle))
+            {
+                int stain = vehicle.Id % 4;
+                mesh.Instances.Add(new MeshInstance(Piece($"stain:{ShapeKey(shape)}:{cargo}:{stain}", () => CargoKit.Stain(Look, shape, cargo, stain)), m,
+                    emergency ? 0.06f : 1, Bite: cut, BiteFloor: floor));
+            }
+        }
         // The crew's sigil on the hood's sides (note 731; World.CrewSigil).
         if (engine && Look.Tuning.MaskStencil(CrewSigil) is { } sigil)
         {
@@ -1802,7 +1884,7 @@ public sealed partial class SceneArt(Look look)
                 m, Scar: scar, Bite: cut, BiteFloor: floor));
         }
         // One side door's dropped off its top runner at one end (the car seeds which), and hangs askew out of its opening.
-        int askew = !engine && failing >= FailStage.Failing ? DamageKit.AskewDoor(shape, seed) : -1;
+        int askew = !engine && (failing >= FailStage.Failing || cargoLost) ? DamageKit.AskewDoor(shape, seed) : -1;
         if (bite.Any)
             mesh.Instances.Add(new MeshInstance(Piece($"bite:{ShapeKey(shape)}:{livery}:{seed}:{bite.Centre:0.00}:{bite.Side:0.00}",
                 () => bite.Edge(Look, shape, livery, seed)), m, Scar: scar));
@@ -1817,6 +1899,8 @@ public sealed partial class SceneArt(Look look)
             if (bite.Eats(new Vector3((float)box.Centre.X, (float)box.Centre.Y, (float)box.Centre.Z)))
                 continue;
             bool side = box.Max.Z - box.Min.Z > box.Max.X - box.Min.X;
+            if (side && crack > 0 && door.Index != askew)
+                slid = MathF.Max(slid, (float)crack);
             if (slid > 0)
             {
                 // Out from the wall first, then along it: the step out done in the first fifth of the slide.
@@ -1831,8 +1915,13 @@ public sealed partial class SceneArt(Look look)
             var c = box.Centre;
             var placed = Matrix4x4.CreateTranslation((float)c.X, (float)c.Y, (float)c.Z);
             if (door.Index == askew)
-                placed = DamageKit.Askew(placed, size, box.Min.X < 0 ? -1 : 1, failing, seed);
+                placed = DamageKit.Askew(placed, size, box.Min.X < 0 ? -1 : 1, failing >= FailStage.Failing ? failing : FailStage.Failing, seed);
             mesh.Instances.Add(new MeshInstance(leaf, placed * m, Scar: scar));
+            // Livestock at the crack (note 1025): one at each cracked side door, its head in the gap looking out at whoever's
+            // there, and its breath out of it in the cold.
+            if (side && crack > 0 && door.Index != askew && slid <= crack + 0.01 && vehicle is { Cargo: CargoKind.Livestock }
+                && (frame.Origin - eye).Length < cargoOut.BreathWithin)
+                AtTheCrack(mesh, frame, eye, tick, door, crack, vehicle.Id);
         }
         // The crew lockers (note 173): the row's cabinets in the car's frame, and each door on its hinge, shut or swung out
         // into the aisle, lettered with its grade.

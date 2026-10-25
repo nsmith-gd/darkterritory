@@ -87,6 +87,10 @@ public static class ArtCatalog
         list.Add(new("underfloor-open", SmallProp, () => TownKit.UnderFloorOpen(look)));
         list.Add(new("hatch-lid", SmallProp, () => TrainKit.HatchLid(look, new System.Numerics.Vector3(1.4f, 0.15f, 2.4f))));
         list.Add(new("utility-fit", MediumProp, () => TrainKit.UtilityFit(look, cargo)));
+        // A car's cargo read from outside it (note 1025): each placarded cargo's boards, both sides; and what's spoiled stained down them.
+        foreach (var kind in Enum.GetValues<CargoKind>().Where(CargoKit.Placarded))
+            list.Add(new($"cargo-placard-{Cargoes.Key(kind).ToLowerInvariant()}", MediumProp, () => CargoKit.Placards(look, cargo, kind)));
+        list.Add(new("cargo-stain", SmallProp, () => CargoKit.Stain(look, cargo, CargoKind.Livestock, 1)));
         list.Add(new("damage-1", MediumProp, () => DamageKit.Car(look, cargo, 1, 3)));
         list.Add(new("damage-2", MediumProp, () => DamageKit.Car(look, cargo, 2, 3)));
         list.Add(new("car-wrecked", Car, () =>
@@ -167,6 +171,8 @@ public static class ArtCatalog
             int variant = v;
             list.Add(new($"square-marketstall-{v}", MediumProp, () => SquareKit.Fixture(look, "marketstall", variant)));
         }
+        // The buyer's stall (note 1027), beside the forge.
+        list.Add(new("square-buyerstall", MediumProp, () => SquareKit.Fixture(look, "buyerstall")));
         list.Add(new("works-slag", LargeProp, () => WorksKit.Piece(look, "slag")));
         list.Add(new("works-coal", LargeProp, () => WorksKit.Piece(look, "coal")));
         // A fortress town begun and stamped flat by a Waker (note 824), out beside the line: a large prop's budget each.

@@ -153,6 +153,7 @@ public sealed partial class GameAudio
         HouseDoors(world, primed);
         WorldDebris(world, train, front);
         WorldLivestock(train, ear);
+        WorldCargo(train, ear);
         HouseSearch(world, primed);
         _engineFrontWas = engine.Distance;
         _engineSpeedWas = engine.Speed;
@@ -495,7 +496,11 @@ public sealed partial class GameAudio
             ulong h = (ulong)(v.Id + 1) * 0x9E3779B97F4A7C15UL;
             string kind = species[(int)((h >> 33) % 3)];
             var pen = frame.ToWorld(new Double3(0, 1.4, 0));
-            HoldLevel($"world-livestock.{kind}", v.Id, pen, Occlusion(v.Id), 0.5 + 0.5 * Math.Clamp(v.Load, 0, 1));
+            // Note 1025: as many as are left of them, and silence once they're gone.
+            double left = CargoOutside.Shows(v) ? CargoOutside.Lost(v) ? 0 : v.CargoIntegrity : 1;
+            if (left <= 0)
+                continue;
+            HoldLevel($"world-livestock.{kind}", v.Id, pen, Occlusion(v.Id), (0.5 + 0.5 * Math.Clamp(v.Load, 0, 1)) * left);
             if (jolt && _time >= _startledUntil.GetValueOrDefault(v.Id))
             {
                 CrewAfter(StartleReact + along * 0.11, $"crew-mishaps.startle-{kind}", pen, Occlusion(v.Id));
@@ -503,6 +508,36 @@ public sealed partial class GameAudio
             }
         }
     }
+
+    /// <summary>
+    /// What's in a car heard through its slats (GDD Part Eleven question 7; note 1025; look.json cargoOutside): a car of
+    /// chemicals or medicine, its bottles clinking as it rides (world-cargo.bottles); a car of comet-derived material, the
+    /// comet's low, wrong hum (world-comet.hum, as a fragment's). As loud as its cargo's integrity, silent once it's lost.
+    /// (The livestock are WorldLivestock's.)
+    /// </summary>
+    void WorldCargo(TrainOnLine train, Double3 ear)
+    {
+        foreach (var v in train.Vehicles)
+        {
+            if (v is null || !CargoOutside.Shows(v) || CargoOutside.Lost(v) || v.Cargo is not (CargoKind.Chemicals or CargoKind.Medicine or CargoKind.Comet))
+                continue;
+            var frame = train.Frames[v.Id];
+            if ((frame.Origin - ear).Length > 60)
+                continue;
+            var load = frame.ToWorld(new Double3(0.8, 1.6, 0));
+            double level = Math.Clamp(v.CargoIntegrity, 0, 1) * (0.6 + 0.4 * Math.Clamp(v.Load, 0, 1));
+            if (v.Cargo == CargoKind.Comet)
+                HoldLevel("world-comet.hum", CometCarOwner + v.Id, load, Occlusion(v.Id), level);
+            else if (level > 0.01 && Hold("world-cargo.bottles", v.Id, load, Occlusion(v.Id)) is { } bottles)
+            {
+                bottles.Volume = (float)level;
+                bottles.Params.Set("speed", Math.Abs((RakeOf(train, v.Id) ?? train.Rakes[0]).Speed));
+            }
+        }
+    }
+
+    // A comet-loaded car's hum, apart from a fragment's (GameAudio.Mail's CometOwner + its body).
+    const int CometCarOwner = 130_000;
 
     double _livestockAccel = double.NaN;
     readonly Dictionary<int, double> _startledUntil = new();
