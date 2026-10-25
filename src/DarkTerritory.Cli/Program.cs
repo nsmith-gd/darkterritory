@@ -48,13 +48,16 @@ return args switch
     ["build", ..] => BuildCommands.Run(args),
     // dt replay <file> [--to t] [--shot f --view v] | record | list: a recorded night played again, checked tick by tick (note 515).
     ["replay", ..] => ReplayCommands.Run(content, args),
+    // dt moments [--replay night.dtrec | --route r --bots n --seconds s] [--top 6] [--reel]: a night's clip-worthy moments scored, and a
+    // short reel of the best (queue #256, note 1034).
+    ["moments", ..] => MomentsCommands.Run(content, args),
     // dt feedback pull | list | show <id> | make: the director's notes from inside the game, and their moments (note 516).
     ["feedback", ..] => FeedbackCommands.Run(content, args),
     // dt review diff <before> <after>: a pull request's review packet, its shots and numbers against main's (note 517).
     ["review", ..] => ReviewCommands.Run(args),
     // dt trends measure | show <file.jsonl> | judge | value: main's numbers per commit (dt harness nights, dt perf), the falls
     // among them, and the bisect's call on a commit (note 523).
-    ["trends", ..] => TrendsCommands.Run(args, a => RunHarness(a), a => PerfCommands.Run(train, content, a)),
+    ["trends", ..] => TrendsCommands.Run(args, a => HarnessWithMoments(a), a => PerfCommands.Run(train, content, a)),
     // dt director sweep [--quick] [--routes r,...] [--crews ..] [--cars ..] [--cells 1x3,..] [--seeds 1-4] [--compare f.json]: the
     // spawn director overhaul's matrix of nights (the director's brief §8, note 888), encounters measured from the spines.
     ["director", "sweep", ..] => DirectorCommands.Sweep(args, (a, w) => RunHarness(a, (_, _, world) => w(world))),
@@ -200,6 +203,31 @@ static object TrainTable(TrainTuning t, PlayerTuning p) => t.Performance.Select(
         maxGradePct = Math.Round(dyn.MaxClimbableGradePercent(), 2),
     };
 }).ToList();
+
+// A trends night (note 523) with its clip-worthy moments scored as it's played (queue #256, note 1034): the harness's report
+// with a `moments` of its own (how many, a minute, by kind, the best's worth), which the trends read as moments.*.
+object HarnessWithMoments(string[] args)
+{
+    var scorer = new DarkTerritory.Dev.Moments.MomentScorer(DarkTerritory.Dev.Moments.MomentScores.Load(DarkTerritory.Dev.Moments.MomentScores.File));
+    double seconds = 0;
+    var report = RunHarness(args, (tick, crew, world) =>
+    {
+        scorer.Step(world, crew.Select((c, i) => (i + 1, c.State)));
+        seconds = tick * SimConstants.TickSeconds;
+    });
+    if (JsonSerializer.SerializeToNode(report, DataFile.Options) is not System.Text.Json.Nodes.JsonObject json)
+        return report;
+    var moments = new System.Text.Json.Nodes.JsonObject
+    {
+        ["count"] = scorer.All.Count,
+        ["perMinute"] = seconds <= 0 ? 0 : Math.Round(scorer.All.Count / (seconds / 60), 3),
+        ["best"] = scorer.All.Count == 0 ? 0 : scorer.All.Max(m => m.Score),
+    };
+    foreach (var g in scorer.All.GroupBy(m => m.Kind).OrderBy(g => g.Key, StringComparer.Ordinal))
+        moments[g.Key] = g.Count();
+    json["moments"] = moments;
+    return json;
+}
 
 object RunHarness(string[] args, Action<uint, IReadOnlyList<(DarkTerritory.Sim.Bots.IBot Bot, PlayerState State)>, World>? also = null)
 {
@@ -4652,7 +4680,7 @@ static object FilmStill(string content, string[] args)
     {
         var stills = new BookmarkStills();
         var live = session.InterpolatedFrames(1);
-        foreach (var (mark, from, peak) in stills.Due(session, live, 0, film))
+        foreach (var (mark, from, peak, _) in stills.Due(session, live, 0, film))
         {
             if (peak is null)
                 continue;
@@ -4974,6 +5002,7 @@ static int Usage()
           credits [--notices | --write]            everyone whose work is in the game (note 390); --write rewrites the notices
           build check <folder> [--dev]             a built game has none of the developer tools in it (note 514); --dev: it has them
           replay <file> [--to t] [--shot f --view v]   a recorded night played again, checked tick by tick (note 515); record, list
+          moments [--replay f.dtrec] [--top n] [--reel]   a night's clip-worthy moments scored (a bot night recorded first without a replay), and a reel of the best (note 1034)
           feedback pull | list | show <id> | make  the director's notes from inside the game (F8, F9) and their moments replayed (note 516)
           review diff <before> <after> [--out d]   what a change did to the shots and numbers, as strips and a summary (note 517)
           trends measure [--seeds 1-8] [--perf] | show <file.jsonl> [--markdown]   main's numbers per commit and their falls (note 523); judge, value, nights

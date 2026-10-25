@@ -65,6 +65,7 @@ public static partial class Hud
         _promptScale = PromptScaleAt(pixels);
         _commendations = commendations;
         _stills = stills;
+        _clock = now;
         _photo = photo;
         o.Clear();
         // TEXT BACKING (note 404): a band behind the print in play, for this build only (the menus over it are on their plate).
@@ -1616,6 +1617,8 @@ public static partial class Hud
 
     [ThreadStatic] static IReadOnlyList<(string To, UiStyle.Commendation What, string From)>? _commendations;
     [ThreadStatic] static IReadOnlyDictionary<int, Still>? _stills;
+    /// <summary>This machine's seconds as the HUD's drawn (Build's <c>now</c>): what a bookmark's clip is at (note 1034).</summary>
+    [ThreadStatic] static double _clock;
 
     /// <summary>
     /// The night's commendations (App. D.12) on a plate above the foot of the run-end screen, two to a row: each a badge,
@@ -1706,8 +1709,11 @@ public static partial class Hud
         return kept;
     }
 
-    public static void IncidentReport(Overlay o, int width, int height, float top, RunReport r, int line, IReadOnlyDictionary<int, Still>? stills = null)
+    /// <param name="now">This machine's seconds, what a clip's at (note 1034); the HUD's own, drawn from <see cref="Build"/>.</param>
+    public static void IncidentReport(Overlay o, int width, int height, float top, RunReport r, int line, IReadOnlyDictionary<int, Still>? stills = null, double? now = null)
     {
+        if (now is { } clock)
+            _clock = clock;
         using var plate = UiStyle.OnPlate(o);
         float w = Math.Min(width - 40, 980), x = MathF.Round((width - w) / 2);
         float glyph = Math.Max(1, o.Font.Measure("M") + 1);
@@ -1865,6 +1871,8 @@ public static partial class Hud
             o.Rect(x + w / 2f - 4, y + h / 2f, 8, 1, Dim);
             return;
         }
+        // A clip (note 1034): the frame it's at, as it goes round.
+        still = still.At(_clock);
         // Half-pixel cells on the UI's canvas: it's drawn scaled up, so the still keeps more than the canvas's own pixels.
         o.Image(x, y, w, h, still.Rgba, still.Width, still.Height, w * 2, h * 2, levels: 16);
     }

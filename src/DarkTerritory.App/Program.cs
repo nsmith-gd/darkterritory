@@ -2099,20 +2099,22 @@ CampaignState? Play(IPlaySession session, CampaignState? campaign)
         scene.Build(mesh, session.Train.Line, frames, session.Train.Dynamics.Distance, camera.Position);
         frameWatch.Mark("scene");
         // GDD v1.4 App. D.12: a bookmark that's due is drawn from its camera now, off screen, with what this machine has of
-        // the world (everyone but whoever's eyes it is), and kept small for the run-end screen. Rare, so a stall's fine.
+        // the world (everyone but whoever's eyes it is), and kept small for the run-end screen. Rare, so a stall's fine (a
+        // clip's frames, note 1034, a fifth of a second apart, ten at most, sixteen clips a night).
         if (stills.Due(session, frames, now) is { Count: > 0 } due)
         {
             var (shownCrew, shownOwn, shownHeld) = (scene.Crew, scene.Own, scene.HeldHere);
             var (shownBodies, shownCut, shownLights, shownWreck, shownDerailed) = (scene.Bodies, scene.CutAway, scene.Lights, scene.Wreck, scene.Derailed);
             (scene.Own, scene.HeldHere) = (null, null);
-            foreach (var (mark, from, peak) in due)
+            foreach (var (mark, from, peak, _) in due)
             {
                 // E.5: a derailment's still is that crew member's peak in the film, drawn as the film draws it.
                 var at = peak is not null ? DerailSequence.Stage(scene, peak, frames) : frames;
                 if (peak is null)
                     scene.Crew = BookmarkStills.Figures(session, frames, clock.Alpha, mark.Viewer);
                 scene.Build(mesh, session.Train.Line, at, session.Train.Dynamics.Distance, from.Position);
-                stills.Keep(mark, renderer.Render(mesh, from, lighting, lighting.FogColor), renderer.Width, renderer.Height, peak is not null);
+                stills.Keep(mark, renderer.Render(mesh, from, lighting, lighting.FogColor), renderer.Width, renderer.Height, peak is not null, now,
+                    session.World.Bookmarks.Tuning.Clip);
                 (scene.Bodies, scene.CutAway, scene.Lights, scene.Wreck, scene.Derailed) = (shownBodies, shownCut, shownLights, shownWreck, shownDerailed);
             }
             (scene.Crew, scene.Own, scene.HeldHere) = (shownCrew, shownOwn, shownHeld);

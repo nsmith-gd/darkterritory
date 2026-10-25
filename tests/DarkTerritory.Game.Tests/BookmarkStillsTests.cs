@@ -64,7 +64,7 @@ public class BookmarkStillsTests
         s.World.Bookmarks.Mirror(new Bookmark(2, BookmarkKind.Derail, 11, 1, 1, 0, new Double3(0, 2.5, 0), new Double3(0, 0, -1)));
         var stills = new BookmarkStills();
         var due = stills.Due(s, frames, now: 100);
-        var (mark, camera, peak) = Assert.Single(due);
+        var (mark, camera, peak, _) = Assert.Single(due);
         Assert.Null(peak);
         Assert.Equal(1, mark.Id);
         Assert.True((camera.Position - frames[2].ToWorld(eye)).Length < 1e-9);
@@ -73,6 +73,70 @@ public class BookmarkStillsTests
         // The derailment's: from when this machine heard of it, the wreck's bookmark beat later.
         Assert.Empty(stills.Due(s, frames, now: 100 + s.World.WreckTuning.BookmarkSeconds - 0.1));
         Assert.Equal(2, Assert.Single(stills.Due(s, frames, now: 100 + s.World.WreckTuning.BookmarkSeconds)).Mark.Id);
+    }
+
+    [Fact]
+    public void WithClipsOnAGrabsBookmarkIsAShortClipTurnedOnItsVictimAndTheReportPlaysItRound()
+    {
+        // Note 1034 (GDD D.15 question 5): the still, then the clip's frames a fifth of a second apart, the camera held at the
+        // still's eye and turned on whom it's of; a derailment's stays the film's.
+        var s = Night();
+        var frames = s.InterpolatedFrames(1);
+        var clip = s.World.Bookmarks.Tuning.Clip with { On = true, Frames = 4, Fps = 5, Hold = 0.5 };
+        var eye = new Double3(0.2, 5.65, 1.5);
+        int me0 = ((IPlaySession)s).PlayerId;
+        s.World.Bookmarks.Mirror(new Bookmark(1, BookmarkKind.Grab, 10, me0, -1, 2, eye, new Double3(0, 0, -1)));
+        var stills = new BookmarkStills();
+        var first = Assert.Single(stills.Due(s, frames, now: 100));
+        Assert.False(first.Frame);
+        var red = Enumerable.Range(0, 64 * 36).SelectMany(_ => new byte[] { 200, 0, 0, 255 }).ToArray();
+        var blue = Enumerable.Range(0, 64 * 36).SelectMany(_ => new byte[] { 0, 0, 200, 255 }).ToArray();
+        stills.Keep(first.Mark, red, 64, 36, now: 100, clip: clip);
+        // Not again till the next frame's due; then from the same eye, looking at the victim's chest.
+        Assert.Empty(stills.Due(s, frames, now: 100.1));
+        var next = Assert.Single(stills.Due(s, frames, now: 100.2));
+        Assert.True(next.Frame);
+        Assert.True((next.Camera.Position - frames[2].ToWorld(eye)).Length < 1e-9);
+        var me = BookmarkStills.Figures(s, frames, 0, -1).First(c => c.Id == me0);
+        var toChest = (me.Feet + Double3.Up * s.World.Bookmarks.Tuning.ChestHeight - next.Camera.Position).Normalized;
+        Assert.True(Vector3.Dot(next.Camera.Forward, toChest.RelativeTo(Double3.Zero)) > 0.999f);
+        for (int i = 0; i < clip.Frames - 1; i++)
+            stills.Keep(first.Mark, blue, 64, 36, now: 100.2 + i * 0.2, clip: clip);
+        // All its frames taken: nothing more due.
+        Assert.Empty(stills.Due(s, frames, now: 200));
+        var still = stills.Stills[1];
+        Assert.Equal(clip.Frames - 1, still.Clip!.Count);
+        Assert.Equal((clip.Width, clip.Height), (still.Clip[0].Width, still.Clip[0].Height));
+        Assert.Equal((BookmarkStills.Width, BookmarkStills.Height), (still.Width, still.Height));
+        // Round it goes: the still, its frames, the last held, the still again.
+        double round = clip.Frames / clip.Fps + clip.Hold;
+        Assert.Same(still, still.At(0.1));
+        Assert.Same(still.Clip[0], still.At(0.25));
+        Assert.Same(still.Clip[^1], still.At(round - 0.1));
+        Assert.Same(still, still.At(round + 0.1));
+        // On the report: the thumbnail is what the clip's at (red, then blue).
+        var report = new RunReport(RunEnd.CrewLost, 300, 3, 0, 0, 0, 0, 0, 0, 0, 0, 0, 3)
+        {
+            Lines = [new ReportLine(IncidentKind.Grab, "Priya", "Grabbed.") { Marks = [1] }],
+            Bookmarks = [.. s.World.Bookmarks.All],
+        };
+        (int Red, int Blue) Shown(double now)
+        {
+            var o = new Overlay();
+            Hud.IncidentReport(o, 480, 270, 100, report, o.Font.LineHeight, stills.Stills, now);
+            var colours = o.Vertices.Select(v => v.Colour).ToList();
+            return (colours.Count(c => c.X > 0.6f && c.Y < 0.1f && c.Z < 0.1f), colours.Count(c => c.Z > 0.6f && c.X < 0.1f && c.Y < 0.1f));
+        }
+        var (red0, blue0) = Shown(0.1);
+        var (red1, blue1) = Shown(0.5);
+        Assert.True(red0 > 0 && blue0 == 0, $"at 0.1 s: {red0} red, {blue0} blue");
+        Assert.True(blue1 > 0 && red1 == 0, $"at 0.5 s: {red1} red, {blue1} blue");
+        // Off, it's a still as before.
+        var plain = new BookmarkStills();
+        plain.Due(s, frames, now: 100);
+        plain.Keep(first.Mark, red, 64, 36, now: 100, clip: clip with { On = false });
+        Assert.Empty(plain.Due(s, frames, now: 101));
+        Assert.Null(plain.Stills[1].Clip);
     }
 
     [Fact]
