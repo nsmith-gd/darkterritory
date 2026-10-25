@@ -223,6 +223,11 @@ public sealed record StopCrewTuning
     /// <summary>Nobody goes to the village with less of the night than this left (s).</summary>
     public double VillageDawnSpare { get; init; } = 900;
     /// <summary>
+    /// Note 1023: a hand searches a house's upstairs and basement too (up the flight, down the hatch's ladder, and back up
+    /// with the find); false, the ground floor only (note 1005's bots).
+    /// </summary>
+    public bool VillageFloors { get; init; } = true;
+    /// <summary>
     /// Note 934: a driver bot stands this long at each halt on the night's line (an abandoned village's on the main line) that
     /// the night has time for (0: drives past them, as before).
     /// </summary>
