@@ -1,3 +1,4 @@
+using Ballast;
 using DarkTerritory.Sim.Route;
 using DarkTerritory.Sim.Stops;
 
@@ -75,6 +76,30 @@ public class HoldoutSiteTests
                     Assert.Equal(2, f.Stop.Holdouts.Count);
             }
         }
+    }
+
+    [Fact]
+    public void EveryHoldoutOnTheLinesPlayersGetCanBeWalkedToFromTheStoppedConsist()
+    {
+        // D.14 "Recoverability: every generated Holdout is reachable on foot from the stopped consist" (note 1032), on the
+        // procedural nights players get (T71), not only on stops made alone: every stop's walk from where the consist stands,
+        // and every Holdout the night's world holds is one of those stops'.
+        var content = DataFile.FindContentRoot();
+        foreach (var tier in Enum.GetValues<RouteTier>())
+            for (ulong seed = 1; seed <= 3; seed++)
+            {
+                var route = LineGen.Routes.Generate(content, tier, seed, 6);
+                var stops = route.Features.Where(f => f.Stop is not null).ToList();
+                Assert.NotEmpty(stops);
+                foreach (var f in stops)
+                {
+                    var walk = Assert.Single(f.Stop!.Checks, c => c.Name == "Every Holdout can be walked to from the consist");
+                    Assert.True(walk.Pass, $"{tier}:{seed} {f.Kind} at {f.Start:0}: {walk.Detail}");
+                }
+                var world = new World(new Train.TrainOnLine(new Train.TrainDynamics(Train.Consist.Uniform(Tuning.Train, 3, 0)), route.Build(), 0), Tuning.Combat);
+                world.EnableHoldouts(Tuning.Holdouts, route);
+                Assert.Equal(stops.Sum(f => f.Stop!.Holdouts.Count), world.Holdouts!.All.Count);
+            }
     }
 
     [Fact]
