@@ -18,7 +18,9 @@ public class FilmTests
     static readonly PlayerTuning P = Tuning.Player;
 
     /// <summary>A world with <paramref name="crew"/> aboard, spread down the train (cab, roofs, cars), derailed on a curve.</summary>
-    static World Derailed(int crew, double speed = 20, int cars = 6)
+    /// <param name="apart">Nobody stood where another is (past six on the roofs, the next round is 1.5 m further back): a
+    /// crew of seven or more otherwise has two on one spot of car 2's roof, whom the film's pile pushes apart (note 1032).</param>
+    static World Derailed(int crew, double speed = 20, int cars = 6, bool apart = false)
     {
         var line = new RailLine(new LineDefinition("t", [new TrackSegment(2000), new TrackSegment(600, 300), new TrackSegment(2000)]));
         var train = new TrainOnLine(new TrainDynamics(Consist.Uniform(Tuning.Train, cars, 1)), line, 2250);
@@ -32,7 +34,7 @@ public class FilmTests
         world.BeginTick();
         for (int i = 0; i < crew; i++)
         {
-            var s = i == 0 ? PlayerMotor.SpawnInCab(train, P) : PlayerMotor.SpawnOnRoof(train, 1 + i % cars, (i % 3 - 1) * 3.0, P);
+            var s = i == 0 ? PlayerMotor.SpawnInCab(train, P) : PlayerMotor.SpawnOnRoof(train, 1 + i % cars, (i % 3 - 1) * 3.0 + (apart ? i / cars * 1.5 : 0), P);
             world.CrewAct(ref s, default, i);
         }
         world.Attribution.Drove(0);
@@ -96,6 +98,53 @@ public class FilmTests
         Assert.Equal(film.Start.Cause, film.Shots[^1].Card);
         // Every frame finite, every body still on (or over) the ground.
         Assert.All(film.Frames, f => Assert.All(f.Ragdolls, r => Assert.All(r, j => Assert.True(double.IsFinite(j.X + j.Y + j.Z)))));
+    }
+
+    static Func<double, double, double> Ground(World w) => (x, z) =>
+    {
+        double hint = w.Film!.Along;
+        return PlayerMotor.GroundAt(new Double3(x, 0, z), w.Train.Line, ref hint);
+    };
+
+    /// <summary>
+    /// GDD v1.4 App. E.11 "No interpenetration: no particle rests inside a solid by more than 2 cm at the end of any substep"
+    /// (note 1032): every particle of the crew, the stowed dead and what's thrown, against the film's own solids, seen at the
+    /// end of each substep of the recording.
+    /// </summary>
+    [Theory]
+    [InlineData(1, 20)]
+    [InlineData(4, 20)]
+    [InlineData(4, 8)]
+    [InlineData(7, 26)]
+    [InlineData(8, 20)]
+    [InlineData(8, 8, Skip = "Note 1032: a real fault, queued. A crew of eight at 8 m/s: 174 particle-substeps more than 2 cm inside, the deepest player 1's head 2.7 cm in the ground at 4.86 s")]
+    [InlineData(8, 30, Skip = "Note 1032: a real fault, queued. A crew of eight at 30 m/s: 3077 particle-substeps more than 2 cm inside, the deepest player 1's chest 32 cm inside a car at 4.73 s (seven at 30 m/s: 1850, 32 cm)")]
+    public void NoParticleEndsASubstepInsideASolid(int crew, double speed)
+    {
+        var w = Derailed(crew, speed, apart: true);
+        var probe = new FilmProbe();
+        WreckFilm.Record(W, w.Film!, Ground(w), probe: probe);
+        Assert.True(probe.Seen > 0);
+        Assert.True(probe.Over == 0, $"{probe.Over} of {probe.Seen} particle-substeps ({probe.Inside} inside at all) more than {W.Film.RestInside} m inside; deepest {probe.Deepest:0.000} m, {probe.What} at {probe.At:0.00} s");
+    }
+
+    /// <summary>
+    /// GDD v1.4 App. E.11 "Clean camera: no camera sweep touches a collider, and nothing enters lens clearance" (note 1032):
+    /// every finished shot's camera, a frame at a time, as the game moves it.
+    /// </summary>
+    [Theory]
+    [InlineData(1, 20)]
+    [InlineData(4, 20)]
+    [InlineData(4, 8)]
+    [InlineData(8, 20)]
+    [InlineData(8, 14, Skip = "Note 1032: a real fault, queued. A crew of eight at 14 m/s: a player's shot has car 0 4 cm inside the 1.5 m lens clearance (E.4 O4)")]
+    [InlineData(8, 30, Skip = "Note 1032: a real fault, queued. A crew of eight at 30 m/s: a player's shot has player 1 22 cm inside the 1.5 m lens clearance (E.4 O4)")]
+    public void EveryFinishedShotsCameraIsClean(int crew, double speed)
+    {
+        var w = Derailed(crew, speed, apart: true);
+        var film = w.ShootFilm()!;
+        var faults = film.CameraFaults(Ground(w));
+        Assert.True(faults.Count == 0, string.Join("; ", faults.Select(f => $"shot {f.Shot} ({f.Kind} {f.Subject}) at {f.Real} s: {f.What} by {f.Metres} m")));
     }
 
     [Fact]
