@@ -55,7 +55,7 @@ public class LinesidePropsTests
 
     /// <summary>How many walls the lineside stands outside the forts (the telegraph poles run on through them).</summary>
     static int WallsOutsideForts(LinesideProps side, IEnumerable<LinesideProp> props, IReadOnlyList<Fort> forts) =>
-        props.Where(p => p.Kind == LinesideKind.Pole || !LinesideProps.InsideAFort(forts, p.Along, p.Lateral)).Sum(p => side.WallsOf(p).Count());
+        props.Where(p => p.Kind == LinesideKind.Pole || !side.InAFort(forts, p)).Sum(p => side.WallsOf(p).Count());
 
     [Fact]
     public void TheSameNightStandsTheSameWoodsOnEveryMachineAndAnotherNightOthers()
@@ -136,7 +136,9 @@ public class LinesidePropsTests
             {
                 trees += p.Kind == LinesideKind.Tree ? 1 : 0;
                 // Off the formation and the verge, and off every stop's ground.
-                Assert.True(Math.Abs(p.Lateral) >= 6, $"{spec}: a {p.Kind} {p.Lateral:0.0} m from the line at {p.Along:0}");
+                // In the big forests (note 1006) the trees close in to their rule's nearM, past the poles.
+                double off = p.Kind == LinesideKind.Tree && side.Woods.At(p.Along) is { } deep ? Math.Min(6, deep.Rule.NearM) : 6;
+                Assert.True(Math.Abs(p.Lateral) >= off - 1e-9, $"{spec}: a {p.Kind} {p.Lateral:0.0} m from the line at {p.Along:0}");
                 Assert.False(side.InClearing(p.Along, p.Lateral), $"{spec}: a {p.Kind} on a stop's ground at {p.Along:0}, {p.Lateral:0}");
             }
             Assert.False(side.OnStop(p.Along, p.Lateral), $"{spec}: a {p.Kind} on a stop's buildings or tracks at {p.Along:0}, {p.Lateral:0}");

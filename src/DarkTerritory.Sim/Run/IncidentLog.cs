@@ -29,8 +29,15 @@ public static class IncidentLog
     public static string NameOf(World world, int player) =>
         player < 0 ? "nobody" : world.Names.TryGetValue(player, out var name) && name.Length > 0 ? name : $"Crew {player}";
 
-    /// <summary>"CarHugger" as said: "Car Hugger".</summary>
-    public static string Spoken(string name) => System.Text.RegularExpressions.Regex.Replace(name, "(?<=[a-z])(?=[A-Z])", " ");
+    /// <summary>"CarHugger" as said: "Car Hugger"; a kind renamed since its code was written, by its new name.</summary>
+    public static string Spoken(string name) => name switch
+    {
+        // The director, Look Review of 23 Oct 2026: "rename them Moose Mouse" (note 1015). EnemyKind.MouseMoose and its
+        // keys ("mouseMoose" in enemies.json, the Tweaker's rows, the cues) keep the old name: the wire, recordings and
+        // the director's own Tweaker store are keyed by it.
+        "MouseMoose" => "Moose Mouse",
+        _ => System.Text.RegularExpressions.Regex.Replace(name, "(?<=[a-z])(?=[A-Z])", " "),
+    };
 
     static double Seconds(World world) => world.Run?.Seconds ?? world.Tick * SimConstants.TickSeconds;
 
@@ -347,10 +354,14 @@ public static class IncidentLog
     public static List<ReportLine> Lines(World world, double fee, double refund, Func<int, bool> home)
     {
         var lines = new List<ReportLine>();
+        // A body is one death, charged once (note 994): a death logged twice for the same body is read (and charged) once.
+        var bodies = new HashSet<int>();
         foreach (var i in world.Attribution.Log.Where(i => i.Kind != IncidentKind.Grab))
         {
             string who = i.Victim >= 0 ? NameOf(world, i.Victim) : "";
             string action = i.Action.Replace("{actor}", NameOf(world, i.Actor));
+            if (i.Kind == IncidentKind.Death && i.Body >= 0 && !bodies.Add(i.Body))
+                continue;
             if (i.Kind == IncidentKind.Death)
             {
                 bool recovered = i.Body >= 0 && home(i.Body);

@@ -209,6 +209,11 @@ def plan(base_sha, head_sha, merged, left, run_url=None, now=None, dry=False):
     if os.path.exists(together):
         with open(together, encoding="utf-8") as f:
             t += [""] + f.read().rstrip().split("\n")
+    # Note 1017 (#720, the director, 24 Oct: "the linux build still has the black squares"): what a Linux player tries and sends.
+    linux = os.path.join(HERE, "linux.md")
+    if os.path.exists(linux):
+        with open(linux, encoding="utf-8") as f:
+            t += [""] + f.read().rstrip().split("\n")
     t += ["", "## Merged", ""]
     if not merged:
         t += ["Nothing: tonight's build is main.", ""]
@@ -329,6 +334,8 @@ def offline_test():
     expect(md.startswith("# Tonight's build\n") and "## Left out" in md and "\U0001F916" not in md, "the plan's shape, no footers in it")
     expect("## Playing together tonight" in md and "UDP port 27450" in md and md.index("## Playing together") < md.index("## Merged"),
            "the plan says how to play together, before what's merged (note 985)")
+    expect("## On Linux: the black squares" in md and "--gpu-safe" in md and "vulkaninfo --summary" in md
+           and md.index("## On Linux") < md.index("## Merged"), "the plan says what a Linux player tries and sends back (note 1017)")
     for n in want["chosen"]:
         expect(f"### #{n}: " in md, f"the plan names #{n}")
     offline_merge(expect)

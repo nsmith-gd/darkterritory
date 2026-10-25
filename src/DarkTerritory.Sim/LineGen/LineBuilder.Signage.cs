@@ -187,7 +187,7 @@ sealed partial class LineBuilder
                         break;
                     }
                 case DemandType.YardLimit:
-                    Sign("yardLimit", "main", Math.Min(_terminus - _t.Terminus.YardLimitBoardM, board), "YARD LIMIT", true, _t.Terminus.YardLimitSpeed, d.Id, ref rng);
+                    Sign("yardLimit", "main", Math.Min(_terminus - _t.Terminus.YardLimitBoardM, board), "YARD LIMIT", true, _arrivalYardSpeed, d.Id, ref rng);
                     break;
             }
         }

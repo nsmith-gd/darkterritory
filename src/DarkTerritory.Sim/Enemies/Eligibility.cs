@@ -66,7 +66,8 @@ public static class Eligibility
     public static bool Named(EnemyKind kind) => kind is EnemyKind.TrackDoll or EnemyKind.CinderHound or EnemyKind.CarHugger or EnemyKind.Climber
         or EnemyKind.Dragger or EnemyKind.Whistler or EnemyKind.TippyToesie or EnemyKind.FireFlies or EnemyKind.Ribbit or EnemyKind.Gaunt
         or EnemyKind.Moose or EnemyKind.TowerJaw or EnemyKind.FreightBeetle or EnemyKind.MouseMoose or EnemyKind.Brakeman or EnemyKind.Hotbox
-        or EnemyKind.Knotter or EnemyKind.Gannet or EnemyKind.Follower or EnemyKind.SootChildren or EnemyKind.Passenger or EnemyKind.Grumbler;
+        or EnemyKind.Knotter or EnemyKind.Gannet or EnemyKind.Follower or EnemyKind.SootChildren or EnemyKind.Passenger or EnemyKind.Grumbler
+        or EnemyKind.Bruin or EnemyKind.Tapper or EnemyKind.HeadWaiter or EnemyKind.Close;
 
     /// <summary>The kind's own rule's gates (<see cref="Spawns"/>), each named for what it reads, in the rule's order.</summary>
     public static List<GateCheck> Gates(EnemyKind kind, SpawnContext c)
@@ -148,9 +149,30 @@ public static class Eligibility
             [
                 G("stopped", c.Stopped), G("at a stop", c.AtStop), G("none about", c.None(kind)), G("loose freight", FreightBeetle.Freight(c.World, et.FreightBeetle).Count > 0),
             ],
+            EnemyKind.HeadWaiter =>
+            [
+                G("on (headWaiter.on)", et.HeadWaiter.On), G("once a night", c.Once(kind)), G($"speed ≥ {et.HeadWaiter.MinSpeed:0.#} m/s", v >= et.HeadWaiter.MinSpeed),
+                G("not in a fort", !c.World.TrainInFort),
+                G($"lounging {et.HeadWaiter.ComeSeconds:0} s", c.Living.Any(p => HeadWaiter.Lounging(p.State, train) && c.Director.Behaviours.LazedSeconds(p.Id) >= et.HeadWaiter.ComeSeconds)),
+            ],
             EnemyKind.MouseMoose =>
             [
                 G("stopped", c.Stopped), G("at a facility", c.AtFacility), G("none about", c.None(kind)), G("a crane with castings to take", Spawns.MouseMooseCranes(c).Count > 0),
+            ],
+            EnemyKind.Bruin =>
+            [
+                G("on (bruin.on)", et.Bruin.On), G("stood in the wilderness long enough", Bruin.Wild(c)), G("none about", c.None(kind)),
+                G("a car of cargo to climb into", Bruin.CarFor(c.Train) >= 0),
+            ],
+            EnemyKind.Tapper =>
+            [
+                G("on (tapper.on)", et.Tapper.On), G($"moving at {et.Tapper.BoardAbove:0} m/s", c.Train.Dynamics.Speed >= et.Tapper.BoardAbove),
+                G("none about", c.None(kind)), G("a gunner alone long enough", Tapper.For(c) is not null),
+            ],
+            EnemyKind.Close =>
+            [
+                G("on (close.on)", et.Close.On), G($"moving at {et.Close.BoardAbove:0} m/s", c.Train.Dynamics.Speed >= et.Close.BoardAbove),
+                G("none about", c.None(kind)), G("a car crowded and shut long enough", Close.For(c) is not null),
             ],
             EnemyKind.Brakeman =>
             [

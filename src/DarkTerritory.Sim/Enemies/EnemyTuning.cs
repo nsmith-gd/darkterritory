@@ -34,6 +34,10 @@ public sealed record EnemyTuning(
     public MournersTuning Mourners { get; init; } = new();
     public PickersTuning Pickers { get; init; } = new();
     public MouseMooseTuning MouseMoose { get; init; } = new();
+    public BruinTuning Bruin { get; init; } = new();
+    public TapperTuning Tapper { get; init; } = new();
+    public CloseTuning Close { get; init; } = new();
+    public HeadWaiterTuning HeadWaiter { get; init; } = new();
     public DwellingsTuning Dwellings { get; init; } = new();
     public LodgerTuning Lodger { get; init; } = new();
     public HouseholderTuning Householder { get; init; } = new();
@@ -307,6 +311,12 @@ public sealed record RibbitTuning
     public double HopSpeed { get; init; } = 4;
     public double GroupRadius { get; init; } = 8;
     public double TongueReach { get; init; } = 4;
+    /// <summary>Note 1003: m; out past this in the telegraph, the catch has outrun the tongues (was 1.5 × TongueReach).</summary>
+    public double TongueLash { get; init; } = 6;
+    /// <summary>Note 1003: m off the nearest on foot that a pack with nobody to take closes in to and sits; 0 it sits where it is.</summary>
+    public double StalkAt { get; init; }
+    /// <summary>Note 1003: m; how far off a pack with nobody to take sees a crewmate on foot to close in on.</summary>
+    public double StalkFrom { get; init; } = 45;
     public double DevourSeconds { get; init; } = 8;
     public double GiveUpBeyond { get; init; } = 45;
     public double SpawnOut { get; init; } = 35;
@@ -1088,6 +1098,23 @@ public sealed record PressureTuning
     /// <summary>The rate's scale for a crew of <paramref name="crew"/> and a train of <paramref name="cars"/> cars.</summary>
     public double Scale(int crew, int cars) =>
         Math.Max(ScaleFloor, 1 + CrewScale * (crew - ScaleCrew)) * Math.Max(ScaleFloor, 1 + LengthScale * (cars - ScaleCars));
+
+    /// <summary>
+    /// Queue #723 (note 1020): the night's load for a crew of that many (the key), × the pressure's build and the encounter
+    /// rate λ alike, whichever scaling is on (with drive.pressureByLambda the pressure has no crew scale of its own). A crew
+    /// not named: 1. Empty as shipped: proposed on the Creature Tweaker, the director's to set.
+    /// </summary>
+    public Dictionary<string, double> CrewLoad { get; init; } = new();
+    /// <summary>
+    /// Queue #723 (note 1020): <see cref="Escalation"/> for a tier (its key, as in <see cref="Tier"/>), so a tier's night can
+    /// rise less toward its end with its gate untouched. A tier not named: <see cref="Escalation"/>. Empty as shipped.
+    /// </summary>
+    public Dictionary<string, double> EscalationTier { get; init; } = new();
+
+    /// <summary>The night's load for a crew of <paramref name="crew"/> (<see cref="CrewLoad"/>; 1 not named).</summary>
+    public double Load(int crew) => CrewLoad.GetValueOrDefault(crew.ToString(System.Globalization.CultureInfo.InvariantCulture), 1);
+    /// <summary>The escalation on the tier keyed <paramref name="tier"/> (<see cref="EscalationTier"/>, else <see cref="Escalation"/>).</summary>
+    public double EscalationOn(string tier) => EscalationTier.GetValueOrDefault(tier, Escalation);
 }
 
 /// <summary>
@@ -1561,6 +1588,77 @@ public sealed record MouseMooseTuning
     public Dictionary<string, double> TierWeights { get; init; } = new() { ["local"] = 1, ["frontier"] = 1.25, ["deadLines"] = 1.5, ["deepTerritory"] = 1.5 };
 }
 
+/// <summary>The Bruin (GDD §21; the director's playtest of 23 Oct 2026, line 36; ARCHITECTURE §8 note 1007). Field docs live in enemies.json.</summary>
+public sealed record BruinTuning
+{
+    public bool On { get; init; }
+    public double StandSeconds { get; init; } = 45;
+    public double ComeFromM { get; init; } = 40;
+    public double Come { get; init; } = 4;
+    public double HuffSeconds { get; init; } = 10;
+    public double GiveUpAbove { get; init; } = 2;
+    public double FeedPerSecond { get; init; } = 0.01;
+    public double Reach { get; init; } = 6;
+    public double TurnDegreesPerSecond { get; init; } = 90;
+    public double FrontDegrees { get; init; } = 50;
+    public double WindupSeconds { get; init; } = 3;
+    public double ChargeReach { get; init; } = 3;
+    public double MaulSeconds { get; init; } = 8;
+    public double Health { get; init; } = 20;
+    public double FrontFactor { get; init; } = 0.2;
+    public double StaggerSeconds { get; init; } = 1.2;
+    public int DriveOffBlows { get; init; } = 8;
+    public double LeaveFarM { get; init; } = 150;
+    /// <summary>Seconds fed before it leaves its car of its own accord, by tier; negative, never.</summary>
+    public Dictionary<string, double> LeaveAfter { get; init; } = new() { ["local"] = 40, ["frontier"] = 40, ["deadLines"] = 90, ["deepTerritory"] = -1 };
+    public Dictionary<string, double> TierWeights { get; init; } = new() { ["local"] = 0.5, ["frontier"] = 1, ["deadLines"] = 1.5, ["deepTerritory"] = 2 };
+}
+
+/// <summary>The Tapper (GDD §21; the director's playtest of 23 Oct 2026, line 36; ARCHITECTURE §8 note 1011). Field docs live in enemies.json.</summary>
+public sealed record TapperTuning
+{
+    public bool On { get; init; }
+    public double BoardAbove { get; init; } = 8;
+    public double LeaveBelow { get; init; } = 3;
+    /// <summary>Seconds alone on the gun before it comes, by tier.</summary>
+    public Dictionary<string, double> Dwell { get; init; } = new() { ["local"] = 90, ["frontier"] = 90, ["deadLines"] = 60, ["deepTerritory"] = 45 };
+    public double ComeFromM { get; init; } = 6;
+    public double Crawl { get; init; } = 0.8;
+    public double TapBehindM { get; init; } = 1.0;
+    public Dictionary<string, double> TapSeconds { get; init; } = new() { ["local"] = 5, ["frontier"] = 5, ["deadLines"] = 4, ["deepTerritory"] = 3 };
+    public double LookDegrees { get; init; } = 30;
+    public double LookSeconds { get; init; } = 1;
+    public Dictionary<string, double> HoldSeconds { get; init; } = new() { ["local"] = 30, ["frontier"] = 30, ["deadLines"] = 20, ["deepTerritory"] = 10 };
+    public double CompanyM { get; init; } = 4;
+    public double LiftSeconds { get; init; } = 10;
+    public double Health { get; init; } = 3;
+    public Dictionary<string, double> TierWeights { get; init; } = new() { ["local"] = 0, ["frontier"] = 1, ["deadLines"] = 1.5, ["deepTerritory"] = 2 };
+}
+
+/// <summary>The Close (GDD §21; the director's playtest of 23 Oct 2026, line 36; ARCHITECTURE §8 note 1013). Field docs live in enemies.json.</summary>
+public sealed record CloseTuning
+{
+    public bool On { get; init; }
+    public double BoardAbove { get; init; } = 8;
+    public int Crowd { get; init; } = 3;
+    public int CrowdSmall { get; init; } = 2;
+    public int SmallCrew { get; init; } = 3;
+    /// <summary>Seconds the car's been crowded and shut before it settles on the roof, by tier.</summary>
+    public Dictionary<string, double> Settle { get; init; } = new() { ["local"] = 60, ["frontier"] = 40, ["deadLines"] = 35, ["deepTerritory"] = 30 };
+    public double BowSeconds { get; init; } = 10;
+    public double PourSeconds { get; init; } = 4;
+    /// <summary>Seconds pinned before the crush starts, by tier.</summary>
+    public Dictionary<string, double> CrushAfter { get; init; } = new() { ["local"] = 8, ["frontier"] = 6, ["deadLines"] = 5, ["deepTerritory"] = 4 };
+    public double CrushPerSecond { get; init; } = 5;
+    public double KillSeconds { get; init; } = 20;
+    public double GetOutSeconds { get; init; } = 1;
+    public double Health { get; init; } = 3;
+    public Dictionary<string, double> TierWeights { get; init; } = new() { ["local"] = 0.5, ["frontier"] = 1, ["deadLines"] = 1.5, ["deepTerritory"] = 2 };
+
+    /// <summary>How many in one car make a crowd for a crew of <paramref name="crew"/> (Sloe's "3, or 2 on a crew of 2–3").</summary>
+    public int CrowdFor(int crew) => crew <= SmallCrew ? CrowdSmall : Crowd;
+}
+
 /// <summary>The Freight Beetle (GDD §21, App. A.6, B.6; ARCHITECTURE §8 note 366). Field docs live in enemies.json.</summary>
 public sealed record FreightBeetleTuning
 {
@@ -1677,6 +1775,14 @@ public sealed record TowerJawTuning
     public double WreckHalf { get; init; } = 3;
     public double SafeSpeed { get; init; } = 1;
     public double DamagePerSpeed { get; init; } = 0.06;
+    /// <summary>
+    /// Note 996 (the director's playtest of 23 Oct, line 1: run into the wreck, "Engine just breaks down immediately, and now
+    /// we're perma-stuck"): what the wreck's blow, or its fall, leaves of a car or the engine at the least, so it dents (the
+    /// wrench mends it) and never breaks one down. 0: as before, a run at 12 m/s broke the engine.
+    /// </summary>
+    public double WreckLeaves { get; init; } = 0.3;
+    /// <summary>Note 996 (line 26: the fall "didn't do anything to the car"): a car within crushRadius of where it comes down loses this.</summary>
+    public double CrushCar { get; init; } = 0.35;
     public Dictionary<string, double> TierWeights { get; init; } = new() { ["local"] = 1, ["frontier"] = 1.5, ["deadLines"] = 2, ["deepTerritory"] = 2 };
 
     /// <summary>Seconds to gnaw through, by tier (120 where the tier isn't listed).</summary>
@@ -1711,9 +1817,18 @@ public sealed record CrewBotsTuning
     public double GateClearWithin { get; init; } = 1500;
     public double GateClearGiveUp { get; init; } = 240;
     public double GateClearMargin { get; init; } = 45;
+    /// <summary>Note 1009: the gate's stand given up once nothing aboard's been struck this long (s); 0, only the give-up.</summary>
+    public double GateClearIdle { get; init; } = 30;
     public double SixDawnMargin { get; init; } = 45;
     public double MournersCarryWithin { get; init; } = 60;
     public double MournersCarrySeconds { get; init; } = 60;
+    /// <summary>
+    /// Note 1021: a crewmate carried off by a Whistler or taken in a car by a Climber is gone for by the nearest bot within
+    /// this much of the grabber (m) ...
+    /// </summary>
+    public double RescueWithin { get; init; } = 80;
+    /// <summary>... with at least this much health (a bot hurt worse leaves it to another).</summary>
+    public int RescueFit { get; init; } = 40;
 }
 
 /// <summary>
@@ -1782,4 +1897,27 @@ public sealed record ClimberFreeSpeed
     /// <summary>Whether a train at <paramref name="speed"/> on <paramref name="tier"/> is one the free Climbers come to.</summary>
     public bool Allows(double speed, Route.RouteTier tier) =>
         speed >= Moving && speed <= Fraction * LineSpeed.GetValueOrDefault(char.ToLowerInvariant(tier.ToString()[0]) + tier.ToString()[1..], 18);
+}
+
+/// <summary>
+/// The Head Waiter (GDD §21; ARCHITECTURE §8 notes 1004, 1008; docs/design/creatures/head-waiter.md §5, the early column of
+/// §8). Built behind <see cref="On"/>, off until the director's verdict. Field docs live in enemies.json.
+/// </summary>
+public sealed record HeadWaiterTuning
+{
+    public bool On { get; init; }
+    public double ComeSeconds { get; init; } = 90;
+    public double MinSpeed { get; init; } = 3;
+    public double Weight { get; init; } = 3;
+    public double ClimbSeconds { get; init; } = 2.5;
+    public double StandOff { get; init; } = 0.7;
+    public double RingSeconds { get; init; } = 1.5;
+    public double WaitSeconds { get; init; } = 15;
+    public double BackToWorkSeconds { get; init; } = 5;
+    public double AwayM { get; init; } = 2.5;
+    public double ClearSeconds { get; init; } = 8;
+    public double ThrowSpeed { get; init; } = 3;
+    public double BowSeconds { get; init; } = 2;
+    public int GoBlows { get; init; } = 3;
+    public int KillBlows { get; init; } = 6;
 }

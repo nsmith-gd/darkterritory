@@ -9,6 +9,9 @@ public sealed partial class ConductorBot
     bool _gateDone;
     /// <summary>Seconds stood short of the gate for the crew to clear the train (for <c>crewBots.gateClearGiveUp</c>).</summary>
     double _gateStood;
+    /// <summary>Note 1009: seconds stood at the gate since anything aboard was last struck (<c>crewBots.gateClearIdle</c>).</summary>
+    double _gateIdle;
+    uint _gateHitSeen;
 
     /// <summary>Standing short of a town's gate for the crew to clear the train (note 605; for tests and the harness's trace).</summary>
     public bool ClearingForTheGate { get; private set; }
@@ -43,8 +46,14 @@ public sealed partial class ConductorBot
         double stand = town.GateM - b.GateClearShort, ahead = stand - d.Distance;
         if (ahead > b.GateClearWithin || ahead < -b.GateClearShort)
             return null;
-        // Clear, or out of time, or stood long enough: on in, and not again tonight.
-        if (!Aboard(world) || _gateStood > b.GateClearGiveUp || GateTimeInHand(world, run, et, stand) <= 0)
+        // Note 1009: a blow on what's aboard is the crew clearing it; stood with none for gateClearIdle, nobody is (a Whistler
+        // in its gap waits for someone passing alone, and no bot goes at it), and the stand is a stop for no reason.
+        foreach (var e in world.ActiveEnemies)
+            if (!e.Gone && e.Attached >= 0 && e.LastHitTick > _gateHitSeen)
+                (_gateHitSeen, _gateIdle) = (e.LastHitTick, 0);
+        bool idle = b.GateClearIdle > 0 && _gateIdle > b.GateClearIdle && !world.ActiveEnemies.Any(e => e is Brakeman { Gone: false });
+        // Clear, or out of time, or stood long enough (or idle): on in, and not again tonight.
+        if (!Aboard(world) || _gateStood > b.GateClearGiveUp || idle || GateTimeInHand(world, run, et, stand) <= 0)
         {
             if (_gateStood > 0 || !Aboard(world))
                 _gateDone = _gateStood > 0;
@@ -57,7 +66,10 @@ public sealed partial class ConductorBot
             return null;
         }
         if (d.Speed < 0.05)
+        {
             _gateStood += SimConstants.TickSeconds;
+            _gateIdle += SimConstants.TickSeconds;
+        }
         return new PlayerIntent { Buttons = PlayerButtons.Brake, ThrottleNotch = -4 };
     }
 

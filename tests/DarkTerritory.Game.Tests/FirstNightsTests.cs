@@ -100,6 +100,18 @@ public sealed class FirstNightsTests : IDisposable
     }
 
     [Fact]
+    public void WithTheMicOpenHeadphonesAreRecommended()
+    {
+        // Note 1019 (the director, 24 Oct: a guest heard their own voice back off a crewmate's speakers): said on SETTINGS' VOICE
+        // line while it's OPEN MIC. (Not on the yard's card: its TALK row would break in two at the largest TEXT SIZE in a small
+        // window, and the card run off the screen, TextSizeTests.)
+        var m = Menu(_dir);
+        m.Show(Screen.Settings);
+        Assert.Contains(m.Items, i => i.Label == "VOICE: OPEN MIC" && i.Detail is { } d && d.StartsWith("Headphones recommended with OPEN MIC", StringComparison.Ordinal));
+        Assert.DoesNotContain(m.Items, i => i.Label.StartsWith("VOICE: PUSH", StringComparison.Ordinal) && i.Detail is not null);
+    }
+
+    [Fact]
     public void TheCardSaysHowToCloseItAndNoControlCanTakeThatKey()
     {
         // The director, 9 Oct (note 527): "we need a way to close the 'first time controls' overlay".

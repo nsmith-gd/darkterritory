@@ -287,7 +287,7 @@ public static partial class TrainKit
     /// <param name="gear">With its drivers and rods in it (a still engine: the catalog's, a wreck's). Without, they're
     /// drawn apart each frame turning with the train's going (SceneArt.Gear).</param>
     /// <param name="paint">The train's livery (note 714; composition.livery): 0 the works' rust.</param>
-    public static MeshAsset Engine(Look? look, CarShape shape, int variant, bool gear = true, int paint = 0)
+    public static MeshAsset Engine(Look? look, CarShape shape, int variant, bool gear = true, int paint = 0, IReadOnlyList<DamageKit.Gap>? holes = null)
     {
         var k = new Kit(look, 101 + variant) { Paint = PaintOf(paint) };
         float w = (float)shape.HalfWidth, l = (float)shape.HalfLength;
@@ -488,7 +488,7 @@ public static partial class TrainKit
         foreach (int side in new[] { -1, 1 })
             k.Rod(new Vector3(side * (bw * 0.6f), top - 0.25f, sandDome.Z), new Vector3(side * (HalfGauge + 0.1f), 0.25f, drivers[0] - 0.8f), 0.02f, 5);
 
-        Cab(k, shape, w, deck, cabFront, cabBack, bw, top, roofLow, roofTop);
+        Cab(k, shape, w, deck, cabFront, cabBack, bw, top, roofLow, roofTop, holes ?? []);
         Bunker(k, shape, deck, roofLow, roofTop, w);
         RunningBoards(k, shape);
         CouplerPlates(k, shape);
@@ -798,9 +798,11 @@ public static partial class TrainKit
     /// <summary>
     /// The tear itself, drawn over the casing at <see cref="RuptureSeam"/> while she's ruptured: a ragged black hole
     /// in a scorch of soot, its plate peeled back in petals bent out from the edge, and burst tubes curling out of it.
-    /// Its own frame: the casing's face is x = 0, outward −X; Y up, Z along the engine.
+    /// Its own frame: the casing's face is x = 0, outward −X; Y up, Z along the engine. <paramref name="open"/>: the hood's
+    /// plate is cut away under it (DamageKit.HoodHole, note 1014), so it's a real hole: no black drawn in it, and the soot
+    /// only round it.
     /// </summary>
-    public static MeshAsset RuptureTear(Look? look)
+    public static MeshAsset RuptureTear(Look? look, bool open = false)
     {
         var k = new Kit(look, 77);
         const int n = 9;
@@ -819,12 +821,20 @@ public static partial class TrainKit
             var e0 = edge[i] * 1.6f + new Vector3(-0.004f, 0.05f, 0);
             var e1 = edge[(i + 1) % n] * 1.6f + new Vector3(-0.004f, 0.05f, 0);
             // (Both windings: it's seen from out along −X, and cheap.)
+            if (open)
+            {
+                // A ring round the hole, from its edge out.
+                var i0 = edge[i] with { X = -0.004f };
+                var i1 = edge[(i + 1) % n] with { X = -0.004f };
+                k.Quad(i0, i1, e1, e0, twoSided: true);
+                continue;
+            }
             k.Tri(new Vector3(-0.004f, 0, 0), e1, e0);
             k.Tri(new Vector3(-0.004f, 0, 0), e0, e1);
         }
         // The hole: black, the dark of the boiler's inside.
         k.Use("paint_black", new Vector3(0.01f, 0.01f, 0.01f), 1, 0);
-        for (int i = 0; i < n; i++)
+        for (int i = 0; i < n && !open; i++)
         {
             k.Tri(new Vector3(-0.008f, 0, 0), edge[(i + 1) % n] with { X = -0.008f }, edge[i] with { X = -0.008f });
             k.Tri(new Vector3(-0.008f, 0, 0), edge[i] with { X = -0.008f }, edge[(i + 1) % n] with { X = -0.008f });
@@ -880,7 +890,7 @@ public static partial class TrainKit
             k.Rod(p0, p1, 0.022f, 6);
             k.Rod(p1, p2, 0.022f, 6);
         }
-        return k.Build("rupture-tear");
+        return k.Build(open ? "rupture-tear-open" : "rupture-tear");
     }
 
     /// <summary>
@@ -1573,7 +1583,8 @@ public static partial class TrainKit
     /// an arched roof; and in its back wall, where the boiler comes through, the backhead: the firebox door's frame, four
     /// gauges, the water glass and pipework (GDD §12, the Conductor's and the Boiler's place), facing forward into the cab.
     /// </summary>
-    static void Cab(Kit k, CarShape shape, float w, float deck, float cabFront, float cabBack, float bw, float top, float roofLow, float roofTop)
+    static void Cab(Kit k, CarShape shape, float w, float deck, float cabFront, float cabBack, float bw, float top, float roofLow, float roofTop,
+        IReadOnlyList<DamageKit.Gap> holes)
     {
         float waist = deck + 1.1f;
         // Where the doorway starts: under its lintel (the sim's, the standard doorway: note 110).
@@ -1587,7 +1598,20 @@ public static partial class TrainKit
             var faces = front ? Kit.Faces.PosZ | Kit.Faces.PosY | Kit.Faces.PosX | Kit.Faces.NegX
                 : waistWall ? (b.Min.X < 0 ? Kit.Faces.PosX : Kit.Faces.NegX) | Kit.Faces.PosY | Kit.Faces.PosZ | Kit.Faces.NegZ : Kit.Faces.All; // (its ends a side door's jambs, note 856)
             Plate(k);
-            k.Box(F(b.Min), F(b.Max), faces);
+            // The boiler burst through the hood (note 1014): its plate gone round the tear, the corridor's dark through it.
+            int side = b.Max.X < 0 ? -1 : b.Min.X > 0 ? 1 : 0;
+            var pieces = side != 0 && holes.Count > 0 ? DamageKit.Pieces(F(b.Min), F(b.Max), holes, side) : [(F(b.Min), F(b.Max))];
+            foreach (var (pmin, pmax) in pieces)
+            {
+                var cut = DamageKit.CutFaces(pmin, pmax, F(b.Min), F(b.Max));
+                k.Box(pmin, pmax, faces & ~cut);
+                if (cut != 0)
+                {
+                    DamageKit.Raw(k, iron: true);
+                    k.Box(pmin, pmax, cut);
+                    Plate(k);
+                }
+            }
         }
         CabShell(k, shape, w, deck, cabFront, cabBack, doorFront, roofLow, bw);
         foreach (int side in new[] { -1, 1 })
@@ -2344,8 +2368,12 @@ public static partial class TrainKit
         k.Tint *= (livery switch { Livery.Planked => IronTint, Livery.Steel => PlateTint, _ => new Vector3(0.62f, 0.55f, 0.45f) }) * k.Paint;
     }
 
-    public static MeshAsset Car(Look? look, CarShape shape, Livery livery, int variant, bool load = true, bool wheel = true, int paint = 0)
+    public static MeshAsset Car(Look? look, CarShape shape, Livery livery, int variant, bool load = true, bool wheel = true, int paint = 0,
+        DamageKit.Holes? holes = null)
     {
+        holes ??= DamageKit.Holes.None;
+        // (Its broken boards' ends: split wood, or on a steel car plate scraped bright, as DamageKit.Failing's sprung boards.)
+        bool iron = livery == Livery.Steel;
         var k = new Kit(look, 7 + variant * 3 + (int)livery) { Paint = PaintOf(paint) };
         var interior = shape.Interior!.Value;
         float w = (float)shape.HalfWidth, l = (float)shape.HalfLength, h = (float)shape.RoofHeight;
@@ -2365,11 +2393,25 @@ public static partial class TrainKit
             if (min.X <= -w + 1e-3f) outer |= Kit.Faces.NegX;
             if (max.Z >= l - 1e-3f) outer |= Kit.Faces.PosZ;
             if (min.Z <= -l + 1e-3f) outer |= Kit.Faces.NegZ;
-            Outside();
-            k.Box(min, max, outer);
-            Lining();
-            k.Box(min, max, Kit.Faces.All & ~outer);
+            // Failing (note 1014): its boards gone where its holes are, cut right through the wall, their broken ends raw.
+            int side = (outer & Kit.Faces.PosX) != 0 ? 1 : (outer & Kit.Faces.NegX) != 0 ? -1 : 0;
+            var pieces = side != 0 && holes.Walls.Count > 0 ? DamageKit.Pieces(min, max, holes.Walls, side) : [(min, max)];
+            foreach (var (pmin, pmax) in pieces)
+            {
+                var cut = DamageKit.CutFaces(pmin, pmax, min, max);
+                Outside();
+                k.Box(pmin, pmax, outer & ~cut);
+                Lining();
+                k.Box(pmin, pmax, Kit.Faces.All & ~outer & ~cut);
+                if (cut != 0)
+                {
+                    DamageKit.Raw(k, iron);
+                    k.Box(pmin, pmax, cut);
+                }
+            }
         }
+        if (holes.Walls.Count > 0)
+            DamageKit.Splinters(k, holes.Walls, w, t, iron);
         // Outside framing: posts and braces on a planked car, ribs on steel, plate straps on armour.
         Outside();
         k.Shade(0.85f);
@@ -2430,8 +2472,11 @@ public static partial class TrainKit
         bool InHatch(float z0, float z1) => z1 > hz0 && z0 < hz1;
         var spans = shape.Hatch is null ? new[] { (-l, l) } : new[] { (-l, hz0), (hz1, l) };
         Lining();
+        // (Open to the sky where its sheets are gone: note 1014.)
+        var roofHoles = holes.Roof.Select(g => g.Side > 0 ? (g.Inner, w + 0.1f, g.Z0, g.Z1) : (-w - 0.1f, -g.Inner, g.Z0, g.Z1)).ToList();
         foreach (var (z0, z1) in spans)
-            k.Box(new Vector3(-w, ceiling, z0), new Vector3(w, ceiling + 0.01f, z1), Kit.Faces.NegY);
+            foreach (var (x0, x1, za, zb) in DamageKit.Subtract((-w, w, z0, z1), roofHoles))
+                k.Box(new Vector3(x0, ceiling, za), new Vector3(x1, ceiling + 0.01f, zb), Kit.Faces.NegY);
         k.Use("wood_sleeper", Palette.DeepBrown, 0.9f, 0);
         for (float z = -l + 1; z < l - 0.5f; z += 1.1f)
             if (!InHatch(z - 0.05f, z + 0.05f))
@@ -2449,7 +2494,14 @@ public static partial class TrainKit
             profile.Add(new Vector2(-w - 0.07f, ceiling + 0.04f));
             profile.Add(new Vector2(-w - 0.07f, ceiling - 0.02f));
             foreach (var (z0, z1) in spans)
-                k.Prism(profile, z0 == -l ? -l - 0.06f : z0, z1 == l ? l + 0.06f : z1, caps: true, smooth: false);
+                foreach (var (za, zb, xl, xr) in DamageKit.RoofSpans(z0 == -l ? -l - 0.06f : z0, z1 == l ? l + 0.06f : z1, holes.Roof))
+                    k.Prism(xl is null && xr is null ? profile : DamageKit.RoofProfile(w, h, ceiling, xl, xr), za, zb, caps: true, smooth: false);
+            if (holes.Roof.Count > 0)
+            {
+                DamageKit.RoofEdges(k, holes.Roof, w, h);
+                k.Use(livery == Livery.Planked ? "corrugated_iron" : "iron_plate", Palette.IronGrey, 0.9f, 0.3f, tile: 1.2f);
+                k.Tint *= IronTint;
+            }
         }
         if (shape.Hatch is { } hatch)
         {
@@ -2874,10 +2926,11 @@ public static partial class TrainKit
     /// <summary>
     /// The dining car's fit-out (upgrades.md §8.5, note 959; the catalogue: "a cargo car converted: a chandelier and a table
     /// laid for eight"), on the sim's own table and counter (<see cref="CarShape.Dining"/>): the table under a white cloth with
-    /// eight places laid, four chairs a side; a brass chandelier over it, its candles lit (the light is the scene's); the
-    /// bar across the rear end, its counter, the bell on it, and the bottles in a rack on the wall behind; a runner down the
-    /// aisle; and outside, its lit windows. <see cref="ChandelierAt"/> is where its light hangs. Note 974: each piece is
-    /// modelled (tools/models/recipes/dining_car.py) and stood on the sim's boxes; note 959's kit draws any that isn't built.
+    /// eight places laid, four chairs a side, its candelabra lit; the pub's bar down the rear half (note 1016): its counter and
+    /// return, the beer engines and the bell on it, the back bar on the wall behind the barman's walkway, the stools down its
+    /// front, and a small brass chandelier over them, its candles lit (the lights are the scene's); a runner down the aisle;
+    /// and outside, its lit windows. <see cref="ChandelierAt"/> is where its light hangs. Note 974: each piece is modelled
+    /// (tools/models/recipes/dining_car.py) and stood on the sim's boxes; note 959's kit draws any that isn't built.
     /// </summary>
     public static MeshAsset DiningFit(Look? look, CarShape shape)
     {
@@ -2949,72 +3002,86 @@ public static partial class TrainKit
             k.Use("dress_paint", new Vector3(0.92f, 0.9f, 0.82f), 0.3f, 0.2f);
             k.Cylinder(new Vector3(mx, t1.Y + 0.22f, z), new Vector3(mx, t1.Y + 0.34f, z), 0.012f, 6);
         }
-        // The chandelier: a brass ring of candles on chains from a rose in the ceiling, over the table's middle.
+        // The small chandelier (note 1016): the dining one at ChandelierScale, a brass ring of candles on its chain from a rose
+        // in the ceiling, over the stools at the bar.
         var c = ChandelierAt(shape);
-        var hung = Kit.At(c.X, ceiling, c.Z);
+        var hung = Matrix4x4.CreateScale(ChandelierScale) * Kit.At(c.X, ceiling, c.Z);
         if (Prop(k, "dining_chandelier", hung))
             Flames(k, look, "dining_chandelier", 6, hung);
         else
         {
+            float r = 0.38f * ChandelierScale;
             k.Use("brass", Palette.TarnishedBrass, 0.4f, 0.8f);
-            k.Cylinder(new Vector3(c.X, ceiling, c.Z), new Vector3(c.X, ceiling - 0.05f, c.Z), 0.12f, 10);
-            k.Cylinder(new Vector3(c.X, ceiling - 0.05f, c.Z), new Vector3(c.X, c.Y + 0.05f, c.Z), 0.012f, 6);
-            k.Lathe(new Vector3(c.X, c.Y - 0.18f, c.Z), [new(0.02f, 0), new(0.09f, 0.08f), new(0.05f, 0.2f), new(0.015f, 0.23f)], 10);
+            k.Cylinder(new Vector3(c.X, ceiling, c.Z), new Vector3(c.X, ceiling - 0.05f, c.Z), 0.08f, 10);
+            k.Cylinder(new Vector3(c.X, ceiling - 0.05f, c.Z), new Vector3(c.X, c.Y + 0.05f, c.Z), 0.01f, 6);
             for (int i = 0; i < 6; i++)
             {
-                float a = i * MathF.PI / 3, ax = c.X + 0.38f * MathF.Cos(a), az = c.Z + 0.38f * MathF.Sin(a);
+                float a = i * MathF.PI / 3, ax = c.X + r * MathF.Cos(a), az = c.Z + r * MathF.Sin(a);
                 k.Use("brass", Palette.TarnishedBrass, 0.4f, 0.8f);
-                k.Cylinder(new Vector3(c.X, c.Y - 0.1f, c.Z), new Vector3(ax, c.Y - 0.02f, az), 0.012f, 5);
-                k.Cylinder(new Vector3(ax, c.Y - 0.05f, az), new Vector3(ax, c.Y - 0.02f, az), 0.04f, 8);
+                k.Cylinder(new Vector3(c.X, c.Y - 0.06f, c.Z), new Vector3(ax, c.Y - 0.02f, az), 0.01f, 5);
                 k.Use("dress_paint", new Vector3(0.92f, 0.9f, 0.82f), 0.3f, 0.2f);
-                k.Cylinder(new Vector3(ax, c.Y - 0.02f, az), new Vector3(ax, c.Y + 0.1f, az), 0.014f, 6);
-                k.Use("window_lit", Palette.LampAmber, 0.1f, 0.2f, tile: 0.2f);
-                k.Cylinder(new Vector3(ax, c.Y + 0.1f, az), new Vector3(ax, c.Y + 0.15f, az), 0.008f, 5, radiusB: 0.001f);
+                k.Cylinder(new Vector3(ax, c.Y - 0.02f, az), new Vector3(ax, c.Y + 0.06f, az), 0.012f, 6);
             }
         }
-        // The bar: its counter (the sim's), panelled, a brass rail along its foot, its top polished; the bell on it.
+        // The pub (note 1016): its counter down the rear half's right (the sim's run, the return across its front end to the
+        // wall), the beer engines on it; the back bar on the wall behind the barman's walkway; the stools down its front; the
+        // bell on the counter by the rear end. The modelled counter's at the tuning's length, stretched if the sim's isn't.
         var b0 = V(d.Counter.Min);
         var b1 = V(d.Counter.Max);
-        float bellX = b0.X + 0.3f, bellZ = (b0.Z + b1.Z) / 2;
-        var counterAt = Matrix4x4.CreateScale((b1.X - b0.X) / BarCounterSize.X, (b1.Y - b0.Y) / BarCounterSize.Y, (b1.Z - b0.Z) / BarCounterSize.Z)
-            * Kit.At((b0.X + b1.X) / 2, b0.Y, (b0.Z + b1.Z) / 2);
-        if (!Prop(k, "bar_counter", counterAt))
+        float bz = (b0.Z + b1.Z) / 2;
+        var counterAt = Matrix4x4.CreateScale((b1.X - b0.X) / PubCounterSize.X, (b1.Y - b0.Y) / PubCounterSize.Y, (b1.Z - b0.Z) / PubCounterSize.Z)
+            * Kit.At((b0.X + b1.X) / 2, b0.Y, bz);
+        if (!Prop(k, "pub_counter", counterAt))
         {
             k.Use("dress_wood", Palette.DeepBrown * 0.8f, 0.5f, 0.3f, tile: 1);
             k.Box(b0, b1 - new Vector3(0, 0.06f, 0));
+            k.Box(V(d.Return.Min), V(d.Return.Max) - new Vector3(0, 0.06f, 0));
             k.Use("dress_wood", Palette.DeepBrown * 1.2f, 0.3f, 0.6f, tile: 1);
-            k.Box(new Vector3(b0.X - 0.04f, b1.Y - 0.06f, b0.Z - 0.06f), new Vector3(b1.X, b1.Y, b1.Z));
+            k.Box(new Vector3(b0.X - 0.05f, b1.Y - 0.06f, b0.Z - 0.03f), new Vector3(b1.X, b1.Y, b1.Z + 0.03f));
+            k.Box(new Vector3(b1.X, b1.Y - 0.06f, (float)d.Return.Min.Z - 0.03f), new Vector3((float)d.Return.Max.X, b1.Y, (float)d.Return.Max.Z));
             k.Use("brass", Palette.TarnishedBrass, 0.4f, 0.8f);
-            k.Cylinder(new Vector3(b0.X, floor + 0.22f, b0.Z - 0.12f), new Vector3(b1.X - 0.02f, floor + 0.22f, b0.Z - 0.12f), 0.02f, 8);
-            // A few glasses and a bottle out on the counter.
-            k.Use("dress_glass", new Vector3(0.55f, 0.35f, 0.15f), 0.1f, 0.9f);
-            k.Cylinder(new Vector3(b1.X - 0.35f, b1.Y, bellZ), new Vector3(b1.X - 0.35f, b1.Y + 0.25f, bellZ), 0.04f, 8);
-            k.Cylinder(new Vector3(b1.X - 0.35f, b1.Y + 0.25f, bellZ), new Vector3(b1.X - 0.35f, b1.Y + 0.34f, bellZ), 0.014f, 6);
+            k.Cylinder(new Vector3(b0.X - 0.17f, floor + 0.2f, b0.Z + 0.08f), new Vector3(b0.X - 0.17f, floor + 0.2f, b1.Z - 0.05f), 0.024f, 8);
+            for (int i = -1; i <= 1; i++)
+            {
+                k.Use("dress_paint", new Vector3(0.9f, 0.88f, 0.82f), 0.2f, 0.4f);
+                k.Cylinder(new Vector3(b0.X + 0.2f, b1.Y, bz + i * 0.24f), new Vector3(b0.X + 0.2f, b1.Y + 0.38f, bz + i * 0.24f), 0.02f, 8);
+            }
         }
-        if (!Prop(k, "bar_bell", Kit.At(bellX, b1.Y, bellZ)))
+        var bell = new Vector3(b0.X + 0.22f, b1.Y, b1.Z - 0.35f);
+        if (!Prop(k, "bar_bell", Kit.At(bell.X, bell.Y, bell.Z)))
         {
             k.Use("brass", Palette.TarnishedBrass, 0.4f, 0.8f);
-            k.Cylinder(new Vector3(bellX, b1.Y, bellZ), new Vector3(bellX, b1.Y + 0.012f, bellZ), 0.05f, 10);
-            k.Lathe(new Vector3(bellX, b1.Y + 0.012f, bellZ), [new(0.04f, 0), new(0.035f, 0.03f), new(0.015f, 0.05f), new(0.006f, 0.07f)], 10);
+            k.Cylinder(bell, bell + new Vector3(0, 0.012f, 0), 0.05f, 10);
+            k.Lathe(bell + new Vector3(0, 0.012f, 0), [new(0.04f, 0), new(0.035f, 0.03f), new(0.015f, 0.05f), new(0.006f, 0.07f)], 10);
         }
-        // Behind it on the rear wall's right, the back bar: a cupboard, and over it the mirror and three shelves of bottles.
-        float rz = (float)room.Max.Z - 0.02f, rx0 = b0.X + 0.15f, rx1 = xIn - 0.05f;
-        if (!Prop(k, "bar_back", Kit.At((rx0 + rx1) / 2, floor, (float)room.Max.Z)))
+        var bb0 = V(d.BackBar.Min);
+        var bb1 = V(d.BackBar.Max);
+        var backAt = Matrix4x4.CreateScale(1, 1, (bb1.Z - bb0.Z) / PubBackLength) * Kit.At(bb1.X, floor, (bb0.Z + bb1.Z) / 2);
+        if (!Prop(k, "pub_back", backAt))
             for (int shelf = 0; shelf < 3; shelf++)
             {
-                float y = floor + 1.3f + shelf * 0.38f;
+                float y = floor + 1.12f + shelf * 0.32f;
                 k.Use("dress_wood", Palette.DeepBrown, 0.6f, 0.2f, tile: 1);
-                k.Box(new Vector3(rx0, y - 0.03f, rz - 0.22f), new Vector3(rx1, y, rz));
-                for (float x = rx0 + 0.08f; x < rx1 - 0.05f; x += 0.13f)
+                k.Box(new Vector3(bb0.X, y - 0.03f, bb0.Z), new Vector3(bb1.X, y, bb1.Z));
+                for (float z = bb0.Z + 0.08f; z < bb1.Z - 0.05f; z += 0.13f)
                 {
-                    int n = (int)(x * 37 + shelf * 11) & 3;
+                    int n = (int)(z * 37 + shelf * 11) & 3;
                     var tint = n switch { 0 => new Vector3(0.12f, 0.3f, 0.12f), 1 => new Vector3(0.45f, 0.25f, 0.08f), 2 => new Vector3(0.6f, 0.55f, 0.4f), _ => new Vector3(0.25f, 0.08f, 0.06f) };
-                    float tall = 0.2f + 0.05f * (n % 2);
+                    float tall = 0.2f + 0.05f * (n % 2), x = (bb0.X + bb1.X) / 2;
                     k.Use("dress_glass", tint, 0.1f, 0.9f);
-                    k.Cylinder(new Vector3(x, y, rz - 0.11f), new Vector3(x, y + tall, rz - 0.11f), 0.035f, 8);
-                    k.Cylinder(new Vector3(x, y + tall, rz - 0.11f), new Vector3(x, y + tall + 0.08f, rz - 0.11f), 0.012f, 6);
+                    k.Cylinder(new Vector3(x, y, z), new Vector3(x, y + tall, z), 0.035f, 8);
                 }
             }
+        foreach (var stool in shape.Lounges.Where(l => l.Kind == LoungeKind.Stool))
+        {
+            var seat = V(stool.At);
+            if (Prop(k, "pub_stool", Kit.At(seat.X, floor, seat.Z)))
+                continue;
+            k.Use("dress_wood", Palette.DeepBrown, 0.6f, 0.2f, tile: 1);
+            k.Cylinder(new Vector3(seat.X, floor, seat.Z), new Vector3(seat.X, seat.Y - 0.05f, seat.Z), 0.03f, 8);
+            k.Use("dress_felt", Palette.SignalRed * 0.7f, 0.9f, 0, tile: 1);
+            k.Cylinder(new Vector3(seat.X, seat.Y - 0.05f, seat.Z), new Vector3(seat.X, seat.Y, seat.Z), 0.17f, 12);
+        }
         // A runner down the aisle, end door to end door, a gold line along each edge a hand in.
         float r0 = -xIn + 0.35f, r1 = -0.2f, rf = (float)room.Min.Z + 0.3f, rb = (float)room.Max.Z - 0.3f;
         k.Use("dress_felt", Palette.SignalRed * 0.5f, 0.95f, 0, tile: 1);
@@ -3030,9 +3097,13 @@ public static partial class TrainKit
         return k.Build("dining-fit");
     }
 
-    /// <summary>The modelled dining table's length, the counter's size (tools/models/recipes/dining_car.py; the sim's, note 959).</summary>
-    const float DiningTableLength = 6.6f;
-    static readonly Vector3 BarCounterSize = new(1.25f, 1.08f, 0.6f);
+    /// <summary>
+    /// The modelled dining table's length, the pub counter's run and the back bar's length (tools/models/recipes/dining_car.py;
+    /// train.json composition.dining.bar's, note 1016); the small chandelier's scale on the dining one.
+    /// </summary>
+    const float DiningTableLength = 6.6f, PubBackLength = 4.3f;
+    public const float ChandelierScale = 0.6f;
+    static readonly Vector3 PubCounterSize = new(0.5f, 1.08f, 4.8f);
 
     /// <summary>
     /// A candle's flame on each of a modelled piece's wicks (its sockets flame_0..: dining_car.py's), the piece placed by
@@ -3051,11 +3122,28 @@ public static partial class TrainKit
             }
     }
 
-    /// <summary>Where the dining car's chandelier hangs (its candles' height), over the middle of the table (note 959).</summary>
+    /// <summary>
+    /// Where the dining car's small chandelier hangs (its candles' height): over the stools at the bar, by the counter's front
+    /// and middle (note 1016; it was over the table, note 959).
+    /// </summary>
     public static Vector3 ChandelierAt(CarShape shape)
     {
+        var c = shape.Dining!.Counter;
+        return new Vector3((float)c.Min.X - 0.15f, (float)shape.Interior!.Value.Max.Y - 0.75f * ChandelierScale, (float)(c.Min.Z + c.Max.Z) / 2);
+    }
+
+    /// <summary>The back bar's lamp (note 1016): out from its cornice over the barman's walkway, at the counter's middle.</summary>
+    public static Vector3 BackBarLightAt(CarShape shape)
+    {
+        var d = shape.Dining!;
+        return new Vector3((float)(d.Behind.Min.X + d.Behind.Max.X) / 2, (float)d.Table.Min.Y + 2.1f, (float)(d.Counter.Min.Z + d.Counter.Max.Z) / 2);
+    }
+
+    /// <summary>Where the dining table's own light is (its candelabra's glow, the room's front half): over its middle.</summary>
+    public static Vector3 TableLightAt(CarShape shape)
+    {
         var t = shape.Dining!.Table;
-        return new Vector3((float)(t.Min.X + t.Max.X) / 2, (float)shape.Interior!.Value.Max.Y - 0.75f, (float)(t.Min.Z + t.Max.Z) / 2);
+        return new Vector3((float)(t.Min.X + t.Max.X) / 2, (float)t.Max.Y + 0.5f, (float)(t.Min.Z + t.Max.Z) / 2);
     }
 
     /// <summary>

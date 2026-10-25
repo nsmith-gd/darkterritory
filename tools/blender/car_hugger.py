@@ -155,6 +155,7 @@ kit = rig.Kit(sk, "car_hugger")
 # red-black; the teeth dead ivory; the eaten iron rusted.
 HIDE = Mat("flesh.hugger", hexc("#8a7f86"), shine=0.5, tint=(1.1, 1.0, 1.05))
 PALE = Mat("flesh.hugger_pale", hexc("#a39a95"), shine=0.5, tint=(1.2, 1.12, 1.08))
+LIP = Mat("flesh.hugger_lip", hexc("#a39a95"), shine=0.5, tint=(1.2, 1.12, 1.08))   # the lips' skirt (the mouth's atlas share)
 GUM = Mat("flesh.hugger_gum", hexc("#5a2a2c"), shine=0.6, tint=(0.9, 0.5, 0.5))
 THROAT = Mat("tar.throat", hexc("#120808"), shine=0.6)
 TOOTH = Mat("skin.tooth", hexc("#d8ceb8"), shine=0.4)
@@ -251,6 +252,29 @@ ring = [MOUTH + Vector((math.sin(2 * math.pi * j / AROUND) * MOUTH_R, 0.03, math
         for j in range(AROUND)]
 mouth.tube(ring, [(0.085, 0.07)] * AROUND, 8, PALE, "mouth", ref=(0, 1, 0), loop=True,
            shape=lambda i, j, a, p, fr: Vector(p) + fr[0] * 0.012 * math.sin(i * 1.7))
+# The lips' skirt: flesh from the hide's cut rim (on the head) to under the lips (on the mouth), so whatever the mouth's
+# scale the hide and the lips are one skin. Without it, shut (lurk's 0.55) the lips drew back off the rim and left a
+# hollow ring you saw the sky through (Look Review, 23 Oct: "missing texture around the mouth"); a little puckered, as
+# a drawn-shut sphincter is.
+# (Laid over the hide's front, its outer edge over the cut's: the cut takes whole faces, so its edge is a staircase.)
+SKIRT = [(0.322, 0.55), (0.332, 0.52), (0.339, 0.49), (0.345, 0.46)]   # (y, radius) from the rim in to under the lips
+
+
+def skirt_weights(p):
+    t = min(1.0, max(0.0, (p[1] - SKIRT[0][0]) / (SKIRT[-1][0] - SKIRT[0][0])))
+    t = t * t * (3 - 2 * t)
+    return {n: w for n, w in (("body_01", 1 - t), ("mouth", t)) if w > 1e-3}
+
+
+mouth.loft([[MOUTH + Vector((math.sin(2 * math.pi * j / AROUND) * r * (1 + 0.025 * math.sin(j * 2.1 + i)), y - MOUTH.y,
+                             math.cos(2 * math.pi * j / AROUND) * r * (1 + 0.025 * math.sin(j * 2.1 + i)))) for j in range(AROUND)]
+            for i, (y, r) in enumerate(SKIRT)], LIP, skirt_weights,
+           centres=[MOUTH + Vector((0, y - MOUTH.y, 0)) for y, _ in SKIRT], inside=MOUTH + Vector((0, -6.0, 0)))
+# And the hide's own edge rolled over round the hole, on the head: with the mouth dilated wide (swallow) the skirt flares
+# out past the cut, and the cut's staircase showed over the throat.
+mouth.tube([MOUTH + Vector((math.sin(2 * math.pi * j / 32) * (MOUTH_R - 0.03), 0.305 - MOUTH.y, math.cos(2 * math.pi * j / 32) * (MOUTH_R - 0.03)))
+            for j in range(32)], [(0.022, 0.036)] * 32, 8, LIP, "body_01", ref=(0, 1, 0), loop=True,
+           shape=lambda i, j, a, p, fr: Vector(p) + fr[0] * 0.006 * math.sin(i * 2.3))
 
 
 def funnel_ring(y, r, wobble=0.0):

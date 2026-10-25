@@ -1,0 +1,5 @@
+// the Tapper on (#714, note 1011)
+{
+  "$patch": true,
+  "tapper": { "on": true }
+}

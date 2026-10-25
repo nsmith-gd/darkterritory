@@ -1,0 +1,22 @@
+// Tell (tier 1), the Close (note 1013; docs/design/creatures/the-close.md §4): the roof's boards creaking under a slow weight,
+// swelling and easing like a breath, every 3 s while it bows the roof in. Its weight in the boards at 150-400 Hz, as the design
+// has it; what carries over the wheels is the boards' groan, a slow stick-slip creak at 480-680 Hz (the measured band): told
+// from the Brakeman's boots by having no steps, from the Climbers' scrabble (2-5 kHz) by being slow and low, from the house
+// creak (a single board, in a village) by breathing, and clear of the Bruin's whistle (~820 Hz) and the Tapper's knock
+// (0.9-1.4 kHz). A synth stand-in until the audio chat builds its line's takes.
+{
+  "tier": 1, "loop": false, "duration": 2.4, "maxInstances": 2, "minDistance": 3, "maxDistance": 60, "rolloff": 1, "gainDb": 8,
+  "layers": [
+    { "source": "saw", "frequency": 560, "gain": 0.5,
+      "filters": [{ "type": "bandPass", "frequency": 575, "q": 5 }],
+      "vibrato": { "rate": 23, "depth": 0.035 }, "pitchEnvelope": [[0, 0.9], [0.9, 1.06], [1.4, 1.0], [2.2, 0.92]],
+      "envelope": [[0, 0], [0.35, 0.6], [0.9, 1], [1.3, 0.7], [1.8, 0.35], [2.3, 0]] },
+    { "source": "saw", "frequency": 505, "gain": 0.25,
+      "filters": [{ "type": "bandPass", "frequency": 520, "q": 6 }],
+      "vibrato": { "rate": 17, "depth": 0.04 },
+      "envelope": [[0, 0], [0.5, 0.4], [1.0, 0.8], [1.6, 0.2], [2.2, 0]] },
+    { "source": "noise", "gain": 0.35,
+      "filters": [{ "type": "bandPass", "frequency": 260, "q": 1.4 }],
+      "envelope": [[0, 0], [0.6, 0.7], [1.1, 1], [1.7, 0.3], [2.3, 0]] }
+  ]
+}

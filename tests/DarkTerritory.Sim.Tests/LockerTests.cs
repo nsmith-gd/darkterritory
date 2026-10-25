@@ -64,12 +64,13 @@ public class LockerTests
     }
 
     [Fact]
-    public void TheKitsCarHasARowOfAtLeastTenNamedLockersClearOfTheAisleAndTheDoors()
+    public void TheKitsCarHasARowOfEightNamedLockersClearOfTheAisleAndTheDoors()
     {
         var world = Stocked();
         var shape = KitCarShape(world);
         var names = Tuning.Train.Kit.Lockers!.Names;
-        Assert.True(names.Count >= 10);
+        // Eight (note 1016; the director, 23 Oct: "reduce the locker count to 8"; it was at least ten).
+        Assert.Equal(8, names.Count);
         Assert.Equal(names.Count, shape.Lockers.Count);
         Assert.Equal(names, shape.Lockers.Select(b => b.Name));
         Assert.Contains("8", names);
@@ -98,7 +99,7 @@ public class LockerTests
     {
         var world = Stocked();
         int car = World.RepairKitCar(world.Train)!.Value;
-        var bay = KitCarShape(world).Lockers.First(b => b.Name == "11");
+        var bay = KitCarShape(world).Lockers.First(b => b.Name == "5");
         var s = Facing(world, bay);
         Assert.Equal(InteractableKind.Locker, CrewActions.Nearest(s, world.Train));
         // Note 267: a tap at a shut locker opens it; held, it shuts, and held again it opens.
@@ -146,7 +147,7 @@ public class LockerTests
     {
         var world = Stocked();
         int car = World.RepairKitCar(world.Train)!.Value;
-        var bay = KitCarShape(world).Lockers.First(b => b.Name == "11");
+        var bay = KitCarShape(world).Lockers.First(b => b.Name == "5");
         // Toys are found at the stops now (note 264): a shelf's worth brought aboard (note 659: four now).
         var room = KitCarShape(world).Interior!.Value;
         int shelves = Lockers.Slots(world.Train);
@@ -209,7 +210,7 @@ public class LockerTests
         // tool in hand puts it on a shelf, its slot empty; a tap of Use with that slot in hand takes it back, by anyone.
         var world = Stocked();
         int car = World.RepairKitCar(world.Train)!.Value;
-        var bay = KitCarShape(world).Lockers.First(b => b.Name == "11");
+        var bay = KitCarShape(world).Lockers.First(b => b.Name == "5");
         var s = Facing(world, bay) with { Kit = Kit.Of([Tool.Crowbar, Tool.Wrench]), HeldSlot = 1 };
         Press(world, ref s, new PlayerIntent { Buttons = PlayerButtons.Throw });
         Assert.Equal(Tool.None, Kit.At(s.Kit, 1));
@@ -277,7 +278,7 @@ public class LockerTests
         var world = Stocked();
         int car = World.RepairKitCar(world.Train)!.Value;
         var shape = KitCarShape(world);
-        var (a, b) = (shape.Lockers.First(x => x.Name == "11"), shape.Lockers.First(x => x.Name == "12"));
+        var (a, b) = (shape.Lockers.First(x => x.Name == "6"), shape.Lockers.First(x => x.Name == "7"));
         Assert.Equal(1, Math.Abs(a.Index - b.Index));
         var between = (a.Front + b.Front) * 0.5;
         PlayerState Looking(LockerBay bay, double sideways)

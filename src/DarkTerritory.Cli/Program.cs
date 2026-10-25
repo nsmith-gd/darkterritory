@@ -18,6 +18,8 @@ using DarkTerritory.Sim.Train;
 var baseContent = DataFile.FindContentRoot(Environment.CurrentDirectory);
 // Mods (T49) laid over the content like the game does (--no-mods for the base game). The editor edits the base content.
 args = Mods.TakeArgs(args);
+// A small GPU's limits and the safe path on any machine (note 1017): --gpu-limits [small|layers=N,...], --gpu-safe.
+args = Ballast.Dev.GpuFlags.Take(args);
 bool noMods = args.Contains("--no-mods");
 args = [.. args.Where(a => a != "--no-mods")];
 var content = args is ["edit", ..] or ["mods", ..] or ["edition", "bake", ..] ? baseContent : Mods.Mount(baseContent, enabled: !noMods);
@@ -175,6 +177,9 @@ return args switch
         listenerZ: Opt(args, "--listener-z", 0), micDb: Opt(args, "--mic", 0), wav: Str(args, "--out", "") is { Length: > 0 } wav ? wav : null,
         // Note 862: --cab-door left|right|both, the cab's side doors held open.
         cabDoors: Str(args, "--cab-door", "") switch { "left" => 4, "right" => 8, "both" => 12, _ => 0 })),
+    // Note 1019: A's voice through B's speakers into B's open mic, and what of it B's canceller sends back.
+    ["voice", "echo", ..] => Print(Ballast.Voice.EchoBench.Run(DarkTerritory.Game.Sound.VoiceChat.Settings(player.Voices.Echo), Opt(args, "--delay", 0.05),
+        Opt(args, "--rt60", 0.3), Opt(args, "--coupling", -10), Opt(args, "--latency", 0.1), seed: (int)Opt(args, "--seed", 1))),
 
     _ => Usage(),
 };
@@ -1127,7 +1132,7 @@ static object Screenshot(TrainTuning t, string content, string[] args)
     // --upgrades id[,id]: the train as the campaign's upgrades make it (note 184: crewCar, secondGuardCar, armouredCar,
     // roofHandrails...).
     // The dining and diningbar views (note 959), and diningtable and diningdrunk (note 974), fit the dining car.
-    if (Str(args, "--upgrades", view is "dining" or "diningbar" or "diningtable" or "diningdrunk" ? "diningCar" : "") is { Length: > 0 } upgrades)
+    if (Str(args, "--upgrades", view is "dining" or "diningbar" or "diningtable" or "diningdrunk" ? "diningCar" : view is "headwaiter" or "headwaiterdeck" ? "bbqDeck" : "") is { Length: > 0 } upgrades)
         t = DarkTerritory.Sim.Campaign.Campaign.Apply(DataFile.Load<DarkTerritory.Sim.Campaign.CampaignTuning>(Path.Combine(content, DarkTerritory.Sim.Campaign.CampaignTuning.File)),
             upgrades.Split(','), new DarkTerritory.Sim.Campaign.Loadout(t, DataFile.Load<BoilerTuning>(Path.Combine(content, BoilerTuning.File)),
                 DataFile.Load<DarkTerritory.Sim.Combat.CombatTuning>(Path.Combine(content, DarkTerritory.Sim.Combat.CombatTuning.File)), null)).Train;
@@ -2048,11 +2053,42 @@ static object Screenshot(TrainTuning t, string content, string[] args)
             return Print(new { error = $"{Str(args, "--route", "")} has no cupboards" });
         var (f, c) = pieces[(int)keptAt % pieces.Count];
         var b = f.Stop!.Buildings[c.Building];
-        var (x, y, fx, fy) = DarkTerritory.Sim.Run.StopWalls.Kept(b, c.Kind, c.Index);
+        var (x, y, fx, fy) = DarkTerritory.Sim.Run.StopWalls.Kept(b, c);
         Double3 At(double px, double py, double up) => DarkTerritory.Sim.Run.Run.StopWorld(line, f, DarkTerritory.Sim.Run.StopWalls.InHouse(b, px, py), up);
         camera = floorKind.Length > 0
             ? Camera.LookAt(At(x + fx * 1.5 - fy * 0.6, y + fy * 1.5 + fx * 0.6, 1.65), At(x, y, 0.2), 70)
             : Camera.LookAt(At(x + fx * 2.1 - fy * 0.7, y + fy * 2.1 + fx * 0.7, 1.65), At(x, y, 0.95), 70);
+    }
+    // --storey basement|upstairs|stairs|ground|outside [--house n] (note 1005): the night's nth house with floors (one with a
+    // basement for basement, with an upstairs for upstairs and stairs): down in its basement from the ladder's foot toward its
+    // deep end and its chests; upstairs from its back wall toward the stairwell; at the foot of its flight, up it; on its
+    // ground floor from inside its front door; or from outside, its plinth, steps and cellar windows. With --lantern, a hand lamp.
+    if (Str(args, "--storey", "") is { Length: > 0 } storey && generated is not null)
+    {
+        var storeyed = generated.Features.Where(f => f.Stop is not null)
+            .SelectMany(f => f.Stop!.Buildings.Select((b, i) => (Feature: f, Building: b, Index: i)))
+            .Where(x => DarkTerritory.Sim.Run.StopWalls.Storeyed(x.Building) && DarkTerritory.Sim.Run.StopWalls.Walled(x.Feature.Stop!, x.Index)
+                && (storey != "basement" || x.Building.Basement) && (storey is not ("upstairs" or "stairs") || x.Building.Upstairs)).ToList();
+        if (storeyed.Count == 0)
+            return Print(new { error = $"{Str(args, "--route", "")} has no house with floors for --storey {storey}" });
+        var (f, b, _) = storeyed[(int)Opt(args, "--house", 0) % storeyed.Count];
+        int e = DarkTerritory.Sim.Run.StopWalls.BackEnd(b), side = DarkTerritory.Sim.Run.StopWalls.StairSide(b);
+        double ix = b.Length / 2 - DarkTerritory.Sim.Run.StopWalls.WallThickness, iy = b.Width / 2 - DarkTerritory.Sim.Run.StopWalls.WallThickness;
+        // Heights over the house's ground (its middle's), as the sim has them.
+        double ground = DarkTerritory.Sim.Run.Run.StopWorld(line, f, b.Centre).Y;
+        Double3 At(double x, double y, double up) => DarkTerritory.Sim.Run.Run.StopWorld(line, f, DarkTerritory.Sim.Run.StopWalls.InHouse(b, x, y)) with { Y = ground + up };
+        double Floor(int level) => DarkTerritory.Sim.Run.StopWalls.FloorAt(b, level);
+        var (fx, fy) = DarkTerritory.Sim.Run.StopWalls.Front(b);
+        camera = storey switch
+        {
+            "basement" => Camera.LookAt(At(e * (ix - 0.9), side * 0.6, Floor(-1) + 1.6), At(-e * ix, -side * 0.4, Floor(-1) + 0.5), 80),
+            "upstairs" => Camera.LookAt(At(e * (ix - 0.5), -side * (iy - 0.6), Floor(1) + 1.65), At(-e * ix, side * iy * 0.5, Floor(1) + 0.4), 80),
+            // (stairs: from the ground floor at the flight's foot, up it.)
+            "stairs" when DarkTerritory.Sim.Run.StopWalls.Stair(b) is var (x0, dir, y0, y1) =>
+                Camera.LookAt(At(x0 - dir * 0.5, (y0 + y1) / 2 - side * 2.4, Floor(0) + 1.65), At(x0 + dir * 3.0, (y0 + y1) / 2, Floor(0) + 1.8), 80),
+            "outside" => Camera.LookAt(At(fx * (b.Length / 2 + 7) - fy * 3, fy * (b.Width / 2 + 7) + fx * 3, 1.7), At(0, 0, Floor(0) + 1.2), 70),
+            _ => Camera.LookAt(At(fx * (b.Length / 2 - 1.0), fy * (b.Width / 2 - 1.0), Floor(0) + 1.65), At(-fx * ix + e * 0.5, -fy * iy + side * 0.5, Floor(0) + 0.6), 80),
+        };
     }
     // --gun-laid yaw,pitch (degrees): every gun turned and elevated so, as a seated gunner lays it (T112).
     if (Str(args, "--gun-laid", "") is { Length: > 0 } laid)
@@ -2584,6 +2620,14 @@ static object Screenshot(TrainTuning t, string content, string[] args)
             paces[id] = pace;
         scene.StagedPaces = paces;
     }
+    // --headwaiter serve|wait|clear: the staged Head Waiter on the BBQ deck (note 1008; Staging.HeadWaiter), at the shoulder of
+    // a crewmate sat back in the near chair: the glass ringing (the headwaiter views'), waiting, or clearing them.
+    if (Str(args, "--headwaiter", view is "headwaiter" or "headwaiterdeck" ? "serve" : "") is { Length: > 0 } waiterMode
+        && Staging.HeadWaiter(train, content, waiterMode) is var (waitedOn, waiter) && waiter is not null)
+    {
+        scene.Enemies = [.. scene.Enemies ?? [], waiter];
+        scene.Crew = [.. scene.Crew ?? [], .. waitedOn];
+    }
     // --mousemoose yard|drag: the staged Mouse Moose off the line's left (note 790; Staging.MouseMoose): creeping in, tugging a
     // load off, down its hole (the mousemoose view's); close to the one tugging (mousemoosedrag's).
     if (Str(args, "--mousemoose", view switch { "mousemoose" or "mousemooseface" or "mousemoosehole" => "yard", "mousemoosedrag" => "drag", _ => "" }) is { Length: > 0 } mouseMode)
@@ -2596,6 +2640,18 @@ static object Screenshot(TrainTuning t, string content, string[] args)
             paces[id] = pace;
         scene.StagedPaces = paces;
     }
+    // --bruin out|car: the staged Bruin at the second car (note 1007; Staging.Bruin): out of the trees coming to its door (the
+    // bruin view's), risen in the car (bruincar's).
+    if (Str(args, "--bruin", view switch { "bruin" => "out", "bruincar" => "car", _ => "" }) is { Length: > 0 } bruinMode)
+        scene.Enemies = Staging.Bruin(scene.Enemies is List<DarkTerritory.Sim.Enemies.Enemy> bruinOthers ? bruinOthers : [], train, bruinMode);
+    // --tapper crawl|tap: the staged Tapper on the rear gun's roof (note 1011; Staging.Tapper): crawling up (the tapper view's), at
+    // the tap (tappertap's).
+    if (Str(args, "--tapper", view switch { "tapper" => "crawl", "tappertap" => "tap", _ => "" }) is { Length: > 0 } tapperMode)
+        scene.Enemies = Staging.Tapper(scene.Enemies is List<DarkTerritory.Sim.Enemies.Enemy> tapperOthers ? tapperOthers : [], train, tapperMode);
+    // --close bow|pour|pin|burst: the staged Close along a car's roof (note 1013; Staging.Close): bowing it in (the close and
+    // closeroof views').
+    if (Str(args, "--close", view switch { "close" or "closeroof" => "bow", _ => "" }) is { Length: > 0 } closeMode)
+        scene.Enemies = Staging.Close(scene.Enemies is List<DarkTerritory.Sim.Enemies.Enemy> closeOthers ? closeOthers : [], train, closeMode);
     // --lodger hidden|shriek|lunge|chase|break|return: the staged Lodger off the line's left (note 583; Staging.Lodger): folded
     // in its crouch (the lodger view's), shrieking (lodgershriek's).
     if (Str(args, "--lodger", view switch { "lodger" => "hidden", "lodgershriek" => "shriek", _ => "" }) is { Length: > 0 } lodgerMode)
@@ -4025,10 +4081,13 @@ static object HudShot(string content, string[] args)
             : args.Contains("--spur-stop")
             ? Staging.SpurStop(content, generated ?? DarkTerritory.Sim.LineGen.Routes.Generate(content, "frontier:7", cars), cars,
                 Array.IndexOf(args, "--spur-stop") is var sp && sp + 1 < args.Length && double.TryParse(args[sp + 1], System.Globalization.CultureInfo.InvariantCulture, out double dawnIn) ? dawnIn : 150)
+            // --ping-village pinged|answered|done|hidden (note 1010): a stop's village pinged from a roof as the train comes by.
+            : Str(args, "--ping-village", "") is { Length: > 0 } pingStage
+            ? Staging.PingVillage(content, generated ?? DarkTerritory.Sim.LineGen.Routes.Generate(content, "frontier:7", cars), cars, pingStage)
             : roofWarning.Length > 0
             ? Staging.RoofWarning(content, generated ?? DarkTerritory.Sim.LineGen.Routes.Generate(content, "deadLines:1", cars), cars, roofWarning)
             : generated is null ? new PrototypeSession(content, Str(args, "--line", "test-loop"), cars) : new PrototypeSession(content, generated, cars, enemies: args.Contains("--taut-knotter"));
-        bool setUp = roofWarning.Length > 0 || mailCrane is not null || args.Contains("--spur-stop") || args.Contains("--terminus");
+        bool setUp = roofWarning.Length > 0 || mailCrane is not null || args.Contains("--spur-stop") || args.Contains("--terminus") || args.Contains("--ping-village");
         if (!setUp)
             solo.Controls.Throttle = Opt(args, "--throttle", args.Contains("--talk") ? 0 : 0.6);
         // (--news: out of the yard and under way, where cars are lost.)
@@ -4444,7 +4503,7 @@ static object HudShot(string content, string[] args)
         Hud.LogbookPage(hud, width, height, "The Night Mail", pages, Math.Clamp(open - 1, 0, Math.Max(0, pages.Count - 1)),
             shown is { Photo.Length: > 0 } ? BookmarkAlbum.ReadPhoto(shown.Photo) : null);
     }
-    if (args.Contains("--ping"))
+    if (args.Contains("--ping") || args.Contains("--ping-village"))
         PingMarks.Draw(hud, width, height, camera, session.World);
     // --emote-wheel: the emote wheel held, the mouse leant toward the wave (note 298).
     if (args.Contains("--emote-wheel"))
@@ -5017,6 +5076,9 @@ static int Usage()
                       [--listener-cab | --listener-car n --listener-z m] [--mic dB] [--cab-door left|right|both] [--out file.wav]
                      one speaker to a listener on car 3 through host routing, Opus and the mixer (spec A.5); restDb is
                      everything else they hear in the voice band, overRestDb the voice's margin over it (note 855)
+          voice echo [--delay s] [--rt60 s] [--coupling dB] [--latency s] [--seed n]
+                     A's voice out of B's speakers into B's open mic, a room's delay and tail on it: what B's echo canceller
+                     and gate send back to A (suppressionDb), when, and how much of B's own voice is kept (note 1019)
         """);
     return 2;
 }

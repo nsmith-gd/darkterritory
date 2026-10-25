@@ -1,0 +1,9 @@
+// Queue #703's measurement (note 999): the shipping content with pressure by state and targeting on. `dt --edition
+// r703-pressure director sweep ...`. Measurement only; never shipped.
+{
+  "id": "edition-r703-pressure",
+  "name": "r703-pressure",
+  "version": "1.0.0",
+  "description": "pressure by state and by player: director.encounters.stance and .target on (#703, note 999)",
+  "order": -1000
+}

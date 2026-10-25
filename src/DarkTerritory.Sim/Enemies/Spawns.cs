@@ -138,6 +138,12 @@ public sealed record SpawnRule(EnemyKind Kind, Func<SpawnContext, double?> Weigh
     /// director's free spawns, on the night's curve, send a kind this says yes to; null, it comes by its rule alone.
     /// </summary>
     public Func<SpawnContext, bool>? Free { get; init; }
+
+    /// <summary>
+    /// Whether the kind's on at all tonight (its own flag, e.g. <c>bruin.on</c>; note 1007); null, always. A kind that's off is
+    /// never sent and never counts as about tonight (the night's floor, note 868, brings others back in its place).
+    /// </summary>
+    public Func<EnemyTuning, bool>? Enabled { get; init; }
 }
 
 /// <summary>The director's spawn table: every enemy it spends on (the Stoker and the Choir come on their own conditions).</summary>
@@ -510,6 +516,61 @@ public static class Spawns
             c.Add(i => MouseMoose.At(i, crane, on, hole, hint));
             return c.Placed();
         }),
+        // The Bruin (note 1007; the director's playtest of 23 Oct, line 36: "stopping in the wild feels like it should feel
+        // scary"): the train stood in the wilderness (no stop, no halt, no facility) standSeconds, with a car of cargo it can
+        // climb into; one at a time; every tier, more the harder (tierWeights). Off with bruin.on. Out of the trees on a side of
+        // the director's draw, comeFromM out from that car.
+        new(EnemyKind.Bruin, c =>
+        {
+            var t = c.Tuning.Bruin;
+            if (!t.On || !Bruin.Wild(c) || !c.None(EnemyKind.Bruin) || Bruin.CarFor(c.Train) < 0)
+                return null;
+            return MooseTuning.ByTier(t.TierWeights, c.Tier);
+        }, c =>
+        {
+            int car = Bruin.CarFor(c.Train);
+            if (car < 0)
+                return SpawnContext.Failed(SpawnFailure.NoTarget);
+            int side = c.Director.NextRange(0, 1) < 0.5 ? -1 : 1;
+            var home = Bruin.TreeLine(c.World, car, side, c.Tuning.Bruin);
+            c.Add(i => Bruin.Out(i, home, car, c.Tuning.Bruin.Health));
+            return c.Placed();
+        })
+        { Enabled = t => t.Bruin.On },
+        // The Tapper (note 1011; the director's playtest of 23 Oct, line 36: "I am sitting on the back gun alone for too long"):
+        // at speed (boardAbove), a crewmate on a gun with nobody within the behaviour reader's aloneM for dwell seconds (by
+        // tier; note 999 §2b's gun alone, read with targeting on); one at a time; from Frontier (tierWeights). Off with tapper.on.
+        new(EnemyKind.Tapper, c =>
+        {
+            var t = c.Tuning.Tapper;
+            if (!t.On || c.Train.Dynamics.Speed < t.BoardAbove || c.World.TrainInFort || !c.None(EnemyKind.Tapper) || Tapper.For(c) is null)
+                return null;
+            return MooseTuning.ByTier(t.TierWeights, c.Tier);
+        }, c =>
+        {
+            if (Tapper.For(c) is not { } at)
+                return SpawnContext.Failed(SpawnFailure.NoTarget);
+            c.Add(i => Tapper.Over(i, at.Car, at.Seat, at.Gunner, c.Train, c.Tuning.Tapper));
+            return c.Placed();
+        })
+        { Enabled = t => t.Tapper.On },
+        // The Close (note 1013; the director's playtest of 23 Oct, line 36: "if everybody's crowded into one car ... something
+        // that does a little bit of crowd control"): at speed (boardAbove), a car with a crowd of the crew shut in it for settle
+        // seconds (by tier; its own census, Crowding); one at a time. Off with close.on.
+        new(EnemyKind.Close, c =>
+        {
+            var t = c.Tuning.Close;
+            if (!t.On || c.Train.Dynamics.Speed < t.BoardAbove || c.World.TrainInFort || !c.None(EnemyKind.Close) || Close.For(c) is null)
+                return null;
+            return MooseTuning.ByTier(t.TierWeights, c.Tier);
+        }, c =>
+        {
+            if (Close.For(c) is not { } car)
+                return SpawnContext.Failed(SpawnFailure.NoTarget);
+            c.Add(i => Close.Over(i, car, c.Train, c.Tuning.Close));
+            return c.Placed();
+        })
+        { Enabled = t => t.Close.On },
         // B.8 · The Brakeman (note 364): up at the far end of a moving train; never with a crew of one; every tier, more the
         // harder, the longer the train and with a climb ahead.
         new(EnemyKind.Brakeman, c =>
@@ -563,6 +624,18 @@ public static class Spawns
                 return SpawnContext.Failed(SpawnFailure.NoGap);
             int car = c.Spread(joints, gaps: true);
             c.Add(i => Knotter.Into(i, c.Train, car, c.Tuning.Knotter));
+            return c.Placed();
+        }),
+        // The Head Waiter (note 1008; Sloe's design, note 1004): for a crewmate the behaviour reader's seen lounging on the
+        // cosmetics headWaiter.comeSeconds without a break, the train running. Off unless headWaiter.on (the director's verdict).
+        new(EnemyKind.HeadWaiter, c =>
+            !c.Once(EnemyKind.HeadWaiter) || HeadWaiter.Comes(c.World, c.Director.Behaviours, c.Tuning.HeadWaiter) is null ? null : c.Tuning.HeadWaiter.Weight,
+        c =>
+        {
+            if (HeadWaiter.Comes(c.World, c.Director.Behaviours, c.Tuning.HeadWaiter) is not { } diner)
+                return SpawnContext.Failed(SpawnFailure.Gated);
+            var state = c.World.CrewThisTick.First(p => p.Id == diner).State;
+            c.Add(i => HeadWaiter.For(i, c.Train, diner, state, c.Tuning.HeadWaiter));
             return c.Placed();
         }),
         // B.4 · The Gannet (note 340; the orchestrator's S3): over a train run fast a while in open country (not a tunnel), a

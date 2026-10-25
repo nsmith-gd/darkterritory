@@ -29,7 +29,7 @@ sealed partial class LineBuilder
             StructureLimits(e);
         }
         _limits.Add(new PlanLimit("main", 0, R(_gate), _t.Fortress.YardSpeed, LimitSource.Yard, "fortress yard"));
-        _limits.Add(new PlanLimit("main", R(_terminus), R(_end), _t.Terminus.YardLimitSpeed, LimitSource.Yard, "arrival yard"));
+        _limits.Add(new PlanLimit("main", R(_terminus), R(_end), _arrivalYardSpeed, LimitSource.Yard, "arrival yard"));
         foreach (var e in _edges.Values.Where(e => e.Role is EdgeRole.Spur))
             _limits.Add(new PlanLimit(e.Id, 0, R(e.Length), _t.Fortress.YardSpeed, LimitSource.Yard, "spur"));
         RestrictedZones(ref rng);
@@ -274,7 +274,7 @@ sealed partial class LineBuilder
             var e = _edges[st.Edge];
             AddDemand(Id(), DemandType.Washout, e, st.S0, 0, Communicated(st.Edge, st.S0 - 50), 0, st.S1);
         }
-        AddDemand(Id(), DemandType.YardLimit, Main, _terminus, _t.Terminus.YardLimitSpeed, Communicated("main", _terminus - 50), null, _end);
+        AddDemand(Id(), DemandType.YardLimit, Main, _terminus, _arrivalYardSpeed, Communicated("main", _terminus - 50), null, _end);
     }
 
     static double MinRadiusFrom(RailLine line, double s)

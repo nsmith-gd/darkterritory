@@ -2,7 +2,7 @@ using DarkTerritory.Sim.Train;
 
 namespace DarkTerritory.Sim.Run;
 
-public enum NewsKind : byte { CarsLost, EngineFailing, EngineBroken, Marked, Fire, Loose }
+public enum NewsKind : byte { CarsLost, EngineFailing, EngineBroken, Marked, Fire, Loose, StillLoose }
 
 /// <summary>
 /// A piece of the night's news (note 663): cars the engine's lost, or the engine failing or broken down, and what did it.
@@ -82,9 +82,12 @@ public static class News
         }
         // Note 854 (the director, 16 Oct: "What is making these couplings loose?"): a pin jumped, the gap and what jumped it, as
         // it does, with the 90 s still to tighten it in.
-        if (e.Kind == NewsKind.Loose)
+        // Note 1003 (the director's playtest of 23 Oct, line 30: "I don't know why that coupling is loose"): halfway through
+        // its knock, the same line again, "STILL" in it.
+        if (e.Kind is NewsKind.Loose or NewsKind.StillLoose)
         {
-            string gap = e.Cars.Length > 0 ? $"COUPLING LOOSE BEHIND CAR {e.Cars[0]}" : "COUPLING LOOSE";
+            string loose = e.Kind == NewsKind.StillLoose ? "COUPLING STILL LOOSE" : "COUPLING LOOSE";
+            string gap = e.Cars.Length > 0 ? $"{loose} BEHIND CAR {e.Cars[0]}" : loose;
             return (LooseCause)e.Cause switch
             {
                 LooseCause.RunIn => $"{gap} · A HARD BRAKE AT {Kmh(e.Speed)}",

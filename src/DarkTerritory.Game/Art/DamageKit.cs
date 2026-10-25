@@ -11,14 +11,15 @@ namespace DarkTerritory.Game.Art;
 /// wrecked, a breach with the ribs showing. Cooked per car shape, state and seed, and drawn with the car's own
 /// transform, over its body. It keeps clear of the side doors, which slide, and of the ends, where the gangways are.
 /// </summary>
-public static class DamageKit
+public static partial class DamageKit
 {
     /// <summary>
     /// A car's damage at <paramref name="state"/> (1 damaged, 2 wrecked: <see cref="DamageTuning.StateOf"/>);
     /// <paramref name="seed"/> (the car) chooses where, the same way every time. A wrecked car keeps its damaged
-    /// state's marks and adds to them, so getting worse never moves a scar.
+    /// state's marks and adds to them, so getting worse never moves a scar. <paramref name="open"/>: the car's holed for real
+    /// (<see cref="CarHoles"/>, note 1014), so the wrecked state's breaches, black drawn on the plate, are left to those.
     /// </summary>
-    public static MeshAsset Car(Look? look, CarShape shape, int state, int seed)
+    public static MeshAsset Car(Look? look, CarShape shape, int state, int seed, bool open = false)
     {
         var k = new Kit(look, 900 + seed);
         float w = (float)shape.HalfWidth, l = (float)shape.HalfLength, h = (float)shape.RoofHeight;
@@ -50,14 +51,17 @@ public static class DamageKit
             }
             else
             {
-                Breach(k, w, Spot(0.65f, 0.6f), rng, 0.55f);
-                Breach(k, w, Spot(0.45f, 0.4f), rng, 0.35f);
+                if (!open)
+                {
+                    Breach(k, w, Spot(0.65f, 0.6f), rng, 0.55f);
+                    Breach(k, w, Spot(0.45f, 0.4f), rng, 0.35f);
+                }
                 for (int i = 0; i < 2; i++)
                     Flap(k, w, Spot(0.3f, 0.25f), rng);
                 Gouge(k, w, Spot(0.35f, 0.4f), rng);
             }
         }
-        return k.Build($"damage-{state}");
+        return k.Build(open ? $"damage-{state}-open" : $"damage-{state}");
     }
 
     /// <summary>
@@ -252,17 +256,29 @@ public static class DamageKit
                         return ((float)(side > 0 ? b.Max.X : -b.Min.X), (side, z, y));
                 }
             }
-            for (int i = 0; i < (engine ? 3 : 4); i++)
+            for (int i = 0; i < (engine ? 3 : 0); i++)
             {
-                var (sw, at) = Spot(engine ? 0.9f : 1.2f, 0.12f);
-                Sprung(k, livery, sw, at, rng, breaking ? 1.5f : 1, iron: engine || livery == TrainKit.Livery.Steel);
+                var (sw, at) = Spot(0.9f, 0.12f);
+                Sprung(k, livery, sw, at, rng, breaking ? 1.5f : 1, iron: true);
             }
+            // A car's boards spring off its holes (note 1014: CarHoles, cut through its walls): each site's middle board still
+            // nailed at one end of the gap it left, bowed out of it, and breaking, the board two down from it too.
+            if (!engine && s == 0)
+                foreach (var g in CarHoles(shape, breaking ? 2 : 1, seed).Walls.Where(g => g.Row == 0 || (breaking && g.Row == 2)))
+                    Sprung(k, livery, w, (g.Side, (g.Z0 + g.Z1) / 2, (g.Y0 + g.Y1) / 2), rng, breaking ? 1.5f : 1, livery == TrainKit.Livery.Steel,
+                        fit: (g.Z1 - g.Z0, g.Y1 - g.Y0));
             if (!engine)
                 RoofLifted(k, livery, shape, rng, breaking ? 1.5f : 1);
             if (s == 1)
             {
                 var (pw, pat) = Spot(engine ? 0.45f : 0.6f, 0.5f);
-                Peeled(k, livery, pw, pat, rng, engine);
+                // A car's sheet's peeled off one of its holes (note 1014: CarHoles' Peel, cut through its wall), the load in
+                // there for real; the engine's is over its lagging.
+                if (!engine && CarHoles(shape, 2, seed).Peel is { } hole)
+                    Peeled(k, livery, w, (hole.Side, (hole.Z0 + hole.Z1) / 2, (hole.Y0 + hole.Y1) / 2), rng, false,
+                        open: (MathF.Min(0.9f, (hole.Z1 - hole.Z0) / 2), (hole.Y1 - hole.Y0) / 2));
+                else
+                    Peeled(k, livery, pw, pat, rng, engine);
                 if (!engine)
                     TrussRod(k, shape, floor, rng);
             }
@@ -281,9 +297,14 @@ public static class DamageKit
     /// A board or a strip of plate sprung off the car's side: still nailed at one end, the rest bowed out from the wall and
     /// sagging at its free end, the wall's dark showing where it lay. <paramref name="how"/> scales how far it's gone.
     /// </summary>
-    static void Sprung(Kit k, TrainKit.Livery livery, float w, (int Side, float Z, float Y) at, Random rng, float how, bool iron)
+    /// <param name="fit">The gap it's sprung out of, cut through the wall (its length and height): the board's as long, and
+    /// there's no black drawn behind it, the hole's there.</param>
+    static void Sprung(Kit k, TrainKit.Livery livery, float w, (int Side, float Z, float Y) at, Random rng, float how, bool iron,
+        (float Len, float Wide)? fit = null)
     {
         float len = 1.8f + 0.8f * (float)rng.NextDouble(), wide = 0.18f + 0.08f * (float)rng.NextDouble();
+        if (fit is { } gap)
+            (len, wide) = (gap.Len, gap.Wide * 0.9f);
         int dir = rng.Next(2) * 2 - 1;
         float z0 = at.Z - dir * len / 2;
         // Out far enough to break the car's line from along the train (the roof, the cab), not only from the lineside.
@@ -291,7 +312,8 @@ public static class DamageKit
         float wall = at.Side * (w + 0.05f);
         // Where it came off: the black of the wall behind.
         k.Use("rust_heavy", Palette.SootBlack, 0.3f, 0).Shade(0.1f);
-        k.Panel(new Vector3(wall, at.Y, at.Z), new Vector3(at.Side, 0, 0), Vector3.UnitY, len, wide);
+        if (fit is null)
+            k.Panel(new Vector3(wall, at.Y, at.Z), new Vector3(at.Side, 0, 0), Vector3.UnitY, len, wide);
         // The board itself, bowed out off its nailed end: its face in the car's livery, its sawn edge and back in the lining.
         const int Steps = 5;
         Vector3 Along(float t, float dy) => new(wall + at.Side * (0.012f + lift * MathF.Pow(t, 1.6f)), at.Y + dy - droop * t * t, z0 + dir * len * t);
@@ -324,22 +346,28 @@ public static class DamageKit
     /// freight's boards and sacking in the car's dark, the rim's torn lips bright. On the engine (<paramref name="lagging"/>),
     /// the boiler's grey lagging in the hole.
     /// </summary>
-    static void Peeled(Kit k, TrainKit.Livery livery, float w, (int Side, float Z, float Y) at, Random rng, bool lagging)
+    /// <param name="open">The hole's really there, cut through the wall (its half width and height): only the sheet's drawn.</param>
+    static void Peeled(Kit k, TrainKit.Livery livery, float w, (int Side, float Z, float Y) at, Random rng, bool lagging, (float W, float H)? open = null)
     {
         float hw = 0.75f + 0.2f * (float)rng.NextDouble(), hh = 0.5f + 0.12f * (float)rng.NextDouble();
+        if (open is { } size)
+            (hw, hh) = size;
         float wall = at.Side * (w + 0.05f);
         var n = new Vector3(at.Side, 0, 0);
-        // The load inside, dark: crates and sacks behind the hole.
-        if (lagging)
-            k.Use("plaster_ruin", Palette.BoardEnamel * 0.6f, 0.9f, 0).Shade(0.3f);
-        else
-            k.Use("wood_crate", Palette.DeepBrown, 0.7f, 0, 0.9f).Shade(0.6f);
-        k.Panel(new Vector3(wall - at.Side * 0.03f, at.Y, at.Z), n, Vector3.UnitY, hw * 2, hh * 2);
-        k.Use("rust_heavy", Palette.SootBlack, 0.3f, 0).Shade(0.08f);
-        foreach (int e in (ReadOnlySpan<int>)[-1, 1])
+        if (open is null)
         {
-            k.Panel(new Vector3(wall, at.Y + e * (hh - 0.04f), at.Z), n, Vector3.UnitY, hw * 2, 0.08f);
-            k.Panel(new Vector3(wall, at.Y, at.Z + e * (hw - 0.04f)), n, Vector3.UnitY, 0.08f, hh * 2);
+            // The load inside, dark: crates and sacks behind the hole.
+            if (lagging)
+                k.Use("plaster_ruin", Palette.BoardEnamel * 0.6f, 0.9f, 0).Shade(0.3f);
+            else
+                k.Use("wood_crate", Palette.DeepBrown, 0.7f, 0, 0.9f).Shade(0.6f);
+            k.Panel(new Vector3(wall - at.Side * 0.03f, at.Y, at.Z), n, Vector3.UnitY, hw * 2, hh * 2);
+            k.Use("rust_heavy", Palette.SootBlack, 0.3f, 0).Shade(0.08f);
+            foreach (int e in (ReadOnlySpan<int>)[-1, 1])
+            {
+                k.Panel(new Vector3(wall, at.Y + e * (hh - 0.04f), at.Z), n, Vector3.UnitY, hw * 2, 0.08f);
+                k.Panel(new Vector3(wall, at.Y, at.Z + e * (hw - 0.04f)), n, Vector3.UnitY, 0.08f, hh * 2);
+            }
         }
         // The sheet: hinged on its upright edge at one end, peeled out past square and curling round as it goes, narrowing
         // a little toward its torn edge.

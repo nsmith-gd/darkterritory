@@ -140,6 +140,39 @@ for k in range(7):
     pts = [root, root + Vector((math.sin(a) * 0.02, -0.03, -0.06)), root + Vector((math.sin(a) * 0.04, -0.05, -drop * 0.5)),
            root + Vector((math.sin(a) * 0.05 + 0.01 * math.sin(k), -0.06, -drop))]
     head.tube(pts, [0.004, 0.0035, 0.003, 0.0015], 4, HAIR, ["head", "neck"], ref=(1, 0, 0), cap1="point")
+# (The Look Review, 23 Oct: "still a bit too basic ... a higher quality pass for more creepies"; note 1015.) Lank hair,
+# what's left of it: clumps from the crown hanging down its back and sides, matted, and two over its face, one down across
+# the left eye; and where its mouth was, the skin's not only grown shut but sewn: a row of coarse black stitches across
+# it, pulled tight into the pucker, as if someone had done it to a child once.
+def on_head(u, w, lift=0.0):
+    v = math.sqrt(max(0.0, 1 - u * u - w * w))
+    p0 = HC + Vector((u * HR.x, v * HR.y, w * HR.z))
+    return skull(0, 0, 0, 0, p0) + head_normal(p0) * lift
+
+
+for k in range(22):
+    a = math.radians(70 + 220 * k / 21) + 0.05 * math.sin(k * 3.7)   # round the back from one temple to the other
+    out = Vector((math.sin(a), math.cos(a), 0))
+    root = HC + Vector((math.sin(a) * HR.x * 0.55, math.cos(a) * HR.y * 0.55, HR.z * 0.84))
+    over_ = HC + Vector((math.sin(a) * HR.x * 1.06, math.cos(a) * HR.y * 1.06, HR.z * 0.15))
+    drop = 0.22 + 0.3 * (0.5 + 0.5 * math.sin(k * 2.3 + 1.0))
+    pts = [root, root.lerp(over_, 0.55) + out * 0.012 + Vector((0, 0, 0.02)), over_ + out * 0.006,
+           over_ + out * 0.014 + Vector((0, 0, -drop * 0.45)), over_ + out * (0.018 + 0.01 * math.sin(k)) + Vector((0.006 * math.sin(k * 1.9), 0, -drop))]
+    # (Round cords, not flat ribbons: a ribbon turned away showed only its edges, a wire frame.)
+    head.tube(pts, [0.0045, 0.005, 0.0045, 0.0035, 0.001], 4, HAIR, ["head", "neck"], ref=[out] * 5, cap1="point")
+# (Each a few thin strands, not one band: a band read as tape across its face.)
+for u0, drop in ((-0.3, 0.3), (0.42, 0.16)):
+    for m in range(3):
+        du, dd = 0.05 * (m - 1), 0.05 * math.sin(m * 2.1 + u0 * 9)
+        pts = [on_head(u0 * 0.6 + du * 0.5, 0.86, 0.004), on_head(u0 + du, 0.45, 0.012), on_head((u0 + du) * 1.05, 0.0, 0.016 + 0.003 * m),
+               on_head((u0 + du) * 1.1, -0.45, 0.016 + 0.003 * m)]
+        pts.append(pts[-1] + Vector((0.006 * (m - 1), 0.01, -drop - dd)))
+        head.tube(pts, [0.0025, 0.0028, 0.0025, 0.002, 0.0008], 4, HAIR, "head", ref=[Vector((0, 1, 0))] * 5, cap1="point")
+for k in range(7):
+    u = -0.3 + 0.6 * k / 6
+    a, b = on_head(u - 0.02, -0.52, 0.001), on_head(u + 0.02, -0.68, 0.001)
+    head.tube([a, a.lerp(b, 0.5) + head_normal(a) * 0.0025, b], [0.0019, 0.0021, 0.0019], 4, NAIL, "head", ref=(1, 0, 0), cap0=True, cap1=True)
+head.tube([on_head(-0.3 + 0.6 * k / 6, -0.6, 0.0005) for k in range(7)], [0.0012] * 7, 4, NAIL, "head", ref=(0, 0, 1))
 body = kit.part("body")   # (the neck is the body's: one skin with it, rig.fuse)
 NECK = [Vector((0, -0.01, TOP - 0.02)), Vector((0, 0.0, (TOP + NECK_TOP) / 2)), Vector((0, 0.01, NECK_TOP + 0.04))]
 body.tube(NECK, [(0.036, 0.034), (0.03, 0.03), (0.034, 0.032)], 10, SKIN, ["spine_03", "neck", "head"], ref=(0, 1, 0),
@@ -184,8 +217,13 @@ def resampled(secs, step):
 
 
 RIBBED = resampled(TORSO, 0.022)
+NECKLINE = CHEST + 0.02   # where the slip starts (below)
 body.tube([Vector((0, 0.0, z)) for z, _, _ in RIBBED], [(rx, ry) for _, rx, ry in RIBBED], 16, SKIN, SPINE, ref=(0, 1, 0),
           square=0.9, shape=ribs)
+# The spine's knuckles standing out of its back above the slip, each one, down from the neck (they show when it hunches).
+for z, _, ry in RIBBED:
+    if NECKLINE - 0.03 < z < TOP - 0.01 and round(z / 0.022) % 2 == 0:
+        body.blob(Vector((0, -ry + 0.006, z)), (0.016, 0.014, 0.011), 8, 4, SKIN, SPINE)
 for sx in (-1, 1):
     # The collarbones and the shoulders' knobs.
     body.tube([Vector((sx * 0.018, 0.062, TOP - 0.03)), Vector((sx * 0.1, 0.05, TOP - 0.012)), Vector((sx * (SHOULDER.x - 0.01), 0.012, SHOULDER.z + 0.008))],
@@ -242,9 +280,11 @@ for s, sx in (("r", 1), ("l", -1)):
         hands.tube(pts, [0.011, 0.01, 0.008, 0.005], 8, SKIN, w, ref=(0, 0, 1), cap1="point",
                    shape=lambda i, j, a, p, fr: Vector(p) + (fr[0] * math.sin(a) + fr[1] * math.cos(a)) * (0.003 if i in (1, 2) else 0.0))
         tip = (pts[-1] - pts[-2]).normalized()
-        hands.tube([pts[-1] - tip * 0.03 + Vector((0, 0, 0.004)), pts[-1] + tip * 0.004 + Vector((0, 0, 0.002))],
-                   [(0.007, 0.003), (0.005, 0.002)], 4, NAIL, f"fingers_{s}",
-                   ref=(0, 0, 1))
+        # The nails grown long past the tips, thick, cracked and hooked down (note 1015's pass): claws to close on a mouth.
+        hands.tube([pts[-1] - tip * 0.03 + Vector((0, 0, 0.004)), pts[-1] + tip * 0.012 + Vector((0, 0, 0.002)),
+                    pts[-1] + tip * 0.034 + Vector((0, 0, -0.008)), pts[-1] + tip * 0.045 + Vector((0, 0, -0.02))],
+                   [(0.007, 0.003), (0.006, 0.0028), (0.004, 0.002), 0.0008], 4, NAIL, f"fingers_{s}",
+                   ref=(0, 0, 1), cap1="point")
     th0, th1 = H(f"thumb_{s}"), T(f"thumb_{s}")
     hands.tube([th0, th0.lerp(th1, 0.6), th1 + (th1 - th0) * 0.9], [0.012, 0.01, 0.005], 6, SKIN, f"thumb_{s}", ref=(0, 0, 1), cap1="point")
 
@@ -288,8 +328,8 @@ def shift_weights(p):
 
 SN = 26
 HEM = HIP - 0.24
-# It starts under the arms, a slip more than a shirt, so the bare chest shows over it: the collarbones, the top ribs.
-NECKLINE = CHEST + 0.02
+# It starts under the arms (NECKLINE), a slip more than a shirt, so the bare chest shows over it: the collarbones, the
+# top ribs.
 rings = []
 for z, rx, ry, folds in ((NECKLINE, 0.142, 0.104, 0.0), (CHEST - 0.04, 0.148, 0.112, 0.1), (WAIST + 0.04, 0.14, 0.11, 0.3),
                          (HIP, 0.16, 0.12, 0.5), (HIP - 0.12, 0.19, 0.15, 0.8), (HEM, 0.2, 0.16, 1.0)):
@@ -309,6 +349,12 @@ for z, rx, ry, folds in ((NECKLINE, 0.142, 0.104, 0.0), (CHEST - 0.04, 0.148, 0.
     rings.append(ring)
 rings.append([Vector((p.x * 0.95, p.y * 0.95, p.z + 0.03)) for p in rings[-1]])
 shift.loft(rings, SHIFT, shift_weights, centres=[Vector((0, 0, r[0].z)) for r in rings], inside=Vector((0, 0, WAIST)))
+# Rags of it hanging off the torn hem, longer and shorter, swinging with the thighs.
+for a, L in ((0.55, 0.16), (1.4, 0.09), (2.75, 0.2), (3.6, 0.11), (4.65, 0.18), (5.6, 0.12)):
+    o = Vector((math.sin(a), math.cos(a), 0))
+    top = Vector((math.sin(a) * 0.195, math.cos(a) * 0.155, HEM + 0.02))
+    shift.tube([top, top + o * 0.012 + Vector((0, 0, -L * 0.5)), top + o * 0.02 + Vector((0.006 * math.sin(a * 3), 0, -L))],
+               [(0.022, 0.003), (0.017, 0.0025), (0.006, 0.002)], 4, SHIFT, shift_weights, ref=[o] * 3, cap1="point")
 # The straps: the right over its shoulder, the left slipped off and hanging down the arm.
 shift.tube([Vector((0.075, 0.09, NECKLINE - 0.02)), Vector((0.1, 0.04, TOP)), Vector((0.11, -0.02, TOP + 0.01)), Vector((0.08, -0.09, NECKLINE))],
            [(0.014, 0.004)] * 4, 5, SHIFT, "spine_03", ref=(0, 0, 1))
@@ -481,12 +527,13 @@ smother.close(48)
 # listening to it. Dead still but for the head coming upright, all at once, and going back over.
 ST = over(BASE, spine_01=(-6, 0, 0), spine_02=(-10, 0, 0), spine_03=(-12, 0, 0), neck=(-28, 0, 0), head=(16, 0, -38),
           thigh_r=(14, 0, 0), calf_r=(-26, 0, 0), thigh_l=(14, 0, 0), calf_l=(-26, 0, 0),
-          upperarm_r=(10, 80, 0), upperarm_l=(10, -80, 0), lowerarm_r=(0, 16, 0), lowerarm_l=(0, -16, 0))
+          upperarm_r=(10, 75, 0), upperarm_l=(10, -75, 0), lowerarm_r=(0, 16, 0), lowerarm_l=(0, -16, 0))   # (out a little: its claws, note 1015)
 stoop = Clip("stoop")
 stoop.key(0, ST, "CONSTANT")
 stoop.key(64, over(ST, head=(14, 0, 10)), "CONSTANT")
 stoop.key(78, ST, "CONSTANT")
-for f, c in ((92, 0.5), (95, -0.2), (98, 0.4), (101, 0.0)):
+# (The ripple opens the fingers since its claws grew, note 1015: curled in, the left's tips crossed the right's.)
+for f, c in ((92, -0.1), (95, -0.25), (98, -0.05), (101, 0.0)):
     stoop.key(f, ST | {"fingers_l": (0, -(12 + 60 * c), 0)}, "CONSTANT")
 stoop.close(120)
 
@@ -544,8 +591,10 @@ hit.key(12, W, "CONSTANT")
 
 # One skin from the neck to the points of its feet, the limbs grown out of the body rather than pushed into it (rig.fuse);
 # then up toward GDD §27's budget (a character's, 4-10k): rig.densify rounds the head and hands out (Look Review asks).
-kit.fuse("body", ["body", "limbs"], voxel=0.0025, faces=2400)
-kit.target_tris = 8500
+# (More faces kept in the fused skin since note 1015, so its ribs, knuckles and knees stand in the silhouette, not only
+# in the normal map.)
+kit.fuse("body", ["body", "limbs"], voxel=0.0025, faces=3350)
+kit.target_tris = 10000
 kit.build()
 rig.bake(sk, [stalk, wait, flee, recoil, smother, hit, stoop, stalk_stoop, duck], plant=rig.feet_planter(sk, bones=("ball_l", "ball_r"), lowest=0.004))
 print("[dt] tippy_toesie", {p.name: p.tris() for p in kit.parts}, "total", kit.tris(), "bones", len(sk.bones))

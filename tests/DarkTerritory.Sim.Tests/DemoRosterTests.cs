@@ -262,6 +262,60 @@ public class DemoRosterTests
         n.AssertFair();
     }
 
+    /// <summary>
+    /// Note 1003 (the director's playtest of 23 Oct, line 25: "if I just like walk backwards from them, they always get up to
+    /// rear on their back legs ... But just my walking pace can defeat them"): walking off as the throats swell, the tongues
+    /// still have you; running (App. A.6: "outrunnable, if you run"), they don't.
+    /// </summary>
+    [Fact]
+    public void WalkingOffDoesntOutrunTheTonguesButRunningDoes()
+    {
+        foreach (bool run in new[] { false, true })
+        {
+            var n = new Night(4, speed: 0);
+            var me = OnGroundBeside(n, 2, 4) with { Yaw = 0 };
+            n.Crew[1] = me;
+            var at = PlayerMotor.WorldPosition(me, n.Train);
+            var a = n.World.AddEnemy(id => Ribbit.At(id, id, at + new Double3(0, 0, 9), E.Ribbits));
+            n.World.AddEnemy(id => Ribbit.At(id, a.Id, at + new Double3(1.5, 0, 9), E.Ribbits));
+            for (double t = 0; t < 8 && a.Phase != SpinePhase.Telegraph; t += 0.1)
+                n.Run(0.1);
+            Assert.Equal(SpinePhase.Telegraph, a.Phase);
+            // Off along the line, away from them (yaw 0 walks −Z).
+            var away = new PlayerIntent { MoveZ = 1, Buttons = run ? PlayerButtons.Run : default };
+            UntilGrab(n, a, 6, id => id == 1 ? away : default);
+            Assert.True(run != (a.Phase == SpinePhase.Grab), $"{(run ? "running" : "walking")}: the pack's {a.Phase}");
+        }
+    }
+
+    /// <summary>
+    /// Note 1003 (the director's playtest of 23 Oct, line 24: "they should start moving towards us, they should put pressure on
+    /// us"): a pack of two can't take two together, and it comes in anyway and sits stalkAt off them, out of the lash; one of
+    /// them walking off alone, it has them.
+    /// </summary>
+    [Fact]
+    public void APackThatCantTakeAnyoneClosesInAndSitsJustOutOfReach()
+    {
+        var n = new Night(4, speed: 0);
+        var me = OnGroundBeside(n, 2, 4);
+        n.Crew[1] = me;
+        n.Crew[2] = me with { Position = me.Position + new Double3(0, 0, 1.5) };
+        var at = PlayerMotor.WorldPosition(me, n.Train);
+        var a = n.World.AddEnemy(id => Ribbit.At(id, id, at + new Double3(0, 0, 30), E.Ribbits));
+        var b = n.World.AddEnemy(id => Ribbit.At(id, a.Id, at + new Double3(1.5, 0, 30), E.Ribbits));
+        n.Run(12);
+        Assert.DoesNotContain(n.Events, e => e.Kind == EnemyKind.Ribbit && e.To == SpinePhase.Telegraph);
+        foreach (var r in new[] { a, b })
+        {
+            double d = ((r.Local - at) with { Y = 0 }).Length;
+            Assert.True(d < E.Ribbits.StalkAt + 3 && d > E.Ribbits.TongueLash, $"a Ribbit {d:0.0} m off");
+        }
+        // Off they go apart: the one left is one, and the pack is two.
+        n.Crew[2] = me with { Position = me.Position + new Double3(0, 0, -40) };
+        UntilGrab(n, a, 10);
+        Assert.Equal(SpinePhase.Grab, a.Phase);
+    }
+
     [Fact]
     public void APackSpreadsRoundItsCatchAndKeepsApart()
     {

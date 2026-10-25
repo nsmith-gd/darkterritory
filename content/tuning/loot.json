@@ -47,6 +47,10 @@
   // stream of its own, so every other find a seed deals is as it was). Note 718: it used to draw this many times more of
   // the stop's budget.
   "outlierDraws": 2,
+  // Note 1005 (the director, 23 Oct: "going in that basement should feel like high risk, high reward"): a find kept down in a
+  // house's basement is drawn this many times and the worthiest kept, one up its stairs likewise (on a stream of their own;
+  // never traded up to a find that heals, which stay as rare as one draw has them, App. F.1).
+  "levelDraws": { "basement": 3, "upstairs": 2 },
   // Note 738 (B4; the director, 14 Oct: "smaller bits of loot"): the small things lying on a village's floors
   // (stops.json village.loose, `kinds.loose`) are finds like any other, worth what their kind is (note 718), on top of the
   // village's kept finds. Taken at once: they aren't searched.
@@ -237,11 +241,16 @@
   // no more than liveCap move at once in a car (the rest lie still till they're done), and a thing lying still is asleep
   // and costs nothing. What's felt is capped at maxFelt m/s² (a jolt of the couplings). Off, things lie as they lay (the
   // brakes nudge them; nothing slides on a bend), as before.
+  // Note 1003 (the director's playtest of 23 Oct, line 31: "it slides really easily, like it's sitting on ice ... I kind of
+  // sometimes wish that they were stable"): grip 0.05 → 0.2 and slide 0.03 → 0.2, a crate on a plank floor. Measured in a
+  // frontier cargo car: a bend at any speed is felt at 0.05-0.16 g (12-26 m/s), so nothing shifts on a bend now; the full
+  // brake from 20 m/s is felt at 0.28 g, 0.42 g at its first snatch, so a hard stop still throws what's loose forward (and a
+  // fragile one into the car's end), and it stops sliding as soon as the brake's off.
   "ride": {
     "enabled": true,
-    "grip": 0.05,
+    "grip": 0.2,
     "stackGrip": 0.3,
-    "slide": 0.03,
+    "slide": 0.2,
     "heavyGrip": 2.0,
     "liveCap": 12,
     "maxFelt": 12

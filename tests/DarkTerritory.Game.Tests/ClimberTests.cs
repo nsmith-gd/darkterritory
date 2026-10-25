@@ -8,7 +8,7 @@ namespace DarkTerritory.Game.Tests;
 
 /// <summary>
 /// The Climbers (GDD v1.2 §21, App. A.4; tools/blender/climber.py; ARCHITECTURE §8 notes 122, 136): pacing the train it
-/// runs low on its six limbs along the line, not at the train; on the roofs it creeps flattened; in a dark car it waits low.
+/// runs low on all fours along the line, not at the train; on the roofs it slinks flattened; in a dark car it waits (note 1015).
 /// </summary>
 public class ClimberTests
 {
@@ -41,9 +41,12 @@ public class ClimberTests
     }
 
     [Fact]
-    public void InADarkCarItWaitsLowAndOnTheRoofsItsCrouched()
+    public void InADarkCarItWaitsUnderTheDoorwaysAndOnTheRoofsItsCrouched()
     {
-        Assert.True(Top(Drawn(SpinePhase.Commit, 2, -1, 1)) < 1.3f, "crouched in the corner");
+        // (Since its redo, note 1015, it waits stood up on its hind legs as a stoat stands to look: under the car's 2.1 m
+        // doorways and well under its roof, not folded on the floor.)
+        float waiting = Top(Drawn(SpinePhase.Commit, 2, -1, 1));
+        Assert.True(waiting < 1.6f, $"stood up in the corner, {waiting} high");
         Assert.True(Top(Drawn(SpinePhase.Commit, 2, 2, 1)) < 1.7f, "walking the roof, crouched");
     }
 }

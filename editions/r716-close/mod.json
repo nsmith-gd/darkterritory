@@ -1,0 +1,9 @@
+// Queue #716's measurement (note 1013): the shipping content with the Close on (close.on), until the director's verdict on
+// Sloe's design (note 1004). `dt --edition r716-close gym --only close`. Measurement only; never shipped.
+{
+  "id": "edition-r716-close",
+  "name": "r716-close",
+  "version": "1.0.0",
+  "description": "the Close on: enemies.json close.on (#716, note 1013)",
+  "order": -1000
+}

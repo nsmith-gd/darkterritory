@@ -21,6 +21,11 @@ public sealed record LootTuning
     public Dictionary<string, double> FindsByTier { get; init; } = new();
     /// <summary>An outlier house's container (level-design P11) draws its find this many times and keeps the worthiest (note 718).</summary>
     public int OutlierDraws { get; init; } = 1;
+    /// <summary>
+    /// Note 1005: a find kept in a house's basement or upstairs is drawn this many times and the worthiest kept (by the
+    /// container's level: "basement", "upstairs"). Looked up, never iterated; 1 where unlisted.
+    /// </summary>
+    public Dictionary<string, int> LevelDraws { get; init; } = new();
     public required double SettleSeconds { get; init; }
     public required double Radius { get; init; }
     /// <summary>By container kind, in loot.json's camelCase (looked up, never iterated).</summary>
@@ -210,9 +215,9 @@ public sealed record JackpotHouseTuning
 public sealed record RideTuning
 {
     public bool Enabled { get; init; }
-    public double Grip { get; init; } = 0.05;
+    public double Grip { get; init; } = 0.2;
     public double StackGrip { get; init; } = 0.3;
-    public double Slide { get; init; } = 0.03;
+    public double Slide { get; init; } = 0.2;
     public double HeavyGrip { get; init; } = 2;
     public int LiveCap { get; init; } = 12;
     public double MaxFelt { get; init; } = 12;
@@ -247,6 +252,8 @@ public static class StopLoot
             var outlier = new Ballast.Pcg32(StopSeed.Of(StopSeed.Of(routeSeed, StopSeed.Outlier, (ulong)feature), stop.Seed));
             // The jackpot house's better draws (note 719), likewise.
             var better = new Ballast.Pcg32(StopSeed.Of(StopSeed.Of(routeSeed, StopSeed.Better, (ulong)feature), stop.Seed));
+            // A basement's and an upstairs' better draws (note 1005), likewise.
+            var deeper = new Ballast.Pcg32(StopSeed.Of(StopSeed.Of(routeSeed, StopSeed.Deeper, (ulong)feature), stop.Seed));
             finds.AddRange(containers.Select(c =>
             {
                 var kind = t.Of(c.Kind);
@@ -261,6 +268,14 @@ public static class StopLoot
                 {
                     string other = kind.Items[(int)(better.NextDouble() * kind.Items.Length)];
                     if (t.WorthOf(other, perCar) > t.WorthOf(item, perCar))
+                        item = other;
+                }
+                int levelDraws = c.Level == 0 ? 1 : t.LevelDraws.GetValueOrDefault(c.Level < 0 ? "basement" : "upstairs", 1);
+                for (int draw = 1; draw < levelDraws; draw++)
+                {
+                    string other = kind.Items[(int)(deeper.NextDouble() * kind.Items.Length)];
+                    // (Never up to a find that heals: they stay as rare as one draw has them, GDD App. F.1.)
+                    if (t.WorthOf(other, perCar) > t.WorthOf(item, perCar) && (t.Healing?.Of(other) ?? 0) <= 0)
                         item = other;
                 }
                 return new LootFind(c.Index, item, t.WorthOf(item, perCar));
@@ -324,7 +339,8 @@ public static class StopLoot
         for (int i = 0; i < stop.Buildings.Count; i++)
         {
             var b = stop.Buildings[i];
-            if (b.Kind != BuildingKind.House || !b.Open || b.Zone != StopZone.Village || b.Shape == HouseShape.Pair || !Run.StopWalls.Walled(stop, i)
+            // (Not a house of floors, note 1005: its back door stands open.)
+            if (b.Kind != BuildingKind.House || !b.Open || b.Zone != StopZone.Village || b.Shape == HouseShape.Pair || !Run.StopWalls.Walled(stop, i) || Run.StopWalls.Storeyed(b)
                 || Run.StopWalls.Doorways(b).Count() != 1 || stop.Lairs.Any(l => l.Kind == LairKind.GauntRoost && l.Building == i))
                 continue;
             double area = b.Parts.Count > 0 ? b.Parts.Sum(p => p.Length * p.Width) : b.Length * b.Width;

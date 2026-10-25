@@ -60,7 +60,8 @@ const vec3 SKY_FILL = vec3(0.75, 0.85, 1.05);
 vec3 envAt(vec3 r) {
     vec3 horizon = frame.fog.rgb * frame.sky2.z;
     vec3 c = mix(horizon, frame.sky.rgb, smoothstep(0.02, 0.6, r.y));
-    c = mix(c, frame.fog.rgb * 0.45, smoothstep(0.0, -0.25, r.y));
+    // (Edges low to high: GLSL leaves a smoothstep with them the other way round undefined; note 1017.)
+    c = mix(c, frame.fog.rgb * 0.45, 1.0 - smoothstep(-0.25, 0.0, r.y));
     // (The moon itself is left to the direct specular: in a reflection, off a bumpy normal map, it scatters into sparkle.)
     // What a reflection sees along the horizon and under it is mostly the world, not the sky: the other cars, the
     // cab's own walls, trees. Without a probe to say so, it's darker there.
@@ -309,16 +310,21 @@ float bayer4(vec2 px) {
     return (4.0 * bayer2(mod(q, 2.0)) + bayer2(floor(q / 2.0)) + 0.5) / 16.0;
 }
 
-// 1 inside an enclosed space (a car's interior), fading to 0 over its last 15 cm, so a doorway isn't a hard line.
-float indoors(vec3 p) {
+// 1 inside an enclosed space (a car's interior), fading to 0 over its last 15 cm, so a doorway isn't a hard line. A dark
+// room (a house's basement, note 1005: its half x sent negative) counts, and how far in one is goes in dark.
+float indoors(vec3 p, out float dark) {
     float best = 0.0;
+    dark = 0.0;
     for (int i = 0; i < int(frame.counts.x); i++) {
         vec4 c = frame.rooms[i * 3], r = frame.rooms[i * 3 + 1], b = frame.rooms[i * 3 + 2];
         vec3 u = cross(b.xyz, r.xyz);
         vec3 d = p - c.xyz;
         vec3 l = abs(vec3(dot(d, r.xyz), dot(d, u), dot(d, b.xyz)));
-        vec3 edge = clamp((vec3(c.w, r.w, b.w) - l) / 0.15, 0.0, 1.0);
-        best = max(best, edge.x * edge.y * edge.z);
+        vec3 edge = clamp((vec3(abs(c.w), r.w, b.w) - l) / 0.15, 0.0, 1.0);
+        float in_ = edge.x * edge.y * edge.z;
+        best = max(best, in_);
+        if (c.w < 0.0)
+            dark = max(dark, in_);
     }
     return best;
 }
@@ -438,7 +444,8 @@ void main() {
     }
 
     // Rain: darker surfaces, and a sheen on everything that faces the sky (ballast, roofs, puddles in the mud).
-    float inside = frame.counts.x > 0.0 ? indoors(vPos) : 0.0;
+    float cellar = 0.0;
+    float inside = frame.counts.x > 0.0 ? indoors(vPos, cellar) : 0.0;
     float night = 1.0 - inside;
     float wet = frame.sky2.w * (vWear > 0.0 || textured ? 1.0 : 0.0) * night * (water ? 0.0 : 1.0);
     albedo *= 1.0 - 0.3 * wet;
@@ -452,7 +459,8 @@ void main() {
     vec3 v = normalize(-vPos);
     vec3 moonDir = normalize(frame.moon.xyz);
     // Indoors the fill is the room's own, low and warm (lamplight off the boards: frame.indoor), and the moon doesn't get in.
-    vec3 light = mix(frame.moon.w * mix(GROUND_BOUNCE, SKY_FILL, n.y * 0.5 + 0.5), frame.indoor.rgb, inside);
+    // Down in a basement (note 1005), only frame.indoor.w of it: a hand lamp's what you see by.
+    vec3 light = mix(frame.moon.w * mix(GROUND_BOUNCE, SKY_FILL, n.y * 0.5 + 0.5), frame.indoor.rgb * mix(1.0, frame.indoor.w, cellar), inside);
     float moonLit = night * moonShadowAt(vPos, n);
     // A figure's light wraps round it past the terminator (frame.figure.y): a face, a coat's folds turn from the light
     // softly, a lit side and a shadow side, where the hard cutoff leaves them one flat tone in the fill.
@@ -575,5 +583,5 @@ void main() {
     // The untextured probe (dt holes --untextured, note 433): a surface drawn without a texture, cyan through the fog.
     if (frame.probe.y > 0.5 && !textured)
         colour = vec3(0.0, 8.0, 8.0);
-    outColor = vec4(colour, 1.0);
+    outColor = vec4(finite(colour), 1.0);
 }

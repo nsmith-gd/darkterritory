@@ -871,6 +871,10 @@ public sealed class FrontEndTests : IDisposable
         Pick(m, "RENDER SCALE");
         m.Left();
         Choose(m, "VSYNC");
+        // Note 1017: the renderer's safe path, for black squares on a Linux driver; off until it's chosen.
+        Assert.False(m.Settings.GpuSafe);
+        Choose(m, "SAFE GRAPHICS");
+        Assert.True(m.Settings.GpuSafe);
         // A new install's on the whole screen (note 672); once round, past the last, a window.
         Assert.Equal(DisplayMode.Windowed, m.Settings.Display);
         Assert.Equal("1920x1080", m.Settings.Resolution);

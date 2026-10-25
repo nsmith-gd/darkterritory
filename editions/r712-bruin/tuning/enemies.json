@@ -1,0 +1,5 @@
+// the Bruin on (#712, note 1007)
+{
+  "$patch": true,
+  "bruin": { "on": true }
+}

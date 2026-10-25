@@ -69,6 +69,8 @@ if (crashesDir is null && DarkTerritory.Dev.TestReports.GameLogs() is { } gameLo
     (crashesDir, logsDir) = (Path.Combine(gameLogs, "reports"), gameLogs);
 #endif
 var crashes = CrashReports.Install(crashesDir, logs: logsDir);
+// The renderer's safe path for this launch (note 1017), in every build: a player with black squares tries it.
+bool gpuSafeFlag = args.Contains("--gpu-safe");
 #if DEVTOOLS
 // A developer build's tools (note 514): reached only here and under the other DEVTOOLS hooks; a player's build has none of it.
 var dev = DarkTerritory.Dev.DevTools.Start(args, crashes, logsDir);
@@ -77,6 +79,8 @@ if (dev.Marked)
     DarkTerritory.Game.Hud.LinkTop = 24;
 // The creature gym (GDD §34.1, note 676): the night it's on, while it's on.
 DarkTerritory.Dev.Gym.CreatureGym? gym = null;
+// A small GPU's limits on this machine (note 1017): --gpu-limits [small|layers=N,image=PX,bytes=MIB,heap=MIB].
+args = Ballast.Dev.GpuFlags.Take(args);
 #endif
 
 // The system's file browser on a folder (note 411): Explorer, Finder, or whatever xdg-open hands it to; or, given an address
@@ -326,7 +330,9 @@ VrView? StartVr()
 }
 using var ownGpu = vr is null ? new GpuContext("Dark Territory", Window.VulkanInstanceExtensions(), window.CreateSurface) : null;
 var gpu = vr?.Gpu ?? ownGpu!;
-crashes.Context("gpu", gpu.Description);
+// The safe path (note 1017: a Linux player's black squares): --gpu-safe, or SAFE GRAPHICS in the settings, from the next start.
+gpu.Safe = gpuSafeFlag || startSettings.GpuSafe;
+crashes.Context("gpu", gpu.Description + (gpu.Safe ? "; safe graphics" : ""));
 crashes.Context("vr", vr is null ? "off" : "on");
 // --crash-test (note 452): stops the game on purpose once it's up, so the whole path (the report, its twin, the notice on
 // the next launch, the mail) can be tried on any machine.
@@ -454,7 +460,13 @@ frontEnd.Cue = sound.Ui;
 using var speaker = args.Contains("--mute") ? null : AudioOut.Open(Audio.SampleRate, out var audioError) is { } s ? s : Warn(audioError);
 // Note 667 (the director, 13 Oct: "I'm getting audio skips"): the speaker's fed from a thread of its own, not the frame, so
 // a slow frame is late on screen and never a gap in the ears. Disposed before the speaker (declared after it).
-using var pump = speaker is null ? null : new AudioPump(sound.Mixer, () => speaker.QueuedSeconds, block => speaker.Write(block), sound.Mixer.Mix.DeviceLead,
+// Note 1019: what the speakers play, as it's queued, for voice chat's echo canceller (it's taken back out of the mic).
+var played = speaker is null ? null : new Ballast.Voice.EchoReference();
+using var pump = speaker is null ? null : new AudioPump(sound.Mixer, () => speaker.QueuedSeconds, block =>
+{
+    speaker.Write(block);
+    played!.Write(block, speaker.QueuedSeconds);
+}, sound.Mixer.Mix.DeviceLead,
     sound.Mixer.Mix.DeviceLeadMax);
 int gapsLogged = 0;
 // Since the last slow frame's line: the times the device ran dry (FrameWatch's lines, note 549).
@@ -1094,7 +1106,7 @@ CampaignState? Play(IPlaySession session, CampaignState? campaign)
     }
     if (proto is not null)
         proto.Controls.Throttle = double.Parse(Arg("--throttle", "0"));
-    var voice = net is null ? null : new VoiceChat(sound.Mixer) { PushToTalk = settings.PushToTalk || args.Contains("--push-to-talk"), Muted = net.IsMuted };
+    var voice = net is null ? null : new VoiceChat(sound.Mixer) { PushToTalk = settings.PushToTalk || args.Contains("--push-to-talk"), Muted = net.IsMuted, Played = played };
     // The radio's own clicks, squelch and static (voice-radio-sfx) follow what it's doing.
     sound.Voice = voice;
     using var mic = voice is null || settings.Mute || args.Contains("--mute") || args.Contains("--no-mic") ? null
@@ -1119,6 +1131,8 @@ CampaignState? Play(IPlaySession session, CampaignState? campaign)
     var vrHud = locomotion is null ? null : new VrPanel(locomotion.Tuning.Hud);
     var vrOverlay = new Overlay();
     bool showHud = settings.Hud && !args.Contains("--no-hud");
+    // Note 994: dead and watching, F1's cinematic view (nothing on the screen but the picture).
+    bool deadView = false;
     // The card's side showing (C turns it over, and puts it away after the last); -1 put away.
     int cardPage = args.Contains("--card") ? 0 : -1, cardPages = 1;
     // The supplies aboard (the director's decision of 2026-10-06; note 264): toggled on and off, never always there.
@@ -1601,7 +1615,18 @@ CampaignState? Play(IPlaySession session, CampaignState? campaign)
             else
                 chase = !chase;
         }
-        if (Pressed(Key.F1)) showHud = !showHud;
+        // F1: the HUD off or on. Dead and watching (note 994, the director's playtest of 23 Oct, line 14: "a no text, no UI on
+        // screen button I can press when I'm dead"), it's the cinematic view: every word and the UI gone, the dead card's own
+        // hint included, till F1 again or they're alive again (a Holdout's freed them), when their HUD is back as it was.
+        if (Pressed(Key.F1))
+        {
+            if (session.Player.Alive)
+                showHud = !showHud;
+            else
+                deadView = !deadView;
+        }
+        if (session.Player.Alive)
+            deadView = false;
         if (Pressed(Key.F4)) cardHidden = !cardHidden;
         if (Pressed(Key.F2)) net?.ShowInviteDialog();
         // RECONNECT (note 253): a joiner whose link went, out of automatic tries, tries again.
@@ -2120,7 +2145,9 @@ CampaignState? Play(IPlaySession session, CampaignState? campaign)
                 sound.Mixer.Listener, now);
         else
             captions.Clear();
-        if (showHud)
+        // The HUD this frame: on, and not the dead's cinematic view (note 994).
+        bool hudOn = showHud && !deadView;
+        if (hudOn)
         {
             Hud.Build(overlay, UiWidth, UiHeight, session, stills: stills.Stills, pixels: (float)renderer.Height / UiHeight, talk: townTalk, figures: figureTalk, now: now,
                 photo: crewMemory.Photo,
@@ -2180,10 +2207,10 @@ CampaignState? Play(IPlaySession session, CampaignState? campaign)
 #if DEVTOOLS
         // A note just begun (note 516): the frame of the moment, as it's about to be shown, before the note's own box is on it.
         if (vr is null)
-            dev.Notes?.Frame(() => renderer.Render(mesh, camera, lighting, lighting.FogColor, showHud || menuShown ? overlay : null), renderer.Width, renderer.Height);
+            dev.Notes?.Frame(() => renderer.Render(mesh, camera, lighting, lighting.FogColor, hudOn || menuShown ? overlay : null), renderer.Width, renderer.Height);
         dev.Draw(overlay, UiWidth, UiHeight);
         // F1 hides it with the HUD (for filming).
-        if (gym is not null && !menuShown && showHud)
+        if (gym is not null && !menuShown && hudOn)
         {
             gym.Draw(overlay, UiWidth, UiHeight, now);
             // And the pointer to what was called (note 676, part 2), as this machine draws the world.
@@ -2192,11 +2219,11 @@ CampaignState? Play(IPlaySession session, CampaignState? campaign)
         }
 #endif
         // Note 739: the crew's pings marked on the world.
-        if (showHud && !menuShown && vr is null)
+        if (hudOn && !menuShown && vr is null)
             PingMarks.Draw(overlay, UiWidth, UiHeight, camera, session.World);
         if (vr is null)
         {
-            renderer.Prepare(mesh, showHud || menuShown ? overlay : null);
+            renderer.Prepare(mesh, hudOn || menuShown ? overlay : null);
             frameWatch.Mark("hud, upload");
             FrameCounts.Add("meshes uploaded", renderer.Uploaded);
             Present(camera, lighting);
@@ -2204,7 +2231,7 @@ CampaignState? Play(IPlaySession session, CampaignState? campaign)
         }
         // The body is the flat camera's eye point, turned to where the room faces; the head does the looking.
         VrPanelContent? onPanel = null;
-        if (vr is not null && showHud)
+        if (vr is not null && hudOn)
         {
             Hud.Build(vrOverlay, 480, 270, session, crosshair: false, stills: stills.Stills, pixels: 2, talk: townTalk, figures: figureTalk, now: now);
             if (session.World.Run?.Over == true)
@@ -2285,7 +2312,7 @@ CampaignState? Play(IPlaySession session, CampaignState? campaign)
     }
     if (capture is not null)
     {
-        var pixels = renderer.Render(mesh, camera, lighting, lighting.FogColor, showHud || frontEnd.Night is not null ? overlay : null);
+        var pixels = renderer.Render(mesh, camera, lighting, lighting.FogColor, showHud && !deadView || frontEnd.Night is not null ? overlay : null);
         PngWriter.Write(capture, pixels, renderer.Width, renderer.Height, scale: 1);
         Console.WriteLine($"captured {Path.GetFullPath(capture)}");
     }

@@ -92,6 +92,7 @@ whoever has to hear it.
 | The Gannet *(added 7 Oct, note 340; the sounds are the audio chat's to make)* | The fold: a crack of wings, then a rising whistle of air for 1.6 s; overhead, harsh "arrah" calls that stop when it picks a walker; the bank: a long rising scream | whistle 2–5 kHz rising; calls 1–3 kHz | tell-gannet-* (note 384) |
 | The Choir | Layered voices, multiplying as it gathers | 300Hz–4k, wide | choir-voice |
 | Car fire *(App. C.5)* | Crackle and pop through the boards | 6–9k | car-fire |
+| The Head Waiter *(Sloe's proposal, note 1004; built behind `headWaiter.on`, off until the director's verdict, note 1008; a synth stand-in until the audio chat's takes)* | A spoon on a wine glass, three clear rings, from right behind the lounger: told from the low clearance's cord slaps (4–7k) by being rung, from the Fire Flies and the car fire by band, from the cab's bell by pitch | 4.6–5.6k | tell-head-waiter.glass (audited alone: `AudioBench.FlaggedTellBands`) |
 | Marsh *(hazard, formerly the Drift)* | Dry reeds rustling, in slow creeping swells | 12–15k | drift-rustle |
 | Low clearance *(the line's roof warning, a tunnel's mouth ahead; added 5 Oct, note 260)* | The telltales: a run of cord slaps over the roof | 4–7k | warn-low-clearance |
 | Bend too fast *(the line's roof warning, riders up over a posted speed; added 5 Oct, note 260)* | The roof irons chattering, rocking in and out | 2.5–4.5k | warn-curve |
@@ -380,7 +381,7 @@ A breach is a car's shell giving way to the outside (decided 1 Oct): a door forc
 | **Selection and placement** (the brief §3, §4, §5; note 895; `director.encounters.selection`, `.placement`, `.halt`) | A kind weighs **× 0.5** (`zoneRepeatWeight`) for each engaged threat already in its zone (forward, rear, flank, interior, structural, outside), in the pressure's and the curve's choices. A rule's place among those it allows (the Climbers', Draggers', Whistler's, Fire Flies', Hotbox's, Knotter's) weighs down to **× 0.2** (`nearThreatWeight`) right at a threat about, rising to 1 at **40 m** (`threatSpreadM`), and **× 0.3** (`onTopWeight`) within **6 m** of a crewmate (`onTopM`); the rule's own draw, so with nothing about it picks as before. A halt's own (on, `halt.on`; the director, 21 Oct, note 970): **15 s** stood at an abandoned village's halt (`lullSeconds`), one encounter if the stop's own haven't placed one. `EncounterPlacementTests`, `HaltEncounterTests` pin it |
 | **The spawn transaction** (the brief §2 issue 3; note 885; `director.encounters.attempts`) | Choose, place, then commit: the pressure's spend and cooldown, a free spawn's spacing, a stop's slot and the kind's count tonight are taken **only when placed**. A failure (`SpawnFailure`: no rule, gated, no target, no spot, no gap, no site) commits nothing; the kind sits out **10 s** of every channel's choices (`failHoldSeconds`); a free spawn that failed stays owed **20 s** (`freeRetrySeconds`); a stop's own keeps its slot. A pack is one encounter of N members. The dice run the same placed or failed. `SpawnTransactionTests` pins it |
 | **Encounter debt** (the brief §3; note 876; `director.encounters.debt`; in the game since #608) | Of λ's opportunities left unmet, **0.6** of a placement failure and **0.4** of nothing eligible is owed (`share`), to at most **2** (`cap`); it decays with a mean life of **240 s**; it's repaid at most **0.5** a minute (`releasePerMinute`, a store of **1**, `releaseBurst`), never past the caps' headroom. Intended quiet owes nothing, whatever the tuning (safe zone, grace, recovery, terminus, capped), and while the director is held the store empties: no burst after a yard. `EncounterDebtTests` pins it |
-| **Threat states** (the brief §2 issue 4; note 881; `director.threats`) | Each enemy reads dormant, ambient, threatening, engaging or resolved from its own state. Threatening: alert, a living crewmate within **20 m** (`nearMetres`), or working a train system with nobody near (a Hotbox in its truck, a Knotter in a coupling, hounds aboard, a Brakeman at work, a Freight Beetle pushing, Tower Jaw gnawing, a Mouse Moose dragging); a car fire. Engaging: at someone or holding them. What hunts nobody is ambient; so is anything loose **150 m** from every car and crewmate (`leftMetres`). **The engaged cap, App. B.1's zone and tell caps and the census count threatening and engaging only**; the bodies about are held to the cap + **2** (`ambientRoom`). Nothing despawned. `ThreatCapTests` pins it |
+| **Threat states** (the brief §2 issue 4; note 881; `director.threats`) | Each enemy reads dormant, ambient, threatening, engaging or resolved from its own state. Threatening: alert, a living crewmate within **20 m** (`nearMetres`), or working a train system with nobody near (a Hotbox in its truck, a Knotter in a coupling, hounds aboard, a Brakeman at work, a Freight Beetle pushing, Tower Jaw gnawing, a Moose Mouse dragging); a car fire. Engaging: at someone or holding them. What hunts nobody is ambient; so is anything loose **150 m** from every car and crewmate (`leftMetres`). **The engaged cap, App. B.1's zone and tell caps and the census count threatening and engaging only**; the bodies about are held to the cap + **2** (`ambientRoom`). Nothing despawned. `ThreatCapTests` pins it |
 | **Severity and the quiet** (the brief §4, §6; note 893; `director.telemetry`; measured, not yet read by the director: #611) | Level **1** presence: about within **60 m** of the train or a crewmate (`presenceMetres`); **2** harassment: threatening or engaging; **3** compound crisis: two at level 2 at least **15 m** apart (`compoundApartMetres`). Meaningful is level 2 or more. Each second on the run is sustained (level 2+), recovery (held for one of `recoveryHolds`: grace, aftermath, facility lull, a fort, banned, final stretch, terrain at its ceiling, derailed), presence (level 1), or a **true drought**; true droughts of **90 s** or more (`droughtSeconds`) are reported. `EncounterSeverityTests` pins it |
 | **The home stretch** (the brief §1.A; note 912) | One terminus ban: from the line's `terminus_safe` stretch (**1,200 m**, linegen `terminus.spawnBanM`) or route.json's `noSpawnFinalApproach` (**500 m**, carried on the route as generated), whichever starts first. The director's spends, its free and stops' channels, the hound run, the truss drops and, with `dwellings.inHomeStretch` false, a stop's houses read it (true since the director's "yes" of 21 Oct, note 970: a stop there has its houses' own). `ProtectionGapTests` pins it |
 | Post-spawn cooldown | 25–45 s (gives way when pressed) |
@@ -548,6 +549,44 @@ A car fire burns on cells (decided 6 Oct, GDD App. F.1; ARCHITECTURE note 267). 
 | **Home** | both on it **4 s** |
 | **Let go** | once it's jumped and both have hold, either off it **0.3 s** parts it there and then |
 | Left | once jumped, parts after **60 s** of running (a pin worked loose: 90 s); holds while the train stands |
+
+## B.21 The Bruin
+
+*The director's playtest of 2026-10-23, line 36: "big, kind of scary, that come out of the trees ... they can kill the player pretty easily if they get grabbed ... They can get into cars and cause problems ... relatively hard to take down"* (GDD §21; Sloe's `docs/design/creatures/bruin.md`; `bruin` in `content/tuning/enemies.json`, **off** until the director answers `nathaniel2-sloe-forest-heavies`; ARCHITECTURE §8 note 1007). `SpecTableTests.TheBruinMatchesB21` pins this table.
+
+| Parameter | Value |
+|---|---|
+| **Comes** | the train stood in the wilderness (no stop, halt or facility) **45 s**, with a car of cargo; one at a time; out of the trees **40 m** off that car at **4 m/s**, huffing at least **10 s** before it climbs in |
+| Feeds | **0.01** of the car's cargo a second; rides along if the train moves off; leaves after **40 s** fed (Local, Frontier), **90 s** (Dead Lines), never (Deep Territory) |
+| **Charges** | whoever stays within **50°** of its front for **3 s**, within **6 m**; caught within **3 m**, the maul: dead in **8 s** |
+| **Flank** | a blow from the front **×0.2**, and it keeps hold; from the side or behind it's staggered **1.2 s**, drops whoever it's mauling and turns on the hitter |
+| Health | **20** blows; **8** in its car drive it out to the trees |
+
+## B.22 The Tapper
+
+*The director's playtest of 2026-10-23, line 36: "I am sitting on the back gun alone for too long ... every creature's purpose is to foil some sort of behavior ... a clear tell and a clear counter"* (GDD §21; Sloe's `docs/design/creatures/tapper.md`; `tapper` in `content/tuning/enemies.json`, **off** until the director's verdict; ARCHITECTURE §8 note 1011). `SpecTableTests.TheTapperMatchesB22` pins this table.
+
+| Parameter | Value |
+|---|---|
+| **Comes** | the train at **8 m/s** or more, a crewmate seated at a gun with nobody within **12 m** (the behaviour reader's `aloneM`) for **90 s** (Local, Frontier), 60 s (Dead Lines), **45 s** (Deep Territory); never on Local's weights; one at a time |
+| **Tap** | over the roof behind them, two knocks on the gun; the lift **5 s** on (Frontier), 3 s (Deep Territory) |
+| **Look** | the gunner facing it within **30°** for **1 s** (seated, the view stays in the gun's arc: they have to stand): it flinches flat and backs off **30 s** (Frontier) to **10 s** (Deep Territory) |
+| Company | anyone else on its car or within **4 m**: it goes over the side |
+| **Lift** | a grab, **10 s**, then dropped off the train; a friend's blow drops them on the roof |
+| Health | a blow knocks it off; **3** at once kill it. Under **3 m/s** it goes |
+
+## B.23 The Close
+
+*The director's playtest of 2026-10-23, line 36: "if everybody's crowded into one car ... something that does a little bit of crowd control ... It should always be a creature with a clear tell and a clear counter"* (GDD §21; Sloe's `docs/design/creatures/the-close.md`; `close` in `content/tuning/enemies.json`, **off** until the director's verdict; ARCHITECTURE §8 note 1013). `SpecTableTests.TheCloseMatchesB23` pins this table.
+
+| Parameter | Value |
+|---|---|
+| **Comes** | the train at **8 m/s** or more, **3** of the crew (**2** on a crew of 3 or fewer) on one car's floor with its four doors shut for **60 s** (Local), **40 s** (Frontier), 35 s (Dead Lines), **30 s** (Deep Territory); one at a time |
+| **Bow** (the tell) | on that roof, the boards bowing in and creaking like a breath every 3 s, for **10 s**; the car down to fewer than the crowd at any time and it slides off |
+| **Pour** | in through the hatch, **4 s** |
+| **Pin** | everyone on the car's floor held (a look, a voice, and Use on a door of the car in reach); after **6 s** (Frontier) to **4 s** (Deep Territory) each takes **5** a second (never the last point); **20 s** pinned, the weakest dies |
+| **Door** | a door of the car open: the pinned crewmate nearest it let go every **1 s**; fewer than the crowd left and it lets go |
+| Health | **3** blows from outside the car (its roof, the door, the next roof) burst it; a gun's round bursts it; blows from inside do nothing |
 
 # PART C — DEATH AND REVIVAL
 

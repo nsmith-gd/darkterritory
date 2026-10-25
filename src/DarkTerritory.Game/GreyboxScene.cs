@@ -1031,6 +1031,10 @@ public sealed partial class GreyboxScene
                 // Put away in a slot (note 594): on them, not drawn.
                 if (b.Stashed)
                     continue;
+                // Your own radio, worn at your chest (note 997; the director, 23 Oct: "When I look down, the radio kind of jitters
+                // ... We don't need to show that"): not drawn through your own eyes. The crew still see it on you.
+                if (b.Kind == Sim.Physics.BodyKind.Radio && HeldHere is { } wearer && b.Carrier == wearer.Player)
+                    continue;
                 // In your own hands, drawn at them for the frame (the mirror's own pose is back before anything reads it).
                 bool held = HeldHere is { } h && b.Carrier == h.Player && b.Kind is not (Sim.Physics.BodyKind.Heavy or Sim.Physics.BodyKind.Ragdoll or Sim.Physics.BodyKind.Radio);
                 var (parent, at, yaw) = (b.Parent, b.Pbd.Particles[0].Position, b.Yaw);
@@ -2955,12 +2959,34 @@ public sealed partial class GreyboxScene
             back = Double3.Cross(right, Double3.Up).Normalized;
         }
         else if (e.Kind is EnemyKind.Moose or EnemyKind.Gannet or EnemyKind.Mourners or EnemyKind.FreightBeetle or EnemyKind.TowerJaw
-                     or EnemyKind.Pickers or EnemyKind.Lodger or EnemyKind.Householder or EnemyKind.MouseMoose or EnemyKind.Waker && e.Attached == Enemy.Loose)
+                     or EnemyKind.Pickers or EnemyKind.Lodger or EnemyKind.Householder or EnemyKind.MouseMoose or EnemyKind.Bruin or EnemyKind.Waker && e.Attached == Enemy.Loose)
         {
             // The Moose goes its own way (note 339): it faces its heading (Moose.Yaw, a player's yaw: −Z at 0), not the train.
             // So does a Gannet down on someone on the ground (note 340), and the Mourners, the Freight Beetle and Tower Jaw
             // (their Lateral; notes 362, 366, 363), the Pickers and the house creatures (notes 574, 583, 584).
             origin = e.Local;
+            back = new Double3(Math.Sin(e.Lateral), 0, Math.Cos(e.Lateral));
+            right = Double3.Cross(Double3.Up, back).Normalized;
+        }
+        else if (e.Kind == EnemyKind.Tapper && e.Attached >= 0)
+        {
+            // The Tapper on its car's roof (note 1011): facing along the car toward the gunner (its Lateral is which way's behind
+            // them, so it faces the other way).
+            if (e.Attached >= frames.Count)
+                return;
+            var f = frames[e.Attached];
+            origin = f.ToWorld(e.Local);
+            up = f.Up;
+            back = f.Back * (e.Lateral >= 0 ? 1 : -1);
+            right = Double3.Cross(up, back).Normalized;
+        }
+        else if (e.Kind == EnemyKind.Bruin && e.Attached >= 0)
+        {
+            // The Bruin in its car (note 1007): on the car's floor, facing its heading (its Lateral: a world yaw, as loose).
+            if (e.Attached >= frames.Count)
+                return;
+            var f = frames[e.Attached];
+            origin = f.ToWorld(e.Local);
             back = new Double3(Math.Sin(e.Lateral), 0, Math.Cos(e.Lateral));
             right = Double3.Cross(Double3.Up, back).Normalized;
         }
@@ -3114,6 +3140,68 @@ public sealed partial class GreyboxScene
                         Draw(carrying ? x * 3.6 : x, carrying ? 0.6 : 0.2, carrying ? 0 : -0.15, 0.02, 0.2, 0.02, Palette.SootBlack);
                     break;
                 }
+            case EnemyKind.Bruin:
+                {
+                    // A great rotten bear (note 1007): on all fours, shoulder-high to a man, moss-grey; rising, up on its hind legs
+                    // with its head in the roof; the opened chest's pale thing showing. Until it's modelled (it still needs its
+                    // rig and clips: come, climb, feed, rise, charge, maul, turn, stagger, death).
+                    var mode = e is Sim.Enemies.Bruin bruin ? bruin.Mode : Sim.Enemies.BruinMode.Come;
+                    var moss = Palette.IronGrey * 0.55f;
+                    if (mode is Sim.Enemies.BruinMode.Rise or Sim.Enemies.BruinMode.Maul)
+                    {
+                        Draw(0, 1.1, 0.1, 0.55, 0.85, 0.45, moss);
+                        Draw(0, 2.05, -0.15, 0.3, 0.28, 0.32, moss);
+                        Draw(0, 1.3, -0.4, 0.22, 0.3, 0.06, Palette.BoardEnamel * 0.8f);
+                        foreach (double x in new[] { -0.7, 0.7 })
+                            Draw(x, 1.7, -0.5, 0.14, 0.14, 0.5, moss);
+                        foreach (double x in new[] { -0.3, 0.3 })
+                            Draw(x, 0.25, 0.2, 0.16, 0.25, 0.18, moss);
+                    }
+                    else
+                    {
+                        bool staggered = mode == Sim.Enemies.BruinMode.Stagger;
+                        Draw(staggered ? 0.15 : 0, 0.95, 0.1, 0.6, 0.45, 1.1, moss);
+                        Draw(0, 1.0, -1.25, 0.3, 0.28, 0.35, moss);
+                        Draw(0, 0.75, -0.75, 0.25, 0.2, 0.05, Palette.BoardEnamel * 0.8f);
+                        foreach (double x in new[] { -0.4, 0.4 })
+                            foreach (double z in new[] { -0.7, 0.8 })
+                                Draw(x, 0.28, z, 0.15, 0.28, 0.15, moss);
+                    }
+                    break;
+                }
+            case EnemyKind.Tapper:
+                {
+                    // A long folded thing with arms twice its length (note 1011): flat on the roof like a broken umbrella, crawling or
+                    // flinched; up on its knees at the tap, an arm out over the gunner's shoulder; lifting, both arms up. Until it's
+                    // modelled (it still needs its rig and clips: crawl, tap, reach, lift, flinch, knocked, death).
+                    var mode = e is Sim.Enemies.Tapper tapper ? tapper.Mode : Sim.Enemies.TapperMode.Crawl;
+                    var grey = Palette.BoardEnamel * 0.5f;
+                    if (mode is Sim.Enemies.TapperMode.Crawl or Sim.Enemies.TapperMode.Flinch)
+                    {
+                        Draw(0, 0.12, 0, 0.25, 0.1, 0.5, grey);
+                        Draw(0, 0.15, -0.55, 0.1, 0.08, 0.1, grey);
+                        foreach (double x in new[] { -0.6, 0.6 })
+                            Draw(x, 0.08, -0.2, 0.45, 0.03, 0.03, grey);
+                    }
+                    else
+                    {
+                        bool lifting = mode == Sim.Enemies.TapperMode.Lift;
+                        Draw(0, 0.6, 0, 0.18, 0.55, 0.15, grey);
+                        Draw(0, 1.25, -0.05, 0.09, 0.1, 0.09, grey);
+                        foreach (double x in new[] { -0.25, 0.25 })
+                            Draw(x, lifting ? 1.7 : 1.05, lifting ? -0.2 : -0.9, 0.03, lifting ? 0.6 : 0.03, lifting ? 0.03 : 0.8, grey);
+                    }
+                    break;
+                }
+            case EnemyKind.Close:
+                // A soft grey sack along its car's roof (note 1013): procedural (CreatureArt.Close.cs), the same shapes as the art's.
+                Art.CreatureArt.CloseStandIn(mesh, Art.CreatureArt.Basis(o, r, u, b), e is Sim.Enemies.Close cl ? cl.Mode : Sim.Enemies.CloseMode.Bow,
+                    e is Sim.Enemies.Close cs ? cs.ModeSeconds : e.PhaseSeconds, e.Extra > 1 ? (float)e.Extra : 6);
+                break;
+            case EnemyKind.HeadWaiter:
+                // (Its boxes, until it's modelled: CreatureArt.HeadWaiter.cs.)
+                Art.CreatureArt.HeadWaiterStandIn(mesh, o, r, u, b, e is Sim.Enemies.HeadWaiter hw ? hw.Mode : Sim.Enemies.HeadWaiterMode.Wait, pulse);
+                break;
             case EnemyKind.MouseMoose:
                 {
                     // A dog-sized grey-brown rat with a little pair of antlers (note 790). Down its hole: nothing.
@@ -4151,7 +4239,8 @@ public sealed partial class GreyboxScene
                 Lap(mesh, "town smoke");
                 foreach (var (feet, facing, variant) in Art.WorldArt.Watch(town, gateAt, Time))
                     if ((feet - eye).Length < 260)
-                        Folk(mesh, eye, feet, facing, variant, drab: 0.6f, "walk", gear: "respirator", who: variant, lamp: true);
+                        // The watch on the walls are the lookbook's watchmen (note 1002: the drab figure's faces read badly).
+                        Folk(mesh, eye, feet, facing, variant, drab: 0.6f, "walk", gear: "respirator", who: variant, lamp: true, role: "guard");
                 Lap(mesh, "town watch");
                 // The statue on the green (note 353): the survivors' figure, frozen in its pose on the plinth, cast in bronze or
                 // cut in stone; the Lamplighter's lamp lit.
@@ -4204,7 +4293,9 @@ public sealed partial class GreyboxScene
             // Its people (T100): a few about at night, in their own drab, idling on their own beat. A dark town has none.
             if (lit)
                 foreach (var (feet, facing, variant) in Art.WorldArt.FortFolk(line, eye, Math.Max(start, from - 20), Math.Min(end, to + 20), gateAt, start == 0))
-                    Folk(mesh, eye, feet, facing, variant);
+                    // The lookbook's people (note 1002; the director's 23 Oct playtest, line 23: "Some of these people's faces are
+                    // terrifying"): the gate's two its watchmen, the rest those who go about a town, not the drab figure.
+                    Folk(mesh, eye, feet, facing, variant, role: variant <= 2 ? "guard" : Art.LookbookKit.AnyoneRole(variant), who: variant);
             return;
         }
         double a = Math.Max(start, from), b = Math.Min(end, to);
@@ -4583,7 +4674,11 @@ public sealed partial class GreyboxScene
     /// out (note 488).
     /// </summary>
     sealed record OpenHouse(Double3 Origin, Double3 X, Double3 Y, IReadOnlyList<Sim.Stops.FootprintPart> Parts, Double3? Light, bool Lamp, int Id, float Height = 3.0f, bool Shed = false, bool Dark = false,
-        int Feature = -1, int Building = -1);
+        int Feature = -1, int Building = -1)
+    {
+        /// <summary>A house with a basement (note 1005): how far under its ground floor's boards the basement's floor is, its dark room.</summary>
+        public float Cellar { get; init; }
+    }
 
     /// <summary>The light indoors (note 475): the look's, or the old numbers for the greybox.</summary>
     InteriorTuning Interiors => Look?.Tuning.Atmosphere.Interiors ?? DefaultInteriors;
@@ -4637,16 +4732,20 @@ public sealed partial class GreyboxScene
                         continue;
                     // Its floor, as the art stands it (WorldArt.Building: the frame 0.15 m under the ground at its middle,
                     // the boards 0.17 over that).
-                    double floor = Sim.Run.Run.StopWorld(line, f, b.Centre, Art.WorldArt.Ground(route, f.Start + b.S, (float)b.D, (float)ValleyDepth) - 0.15 + 0.17).Y;
+                    // (A house with floors' ground floor, raised on its plinth, note 1005.)
+                    double floor = Sim.Run.Run.StopWorld(line, f, b.Centre, Art.WorldArt.Ground(route, f.Start + b.S, (float)b.D, (float)ValleyDepth) - 0.15 + 0.17
+                        + Art.TownKit.LevelLift(b, 0)).Y;
                     Double3 At(double x, double y) => Sim.Run.Run.StopWorld(line, f, Sim.Run.StopWalls.InHouse(b, x, y)) with { Y = floor };
                     var o = At(0, 0);
                     int index = i;
                     var light = Art.TownKit.HouseLight(b, stop.Containers.Where(c => c.Building == index),
                         Sim.Run.StopWalls.ClutterOf(stop, index), Sim.Run.StopWalls.Nest(stop, index));
                     var parts = b.Parts.Count > 0 ? b.Parts : [new Sim.Stops.FootprintPart(0, 0, b.Length, b.Width)];
+                    bool storeyed = Sim.Run.StopWalls.Storeyed(b);
                     houses.Add(new OpenHouse(o, (At(1, 0) - o).Normalized, (At(0, 1) - o).Normalized, parts,
                         light is var (lx, ly, height, _) ? At(lx, ly) + Double3.Up * height : null, light?.Lamp ?? false, (int)(f.Start * 7 + i),
-                        Feature: fi, Building: i));
+                        storeyed ? Art.TownKit.Eaves(b) - 0.17f - Art.TownKit.LevelLift(b, 0) : 3.0f, Feature: fi, Building: i)
+                    { Cellar = b.Basement && storeyed ? (float)Sim.Run.StopWalls.Cellar : 0 });
                 }
             }
             _openHouses = cached = (route, line, houses);
@@ -4677,6 +4776,13 @@ public sealed partial class GreyboxScene
                 const float Under = 0.3f;
                 var centre = h.Origin + h.X * part.X + h.Y * part.Y + Double3.Up * ((wallHeight - Under) / 2);
                 mesh.Rooms.Add(new Room(Vector3.Transform(V(centre, eye), moved.Moved), right, up, back, new Vector3((float)part.Length / 2, (wallHeight + Under) / 2, (float)part.Width / 2)));
+                // Its basement (note 1005), a dark room under the boards: lit by little but a hand lamp.
+                if (h.Cellar > 0)
+                {
+                    float deep = h.Cellar - (float)Sim.Run.StopWalls.Slab + Under;
+                    var under = h.Origin + h.X * part.X + h.Y * part.Y + Double3.Up * (-h.Cellar - Under + deep / 2);
+                    mesh.Rooms.Add(new Room(Vector3.Transform(V(under, eye), moved.Moved), right, up, back, new Vector3((float)part.Length / 2, deep / 2, (float)part.Width / 2)) { Dark = true });
+                }
                 // A barn's, a shed's or a yard shed length's hurricane lantern turned low, hung from a beam in its middle
                 // (note 475: the director's "functional"), steady and dim: enough to see the stacks, the loft, the bench by.
                 // A long yard shed has one each shedLanternSpacing along it. The Gaunt's has none (note 488).
@@ -4830,7 +4936,9 @@ public sealed partial class GreyboxScene
             // (an open barn's or shed's, 0.21: WorldArt.OpenShed's boards over the shell's concrete).
             var b = stop.Buildings[spot.Container.Building];
             double boards = Sim.Run.StopWalls.OpenShed(b) ? 0.21 : 0.17;
-            float floor = (float)(Sim.Run.Run.StopWorld(line, f, b.Centre, Art.WorldArt.Ground(Route, f.Start + b.S, (float)b.D, (float)ValleyDepth) - 0.15 + boards).Y);
+            // (On its own floor in a house with floors, note 1005.)
+            float floor = (float)(Sim.Run.Run.StopWorld(line, f, b.Centre, Art.WorldArt.Ground(Route, f.Start + b.S, (float)b.D, (float)ValleyDepth) - 0.15 + boards
+                + Art.TownKit.LevelLift(b, spot.Container.Level)).Y);
             // A house a creature's moved carries what's been searched in it (GreyboxScene.Houses); come down, it's under it.
             var moved = _movedHouses.Count > 0 && Route is not null && _movedHouses.TryGetValue((FeatureIndex(f), spot.Container.Building), out var how)
                 ? how : (Moved: Matrix4x4.Identity, Down: false, Kept: false);
@@ -4879,6 +4987,13 @@ public sealed partial class GreyboxScene
                         var drawer = Look.Art.Piece("sideboard-drawer", () => Art.TownKit.FrontPiece(Look, 2 * half, tall, Art.TownKit.DrawerFrame, half, tall / 2, drawer: 0.34f));
                         var corner = At(face + 0.3f, Art.TownKit.DrawerFrom, -half);
                         mesh.Instances.Add(new MeshInstance(drawer, new Matrix4x4(side.X, side.Y, side.Z, 0, 0, 1, 0, 0, into.X, into.Y, into.Z, 0, corner.X, corner.Y, corner.Z, 1)));
+                        break;
+                    }
+                case Sim.Stops.ContainerKind.Cellar when Look is not null && spot.Container.Level < 0:
+                    {
+                        // A basement's chest (note 1005) opened, its lid up.
+                        var laid = new Matrix4x4(side.X, side.Y, side.Z, 0, 0, 1, 0, 0, into.X, into.Y, into.Z, 0, 0, 0, 0, 1) * Matrix4x4.CreateTranslation(At(0, 0));
+                        mesh.Instances.Add(new MeshInstance(Look.Art.Piece("cellar-chest-open", () => Art.TownKit.CellarChest(Look, open: true)), laid));
                         break;
                     }
                 case Sim.Stops.ContainerKind.Cellar when Look is not null:
@@ -5182,7 +5297,7 @@ public sealed partial class GreyboxScene
                     tagged |= 1u << b.Locker;
         if (Look is not null && Look.Art.Car(mesh, frame, eye, vehicle, Emergency, Tick, CutEnds(frame.Index), burnt?.Char ?? 0, utility, openLockers, Handrails,
             dark: frame.Shape.Cab is null && (CarDark(frame.Index) || frame.Index >= (Vehicles?.Count ?? int.MaxValue) - LampsOut), taggedLockers: tagged, paint: Livery,
-            failing: StageOf(vehicle)))
+            failing: StageOf(vehicle), ruptured: Ruptured))
         {
             if (engine)
                 Look.Art.Gear(mesh, frame, eye, _travelled, Emergency ? 0.06f : 1);

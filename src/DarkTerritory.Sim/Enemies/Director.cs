@@ -49,7 +49,8 @@ public sealed class Director
 
     double _spent;
 
-    public Director(DirectorTuning tuning, Route.Route? route, ulong seed, int cars, int crew)
+    /// <param name="off">The kinds whose own flag has them off tonight (<see cref="SpawnRule.Enabled"/>; note 1007), by <see cref="Key"/>.</param>
+    public Director(DirectorTuning tuning, Route.Route? route, ulong seed, int cars, int crew, IReadOnlyCollection<string>? off = null)
     {
         _t = tuning;
         _route = route;
@@ -76,6 +77,7 @@ public sealed class Director
         double u = new Pcg32(seed, 0x6EACE).NextDouble() * tuning.Pressure.GraceTierScale.GetValueOrDefault(key, 1);
         Grace = tuning.GraceMinSeconds + (tuning.GraceMaxSeconds - tuning.GraceMinSeconds) * Math.Clamp(u, 0, 1);
         _tierRate = tuning.Pressure.Tier.GetValueOrDefault(key, 1);
+        _escalation = tuning.Pressure.EscalationOn(key);
         // The kinds not about tonight (note 635): each named kind's roll, in name order, on its own stream from the scrambled
         // seed (a PCG stream's first draws barely move between neighbouring seeds), so the night's other draws are as they were.
         var about = new Pcg32(unchecked(seed * 0x9E3779B97F4A7C15UL + 0x0BE5E), 0x0BE5E);
@@ -87,6 +89,9 @@ public sealed class Director
                 _outTonight.Add(name);
                 rolls.Add((name, chance));
             }
+        // A kind that's off (its own flag, note 1007) is out tonight: never about, so it holds no variety's wait and fills no floor.
+        foreach (string name in off ?? [])
+            _outTonight.Add(name);
         Floor(tuning, tier, crew, ref about, rolls);
     }
 
@@ -140,6 +145,8 @@ public sealed class Director
     }
 
     readonly double _tierRate;
+    /// <summary>The pressure's escalation on this night's tier (#723: pressure.escalationTier, else pressure.escalation).</summary>
+    readonly double _escalation;
     double _pressure;
     bool _building;
     /// <summary>The night's curve as of the last second the director thought (note 849): 0 at the gate, 1 at the end.</summary>
@@ -550,6 +557,8 @@ public sealed class Director
         // With no route, the same stand-in line as the pressure's (Build): 20 km.
         double progress = EncounterPacing.Progress(elapsed, _route?.DawnSeconds ?? 0, world.Train.Dynamics.Distance, _route?.RunLength ?? 20_000, _clock.Progress);
         EncounterRate = EncounterPacing.Rate(progress, Math.Max(1, Active), world.Train.Dynamics.Consist.CarCount, _route?.Tier ?? RouteTier.Frontier, e);
+        // A crew's own load (#723, note 1020), as the pressure's.
+        EncounterRate *= _t.Pressure.Load(Math.Max(1, Crew));
         // A crew that's losing gets relief (note 906, #611): λ counts only the living already; × the alive share and the hurt.
         if (e.Concurrency is { On: true } c && world.CrewThisTick is { Count: > 0 } crew)
         {
@@ -564,6 +573,8 @@ public sealed class Director
         }
         // The final surge (#663, note 960): what the terminus approach's quiet would have owed, before it.
         EncounterRate *= Surge;
+        // By the train's state (note 999): running or stopped, a stop's ramping with the seconds stood.
+        EncounterRate *= Enemies.Stance.Rate(Stance, StoodSeconds, e.Stance);
         double headroom = Math.Max(0, EngagedCap - Holding(world, active).Count);
         _clock = (_clock with { Progress = progress }).Second(EncounterRate / 60, _hold, _unmet, headroom, e);
     }
@@ -608,9 +619,65 @@ public sealed class Director
         var surge = _t.Encounters.Drive.FinalSurge;
         Surge = surge.On && _route is { } surgeRoute ? surge.At(ToKeptQuiet(world.Train.Dynamics.Distance, surgeRoute, noSpawnFinal), Active) : 1;
         TrackFar(world, active);
+        Read(world, elapsed);
         var attempt = ChooseNow(world, elapsed, active, noSpawnFinal);
         Pace(world, elapsed, active);
+        // Sent at someone for a reason (note 999): only a kind that answers what the aimed-at crewmate is doing.
+        if (attempt is not null && Aimed is { } aim && Targeting.Answers(aim, attempt.Kind, _t.Encounters.Target))
+            attempt = attempt with { Aim = aim };
         return attempt;
+    }
+
+    /// <summary>The train's state this second (note 999): running or stopped, and how.</summary>
+    public StanceKind Stance { get; private set; }
+    /// <summary>Seconds the train has stood since it last ran (note 999's stood ramp).</summary>
+    public double StoodSeconds { get; private set; }
+    double _lastSpeed;
+    /// <summary>The crewmate the director aims at this second and why (note 999), or null (targeting off, nobody to aim at).</summary>
+    public Aim? Aimed { get; private set; }
+    /// <summary>The behaviours the director reads in each crewmate (note 999 §2b), with targeting on.</summary>
+    public Behaviours Behaviours { get; } = new();
+    /// <summary>Tonight's encounters placed at someone that foil a behaviour they showed (note 999 §2b), by the behaviour's name.</summary>
+    public IReadOnlyDictionary<string, int> Foiled => _foiled;
+    readonly SortedDictionary<string, int> _foiled = new(StringComparer.Ordinal);
+    /// <summary>Tonight's encounters placed at someone for what they were doing (note 999), by the doing's name.</summary>
+    public IReadOnlyDictionary<string, int> Targeted => _targeted;
+    readonly SortedDictionary<string, int> _targeted = new(StringComparer.Ordinal);
+    /// <summary>Director seconds spent in each stance tonight (note 999), by its name.</summary>
+    public IReadOnlyDictionary<string, double> StanceSeconds => _stanceSeconds;
+    readonly SortedDictionary<string, double> _stanceSeconds = new(StringComparer.Ordinal);
+    /// <summary>The cars crowded and shut, and for how long (note 1013: the Close's own read; the behaviour reader has no crowding).</summary>
+    public Crowding Crowding { get; } = new();
+    /// <summary>Tonight's encounters placed in each stance (note 999), by its name.</summary>
+    public IReadOnlyDictionary<string, int> PlacedByStance => _placedByStance;
+    readonly SortedDictionary<string, int> _placedByStance = new(StringComparer.Ordinal);
+
+    /// <summary>
+    /// Once a second, before the choice (note 999): the train's stance and the seconds it has stood, and whom to aim at. Reads
+    /// only; the choice and the rate read it back.
+    /// </summary>
+    void Read(World world, double elapsed)
+    {
+        var st = _t.Encounters.Stance;
+        double speed = world.Train.Dynamics.Speed;
+        Stance = Enemies.Stance.Of(speed, _lastSpeed, world.Run is { Phase: Run.RunPhase.AtFacility }, StopAt(world), st);
+        _lastSpeed = speed;
+        StoodSeconds = Enemies.Stance.Stopped(Stance) ? StoodSeconds + 1 : 0;
+        string name = Enemies.Stance.Name(Stance);
+        _stanceSeconds[name] = _stanceSeconds.GetValueOrDefault(name) + 1;
+        // The Close's census (note 1013): which car's been crowded and shut how long, read whether or not targeting's on.
+        if (world.Enemies is { Close.On: true } et)
+            Crowding.Second(world, Crew, et.Close);
+        var tt = _t.Encounters.Target;
+        if (!tt.On)
+        {
+            Aimed = null;
+            return;
+        }
+        var crew = Targeting.Read(world, Posts.Entries, _t.Abandoned.BehindM, _t.Orchestrator.DrivingAbove, tt, out var seen);
+        // The behaviour reader (note 999 §2b): counted out on the run as the census's slack is, past the grace and out of the forts.
+        Behaviours.Second(seen, elapsed >= Grace && !world.TrainInFort, tt.Behaviours);
+        Aimed = Targeting.Pick(crew, Enemies.Stance.Stopped(Stance), _t.Orchestrator.PerTarget ? PerCrewmate : 0, tt, Behaviours.Of);
     }
 
     SpawnAttempt? ChooseNow(World world, double elapsed, IReadOnlyList<Enemy> active, double noSpawnFinal)
@@ -848,7 +915,7 @@ public sealed class Director
         // Everything that could come is for someone who has one on them already (note 345): nothing, this second. Only when
         // the census is what zeroed them: a list weighing nothing for other reasons is App. B.1's as it was (its last pick).
         bool weighed = options.Any(op => op.Weight > 0);
-        options = WhoseNext(ZoneSpread(options, holding));
+        options = Targeting.Weigh(WhoseNext(ZoneSpread(options, holding)), Aimed, _t.Encounters.Target);
         if (weighed && options.All(op => op.Weight <= 0))
             return Held("one on each");
         options = WeighVotes(options);
@@ -952,7 +1019,7 @@ public sealed class Director
             Freshen(world, holding);
             return null;
         }
-        options = WeighVotes(WhoseNext(ZoneSpread(options, holding)));
+        options = WeighVotes(Targeting.Weigh(WhoseNext(ZoneSpread(options, holding)), Aimed, _t.Encounters.Target));
         double total = options.Sum(o => o.Weight);
         if (total <= 0)
             return null;
@@ -1144,6 +1211,7 @@ public sealed class Director
                 continue;
             options.Add((rule.Kind, w * _t.Weights.GetValueOrDefault(Key(rule.Kind), 1) * NightVariety(rule.Kind)));
         }
+        options = Targeting.Weigh(options, Aimed, _t.Encounters.Target);
         double total = options.Sum(o => o.Weight);
         if (total <= 0)
             return null;
@@ -1201,7 +1269,7 @@ public sealed class Director
         var holding = Holding(world, active);
         if (holding.Count >= EngagedCap)
             return null;
-        var options = WeighVotes(WhoseNext(ZoneSpread(FreeOptions(world, et, holding, active, withBound: true), holding)));
+        var options = WeighVotes(Targeting.Weigh(WhoseNext(ZoneSpread(FreeOptions(world, et, holding, active, withBound: true), holding)), Aimed, _t.Encounters.Target));
         double total = options.Sum(o => o.Weight);
         if (total <= 0)
             return null;
@@ -1332,7 +1400,7 @@ public sealed class Director
             : Math.Max(s / Math.Max(1, _route.RunLength), _route.DawnSeconds > 0 ? elapsed / _route.DawnSeconds : 0);
         // The night's curve (note 849): the escalation climbs by it, as the free spawns come on it.
         Curve = _t.Curve.Of(progress);
-        double escalation = 1 + p.Escalation * Curve;
+        double escalation = 1 + _escalation * Curve;
         // Engaged with the crew: showing itself, coming on, holding someone, punishing. What only paces the train or lingers
         // (on the caps, <see cref="Engaged"/>) neither stops the quiet nor keeps the crew busy (harness: a Climber pacing a car
         // nobody walked into held the night's pressure flat).
@@ -1385,7 +1453,7 @@ public sealed class Director
         double scale = _t.Encounters.Drive is { On: true, PressureByLambda: true } ? 1
             : p.Scale(Math.Max(1, Crew), world.Train.Dynamics.Consist.CarCount);
         // The final surge (#663, note 960) presses the pressure as it raises λ: the pressure is what spends.
-        double rate = _tierRate * scale * conditions * relief * busy * escalation * Surge * (p.BasePerSecond + quiet + loud + cargo + afoot);
+        double rate = _tierRate * scale * p.Load(Math.Max(1, Crew)) * conditions * relief * busy * escalation * Surge * (p.BasePerSecond + quiet + loud + cargo + afoot);
         _pressure = Math.Min(p.Max, _pressure + rate);
         Terms = new PressureTerms(rate, escalation, _sinceThreat, loud, cargo, relief, conditions, afoot);
     }
@@ -2197,6 +2265,10 @@ public sealed class Director
                 EnemyKind.HollowHouse => new HollowHouse(0),
                 EnemyKind.Hanger => new Hanger(0),
                 EnemyKind.MouseMoose => new MouseMoose(0),
+                EnemyKind.Bruin => new Bruin(0),
+                EnemyKind.Tapper => new Tapper(0),
+                EnemyKind.HeadWaiter => new HeadWaiter(0),
+                EnemyKind.Close => new Close(0),
                 _ => new ChoirGhost(0),
             };
             d[kind] = (e.Zone, e.Sense, e.Want);
@@ -2340,6 +2412,16 @@ public sealed class Director
             return outcome;
         }
         HeldBecause = null;
+        string stance = Enemies.Stance.Name(Stance);
+        _placedByStance[stance] = _placedByStance.GetValueOrDefault(stance) + 1;
+        if (attempt.Aim is { } aimed)
+        {
+            string doing = Targeting.Name(aimed.Doing);
+            _targeted[doing] = _targeted.GetValueOrDefault(doing) + 1;
+            foreach (var f in Enum.GetValues<Behaviour>())
+                if (f != Behaviour.None && (aimed.Shows & f) != 0 && Targeting.Foils(f, attempt.Kind, _t.Encounters.Target))
+                    _foiled[Enemies.Behaviours.Name(f)] = _foiled.GetValueOrDefault(Enemies.Behaviours.Name(f)) + 1;
+        }
         // Placed, by whichever channel: one encounter off the night's account (#608, note 908), a pack as one.
         if (_t.Encounters.Drive.On)
             _clock = _clock.Paid(EncounterClock.NextThreshold(_paceRng.NextDouble(), _t.Encounters), _t.Encounters);

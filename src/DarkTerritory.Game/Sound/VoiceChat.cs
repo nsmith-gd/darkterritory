@@ -32,6 +32,9 @@ public sealed class VoiceChat
     readonly float[] _heard = new float[VoiceFormat.FrameSamples];
     VoiceLeveller? _leveller;
     Sim.Player.LevellerTuning? _levelledBy;
+    EchoCanceller? _echo;
+    Sim.Player.EchoTuning? _echoBy;
+    readonly float[] _silence = new float[VoiceFormat.FrameSamples];
     readonly byte[] _packet = new byte[VoiceFormat.MaxPacket];
     readonly Dictionary<byte, Speaker> _speakers = new();
     readonly Dictionary<int, Speaker> _mimics = new();
@@ -60,6 +63,13 @@ public sealed class VoiceChat
     public bool OnRadio => RadioHeld || Grabbed;
     public bool Transmitting { get; private set; }
     public int FramesSent { get; private set; }
+    /// <summary>
+    /// What this machine's speakers just played (note 1019), the echo canceller's reference; null (no speakers, or a bench), the
+    /// mic's sent as it comes.
+    /// </summary>
+    public EchoReference? Played { get; set; }
+    /// <summary>Frames the open mic stayed shut on because they were mostly the room's echo of the far crew (note 1019).</summary>
+    public int FramesEchoGated { get; private set; }
 
     sealed class Speaker(byte id)
     {
@@ -125,7 +135,9 @@ public sealed class VoiceChat
     public double LevellerGainDb => _leveller?.GainDb ?? 0;
 
     /// <summary>
-    /// Microphone samples (mono, 48 kHz), any amount; sends whole frames as they fill. Each frame is levelled first (note 855,
+    /// Microphone samples (mono, 48 kHz), any amount; sends whole frames as they fill. What the speakers played is taken out of
+    /// each frame first (note 1019, player.json <c>voices.echo</c>: a crewmate on speakers doesn't send the far crew their own
+    /// voice back), and a frame that's mostly that echo never opens the mic. Each frame is levelled next (note 855,
     /// player.json <c>voices.leveller</c>: every mic sent at one speech level, a quiet Windows headset as a hot Linux desktop),
     /// then trimmed by <see cref="MicLevel"/>. The voice activity hears the mic as it comes, trimmed, so the leveller's lift
     /// never opens the mic on the room's noise, and MIC LEVEL at nothing still sends nothing.
@@ -141,9 +153,21 @@ public sealed class VoiceChat
             if (_filled < _frame.Length)
                 continue;
             _filled = 0;
+            var echoing = client.PlayerTuning.Voices.Echo;
+            if (_echo is null || !ReferenceEquals(_echoBy, echoing))
+                (_echo, _echoBy) = (new EchoCanceller(Settings(echoing)), echoing);
+            bool echo = false;
+            if (Played is not null)
+            {
+                _echo.Capture(_frame, Played);
+                echo = _echo.MostlyEcho;
+            }
             for (int i = 0; i < _frame.Length; i++)
                 _heard[i] = Math.Clamp(_frame[i] * MicLevel, -1f, 1f);
-            bool speaking = _activity.Update(_heard);
+            // The voice activity hears nothing of a frame that's the room's echo, so its hangover isn't held open by one either.
+            bool speaking = _activity.Update(echo ? _silence : _heard);
+            if (echo)
+                FramesEchoGated++;
             var levelling = client.PlayerTuning.Voices.Leveller;
             // A hot-reloaded player.json (note 687) takes effect at once.
             if (_leveller is null || !ReferenceEquals(_levelledBy, levelling))
@@ -161,6 +185,18 @@ public sealed class VoiceChat
             FramesSent++;
         }
     }
+
+    /// <summary>player.json's <c>voices.echo</c> as the canceller's settings (and `dt voice echo`'s).</summary>
+    public static EchoSettings Settings(Sim.Player.EchoTuning t) => new()
+    {
+        On = t.On,
+        TailSeconds = t.TailSeconds,
+        Step = t.Step,
+        Suppression = t.Suppression,
+        FloorDb = t.FloorDb,
+        GateDb = t.GateDb,
+        ResyncSeconds = t.ResyncSeconds,
+    };
 
     static LevellerSettings Settings(Sim.Player.LevellerTuning t) => new()
     {

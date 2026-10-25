@@ -26,6 +26,11 @@ public sealed class Ribbit(int id, int pack) : Enemy(id)
     public override double MeleeRadius => 0.7;
     public int Pack { get; } = pack;
     public int? Target => Extra >= 0 ? (int)Extra : null;
+    /// <summary>
+    /// Note 1003: the crewmate on foot the pack's closing in on though it can't take them (no Target: nobody's outnumbered),
+    /// −1 none. The leader's pick, copied to the pack as <see cref="Target"/> is. Host's.
+    /// </summary>
+    public int Stalking { get; private set; } = -1;
 
     public static Ribbit At(int id, int pack, Double3 world, RibbitTuning t) => new(id, pack) { Attached = Loose, Local = world, Extra = -1, Health = t.Health };
 
@@ -40,6 +45,7 @@ public sealed class Ribbit(int id, int pack) : Enemy(id)
         if (leader == this && Phase != SpinePhase.Grab)
             Choose(ctx, t, members);
         Extra = leader.Extra;
+        Stalking = leader.Stalking;
         var target = ctx.LivingCrew().FirstOrDefault(c => Target is { } w && c.Player.Id == w);
         if (Target is not { } who || ctx.LivingCrew().All(c => c.Player.Id != who))
         {
@@ -47,6 +53,23 @@ public sealed class Ribbit(int id, int pack) : Enemy(id)
             {
                 Enter(ctx, SpinePhase.BreakOff);
                 Enter(ctx, SpinePhase.Dormant);
+            }
+            // Note 1003 (the director's playtest of 23 Oct, line 24: "they should start moving towards us, they should put
+            // pressure on us"): a pack that can't take anyone yet closes in on the nearest on foot anyway, and sits stalkAt m
+            // off them, out of the tongue's lash, for the first of them to walk off alone (App. A.6's COUNT/IGNORE holds:
+            // it never tongues a group it doesn't outnumber).
+            if (Phase == SpinePhase.Dormant && t.StalkAt > 0 && Stalking >= 0
+                && ctx.LivingCrew().Where(c => c.Player.Id == Stalking).Select(c => (Double3?)c.World).FirstOrDefault() is { } stalked)
+            {
+                // Where: stalkAt off them on the pack's side, each to its place round it (Place's fan).
+                var centre = members.Aggregate(Double3.Zero, (a, m) => a + m.Local) * (1.0 / size);
+                var off = (centre - stalked) with { Y = 0 };
+                if (off.Length > 1e-6 && ((Local - stalked) with { Y = 0 }).Length > t.StalkAt + 1)
+                {
+                    var sitAt = stalked + off.Normalized * t.StalkAt;
+                    var (stalkWay, stalkApart) = Place(sitAt, members, leader, t);
+                    Hop(stalkWay, stalkApart, t.HopSpeed, members, t.Spacing);
+                }
             }
             return;
         }
@@ -63,8 +86,11 @@ public sealed class Ribbit(int id, int pack) : Enemy(id)
                         m.Enter(ctx, SpinePhase.Telegraph);
                 return;
             case SpinePhase.Telegraph:
-                // Outrun (App. A.6: "outrunnable, if you run"): out of the tongues' reach before they fire, and they hop after.
-                if (leader == this && d > t.TongueReach * 1.5)
+                // Outrun (App. A.6: "outrunnable, if you run"): out of the tongues' lash before they fire, and they hop after.
+                // Note 1003 (the director's playtest of 23 Oct, line 25: "just my walking pace can defeat them"): the lash was
+                // 1.5 × tongueReach (6 m), and a walk backward from 4 m makes 7.6 m in the 1.5 s telegraph; tongueLash is past a
+                // walk's and short of a run's (8.25 m further).
+                if (leader == this && d > t.TongueLash)
                 {
                     foreach (var m in members)
                     {
@@ -129,6 +155,20 @@ public sealed class Ribbit(int id, int pack) : Enemy(id)
             }
         }
         Extra = pick ?? -1;
+        // Note 1003: nobody to take, the nearest on foot within stalkFrom to close in on (weighed as a catch is).
+        int? stalk = null;
+        best = double.MaxValue;
+        if (pick is null)
+            foreach (var (p, w) in ctx.LivingCrew())
+            {
+                // Nor into a fort (or the gym's safe ring) after them: it would only be driven off there.
+                if (!CrewSense.Afoot(p.State, ctx.Train) || ctx.World.InFort(w))
+                    continue;
+                double d = ((w - centre) with { Y = 0 }).Length, weighed = ctx.Weigh(p.Id, d);
+                if (d <= t.StalkFrom && weighed < best)
+                    (best, stalk) = (weighed, p.Id);
+            }
+        Stalking = stalk ?? -1;
     }
 
     /// <summary>
@@ -711,8 +751,10 @@ public sealed class Follower(int id) : Enemy(id)
                         return;
                     }
                     Ride(train, s);
-                    // RIDE until aboard; then DROP, and make for the car with the most loot.
-                    if (Phase == SpinePhase.Telegraph && s.Parent >= 0 && train.Dynamics.Consist.IndexOf(s.Parent) >= 0
+                    // RIDE until aboard and in a car's body; then DROP, and make for the car with the most loot. Note 1016
+                    // (the director, 23 Oct: "It often spawns outside the car ... on the stairs to the door or on couplings"):
+                    // a side door's steps, the coupling's plate and the roof are all a car's frame, but not inside it.
+                    if (Phase == SpinePhase.Telegraph && s.Parent >= 0 && train.Dynamics.Consist.IndexOf(s.Parent) >= 0 && Inside(train, s.Parent, s.Position)
                         && PhaseSeconds >= ctx.Tuning.MinReactionSeconds && Richest(ctx) is { } car && Enter(ctx, SpinePhase.Commit))
                     {
                         _car = car;
@@ -753,39 +795,61 @@ public sealed class Follower(int id) : Enemy(id)
             .Where(x => x.Worth > 0.01).OrderByDescending(x => x.Worth).ThenBy(x => x.Id).Select(x => (int?)x.Id).FirstOrDefault();
     }
 
-    /// <summary>Off its host (a drop to the floor under them, in their car), and along the train to its car, then the nest.</summary>
+    /// <summary>Whether a point in a car's frame is in its body (its interior): not its steps, its coupling or its roof.</summary>
+    internal static bool Inside(TrainOnLine train, int car, Double3 local) =>
+        train.Frames[car].Shape.Interior is { } room && room.ContainsXZ(local) && local.Y >= room.Min.Y && local.Y < room.Max.Y;
+
+    /// <summary>
+    /// Off its host (a drop to the floor under them, in their car), and along the train to its car, then the nest. It crawls
+    /// in each car's frame (note 1016): down its floor to the end door towards its car, through it into the next car's, and
+    /// so on, so a moving train carries it and it's never out beside the cars or on the couplings.
+    /// </summary>
     void Crawl(EnemyContext ctx, FollowerTuning t)
     {
         var train = ctx.Train;
-        if (_car < 0 || _car >= train.Frames.Count || train.Dynamics.Consist.IndexOf(_car) < 0)
+        var consist = train.Dynamics.Consist;
+        if (_car < 0 || _car >= train.Frames.Count || consist.IndexOf(_car) < 0 || Attached < 0 || consist.IndexOf(Attached) < 0
+            || train.Frames[Attached].Shape.Interior is not { } room)
         {
             Enter(ctx, SpinePhase.Gone);
             return;
         }
         // Falling, still in the car it dropped in (its frame: the train's speed is the car's), till it's down.
-        if (Attached >= 0 && Local.Y > _landAt)
+        if (Local.Y > _landAt)
         {
             Local = Local with { Y = Math.Max(_landAt, _dropFrom - 0.5 * t.DropGravity * PhaseSeconds * PhaseSeconds) };
             return;
         }
-        var goal = train.Frames[_car].Shape.Interior!.Value;
-        var target = train.Frames[_car].ToWorld(goal.Centre with { Y = goal.Min.Y });
-        var here = WorldPosition(train);
-        var to = target - here;
+        int here = consist.IndexOf(Attached), there = consist.IndexOf(_car);
+        // Rearward is +Z in a car's frame and further down the consist.
+        int dir = Math.Sign(there - here);
+        double floor = room.Min.Y + 0.1;
+        var goal = dir == 0 ? room.Centre with { Y = floor }
+            : new Double3(EndDoorX(train, Attached), floor, dir > 0 ? room.Max.Z - DoorMargin : room.Min.Z + DoorMargin);
+        var to = (goal - Local) with { Y = 0 };
         double step = t.CrawlSpeed * SimConstants.TickSeconds;
-        if (to.Length > 0.5 && Attached != _car)
+        if (to.Length > 0.5 || (dir != 0 && to.Length > step))
         {
-            Attached = Loose;
-            Local = here + to.Normalized * Math.Min(step, to.Length);
-            // Close enough to be in its car: its frame now.
-            if ((Local - target).Length <= 1.5)
-            {
-                Attached = _car;
-                Local = goal.Centre with { Y = goal.Min.Y };
-            }
+            Local = (Local + to.Normalized * Math.Min(step, to.Length)) with { Y = floor };
             return;
         }
-        Attached = _car;
+        if (dir != 0)
+        {
+            // Through the end door and across into the next car's, at its own end door (over a car with no body to crawl
+            // through, a flat or the utility car, to the one beyond it).
+            int at = here + dir;
+            while (at != there && train.Frames[consist.Vehicles[at].Id].Shape.Interior is null)
+                at += dir;
+            int next = consist.Vehicles[at].Id;
+            if (train.Frames[next].Shape.Interior is not { } into)
+            {
+                Enter(ctx, SpinePhase.Gone);
+                return;
+            }
+            Attached = next;
+            Local = new Double3(EndDoorX(train, next), into.Min.Y + 0.1, dir > 0 ? into.Min.Z + DoorMargin : into.Max.Z - DoorMargin);
+            return;
+        }
         // NEST: built over a minute, then it eats. A nest takes a few blows.
         Extra2 = Math.Min(1, Extra2 + SimConstants.TickSeconds / t.NestSeconds);
         if (Extra2 >= 1)
@@ -794,6 +858,13 @@ public sealed class Follower(int id) : Enemy(id)
             Enter(ctx, SpinePhase.Punish);
         }
     }
+
+    /// <summary>How far inside an end wall it goes through the door from (m).</summary>
+    const double DoorMargin = 0.2;
+
+    /// <summary>The end doors' line across a car (they stand left of centre), or its middle if it has none.</summary>
+    static double EndDoorX(TrainOnLine train, int car) => train.Frames[car].Shape.DoorList
+        .Where(d => d.Box.Max.Z - d.Box.Min.Z < d.Box.Max.X - d.Box.Min.X).Select(d => d.Box.Centre.X).DefaultIfEmpty(0).First();
 
     /// <summary>C.9's Followers row (note 190): the nest built, and who carried it aboard.</summary>
     protected override Run.Incident? Punished(EnemyContext ctx) => Run.IncidentLog.Event(ctx.World, Run.IncidentKind.Nest,

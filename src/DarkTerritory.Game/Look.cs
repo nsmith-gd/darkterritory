@@ -81,6 +81,8 @@ public sealed record InteriorTuning
 {
     /// <summary>A room's fill (rgb), lamplight off the boards: what a corner no lamp reaches is lit by. Null: the old, the night's ambient times (0.55, 0.42, 0.3).</summary>
     public Vector3? Fill { get; init; }
+    /// <summary>Down in a house's basement (note 1005), the share of <see cref="Fill"/> that's left.</summary>
+    public float CellarFill { get; init; } = 1;
     /// <summary>An open house's candle stub: its strength (times the lamp amber) and reach (m).</summary>
     public float Candle { get; init; } = 0.9f;
     public float CandleRange { get; init; } = 5.5f;
@@ -273,6 +275,12 @@ public sealed record DamageTuning
 
     /// <summary>How much of the scar mask shows, 0..1.</summary>
     public float ScarOf(double integrity) => Math.Clamp((ScarsFrom - (float)integrity) / Math.Max(1e-3f, ScarsFrom - ScarsFull), 0, 1);
+
+    /// <summary>The bite's fractions (BiteTuning.Fraction) at which an eaten car's holes go to each level (note 1014).</summary>
+    public float[] EatenHoles { get; init; } = [0.15f, 0.35f, 0.6f];
+
+    /// <summary>How holed a car being eaten is by its bite's fraction alone: 0 none, to DamageKit.MostHoles.</summary>
+    public int HolesOfEaten(double fraction) => EatenHoles.Count(f => fraction >= f);
 }
 
 public sealed record LookTuning
@@ -606,6 +614,7 @@ public sealed class Look
             light.LampIntensity = li;
         if (a.Interiors.Fill is { } fill)
             light.IndoorFill = fill;
+        light.CellarDim = 1 - a.Interiors.CellarFill;
         return light;
     }
 

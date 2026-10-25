@@ -174,6 +174,33 @@ public class SpecTableTests
     }
 
     [Fact]
+    public void TheBruinMatchesB21()
+    {
+        var b = Tuning.Enemies.Bruin;
+        Assert.Equal((45.0, 40.0, 4.0, 10.0), (b.StandSeconds, b.ComeFromM, b.Come, b.HuffSeconds));
+        Assert.Equal((6.0, 50.0, 3.0, 3.0, 8.0), (b.Reach, b.FrontDegrees, b.WindupSeconds, b.ChargeReach, b.MaulSeconds));
+        Assert.Equal((20.0, 0.2, 8, 0.01), (b.Health, b.FrontFactor, b.DriveOffBlows, b.FeedPerSecond));
+    }
+
+    [Fact]
+    public void TheTapperMatchesB22()
+    {
+        var t = Tuning.Enemies.Tapper;
+        Assert.Equal((8.0, 3.0, 90.0, 45.0), (t.BoardAbove, t.LeaveBelow, t.Dwell["frontier"], t.Dwell["deepTerritory"]));
+        Assert.Equal((5.0, 3.0, 30.0, 1.0), (t.TapSeconds["frontier"], t.TapSeconds["deepTerritory"], t.LookDegrees, t.LookSeconds));
+        Assert.Equal((30.0, 10.0, 4.0, 10.0, 3.0), (t.HoldSeconds["frontier"], t.HoldSeconds["deepTerritory"], t.CompanyM, t.LiftSeconds, t.Health));
+    }
+
+    [Fact]
+    public void TheCloseMatchesB23()
+    {
+        var c = Tuning.Enemies.Close;
+        Assert.Equal((8.0, 3, 2, 3), (c.BoardAbove, c.Crowd, c.CrowdSmall, c.SmallCrew));
+        Assert.Equal((60.0, 40.0, 30.0, 10.0, 4.0), (c.Settle["local"], c.Settle["frontier"], c.Settle["deepTerritory"], c.BowSeconds, c.PourSeconds));
+        Assert.Equal((6.0, 4.0, 5.0, 20.0, 1.0, 3.0), (c.CrushAfter["frontier"], c.CrushAfter["deepTerritory"], c.CrushPerSecond, c.KillSeconds, c.GetOutSeconds, c.Health));
+    }
+
+    [Fact]
     public void HotboxMatchesB19()
     {
         var h = Tuning.Enemies.Hotbox;

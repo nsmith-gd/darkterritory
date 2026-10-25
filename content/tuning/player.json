@@ -75,7 +75,21 @@
     "grabMaxRelativeSpeed": 3.5,
     // Note 704 (the director's playtest: the cab's ladder "should actually go up to the roof"): walking into a hatch ladder
     // indoors (the cab's, a car's) takes hold of it only looking up it at least this far; level, you walk past it working.
-    "hatchLookUpDegrees": 25
+    "hatchLookUpDegrees": 25,
+    // Note 1018 (the director's playtest, 24 Oct: "if I jump into a ladder I should automatically grab it, if I walk into a
+    // ladder with that intention I should automatically grab it"). The walk-in: pushing at a ladder and facing it, both within
+    // walkInDegrees of straight up its rungs, takes hold of it from walkInReach of its foot (m; was 0.45 in code), on the
+    // ground or in the air. Alongside one, you face along it and walk past. airGrab: jumping or falling into one (moving at it,
+    // relative to it, at airTowards m/s or more, under grabMaxRelativeSpeed) takes hold of it where you meet it: up against
+    // it, within airReach (a body's radius and the ladder's 0.1 m off the car), not across a gap (dropping off a roof's end
+    // onto the plate isn't into the next car's ladder). Not in its top half metre: there you land on what it serves. Never
+    // from its top either: walking off a roof's end steps you down onto the plate (edge.walkOff); the ladder key takes one
+    // from its top. Letting go is as ever: jump, or Use and back.
+    "walkInReach": 0.6,
+    "walkInDegrees": 45,
+    "airGrab": true,
+    "airTowards": 0.5,
+    "airReach": 0.45
   },
   // A VR player's reaching hand (T29; the spec has no VR numbers). Reach is tested from the hand instead of the body:
   // a hand is on a grip (a lever, a handle, a ladder, a crate) within grab of it. The host believes a hand no farther
@@ -235,7 +249,15 @@
     "craneOrderSeconds": 600,
     // Note 936: how far from where it stands a hand sent to the town by a ping goes to search its houses (m), past
     // facilities.json crew.villageReach: a house is pinged from as far off as townRange, and its rooms are further in.
-    "townReach": 300
+    "townReach": 300,
+    // Note 1010 (the director, 23 Oct: "once he goes and does it, just get rid of it. Get rid of the ping"): how long a ping
+    // a crewmate took stays up once they've stopped answering it (s), their job done (or given up). A moment, not seconds:
+    // a dropped tick's answer doesn't take it down.
+    "doneSeconds": 1,
+    // Note 1010 (the director, 23 Oct: "point in the direction of a village ... we're gonna go loot this place"): how long a
+    // village pinged before the train stands at its stop stays up for it (s), nobody's yet (no bot can search it from the
+    // line). It goes sooner once the train's past the stop.
+    "townAheadSeconds": 240
   },
   "emotes": {
     "dance": 8,
@@ -413,6 +435,15 @@
     // completely"): a voice between the cab and outside it, with either of its side doors open (note 856), comes through
     // occlusion of the cab's wall (mix.json's occlusionDb and occlusionLowpass; 1 the whole wall, 0 none): at 0.5, half the
     // wall's 12 dB and its low-pass up from 900 Hz to about 4.2 kHz. Off: an open door's as shut, for voice.
-    "openCab": { "on": true, "occlusion": 0.5 }
+    "openCab": { "on": true, "occlusion": 0.5 },
+    // The echo canceller (note 1019; the director, 24 Oct: "My guest has a half second delay on their audio when they talk,
+    // they can hear their own voice and its maddening"). A crewmate on speakers with an open mic sends the far crew back their
+    // own voice a round trip late. Each client takes what its speakers just played out of what its mic heard: an adaptive
+    // filter learns the room, tailSeconds of it after the sound leaves the speakers, at step (0..1, quicker to learn and noisier
+    // once learned); what's left is taken down bin by bin by the echo's share of it, times suppression, at most floorDb; a frame
+    // more than gateDb under the echo the filter heard in it is the room's echo and doesn't open the mic. The speakers and the
+    // mic slipping resyncSeconds apart (a hitch) and the room's learned again. `dt voice echo` measures it. Off: the mic as it
+    // comes.
+    "echo": { "on": true, "tailSeconds": 0.3, "step": 0.8, "suppression": 3, "floorDb": -40, "gateDb": 15, "resyncSeconds": 0.25 }
   }
 }

@@ -154,7 +154,10 @@
       "shedLantern": 1.1,
       "shedLanternRange": 10,
       "shedLanternHeight": 3.2,
-      "shedLanternSpacing": 10
+      "shedLanternSpacing": 10,
+      // Note 1005 (the director, 23 Oct: "Those basements should get pretty dark"): down in a house's basement the fill is
+      // this share of a room's, and no candle's lit there: a hand lamp is what you see by.
+      "cellarFill": 0.12
     },
     // The dawn (GDD §21, the run's race to it): over the last leadSeconds of the dawn clock the night goes over to a low
     // grey light coming up in the east, the fog paling, the dark pockets filling. The fog stays (it's the line's).
@@ -242,7 +245,11 @@
     "states": [0.66, 0.33],
     // The scar mask shows from here, and is at its worst by the second.
     "scarsFrom": 0.95,
-    "scarsFull": 0.1
+    "scarsFull": 0.1,
+    // A car being eaten (the bite's fraction, as "bite" below reads it) has its boards knocked out ahead of the mouth:
+    // holed as a failing car is (note 1014: DamageKit.CarHoles) from the first, as a breaking one from the second, as one
+    // come apart from the third, or as its failing stage has it, whichever's worse.
+    "eatenHoles": [0.15, 0.35, 0.6]
   },
   // A car eaten from its rear end by a Car Hugger (GDD v1.2 App. A.3 FEED; ARCHITECTURE §8 note 109), by how much of
   // what was left of it has been eaten (Vehicle.Eaten over eaten plus integrity: 1 is eaten through, when it's dropped).

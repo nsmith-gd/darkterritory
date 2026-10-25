@@ -204,6 +204,18 @@ public sealed record StopCrewTuning
     public bool DriverWorks { get; init; } = true;
     public bool PeopleAreHands { get; init; } = true;
     public double PeopleWait { get; init; } = 45;
+    /// <summary>Note 995: how long a bot driver waits for someone playing who's afoot (s) before it leaves them, a deserter.</summary>
+    public double PeopleLeftSeconds { get; init; } = 600;
+    /// <summary>
+    /// Note 1009: at the gate, how long a bot driver leaves the controls to someone playing aboard (s) before it drives out
+    /// itself; a ping of the cab sends it at once. 0: it drives out as soon as everyone's aboard, as before.
+    /// </summary>
+    public double PeopleSeatSeconds { get; init; } = 60;
+    /// <summary>
+    /// Note 1009: a stop's own spur set ahead of a bot driver (by someone playing, or a bot on their ping) is the crew asking for
+    /// that stop: it's made, whatever the reckoning, unless it's late for the dawn. False: stopped short of and set back.
+    /// </summary>
+    public bool CrewsStops { get; init; } = true;
     /// <summary>Note 326: the share of the crate hands that go to search the village's houses once the crates are in (0: none).</summary>
     public double VillageShare { get; init; }
     /// <summary>How far from the train a hiding spot may be for a hand to go to it (m).</summary>

@@ -746,12 +746,44 @@ public sealed partial class SceneArt(Look look)
     /// <summary>A car's heap as drawn (note 659): its poured load to the nearest eighth, so a car filling has a handful of meshes.</summary>
     static float HeapFill(Vehicle v) => (float)Math.Clamp(Math.Round(v.Bulk * 8) / 8, 0.125, 1);
 
-    static string ShapeKey(CarShape s) =>
-        $"{s.HalfWidth:0.###}x{s.HalfLength:0.###}x{s.RoofHeight:0.###}:{s.Solids.Count}:{s.Solids.Any(x => x.Part == PartKind.Coupler)}" +
+    /// <summary>
+    /// What a car's cooked pieces are kept under: its size and parts, and a print of every solid and door in it (note 1001:
+    /// the size and the count alone gave the utility car, the dining car and the dressed last guard van one key, and the
+    /// last guard van its platform or not, so each was drawn with whichever body was cooked first).
+    /// </summary>
+    public static string ShapeKey(CarShape s) => ShapeKeys.GetValue(s, k =>
+        $"{k.HalfWidth:0.###}x{k.HalfLength:0.###}x{k.RoofHeight:0.###}:{k.Solids.Count}:{k.Solids.Any(x => x.Part == PartKind.Coupler)}" +
         // (The BBQ deck's engine, note 698.)
-        (s.Bbq is not null ? ":bbq" : "") +
+        (k.Bbq is not null ? ":bbq" : "") +
         // (A Knotter's back where the plate was, CarShape.Knotted: no plate drawn.)
-        (s.Solids.Any(x => x.Part == PartKind.Coupler && x.Box.Max.X - x.Box.Min.X <= CarShape.KnotWidth + 1e-3) ? ":knot" : "");
+        (k.Solids.Any(x => x.Part == PartKind.Coupler && x.Box.Max.X - x.Box.Min.X <= CarShape.KnotWidth + 1e-3) ? ":knot" : "") +
+        $":{Print(k):x16}");
+
+    static readonly System.Runtime.CompilerServices.ConditionalWeakTable<CarShape, string> ShapeKeys = new();
+
+    /// <summary>A repeatable print (FNV-1a, to the millimetre) of a shape's solids and doors.</summary>
+    static ulong Print(CarShape s)
+    {
+        ulong h = 14695981039346656037;
+        void Add(long v)
+        {
+            h ^= (ulong)v;
+            h *= 1099511628211;
+        }
+        void AddBox(Box b)
+        {
+            foreach (double v in new[] { b.Min.X, b.Min.Y, b.Min.Z, b.Max.X, b.Max.Y, b.Max.Z })
+                Add((long)Math.Round(v * 1000));
+        }
+        foreach (var x in s.Solids)
+        {
+            Add((long)x.Part);
+            AddBox(x.Box);
+        }
+        foreach (var d in s.DoorList)
+            AddBox(d.Box);
+        return h;
+    }
 
     /// <summary>
     /// A loose body that isn't a ragdoll (crates, freight, a lamp, a radio) as its prop, turned by its yaw in its parent's
@@ -1357,7 +1389,9 @@ public sealed partial class SceneArt(Look look)
     {
         if (engine.Shape.Cab is null || (engine.Origin - eye).Length > 300)
             return;
-        mesh.Instances.Add(new MeshInstance(Piece("rupture-tear", () => TrainKit.RuptureTear(Look)),
+        // (Through the hood's plate, cut away under it, where it has one: note 1014.)
+        bool open = DamageKit.HoodHole(engine.Shape).Count > 0;
+        mesh.Instances.Add(new MeshInstance(Piece(open ? "rupture-tear-open" : "rupture-tear", () => TrainKit.RuptureTear(Look, open)),
             Matrix4x4.CreateScale(TrainKit.RuptureSize(engine.Shape)) * Matrix4x4.CreateTranslation(TrainKit.RuptureSeam(engine.Shape))
             * FrameMatrix(engine, eye)));
     }
@@ -1523,10 +1557,12 @@ public sealed partial class SceneArt(Look look)
     /// <param name="taggedLockers">Crew lockers with something on their shelves (note 264): a tag hangs off a shut one's handle.</param>
     /// <param name="handrails">The train has roof handrails (spec F.3, note 184): drawn along a car's roof edges.</param>
     /// <param name="failing">How far it's working itself apart (note 576's <see cref="FailStage"/>; note 779): a failing car's
-    /// boards sprung and a door hanging askew, a breaking one's plate peeled back and its frame sagging.</param>
+    /// boards sprung and a door hanging askew, a breaking one's plate peeled back and its frame sagging; and its boards gone,
+    /// holes through its sides and roof, more each stage (note 1014).</param>
+    /// <param name="ruptured">The engine's boiler has burst (spec B.6): its hood's plate open round the tear (note 1014).</param>
     public bool Car(MeshBuilder mesh, in CarFrame frame, Double3 eye, Vehicle? vehicle, bool emergency, long tick = -1, int cutEnds = 0,
         float charred = 0, bool utility = false, uint openLockers = 0, bool handrails = false, bool dark = false, uint taggedLockers = 0, int paint = 0,
-        FailStage failing = FailStage.Holding)
+        FailStage failing = FailStage.Holding, bool ruptured = false)
     {
         // Its lamps out: its lit windows (the guard van's) go dark with them, as under emergency lighting.
         float lamps = emergency || dark ? 0.06f : 1;
@@ -1546,8 +1582,20 @@ public sealed partial class SceneArt(Look look)
         // The engine's drivers and rods are drawn apart, turning (Gear), where their modelled parts are there to turn.
         bool turning = engine && GearParts is not null;
         string bodyKey = loadApart ? key + ":empty" : turning ? key + ":turning" : key;
+        // Failing, its boards gone where its holes are (note 1014), more each stage; the car chooses where. Being eaten, its
+        // boards knocked out as the mouth works (look.json damage.eatenHoles), whichever's worse. The engine's hood burst open
+        // round the tear while she's ruptured.
+        int seed = vehicle?.Id ?? frame.Index;
+        int holeLevel = engine ? 0 : Math.Max(DamageKit.HoleLevel(failing),
+            Look.Tuning.Damage.HolesOfEaten(BiteTuning.Fraction(vehicle?.Eaten ?? 0, vehicle?.Integrity ?? 1)));
+        if (holeLevel > 0)
+            bodyKey += $":holes{holeLevel}:{seed}";
+        bool burst = engine && ruptured && DamageKit.HoodHole(shape).Count > 0;
+        if (burst)
+            bodyKey += ":burst";
         var body = Piece(bodyKey,
-            () => engine ? TrainKit.Engine(Look, shape, 0, gear: !turning, paint: paint) : TrainKit.Car(Look, shape, livery, variant, load: !loadApart, wheel: false, paint: paint));
+            () => engine ? TrainKit.Engine(Look, shape, 0, gear: !turning, paint: paint, holes: burst ? DamageKit.HoodHole(shape) : null)
+                : TrainKit.Car(Look, shape, livery, variant, load: !loadApart, wheel: false, paint: paint, holes: DamageKit.CarHoles(shape, holeLevel, seed)));
         // Breaking, its frame sags between the bogies (note 779), under the floor only: what's walked on stays put.
         float sag = engine ? 0 : DamageKit.SagOf(failing);
         if (sag > 0)
@@ -1561,7 +1609,6 @@ public sealed partial class SceneArt(Look look)
         var damage = Look.Tuning.Damage;
         double eaten = engine ? 0 : vehicle?.Eaten ?? 0;
         double integrity = Math.Min(1, (vehicle?.Integrity ?? 1) + eaten);
-        int seed = vehicle?.Id ?? frame.Index;
         // A fire's char scars it as hard as the burn went, whatever the integrity says (it's the boards that went).
         var scar = new Vector2(MathF.Max(damage.ScarOf(integrity), charred * 0.85f), Bite.ScarSeed(seed));
         var bite = BiteOf(shape, vehicle, frame.Index);
@@ -1644,7 +1691,12 @@ public sealed partial class SceneArt(Look look)
             mesh.Instances.Add(new MeshInstance(Piece($"dining:{ShapeKey(shape)}", () => TrainKit.DiningFit(Look, shape)), m,
                 emergency ? 0.06f : 1, Scar: scar, Bite: cut, BiteFloor: floor));
             if (!emergency && !dark && (frame.Origin - eye).Length < 120)
+            {
                 mesh.PointLights.Add(new PointLight(Vector3.Transform(TrainKit.ChandelierAt(shape) + new Vector3(0, 0.1f, 0), m), Palette.LampAmber * 1.4f, 6));
+                // The table's candles, and the back bar's lamp along its cornice (note 1016: the chandelier's over the stools now).
+                mesh.PointLights.Add(new PointLight(Vector3.Transform(TrainKit.TableLightAt(shape), m), Palette.LampAmber * 0.8f, 4.5f));
+                mesh.PointLights.Add(new PointLight(Vector3.Transform(TrainKit.BackBarLightAt(shape), m), Palette.LampAmber * 1.2f, 3.5f));
+            }
         }
         else if (loadApart && vehicle!.Bulk > Solid.HeapFrom)
         {
@@ -1737,8 +1789,8 @@ public sealed partial class SceneArt(Look look)
         }
         int state = damage.StateOf(integrity);
         if (state > 0)
-            mesh.Instances.Add(new MeshInstance(Piece($"damage:{ShapeKey(shape)}:{state}:{seed}",
-                () => engine ? DamageKit.Engine(Look, shape, state, seed) : DamageKit.Car(Look, shape, state, seed)), m, Scar: scar, Bite: cut, BiteFloor: floor));
+            mesh.Instances.Add(new MeshInstance(Piece($"damage:{ShapeKey(shape)}:{state}:{seed}{(holeLevel > 0 ? ":open" : "")}",
+                () => engine ? DamageKit.Engine(Look, shape, state, seed) : DamageKit.Car(Look, shape, state, seed, open: holeLevel > 0)), m, Scar: scar, Bite: cut, BiteFloor: floor));
         // Working itself apart (note 779): boards sprung, and breaking, a plate peeled back on the load and a truss rod hanging;
         // the engine's casing plates sprung, and breaking down, one torn open on the boiler (in its own plate).
         if (failing >= FailStage.Failing)

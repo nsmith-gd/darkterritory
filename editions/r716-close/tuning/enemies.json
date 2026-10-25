@@ -1,0 +1,5 @@
+// the Close on (#716, note 1013)
+{
+  "$patch": true,
+  "close": { "on": true }
+}

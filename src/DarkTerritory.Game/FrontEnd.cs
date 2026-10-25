@@ -1523,7 +1523,10 @@ public sealed class FrontEnd
             PaintEntry(Night is null ? "Your gas mask's colour and a stencil: what the crew see on it." : "Tried on in the yard; past the gate, from the next night."),
             Heading("SOUND AND VOICE"),
             new(new($"SOUND: {(Settings.Mute ? "OFF" : "ON")}"), Toggle(s => s with { Mute = !s.Mute }), _ => Change(Settings with { Mute = !Settings.Mute })),
-            new(new($"VOICE: {(Settings.PushToTalk ? $"PUSH TO TALK ({(Settings.ToggleHolds ? "TAP" : "HOLD")} {Controls.KeyLabel(Settings.KeyFor(Control.Talk))})" : "OPEN MIC")}"), Toggle(s => s with { PushToTalk = !s.PushToTalk }), _ => Change(Settings with { PushToTalk = !Settings.PushToTalk })),
+            // Note 1019 (the director, 24 Oct: a guest heard their own voice back): on speakers an open mic sends the crew their
+            // own voices back; the echo canceller takes most of it out, headphones all of it.
+            new(new($"VOICE: {(Settings.PushToTalk ? $"PUSH TO TALK ({(Settings.ToggleHolds ? "TAP" : "HOLD")} {Controls.KeyLabel(Settings.KeyFor(Control.Talk))})" : "OPEN MIC")}",
+                Settings.PushToTalk ? null : "Headphones recommended with OPEN MIC: on speakers, the crew can hear themselves back through your mic."), Toggle(s => s with { PushToTalk = !s.PushToTalk }), _ => Change(Settings with { PushToTalk = !Settings.PushToTalk })),
             // The audio checklist's mix-settings: the volumes, the microphone and its level.
             Volume("MASTER VOLUME", "Everything you hear.", Settings.MasterVolume, (s, v) => s with { MasterVolume = v }),
             Volume("EFFECTS VOLUME", "The train, the world, the things in the dark, your own hands.", Settings.EffectsVolume, (s, v) => s with { EffectsVolume = v }),
@@ -1547,6 +1550,9 @@ public sealed class FrontEnd
             new(new($"RENDER SCALE: {Settings.RenderScale * 100:0}%", "Draws the scene smaller and scales it up: faster, softer."), Toggle(s => s with { RenderScale = Settings.Cycle(Settings.RenderScales, s.RenderScale, 1) }),
                 by => Change(Settings with { RenderScale = Settings.Cycle(Settings.RenderScales, Settings.RenderScale, by) })),
             new(new($"VSYNC: {(Settings.VSync ? "ON" : "OFF")}"), Toggle(s => s with { VSync = !s.VSync }), _ => Change(Settings with { VSync = !Settings.VSync })),
+            // Note 1017: for black squares on some Linux drivers; the textures load at the start, so from the next one.
+            new(new($"SAFE GRAPHICS: {(Settings.GpuSafe ? "ON" : "OFF")}", "Black squares on the screen? Plainer effects and textures. From the next start."),
+                Toggle(s => s with { GpuSafe = !s.GpuSafe }), _ => Change(Settings with { GpuSafe = !Settings.GpuSafe })),
             Heading("CONTROLS AND COMFORT"),
             new(new($"MOUSE SPEED: {Settings.MouseSpeed:0.0}", "Left and right to change."), null, by => Change(Settings with { MouseSpeed = Math.Clamp(Math.Round(Settings.MouseSpeed + by * 0.1, 1), 0.2, 3) })),
             // Note 297: comfort.
@@ -1870,9 +1876,12 @@ public sealed class FrontEnd
             {
                 var c = offers[i];
                 int contract = i;
-                // GDD §9 "choose a route" (note 637: a contract is just a route): the train leaves empty, and its cars are paid
-                // by what its stops load, about the tier's car-load each.
-                list.Add(new(new($"TONIGHT: {Name(c.Tier)} {c.Seed}, ABOUT {c.PerCar:0} A CAR-LOAD", $"Whatever its stops load. Up to about {c.PerCar * s.Cars:0} on {s.Cars} cars."),
+                // GDD §9 "choose a route" (note 637: a contract is just a route): the train leaves empty and is paid for what it
+                // brings in (Run.Tally: each car's freight at its cargo's rate, the finds, the mail, a child home). Not "a
+                // car-load" (the director's playtest of 23 Oct, line 15, note 994: "we're not doing this by the carload"): a
+                // full train of goods is the yardstick, said as the most the freight alone comes to.
+                list.Add(new(new($"TONIGHT: {Name(c.Tier)} {c.Seed}, PAID ON WHAT YOU BRING IN",
+                        $"The freight its stops load (a full train of goods, about {c.PerCar * s.Cars:0} on {s.Cars} cars), the finds, the mail, and anyone you bring home."),
                     () => new Launch.CampaignNight(s.Slot, contract, Resume: false, _host) { Bots = _bots, Crew = RodeWith(s) }));
             }
         }

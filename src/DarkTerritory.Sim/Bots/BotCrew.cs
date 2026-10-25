@@ -182,6 +182,9 @@ public sealed class BotCrew(CrewCalls? calls) : IDisposable
             if (!lampRun || session.World.ActiveEnemies.Any(e => e is Enemies.Brakeman { Gone: false, Phase: not (Enemies.SpinePhase.Dormant or Enemies.SpinePhase.Alert) }))
                 intent = HeedBrakeman(bot, intent, session.Predicted, session.World, me, others, calls);
         }
+        // Note 1021: a crewmate carried off by a Whistler, or taken in a car by a Climber: the one bot nearest goes for them.
+        if (!hunted && bot is RoofWalkerBot or GunnerBot)
+            intent = Heed.Taken(intent, session.Predicted, session.World, me, (bot as RoofWalkerBot)?.Job ?? (bot as GunnerBot)?.Job, others, calls);
         // Note 463: not the driver at the controls of a moving train. Gone back along the hood for a walker grabbed on the
         // engine's roof (out of reach from inside it), the driver never came back, and the fire went out under it.
         if (!hunted && !(bot is ConductorBot { Driving: true } && session.Train.Dynamics.Speed > Net.CabControls.StandingBelow))

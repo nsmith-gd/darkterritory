@@ -75,10 +75,14 @@ public static class ArtCatalog
         // A car's damage rides on its body (the car class's budget, what the body leaves of it: the kit's are 9-11k).
         // The boiler's tear and the plate bolted over it once mended (note 991).
         list.Add(new("rupture-tear", SmallProp, () => TrainKit.RuptureTear(look)));
+        list.Add(new("rupture-tear-open", SmallProp, () => TrainKit.RuptureTear(look, open: true)));
         list.Add(new("rupture-patch", SmallProp, () => TrainKit.RupturePatch(look)));
         // A house's cellar and loose boards, shut and searched (note 991).
         list.Add(new("cellar-hatch", SmallProp, () => TownKit.CellarHatch(look)));
         list.Add(new("cellar-open", SmallProp, () => TownKit.CellarOpen(look)));
+        // Note 1005: a basement's chest, shut and searched.
+        list.Add(new("cellar-chest", SmallProp, () => TownKit.CellarChest(look, open: false)));
+        list.Add(new("cellar-chest-open", SmallProp, () => TownKit.CellarChest(look, open: true)));
         list.Add(new("loose-boards", SmallProp, () => TownKit.LooseBoards(look)));
         list.Add(new("underfloor-open", SmallProp, () => TownKit.UnderFloorOpen(look)));
         list.Add(new("hatch-lid", SmallProp, () => TrainKit.HatchLid(look, new System.Numerics.Vector3(1.4f, 0.15f, 2.4f))));
