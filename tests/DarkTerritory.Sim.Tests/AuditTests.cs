@@ -309,6 +309,44 @@ public class AuditTests
         Assert.Equal(["CarHugger"], stop.Unstaged);
     }
 
+    // ---- App. B.10 contradiction quality (note 1032): the conflict table as the sweep runs it.
+
+    [Fact]
+    public void EveryConflictPairIsACreatureOrAConditionTheSweepCanStage()
+    {
+        var pairs = Combinations.Conflicts(Tuning.Enemies.Director.Conflicts);
+        Assert.Equal(Tuning.Enemies.Director.Conflicts.Select(p => string.Join("+", p)).Distinct().Count(), pairs.Count);
+        Assert.All(pairs, p => Assert.True(p.Unknown.Count == 0, $"{p.Name}: {string.Join(", ", p.Unknown)}"));
+        // Every pair has a creature to insist on; the Choir is one, and a stop or a grade is staged.
+        Assert.All(pairs, p => Assert.NotEmpty(p.Kinds));
+        var hounds = Assert.Single(pairs, p => p.Name == "choir+cinderHounds");
+        Assert.Equal([EnemyKind.Choir, EnemyKind.CinderHound], hounds.Kinds);
+        var whistler = Assert.Single(pairs, p => p.Name == "whistler+facilityStop");
+        Assert.True(whistler.AtStop);
+        Assert.Equal([EnemyKind.Whistler], whistler.Kinds);
+        Assert.True(Assert.Single(pairs, p => p.Name == "carHugger+grade").Grade);
+        // A table typo is caught, not silently dropped.
+        Assert.Equal(["sleeeper"], Combinations.Conflicts([["sleeeper", "grade"]])[0].Unknown);
+    }
+
+    [Fact]
+    public void AConflictPairIsStagedWhereItsMadeAtAStopOrShortOfAGrade()
+    {
+        var route = LineGen.Routes.Generate(Content, "frontier:7", 6);
+        var line = route.Build();
+        double yard = route.GateOr(Tuning.Route.YardLength);
+        // The Track Doll comes on the line; with the loading in its pair it's staged short of a facility's spur.
+        var loading = Combinations.Stage(route, line, [EnemyKind.TrackDoll], Tuning.Enemies, yard, 20, stop: true);
+        Assert.True(loading.AtStop);
+        Assert.Contains(line.Branches, b => b.Kind == BranchKind.Spur && b.Toe - loading.StartM > 0 && b.Toe - loading.StartM < 1000);
+        // A grade pair starts within reach of a stretch as steep as the director's "grade".
+        double within = Balance.Combinations.GradeWithinM;
+        var grade = Combinations.Stage(route, line, [EnemyKind.TippyToesie], Tuning.Enemies, yard, 20, atStops: false, gradeWithin: within);
+        Assert.Empty(grade.Unstaged);
+        Assert.Contains(Enumerable.Range(0, (int)(within / 50) + 1), i =>
+            Math.Abs(line.Sample(RailLine.MainPath, grade.StartM + i * 50).GradePercent) >= Tuning.Enemies.Director.GradePercent);
+    }
+
     // ---- §34 degraded comms: the crew's calls over a lossy, laggy voice.
 
     static readonly PlayerState Aboard = new() { Parent = 2, Health = 100 };

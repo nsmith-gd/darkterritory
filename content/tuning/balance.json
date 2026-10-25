@@ -40,6 +40,10 @@
     // to get there, cut the train and get down on the ground to load. Without, they're sent at the crew boarding from the
     // ballast at the start.
     "approachM": 350, "stopSeconds": 150,
+    // App. B.10 "every seeded pair is solvable" (dt balance --conflicts; note 1032): the director's conflict table run as
+    // combinations. A pair with a stop or its loading in it is staged at one, as --at-stops does; a pair with a grade starts
+    // with a stretch as steep as the director's "grade" (enemies.json director.gradePercent) within gradeWithinM ahead.
+    "gradeWithinM": 1200,
     "unwinnableLost": 0.5, "trivialCargoLoss": 0.02,
     // GDD §34 "every pair and triple": a meeting the bots never give its chance can't be judged (note 186's "dormant"). On
     // these nights only, the last walker is the look-out (note 212): off the ballast at the start it waits up to waitSeconds
@@ -109,5 +113,18 @@
   // beyondMetres: they hear it and can come); two crewmates busy (a carry, a timed job, a module, a gun's reload) within
   // pairMetres of each other are at one job. A stop's moments run from arriving till afterStopSeconds after leaving.
   // stopsWithShared: the share of stops a crew of two or more should meet one at (advisory, for the director to set).
-  "shared": { "nearMetres": 26, "pairMetres": 6, "afterStopSeconds": 30, "stopsWithShared": 0.5 }
+  "shared": { "nearMetres": 26, "pairMetres": 6, "afterStopSeconds": 30, "stopsWithShared": 0.5 },
+
+  // GDD App. B.10 "Want balance: generated runs land near the target shares" (note 1032): over a sweep's nights, what the
+  // director spent on each want (kill, split, trust, cargo) is within tolerance of its share of the whole spend
+  // (enemies.json director.wantShares; App. B.1 v1.1). Judged only once minSpent has been spent over the sweep: a few
+  // spends are too few to have shares. DESIGN-TODO: first pass; the director weighs a want back toward its share, it
+  // doesn't hold it there.
+  "wantBalance": { "tolerance": 0.10, "minSpent": 40 },
+
+  // GDD App. B.10 "Tier progression: Deep territory is meaningfully harder than Local at matched crew and length" (note
+  // 1032; dt balance --tiers local,deepTerritory). At every crew size and train length the sweep ran on both tiers, the
+  // harder tier's nights get home no more often than the easier's, and its threats land (punishes an hour out on the
+  // line) at least punishRatio times as often. DESIGN-TODO: first pass, "meaningfully" read as a quarter again.
+  "tiers": { "easier": "local", "harder": "deepTerritory", "punishRatio": 1.25 }
 }

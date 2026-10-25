@@ -21,7 +21,17 @@ public sealed record BalanceTuning(int SurvivableCrew, double SurvivableDelivere
     public PacingTargets Pacing { get; init; } = new();
     /// <summary>What counts as a shared problem, and how many stops should have one (note 861).</summary>
     public SharedTuning Shared { get; init; } = new();
+    /// <summary>App. B.10's want balance: how near its share each want's spend lands (note 1032).</summary>
+    public WantBalanceTuning WantBalance { get; init; } = new();
+    /// <summary>App. B.10's tier progression: the harder tier against the easier at matched crew and cars (note 1032).</summary>
+    public TierProgressionTuning Tiers { get; init; } = new();
 }
+
+/// <summary>GDD App. B.10 "Want balance" (note 1032). Field docs live in balance.json.</summary>
+public sealed record WantBalanceTuning(double Tolerance = 0.10, double MinSpent = 40);
+
+/// <summary>GDD App. B.10 "Tier progression" (note 1032). Field docs live in balance.json.</summary>
+public sealed record TierProgressionTuning(string Easier = "local", string Harder = "deepTerritory", double PunishRatio = 1.25);
 
 /// <summary>
 /// The orchestrator's pacing targets (docs/design/orchestrator.md §4; note 379): P1, nobody slack past the census's press for
@@ -58,6 +68,8 @@ public sealed record BalanceRow(RouteTier Tier, ulong Seed, int Crew, int Cars, 
     /// <summary>The stops the train stood at, and those with a shared problem in them (note 861).</summary>
     public int Stops { get; init; }
     public int StopsWithShared { get; init; }
+    /// <summary>What the director spent on each want tonight (App. B.1 v1.1; note 1032).</summary>
+    public IReadOnlyDictionary<string, double> SpentByWant { get; init; } = new Dictionary<string, double>();
 }
 
 /// <summary>The nights with one crew size (or train length) together.</summary>
@@ -93,10 +105,12 @@ public static class Balance
             QuietShare = r.Pacing?.QuietShare ?? 0,
             Stops = r.Shared?.Stops.Count ?? 0,
             StopsWithShared = r.Shared?.StopsWithShared ?? 0,
+            SpentByWant = threats?.SpentByWant ?? new Dictionary<string, double>(),
         };
     }
 
-    public static BalanceReport Judge(IReadOnlyList<BalanceRow> rows, BalanceTuning t)
+    /// <param name="wantShares">enemies.json <c>director.wantShares</c>, App. B.10's want balance's targets; none, not judged.</param>
+    public static BalanceReport Judge(IReadOnlyList<BalanceRow> rows, BalanceTuning t, IReadOnlyDictionary<string, double>? wantShares = null)
     {
         static IReadOnlyList<BalanceGroup> By(IEnumerable<BalanceRow> rows, Func<BalanceRow, int> key) =>
             [.. rows.GroupBy(key).OrderBy(g => g.Key).Select(g => new BalanceGroup(g.Key, g.Count(),
@@ -149,8 +163,57 @@ public static class Balance
             checks.Add(new BalanceCheck($"stops shared (≥ {t.Shared.StopsWithShared:P0} with a problem for two)", share >= t.Shared.StopsWithShared,
                 $"{share:P0} of {stops} stops", Advisory: true));
         }
+        if (wantShares is { Count: > 0 } && WantBalance(rows, wantShares, t.WantBalance) is { } wants)
+            checks.Add(wants);
+        checks.AddRange(TierProgression(rows, t.Tiers));
         int unfair = rows.Sum(r => r.FairnessViolations);
         checks.Add(new BalanceCheck("fair (App. A.1)", unfair == 0, $"{unfair} commits without the reaction window"));
         return new BalanceReport(rows, byCrew, byCars, checks, checks.All(c => c.Pass || c.Advisory));
+    }
+
+    /// <summary>
+    /// App. B.10 "Want balance: generated runs land near the target shares" (note 1032): the sweep's spend by want, each
+    /// want's share of it within the tolerance of its target. Null until the sweep has spent enough to have shares.
+    /// </summary>
+    public static BalanceCheck? WantBalance(IReadOnlyList<BalanceRow> rows, IReadOnlyDictionary<string, double> shares, WantBalanceTuning t)
+    {
+        var spent = rows.SelectMany(r => r.SpentByWant).GroupBy(kv => kv.Key).ToDictionary(g => g.Key, g => g.Sum(kv => kv.Value));
+        double total = spent.Values.Sum();
+        if (total < t.MinSpent)
+            return null;
+        double targets = shares.Values.Sum();
+        var off = shares.Keys.Concat(spent.Keys).Distinct().Order(StringComparer.Ordinal)
+            .Select(w => (Want: w, Share: spent.GetValueOrDefault(w) / total, Target: shares.GetValueOrDefault(w) / targets)).ToList();
+        var worst = off.MaxBy(x => Math.Abs(x.Share - x.Target));
+        return new BalanceCheck($"want balance (each want within {t.Tolerance:P0} of its share)", Math.Abs(worst.Share - worst.Target) <= t.Tolerance + 1e-9,
+            string.Join(", ", off.Select(x => $"{x.Want} {x.Share:P0} (of {x.Target:P0})")) + $" over {total:0} spent");
+    }
+
+    /// <summary>
+    /// App. B.10 "Tier progression: Deep territory is meaningfully harder than Local at matched crew and length" (note
+    /// 1032): at each crew size and train length the sweep ran on both tiers, the harder gets home no more often and its
+    /// threats land (punishes an hour) at least <see cref="TierProgressionTuning.PunishRatio"/> times as often. Nothing
+    /// when the sweep has no cell on both.
+    /// </summary>
+    public static IEnumerable<BalanceCheck> TierProgression(IReadOnlyList<BalanceRow> rows, TierProgressionTuning t)
+    {
+        var easier = Enum.Parse<RouteTier>(t.Easier, ignoreCase: true);
+        var harder = Enum.Parse<RouteTier>(t.Harder, ignoreCase: true);
+        static (double Delivered, double PerHour, int Nights) Of(IEnumerable<BalanceRow> nights)
+        {
+            var list = nights.ToList();
+            double hours = list.Sum(r => r.Seconds) / 3600;
+            return (list.Average(r => r.Delivered ? 1.0 : 0.0), hours > 0 ? list.Sum(r => r.Punishes) / hours : 0, list.Count);
+        }
+        foreach (var cell in rows.GroupBy(r => (r.Crew, r.Cars)).OrderBy(g => g.Key.Crew).ThenBy(g => g.Key.Cars))
+        {
+            if (!cell.Any(r => r.Tier == easier) || !cell.Any(r => r.Tier == harder))
+                continue;
+            var e = Of(cell.Where(r => r.Tier == easier));
+            var h = Of(cell.Where(r => r.Tier == harder));
+            bool pass = h.Delivered <= e.Delivered && h.PerHour >= t.PunishRatio * e.PerHour && (h.PerHour > 0 || h.Delivered < e.Delivered);
+            yield return new BalanceCheck($"{t.Harder} harder than {t.Easier} (crew {cell.Key.Crew}, {cell.Key.Cars} cars)", pass,
+                $"delivered {h.Delivered:P0} against {e.Delivered:P0}; {h.PerHour:0.0} punishes an hour against {e.PerHour:0.0} (at least ×{t.PunishRatio}); {h.Nights} and {e.Nights} nights");
+        }
     }
 }

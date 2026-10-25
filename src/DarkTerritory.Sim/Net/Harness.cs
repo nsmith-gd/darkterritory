@@ -281,6 +281,8 @@ public sealed record ThreatReport(double Budget, double Spent, IReadOnlyDictiona
     public string? DerailCause { get; init; }
     /// <summary>The conflict-table pairs the director put together (App. B.1).</summary>
     public IReadOnlyList<string> Pairs { get; init; } = [];
+    /// <summary>What the director spent on each want (App. B.1 v1.1's want balance; B.10, note 1032).</summary>
+    public IReadOnlyDictionary<string, double> SpentByWant { get; init; } = new Dictionary<string, double>();
     /// <summary>The night's creatures gone to ground before dawn (note 635; <see cref="World.FledAtDawn"/>).</summary>
     public int FledAtDawn { get; init; }
     /// <summary>Seconds out on the line by what the director did each second: sent something, or why it held back (T114).</summary>
@@ -803,6 +805,7 @@ public static class Harness
                 Math.Round(host.Train.Vehicles.Where(v => v.Kind == VehicleKind.Cargo).DefaultIfEmpty().Average(v => v?.CargoIntegrity ?? 1), 3), rounds)
             {
                 Pairs = [.. d.Pairs],
+                SpentByWant = new SortedDictionary<string, double>(d.SpentByWant.ToDictionary(kv => kv.Key, kv => Math.Round(kv.Value, 2)), StringComparer.Ordinal),
                 FledAtDawn = host.World.FledAtDawn,
                 DerailCause = host.World.DerailCause,
                 Director = held,
