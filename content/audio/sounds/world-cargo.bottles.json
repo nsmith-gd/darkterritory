@@ -1,0 +1,20 @@
+// What's in a car heard through its slats (GDD Part Eleven question 7; queue #727, note 1025): a car of chemicals or
+// medicine, its bottles and carboys clinking in their straw as the car rides, quicker and louder the faster it goes
+// ("speed", m/s), a few a second at a walk and barely at all stood still. GameAudio.WorldCargo holds it at each such car,
+// as loud as its cargo's integrity, and lets it go once what's in it is lost. A synth stand-in until the audio chat
+// makes it a checklist line: glass on glass is a short tick ringing at two high partials.
+{
+  "tier": 6, "loop": true, "maxInstances": 8, "minDistance": 2, "maxDistance": 45, "rolloff": 0.9, "gainDb": 20,
+  "layers": [
+    // The clinks: ticks at an uneven pace (the tremolo's jitter drops some), rung at glass's partials.
+    { "source": "impulse", "frequency": { "param": "speed", "points": [[0, 1.2], [4, 4], [20, 9]] },
+      "gain": { "param": "speed", "points": [[0, 0.18], [3, 0.55], [20, 0.85]] },
+      "filters": [{ "type": "bandPass", "frequency": 3100, "q": 14 }, { "type": "peak", "frequency": 4700, "q": 9, "gainDb": 6 }],
+      "tremolo": { "rate": { "param": "speed", "points": [[0, 0.7], [20, 3.1]] }, "depth": 1, "duty": 0.45, "jitter": 0.6 } },
+    // A second crate of them, out of step with the first, a little lower.
+    { "source": "impulse", "frequency": { "param": "speed", "points": [[0, 0.8], [4, 2.7], [20, 6.5]] },
+      "gain": { "param": "speed", "points": [[0, 0.12], [3, 0.4], [20, 0.6]] },
+      "filters": [{ "type": "bandPass", "frequency": 2300, "q": 12 }, { "type": "peak", "frequency": 3900, "q": 8, "gainDb": 5 }],
+      "tremolo": { "rate": { "param": "speed", "points": [[0, 0.5], [20, 2.3]] }, "depth": 1, "duty": 0.4, "jitter": 0.7 } }
+  ]
+}

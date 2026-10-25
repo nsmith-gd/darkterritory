@@ -115,6 +115,13 @@
   // run.json departShortOfGateM), "out" m off the line on the town's side; the smith "stand" m in front of it. Use pressed on
   // them opens the catalogue (campaign.json upgrades; note 904: talking to him is buying from him).
   "smithy": { "fromGate": -18, "out": 8.5, "stand": 2.2 },
+  // The buyer in the square (GDD §3.1's "turning loot into scrip in the town itself"; note 1027; the director's ask
+  // nathaniel3-gdd-town-buyer still open, so on by default behind "enabled": false is the night's tally alone, as before).
+  // Their stall stands "fromGate" m along the line from the gate and "out" m off it on the town's side, beside the forge;
+  // the buyer "stand" m in front of it, facing the line. A find in hand, Use pressed within "reach" m of them, is sold, for
+  // "pays" of what the night's tally pays for it (under 1, so the tally stays the better deal), rounded to fives; in a town
+  // cold to the crew ("standing" above), (1 - "colder" x how cold) of that. A find the tally has paid for is never bought.
+  "buyer": { "enabled": true, "fromGate": -26, "out": 8.5, "stand": 2.2, "reach": 2.5, "pays": 0.8, "colder": 0.5 },
   // A town's standing with the crew (GDD §3.1 "A town remembers"; note 1024; the director's ask on note 949, question 2, still
   // open: these are the default till it's answered). Each creature ridden in through its gate makes the town "perCreature"
   // percent colder to the crew (up to "most"), easing "easePerNight" a night settled, wherever the crew is; kept per town in

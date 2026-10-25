@@ -251,6 +251,23 @@
     // come apart from the third, or as its failing stage has it, whichever's worse.
     "eatenHoles": [0.15, 0.35, 0.6]
   },
+  // A car's cargo read from outside it (GDD Part Eleven question 7; note 949 rank 14; queue #727, note 1025): a crew on the
+  // roofs or in the yard reads a loaded car at a glance. Presentation only; the director hasn't answered the inbox's
+  // nathaniel3-gdd-cargo-visible yet, so "enabled" (default on) is the whole of it.
+  "cargoOutside": {
+    "enabled": true,
+    // A loaded cargo car's shut side doors stand cracked this share of their slide (a crew sees in; nothing gets through).
+    "crack": 0.14,
+    // Its placards (powder, chemicals, medicine, the comet) and the stain are drawn this near the eye (m); the livestock's
+    // breath out of the crack and their heads at it this near, the breath as much as the night's cold shows.
+    "placardWithin": 160,
+    "breathWithin": 45,
+    // Its cargo's integrity (spec F.1) under "spoiledBelow": spoiled, a stain down the side under its doors; under
+    // "lostBelow": lost, a side door hanging off its runner and no crack. What's heard through the slats goes with it, as
+    // loud as the cargo's integrity, silent once lost.
+    "spoiledBelow": 0.5,
+    "lostBelow": 0.08
+  },
   // A car eaten from its rear end by a Car Hugger (GDD v1.2 App. A.3 FEED; ARCHITECTURE §8 note 109), by how much of
   // what was left of it has been eaten (Vehicle.Eaten over eaten plus integrity: 1 is eaten through, when it's dropped).
   "bite": {
