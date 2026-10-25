@@ -42,7 +42,7 @@
     { "match": "net.downKbps", "bad": "up", "rel": 0.1, "abs": 2.0, "what": "kbit/s down to each client" },
     { "match": "net.upKbps", "bad": "up", "rel": 0.1, "abs": 2.0, "what": "kbit/s up from each client" },
     { "match": "net.maxCorrectionM", "bad": "up", "rel": 0.5, "abs": 0.25, "what": "the worst correction a client took (m)" },
-    // Queue #256's moments (note 519), once the harness reports them: more is better. Absent until then, and skipped.
+    // Queue #256's moments (note 1034; `dt trends measure` scores each night's, tools/moments/scores.json): more is better.
     { "match": "moments.*", "bad": "down", "rel": 0.25, "abs": 1.0, "what": "clip-worthy moments a night (#256)" },
     // The CPU the nights cost, measured by `dt trends measure` itself: a runner's speed varies, so its band is wide.
     { "match": "sim.cpuMsPerTick", "bad": "up", "rel": 0.3, "what": "CPU ms a tick, the host's and every bot client's, four nights at once" },
