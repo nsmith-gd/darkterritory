@@ -36,6 +36,8 @@ public sealed record TownTuning
     public NickiWine Wine { get; init; } = new();
     /// <summary>The blacksmith's forge (towns.json <c>smithy</c>; note 697). Unset, a town has none.</summary>
     public SmithyTuning? Smithy { get; init; }
+    /// <summary>A town's standing with the crew (towns.json <c>standing</c>; GDD §3.1 "A town remembers", note 1024).</summary>
+    public StandingTuning Standing { get; init; } = new();
     public required int[] Quirks { get; init; }
     public required int[] Notices { get; init; }
     /// <summary>How many of the board's notices are the town's own (its culture's <c>board</c>; note 669).</summary>
@@ -428,6 +430,14 @@ public sealed record TownBroughtIn
     public string[] Houses { get; init; } = [];
     public string[] Gate { get; init; } = [];
     public string[] Guard { get; init; } = [];
+    /// <summary>
+    /// Its standing with the crew (note 1024), while it's cold to them: the gatekeeper saying why ({town}); the townsfolk's wary
+    /// lines; through a lived-in door kept shut ({family}); the blacksmith's word on the price.
+    /// </summary>
+    public string[] Standing { get; init; } = [];
+    public string[] Wary { get; init; } = [];
+    public string[] Door { get; init; } = [];
+    public string[] Smith { get; init; } = [];
 }
 
 /// <summary>
@@ -452,6 +462,65 @@ public sealed record TownText(string Title, string Text);
 /// catalogue (note 904).
 /// </summary>
 public sealed record SmithyTuning(double FromGate = -18, double Out = 8.5, double Stand = 2.2);
+
+/// <summary>What bringing a creature into a town costs the crew there (GDD §3.1 "A town remembers"; note 1024).</summary>
+public enum StandingMode : byte
+{
+    /// <summary>Nothing more than its burnt houses (note 608).</summary>
+    Off,
+    /// <summary>A colder welcome (wary lines, doors kept shut, waves not returned) and dearer upgrades at its blacksmith.</summary>
+    Welcome,
+    /// <summary>All of that, and fewer guards: the yard's next fight goes on longer and burns more.</summary>
+    Guards,
+}
+
+/// <summary>
+/// A town's standing with the crew (towns.json <c>standing</c>; GDD §3.1 "A town remembers", the director's ask on note 949
+/// question 2; note 1024). A creature ridden in through its gate makes the town <see cref="PerCreature"/> colder to the crew
+/// (percent, up to <see cref="Most"/>), easing <see cref="EasePerNight"/> each night settled, wherever the crew is. Field docs
+/// live in towns.json. Unset, it's off: an older content's towns remember only their burnt houses.
+/// </summary>
+public sealed record StandingTuning
+{
+    public StandingMode Mode { get; init; }
+    public int PerCreature { get; init; } = 40;
+    public int Most { get; init; } = 100;
+    public int EasePerNight { get; init; } = 15;
+    public double Dearer { get; init; }
+    public double Wary { get; init; }
+    public double Doors { get; init; }
+    public double Waves { get; init; }
+    public double FightLonger { get; init; }
+    public double MoreBurns { get; init; }
+    public double FewerGuards { get; init; }
+
+    public bool On => Mode != StandingMode.Off;
+
+    /// <summary>A content's towns.json <c>standing</c>; off where it has no towns.</summary>
+    public static StandingTuning Load(string content) =>
+        System.IO.File.Exists(Path.Combine(content, TownTuning.File)) ? DataFile.Load<TownTuning>(Path.Combine(content, TownTuning.File)).Standing : new();
+
+    /// <summary>How cold a town is to the crew (0 to 1) at <paramref name="cold"/> percent; nothing with the flag off.</summary>
+    public double Of(int cold) => On ? Math.Clamp(cold, 0, 100) / 100.0 : 0;
+
+    /// <summary>What the town's blacksmith asks over the list price at <paramref name="cold"/> percent (1, the list price).</summary>
+    public double Price(int cold) => 1 + Dearer * Of(cold);
+
+    /// <summary>How much longer the yard's fight goes on (a factor) in a town this cold, with fewer guards (<see cref="StandingMode.Guards"/>).</summary>
+    public double Fight(int cold) => Mode == StandingMode.Guards ? 1 + FightLonger * Of(cold) : 1;
+
+    /// <summary>The houses more each creature brought in burns in a town this cold, with fewer guards.</summary>
+    public int Burns(int cold) => Mode == StandingMode.Guards ? (int)Math.Round(MoreBurns * Of(cold), MidpointRounding.AwayFromZero) : 0;
+
+    /// <summary>How many of a town's <paramref name="guards"/> keep back from the yard's fight in a town this cold, with fewer guards.</summary>
+    public int GuardsKept(int guards, int cold) => Mode == StandingMode.Guards ? Math.Min(guards, (int)Math.Floor(guards * FewerGuards * Of(cold) + 1e-9)) : 0;
+
+    /// <summary>A town at <paramref name="cold"/> percent after <paramref name="nights"/> nights settled.</summary>
+    public int Eased(int cold, int nights = 1) => Math.Max(0, cold - EasePerNight * Math.Max(0, nights));
+
+    /// <summary>A town at <paramref name="cold"/> percent with <paramref name="brought"/> more creatures ridden in.</summary>
+    public int Brought(int cold, int brought) => On && brought > 0 ? Math.Min(Most, cold + PerCreature * brought) : cold;
+}
 
 /// <summary>
 /// A piece of a town's works (note 353): its <see cref="Kind"/> (its art and its size, <see cref="TownFixtures.Size"/>), what

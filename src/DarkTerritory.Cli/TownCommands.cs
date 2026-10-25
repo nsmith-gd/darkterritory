@@ -17,6 +17,8 @@ static class TownCommands
         var roster = DataFile.Load<EnemyTuning>(Path.Combine(content, EnemyTuning.File)).Director.Roster;
         if (args.Length > 1 && args[1] == "sweep")
             return Sweep(towns, roster, (int)Opt(args, "--seeds", 200));
+        if (args.Length > 1 && args[1] == "standing")
+            return Standing(content, towns, roster, args);
         string spec = Str(args, "--route", "frontier:7");
         var route = Routes.Generate(content, spec, (int)Opt(args, "--cars", 6));
         double gate = route.GateOr(RouteTuning.Load(content).YardLength);
@@ -149,6 +151,67 @@ static class TownCommands
 
     /// <summary>Many towns from made-up sites: how often each custom comes up, and the longest line and paper against the
     /// cards' limits (TownTests holds the same).</summary>
+    /// <summary>
+    /// `dt town standing [--route frontier:7] [--brought 1] [--nights 6] [--mode welcome|guards|off]` (note 1024; GDD §3.1 "A town
+    /// remembers"): a campaign's crew brings <c>--brought</c> creatures into the route's terminus town, then rides
+    /// <c>--nights</c> more nights elsewhere, settled as the app settles them. Each night: how cold the town is to the crew, what
+    /// its blacksmith asks (and another town's for the same thing), what its gatekeeper says first, how many of its people are
+    /// wary, its doors shut and its waves unreturned, and with fewer guards its yard's fight and burns.
+    /// </summary>
+    static object Standing(string content, TownContent towns, string[] roster, string[] args)
+    {
+        var standing = towns.Tuning.Standing;
+        if (Str(args, "--mode", "") is { Length: > 0 } mode)
+            standing = standing with { Mode = Enum.Parse<StandingMode>(mode, ignoreCase: true) };
+        var content2 = towns with { Tuning = towns.Tuning with { Standing = standing } };
+        var t = DataFile.Load<DarkTerritory.Sim.Campaign.CampaignTuning>(Path.Combine(content, DarkTerritory.Sim.Campaign.CampaignTuning.File));
+        var run = DataFile.Load<DarkTerritory.Sim.Run.RunTuning>(Path.Combine(content, DarkTerritory.Sim.Run.RunTuning.File));
+        string spec = Str(args, "--route", "frontier:7");
+        var route = Routes.Generate(content, spec, (int)Opt(args, "--cars", 6));
+        double gate = route.GateOr(RouteTuning.Load(content).YardLength);
+        var trades = LineGenContent.Cached(content).Config.Tiers.Fortress.Identities;
+        var town = TownAt.Terminus(route, trades) ?? throw new InvalidOperationException($"{spec} ends at a silent settlement: no town to bring anything into");
+        var other = new TownAt("Elsewhere", town.Industry, town.Seed + 1);
+        int brought = (int)Opt(args, "--brought", 1), nights = (int)Opt(args, "--nights", 6);
+        var upgrade = t.Upgrades.First(u => u.Effect.Count > 0);
+        var s = DarkTerritory.Sim.Campaign.Campaign.New(t, 1, "standing", 1);
+        DarkTerritory.Sim.Run.RunReport Night(DarkTerritory.Sim.Run.RunEnd end, int n) =>
+            new(end, 1000, 7, 6, 0, 6, 1000, 50, 0, 0, 950, 4, 0) { BroughtIn = n, TownBurnt = n * run.BroughtIn.Burns };
+        // Tonight: delivered into the town with the creatures on the cars.
+        s = DarkTerritory.Sim.Campaign.Campaign.Arrived(DarkTerritory.Sim.Campaign.Campaign.Settle(s, Night(DarkTerritory.Sim.Run.RunEnd.Delivered, brought), t, standing),
+            Night(DarkTerritory.Sim.Run.RunEnd.Delivered, brought), town, standing);
+        var rows = new List<object>();
+        for (int night = 0; night <= nights; night++)
+        {
+            int cold = s.Standing.GetValueOrDefault(town.Key);
+            var here = s with { Town = town with { Burnt = s.Burnt.GetValueOrDefault(town.Key), Cold = standing.On ? cold : 0 } };
+            var plan = TownGenerator.Generate(content2, new TownSite(town.Name, town.Industry, gate, town.Seed, roster, null, here.Town!.Burnt) { Cold = here.Town.Cold });
+            var gatekeeper = plan.People.FirstOrDefault(p => p.Role == "gatekeeper");
+            var smith = plan.People.FirstOrDefault(p => p.Role == "blacksmith");
+            var said = towns.Writing.BroughtIn;
+            rows.Add(new
+            {
+                nightsAfter = night,
+                cold,
+                price = DarkTerritory.Sim.Campaign.Campaign.UpgradeCost(t, here, upgrade, standing),
+                elsewhere = DarkTerritory.Sim.Campaign.Campaign.UpgradeCost(t, s with { Town = other }, upgrade, standing),
+                gatekeeper = gatekeeper?.Lines.Take(2),
+                smith = smith?.Lines.FirstOrDefault(),
+                wary = plan.People.Count(p => said is not null && p.Lines.Any(l => said.Wary.Any(w => l == w.Replace("{town}", plan.Name)))),
+                people = plan.People.Count,
+                doorsShut = plan.Houses.Count(h => said is not null && h.Kind == HouseKind.Lived && said.Door.Any(d => h.Text == d.Replace("{town}", plan.Name).Replace("{family}", h.Family))),
+                knockable = plan.Houses.Count(h => h.Kind == HouseKind.Lived && h.Layout is null),
+                waveBack = Math.Round(1 - standing.Waves * standing.Of(plan.Cold), 2),
+                guardsTurnOut = plan.People.Count(p => Town.TurnsOut(p, plan, standing)),
+                fightSeconds = run.BroughtIn.FightSeconds * standing.Fight(plan.Cold),
+                burnsEach = run.BroughtIn.Burns + standing.Burns(plan.Cold),
+            });
+            // A night elsewhere, settled: it eases.
+            s = DarkTerritory.Sim.Campaign.Campaign.Settle(s, Night(DarkTerritory.Sim.Run.RunEnd.Delivered, 0), t, standing);
+        }
+        return new { town = town.Name, mode = standing.Mode.ToString(), brought, upgrade = upgrade.Id, listPrice = DarkTerritory.Sim.Campaign.Campaign.UpgradeCost(t, s with { Town = null }, upgrade), nights = rows };
+    }
+
     static object Sweep(TownContent towns, string[] roster, int seeds)
     {
         var cultures = new SortedDictionary<string, int>(StringComparer.Ordinal);

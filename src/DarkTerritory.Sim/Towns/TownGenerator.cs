@@ -11,6 +11,9 @@ namespace DarkTerritory.Sim.Towns;
 /// <para><see cref="Burnt"/>: how many of its houses are burnt out (note 608), the nearest where a train come in stands (<see cref="TownGenerator.Harmed"/>, note 966).</para>
 public sealed record TownSite(string Name, string Industry, double Gate, ulong Seed, IReadOnlyList<string> Roster, string? Last = null, int Burnt = 0)
 {
+    /// <summary>How cold the town is to the crew, in percent (note 1024).</summary>
+    public int Cold { get; init; }
+
     /// <summary>The town type to make it (note 692; "" the street town), or null to draw it from its trade and seed.</summary>
     public string? Form { get; init; }
 
@@ -19,7 +22,7 @@ public sealed record TownSite(string Name, string Industry, double Gate, ulong S
     {
         // The town arrived at last night (note 591) is its own seed's; any other, the route's.
         if (route.Plan?.Fortress is { } f)
-            return new TownSite(f.Name, f.Identity, gate, f.TownSeed ?? route.Seed, roster, last, f.TownBurnt);
+            return new TownSite(f.Name, f.Identity, gate, f.TownSeed ?? route.Seed, roster, last, f.TownBurnt) { Cold = f.TownCold };
         var rng = Streams.Rng(route.Seed, "town", "name");
         string[] industries = [.. content.Writing.Industries.Keys.Order(StringComparer.Ordinal)];
         return new TownSite("Fort " + rng.Pick(content.Surnames), industries.Length > 0 ? rng.Pick(industries) : "", gate, route.Seed, roster, last);
@@ -650,7 +653,9 @@ public static partial class TownGenerator
             Moles = form?.Moles ?? [],
             Quarrels = Quarrels(t.Quarrels, townsfolk, Rng("quarrels")),
         };
-        plan = Remember(plan, site.Burnt, w, Rng("remember"));
+        plan = Remember(plan, site.Burnt, w, Rng("remember"), quiet: t.Standing.Of(site.Cold) > 0);
+        // Its standing with the crew (note 1024), on a stream of its own: a town nobody's brought anything into draws nothing.
+        plan = Cold(plan, site.Cold, t.Standing, w, Rng("standing"));
         // What stands between the houses (note 989), last, on a stream of its own: nothing else in the town moves for it.
         return plan with { Between = TownBetween.Lay(plan, t.Between, Rng("between")) };
     }
@@ -690,7 +695,8 @@ public static partial class TownGenerator
     /// The town remembering what's been brought into it (note 608): its <paramref name="burnt"/> houses (<see cref="Harmed"/>)
     /// burnt out and shut, nobody home, and its gatekeeper and guards saying so first.
     /// </summary>
-    static TownPlan Remember(TownPlan plan, int burnt, TownWriting w, Pcg32 rng)
+    /// <param name="quiet">The gatekeeper says why the town's cold instead (<see cref="Cold"/>), so not this as well.</param>
+    static TownPlan Remember(TownPlan plan, int burnt, TownWriting w, Pcg32 rng, bool quiet = false)
     {
         var harmed = Harmed(plan, burnt);
         if (harmed.Count == 0 || w.BroughtIn is not { } said)
@@ -705,12 +711,56 @@ public static partial class TownGenerator
             var lines = p.Role switch { "gatekeeper" => said.Gate, "guard" => said.Guard, _ => [] };
             if (lines.Length == 0)
                 return p;
+            var line = Fill(rng.Pick(lines));
+            if (quiet && p.Role == "gatekeeper")
+                return p;
             var all = p.Lines.ToList();
             // The gate's law first, as ever; then this.
-            all.Insert(p.Role == "gatekeeper" && all.Count > 0 ? 1 : 0, Fill(rng.Pick(lines)));
+            all.Insert(p.Role == "gatekeeper" && all.Count > 0 ? 1 : 0, line);
             return p with { Lines = all };
         }).ToList();
         return plan with { Houses = houses, People = people, Burnt = harmed.Count };
+    }
+
+    /// <summary>
+    /// The town cold to the crew (note 1024; GDD §3.1 "A town remembers"): <paramref name="cold"/> percent, from the creatures
+    /// they brought in through its gate lately. The gatekeeper says why, on the way in; the blacksmith says what it costs now;
+    /// of everyone else, about <c>wary</c> × how cold it is open on a wary line, and as many of the lived-in doors stay shut
+    /// to them (towns.json <c>standing</c>). Nothing at all with it off or the town warm.
+    /// </summary>
+    static TownPlan Cold(TownPlan plan, int cold, StandingTuning t, TownWriting w, Pcg32 rng)
+    {
+        double c = t.Of(cold);
+        if (c <= 0 || w.BroughtIn is not { } said)
+            return plan with { Cold = t.On ? cold : 0 };
+        string Fill(string text, string? family = null) => text.Replace("{town}", plan.Name).Replace("{family}", family ?? "");
+        var people = plan.People.Select(p =>
+        {
+            (string[] lines, double chance) = p.Role switch
+            {
+                "gatekeeper" => (said.Standing, 1.0),
+                "blacksmith" => (t.Dearer > 0 ? said.Smith : [], 1.0),
+                "guard" => ([], 0.0),
+                _ => (said.Wary, t.Wary * c),
+            };
+            // Drawn for everyone alike, so who's wary doesn't move with who has lines to say it in.
+            bool says = rng.Chance(chance);
+            string? line = lines.Length > 0 ? Fill(rng.Pick(lines)) : null;
+            if (!says || line is null)
+                return p;
+            var all = p.Lines.ToList();
+            // The gate's law first, as ever; then why.
+            all.Insert(p.Role == "gatekeeper" && all.Count > 0 ? 1 : 0, line);
+            return p with { Lines = all };
+        }).ToList();
+        var houses = plan.Houses.Select(h =>
+        {
+            // Only a door the crew knocks on (an open house's door stands open: it's walked into, note 281).
+            bool shut = h.Kind == HouseKind.Lived && h.Layout is null && rng.Chance(t.Doors * c);
+            string? line = said.Door.Length > 0 ? Fill(rng.Pick(said.Door), h.Family) : null;
+            return shut && line is not null ? h with { Text = line } : h;
+        }).ToList();
+        return plan with { People = people, Houses = houses, Cold = cold };
     }
 
     /// <summary>How far a piece of stock stands out either side of its siding's middle (m; TownFixtures "van", "flatdory").</summary>

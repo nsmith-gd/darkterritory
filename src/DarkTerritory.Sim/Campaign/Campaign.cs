@@ -221,6 +221,12 @@ public sealed record CampaignState
     /// </summary>
     public IReadOnlyDictionary<string, int> Burnt { get; init; } = new Dictionary<string, int>();
     /// <summary>
+    /// How cold each town is to the crew now (note 1024; GDD §3.1 "A town remembers"), by <see cref="Towns.TownAt.Key"/>, in
+    /// percent: raised by the creatures they brought in through its gate, easing each night settled (towns.json
+    /// <c>standing</c>). A town not here is warm to them; a save from before it has none.
+    /// </summary>
+    public IReadOnlyDictionary<string, int> Standing { get; init; } = new Dictionary<string, int>();
+    /// <summary>
     /// The campaign's over (note 632; the director, the inbox, 12 Oct: a train taken at dawn ends it): the company has no more
     /// trains for this crew. The save is kept to be read, and the slot's next start is a new crew.
     /// </summary>
@@ -275,7 +281,13 @@ public static class Campaign
 
     public static double NextCarCost(CampaignTuning t, CampaignState s) => CarCost(t, s.Cars + 1);
 
-    public static double UpgradeCost(CampaignTuning t, CampaignState s, UpgradeDef u) => Math.Round(u.CostShare * NextCarCost(t, s));
+    /// <param name="standing">Towns.json <c>standing</c> (note 1024): the town the crew's in (its blacksmith's) asks more of a crew
+    /// it's cold to. Null, the list price.</param>
+    public static double UpgradeCost(CampaignTuning t, CampaignState s, UpgradeDef u, Towns.StandingTuning? standing = null) =>
+        Math.Round(u.CostShare * NextCarCost(t, s) * Dearer(s, standing));
+
+    /// <summary>What the blacksmith of the town the crew's in asks over the list price (note 1024): 1, the list price.</summary>
+    public static double Dearer(CampaignState s, Towns.StandingTuning? standing) => standing?.Price(s.Town?.Cold ?? 0) ?? 1;
 
     /// <summary>Spec F.4: the tier a consist this size works.</summary>
     public static RouteTier TierFor(CampaignTuning t, int cars) => t.Tiers.Where(x => cars >= x.FromCars).OrderBy(x => x.FromCars).Last().Tier;
@@ -315,7 +327,7 @@ public static class Campaign
         return s.Scrip < cost ? new(s, $"a car costs {cost:0} scrip; you have {s.Scrip:0}") : new(s with { Cars = s.Cars + 1, Scrip = s.Scrip - cost }, null);
     }
 
-    public static Purchase BuyUpgrade(CampaignTuning t, CampaignState s, string id)
+    public static Purchase BuyUpgrade(CampaignTuning t, CampaignState s, string id, Towns.StandingTuning? standing = null)
     {
         if (t.Upgrades.FirstOrDefault(u => u.Id == id) is not { } u)
             return new(s, $"no upgrade called '{id}'");
@@ -328,7 +340,7 @@ public static class Campaign
             return new(s, $"you already have {u.Name}");
         if (Unavailable(t, s, u) is { } why)
             return new(s, why);
-        double cost = UpgradeCost(t, s, u);
+        double cost = UpgradeCost(t, s, u, standing);
         return s.Scrip < cost ? new(s, $"{u.Name} costs {cost:0} scrip; you have {s.Scrip:0}") : new(s with { Upgrades = [.. s.Upgrades, id], Scrip = s.Scrip - cost }, null);
     }
 
@@ -469,15 +481,45 @@ public static class Campaign
     /// </summary>
     /// <para>The houses its creatures burnt there (note 608) are remembered against the town, with any from an earlier visit,
     /// and the town the crew's in carries them, so the next night's departure town has them burnt out.</para>
-    public static CampaignState Arrived(CampaignState s, RunReport report, Towns.TownAt? terminus)
+    /// <para>And it's colder to the crew for each creature they brought in (note 1024; towns.json <c>standing</c>, null or off:
+    /// nothing more), on top of what it still holds against them.</para>
+    public static CampaignState Arrived(CampaignState s, RunReport report, Towns.TownAt? terminus, Towns.StandingTuning? standing = null)
     {
         if (report.End != RunEnd.Delivered || terminus is null)
             return s;
+        int was = s.Standing.GetValueOrDefault(terminus.Key), cold = standing?.Brought(was, report.BroughtIn) ?? was;
+        if (cold != was)
+            s = s with { Standing = With(s.Standing, terminus.Key, cold) };
+        terminus = terminus with { Cold = standing?.On == true ? cold : 0 };
         int burnt = s.Burnt.GetValueOrDefault(terminus.Key) + report.TownBurnt;
         if (burnt <= 0)
             return s with { Town = terminus };
-        var all = new SortedDictionary<string, int>(s.Burnt.ToDictionary(), StringComparer.Ordinal) { [terminus.Key] = burnt };
-        return s with { Town = terminus with { Burnt = burnt }, Burnt = all };
+        return s with { Town = terminus with { Burnt = burnt }, Burnt = With(s.Burnt, terminus.Key, burnt) };
+    }
+
+    /// <summary><paramref name="by"/> with <paramref name="key"/> at <paramref name="n"/> (gone at 0), in key order for the save.</summary>
+    static SortedDictionary<string, int> With(IReadOnlyDictionary<string, int> by, string key, int n)
+    {
+        var all = new SortedDictionary<string, int>(by.ToDictionary(), StringComparer.Ordinal) { [key] = n };
+        if (n <= 0)
+            all.Remove(key);
+        return all;
+    }
+
+    /// <summary>
+    /// A night gone by (note 1024): every town that's cold to the crew is <c>standing.easePerNight</c> warmer, wherever the
+    /// crew is (the town they're in too). Null or off, as it is.
+    /// </summary>
+    public static CampaignState Eased(CampaignState s, Towns.StandingTuning? standing)
+    {
+        if (standing is null || s.Standing.Count == 0)
+            return s;
+        var eased = new SortedDictionary<string, int>(StringComparer.Ordinal);
+        foreach (var (key, cold) in s.Standing)
+            if (standing.Eased(cold) is var now and > 0)
+                eased[key] = now;
+        var town = s.Town is { } t ? t with { Cold = standing.On ? eased.GetValueOrDefault(t.Key) : 0 } : null;
+        return s with { Standing = eased, Town = town };
     }
 
     /// <summary>The route spec a contract's night is played on: from the town the crew's in, if it's in one (note 591).</summary>
@@ -501,8 +543,10 @@ public static class Campaign
     /// and brought in are kept (E.12 question 4). A train taken at dawn ends the campaign (<see cref="Ends"/>, note 632): settled
     /// all the same, so its last night is in the history, and closed.
     /// </summary>
-    public static CampaignState Settle(CampaignState s, RunReport report, CampaignTuning? t = null)
+    /// <para>And the night gone by eases every town cold to the crew (<see cref="Eased"/>, note 1024).</para>
+    public static CampaignState Settle(CampaignState s, RunReport report, CampaignTuning? t = null, Towns.StandingTuning? standing = null)
     {
+        s = Eased(s, standing);
         int cars = Math.Max(2, s.Cars - report.CarsLost);
         double scrip = s.Scrip + report.Net;
         var log = new RunLog(s.Runs + 1, s.Current?.Route ?? "?", report.End, report.Net, report.CarsLost, scrip) { Km = report.DistanceKm };
