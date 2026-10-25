@@ -122,8 +122,9 @@ public enum RunEnd : byte { None, Delivered, Derailed, CrewLost, DawnMissed, Str
 /// resumed night's own bodies of them (put back where they lay) aren't banked twice. Null in an older save.</param>
 /// <param name="Finders">Note 718: who brought each of <paramref name="Stowed"/> aboard (a player id, −1 not known), for the
 /// finder's line. Null in an older save.</param>
+/// <param name="Sold">Note 1027: what the town's buyer has paid tonight so far.</param>
 public sealed record RunTakings(double Scavenged, IReadOnlyList<LootFind> Stowed, double Mail, double TenderAtDeparture, double CoalLoaded,
-    int AmmoAtDeparture, IReadOnlyList<int>? Banked = null, IReadOnlyList<int>? Finders = null);
+    int AmmoAtDeparture, IReadOnlyList<int>? Banked = null, IReadOnlyList<int>? Finders = null, double Sold = 0);
 
 /// <summary>
 /// One of the night's best finds, as the clerk's tally names it (note 718): the kind, its name, how many came home, and what
@@ -183,6 +184,11 @@ public sealed record RunReport(RunEnd End, double Seconds, double DistanceKm, in
     /// </summary>
     public string Finder { get; init; } = "";
     public double FinderWorth { get; init; }
+    /// <summary>
+    /// Note 1027: what the town's buyer paid for finds sold to them before the tally (in <see cref="Gross"/>). What they pay
+    /// after it isn't here: the host's campaign takes it as it's paid (<see cref="Run.TakeSoldAfter"/>).
+    /// </summary>
+    public double Sold { get; init; }
 }
 
 /// <summary>
@@ -362,7 +368,7 @@ public sealed partial class Run
     /// and rounds it left the fortress with and the coal it's loaded since.
     /// </summary>
     public RunTakings Takings => new(Scavenged, [.. _stowed], Mail, _tenderAtDeparture, _coalLoaded, _ammoAtDeparture, [.. _banked.Values.Select(b => b.Owner)],
-        [.. _finders]);
+        [.. _finders], Sold);
 
     public void Step(World world, IReadOnlyCollection<PlayerState> crew, double dt)
     {
@@ -962,6 +968,9 @@ public sealed partial class Run
         if (world.Authority)
             world.Bookmarks.End(world, end, world.LastCrew);
         Report = Tally(world, crew);
+        // Note 1027: what it paid for, the buyer won't buy.
+        if (end == RunEnd.Delivered)
+            MarkTallied(world, [.. EngineRake(train).Consist.Vehicles.Select(v => v.Id)]);
     }
 
     /// <summary>
@@ -1029,7 +1038,8 @@ public sealed partial class Run
         double childPay = Math.Round(children * e.ChildPay * perCar);
         // The finds stowed aboard, and those on a locker's shelf in a car still on the engine (note 649).
         double scavenged = Scavenged + LockerFinds(world, attached);
-        double gross = delivered ? freightPay + childPay + scavenged + Mail : 0;
+        // Note 1027: what the town's buyer paid on the counter before the tally is the crew's whatever came of the night.
+        double gross = (delivered ? freightPay + childPay + scavenged + Mail : 0) + Sold;
         var (prizes, finder, finderWorth) = Prized(world, attached);
         double coal = Math.Max(0, _tenderAtDeparture + _coalLoaded - train.Boiler.Tender) * e.CoalPerUnit;
         double ammo = Math.Max(0, _ammoAtDeparture - train.Vehicles.Sum(v => v.Gun.Ammo)) * e.RoundsPerRound;
@@ -1080,6 +1090,7 @@ public sealed partial class Run
             TownHurt = hurt,
             TownBurnt = delivered ? BurnsEach * _broughtIn.Count : 0,
             Prizes = delivered ? prizes : [],
+            Sold = Sold,
             Finder = delivered && finder >= 0 ? IncidentLog.NameOf(world, finder) : "",
             FinderWorth = delivered && finder >= 0 ? finderWorth : 0,
             // D.8: who everyone is now, for the campaign to carry into the next night.
@@ -1248,6 +1259,7 @@ public sealed partial class Run
             _coalLoaded = takings.CoalLoaded;
             Mail = takings.Mail;
             Scavenged = takings.Scavenged;
+            Sold = takings.Sold;
             _stowed.Clear();
             _stowed.AddRange(takings.Stowed);
             _finders.Clear();
