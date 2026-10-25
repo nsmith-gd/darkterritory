@@ -1114,6 +1114,9 @@ public sealed partial class World
         if (Towns.Town.AtTerminus(content, route, Train.Line, gate, roster, plan.Culture, arrival) is { Origin: { } origin } there && Forts is { Count: > 1 } both)
         {
             Arrival = there;
+            // Note 1024: how cold the town is to the crew, for how its yard fights what they bring in (fewer guards).
+            if (Run is { } host)
+                host.Standing = (content.Tuning.Standing, there.Plan.Cold);
             Forts = [both[0], both[1] with { Square = there.Plan.Square.From(origin), Bounds = there.Plan.Bounds, Origin = origin, Ground = there.Ground }, .. both.Skip(2)];
         }
         Train.Walls = ClearSiteWork(StopsWalls(route));

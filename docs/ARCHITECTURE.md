@@ -1170,8 +1170,8 @@ written here instead is moved out by `tools/coord/notes.py split`; the Coordinat
 - [1009. The bot driver works the stops, never stands for nothing, runs into town and leaves the seat to the people (Pine, nathaniel2; queue #699;…](notes/1009.md)
 - [1010. The ping: a village means search it, a ping needs line of sight, and it clears when done (Hazel, nathaniel2; queue #700; the director's…](notes/1010.md)
 - [1011. The Tapper: a long folded thing that comes over the roof behind a gunner left alone on their gun, taps twice, and lifts them off the train…](notes/1011.md)
-- [1013. The Close: a soft grey sack that lies on the roof of a car the crew have crowded into, bows it in, pours in and pins them; burst it from…](notes/1013.md)
 - [1012. The Look Review brought up to date: eleven rounds of what had changed since 21 Oct, and the director's 64 verdicts of 23 Oct acted on…](notes/1012.md)
+- [1013. The Close: a soft grey sack that lies on the roof of a car the crew have crowded into, bows it in, pours in and pins them; burst it from…](notes/1013.md)
 - [1014. Failing cars holed for real, worse each stage: boards knocked out and roof sheets gone, cut through the car's own body (Sable, queue #717;…](notes/1014.md)
 - [1015. The director's creature verdicts of 23 Oct acted on: the Car Hugger's mouth closed, the Moose Mouse (renamed, bigger antlers), the Choir…](notes/1015.md)
 - [1016. The dining car's pub bar, eight lockers, and the Followers kept inside the cars (Moss, the Token Budget Manager's worker, nathaniel2; queue…](notes/1016.md)
@@ -1180,4 +1180,5 @@ written here instead is moved out by `tools/coord/notes.py split`; the Coordinat
 - [1019. A crewmate on speakers no longer sends the crew their own voices back: echo cancellation and an echo gate on the capture path (Wren,…](notes/1019.md)
 - [1020. A crew of two balanced like a crew of three, the Frontier night's end eased, fewer repeats: measured, then proposed on the Creature Tweaker…](notes/1020.md)
 - [1021. A grabbed crewmate rescued, and the ping's "I'll fetch it" kept (Pia, nathaniel3; queue #724; the director's playtest of 23 Oct,…](notes/1021.md)
+- [1024. A town's standing lowered by what's brought into it (n1-S1, nathaniel1; queue #652; GDD §3.1 "A town remembers" and v1.6's "Not yet"; the…](notes/1024.md)
 <!-- end of the notes index -->

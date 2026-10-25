@@ -438,8 +438,18 @@ public sealed partial class World
                     (who, best) = (p, d);
             }
             if (who is not null)
-                town.React(who.Id, e.Tick * SimConstants.TickSeconds, t.Wave.Seconds, feet, "wave");
+                town.React(who.Id, e.Tick * SimConstants.TickSeconds, t.Wave.Seconds, feet, Waves(town, who, e.Id) ? "wave" : "idle");
         }
+    }
+
+    /// <summary>
+    /// Whether <paramref name="who"/> waves back at the crew (note 1024): in a town cold to them (towns.json <c>standing.waves</c>
+    /// × how cold), as often as not they only stand and stare. Drawn from the wave and the person, the same on every machine.
+    /// </summary>
+    static bool Waves(Towns.Town town, Towns.Townsperson who, long wave)
+    {
+        double cut = town.Tuning.Standing.Waves * town.Tuning.Standing.Of(town.Plan.Cold);
+        return cut <= 0 || LineGen.Streams.Rng(LineGen.Streams.Hash(town.Plan.Name), "wave", who.Name, wave).NextDouble() >= cut;
     }
 
     /// <summary>Starts a tick's odd outcomes (host): happenings kept as long as <c>oddities.keepSeconds</c>.</summary>

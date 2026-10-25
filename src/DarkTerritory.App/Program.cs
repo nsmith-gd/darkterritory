@@ -1196,6 +1196,8 @@ CampaignState? Play(IPlaySession session, CampaignState? campaign)
     // the yard's hosted again to fit it. A press on them opens their catalogue (note 904), when there's a catalogue at all.
     bool refitWanted = false;
     bool smithy = campaignTuning.Upgrades.Length > 0;
+    // Note 1024: a town cold to the crew asks more at its forge.
+    frontEnd.Standing = DarkTerritory.Sim.Towns.StandingTuning.Load(content);
 #if DEVTOOLS
     // The blacksmith's unlock (note 747): a developer build's catalogue has a row to make everything free, any tier, any number
     // of times; on, a choice goes through it, and the refit's the same.
@@ -1209,7 +1211,7 @@ CampaignState? Play(IPlaySession session, CampaignState? campaign)
     frontEnd.SmithyBuy = net is { Host: not null } && campaign is not null ? id =>
     {
         double scripBefore = campaign!.Scrip;
-        var bought = Campaign.BuyUpgrade(campaignTuning, campaign!, id);
+        var bought = Campaign.BuyUpgrade(campaignTuning, campaign!, id, frontEnd.Standing);
 #if DEVTOOLS
         if (devUnlock.On)
             bought = DarkTerritory.Dev.Smithy.DevUnlock.Buy(campaignTuning, campaign!, id);
@@ -1523,6 +1525,8 @@ CampaignState? Play(IPlaySession session, CampaignState? campaign)
                 Cars = net.Setup.Cars,
                 Scrip = net.Setup.Scrip,
                 Upgrades = net.Setup.Upgrades,
+                // Note 1024: the forge's town as cold to the crew as the host's prices have it.
+                Town = new DarkTerritory.Sim.Towns.TownAt(forgeTown.Plan.Name, "", 0, Cold: forgeTown.Plan.Cold),
             } : null)) is { } stock)
         {
             townTalk.Close();
@@ -2331,11 +2335,13 @@ static CampaignState Autosave(SaveSlots saves, PlayerProfile profile, CampaignSt
         // E.6: the shuffle bag goes into the save with the night (a derail drew from it).
         // Note 281: and the town it left, so the next night's isn't the same custom again.
         // Note 632: a train taken at dawn ends the campaign (campaign.json dawnEndsCampaign).
-        var settled = Campaign.Settle(campaign, report, DataFile.Load<CampaignTuning>(Path.Combine(content, CampaignTuning.File))) with { Music = session.MusicBag ?? campaign.Music, LastTown = session.World.Town?.Plan.Culture ?? campaign.LastTown };
+        // Note 1024: a night gone by eases the towns cold to the crew, and the one they've brought something into is colder.
+        var standing = DarkTerritory.Sim.Towns.StandingTuning.Load(content);
+        var settled = Campaign.Settle(campaign, report, DataFile.Load<CampaignTuning>(Path.Combine(content, CampaignTuning.File)), standing) with { Music = session.MusicBag ?? campaign.Music, LastTown = session.World.Town?.Plan.Culture ?? campaign.LastTown };
         // Note 591: delivered to a town, the crew's in it, and the next night departs from it.
         if (session.Route is { } arrived)
             settled = Campaign.Arrived(settled, report, DarkTerritory.Sim.Towns.TownAt.Terminus(arrived,
-                DarkTerritory.Sim.LineGen.LineGenContent.Cached(content).Config.Tiers.Fortress.Identities));
+                DarkTerritory.Sim.LineGen.LineGenContent.Cached(content).Config.Tiers.Fortress.Identities), standing);
         // Note 724: the crew's save travels: who settled it and when (the tie-break between two copies), and off to everyone
         // aboard, who each keep it among the crews they've ridden with and can host it from there.
         settled = settled with

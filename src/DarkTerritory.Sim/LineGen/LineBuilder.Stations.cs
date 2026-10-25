@@ -58,6 +58,7 @@ sealed partial class LineBuilder
         {
             TownSeed = _p.From?.Seed,
             TownBurnt = _p.From?.Burnt ?? 0,
+            TownCold = _p.From?.Cold ?? 0,
         };
         _pads.Add(LongPad("fortress", 0, _gate, f.PadM));
         _markers.Add(new PlanMarker("gate_inner", "main", R(_innerGate)));

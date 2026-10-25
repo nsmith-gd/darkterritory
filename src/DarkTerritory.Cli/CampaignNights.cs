@@ -23,6 +23,7 @@ static class CampaignNights
         var t = DataFile.Load<CampaignTuning>(Path.Combine(content, CampaignTuning.File));
         var runTuning = DataFile.Load<RunTuning>(Path.Combine(content, RunTuning.File));
         var identities = LineGenContent.Cached(content).Config.Tiers.Fortress.Identities;
+        var standing = StandingTuning.Load(content);
         int nights = (int)Opt(args, "--nights", 3), bots = (int)Opt(args, "--bots", 3), loseNight = (int)Opt(args, "--lose-night", 0);
         double loseAt = Opt(args, "--lose-at", -1), limit = Opt(args, "--seconds", 3600);
         // The player at the host's own seat (note 616): "bot", played by one more of the crew's bots, as near as the tools come to
@@ -66,6 +67,9 @@ static class CampaignNights
                     fromBurnt = session.World.Town?.Plan.Burnt ?? 0,
                     to = session.World.Arrival?.Plan.Name,
                     toBurntOnArrival = session.World.Arrival?.Plan.Burnt ?? 0,
+                    // Note 1024: how cold each town was to the crew tonight (percent).
+                    fromCold = session.World.Town?.Plan.Cold ?? 0,
+                    toColdOnArrival = session.World.Arrival?.Plan.Cold ?? 0,
                     end = report?.End.ToString() ?? "unfinished",
                     seconds = Math.Round(session.World.Run?.Seconds ?? 0, 1),
                     bots = new { count = crew.Count, alive = crew.Count(c => c.Alive), aboard = crew.Count(c => c.Alive && c.Parent >= 0) },
@@ -93,9 +97,9 @@ static class CampaignNights
                 // As the app's Autosave settles it: the night into the slot, the town it left, the town it got to.
                 if (report is not null)
                 {
-                    var settled = Campaign.Settle(s, report, t) with { Music = session.MusicBag ?? s.Music, LastTown = session.World.Town?.Plan.Culture ?? s.LastTown };
+                    var settled = Campaign.Settle(s, report, t, standing) with { Music = session.MusicBag ?? s.Music, LastTown = session.World.Town?.Plan.Culture ?? s.LastTown };
                     if (session.Route is { } arrived)
-                        settled = Campaign.Arrived(settled, report, TownAt.Terminus(arrived, identities));
+                        settled = Campaign.Arrived(settled, report, TownAt.Terminus(arrived, identities), standing);
                     saves.Save(settled);
                 }
             }

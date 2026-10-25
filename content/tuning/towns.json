@@ -115,6 +115,24 @@
   // run.json departShortOfGateM), "out" m off the line on the town's side; the smith "stand" m in front of it. Use pressed on
   // them opens the catalogue (campaign.json upgrades; note 904: talking to him is buying from him).
   "smithy": { "fromGate": -18, "out": 8.5, "stand": 2.2 },
+  // A town's standing with the crew (GDD §3.1 "A town remembers"; note 1024; the director's ask on note 949, question 2, still
+  // open: these are the default till it's answered). Each creature ridden in through its gate makes the town "perCreature"
+  // percent colder to the crew (up to "most"), easing "easePerNight" a night settled, wherever the crew is; kept per town in
+  // the campaign save. "mode": "off" (it remembers only its burnt houses, note 608), "welcome" (a colder welcome and dearer
+  // upgrades: the default), or "guards" (all that, and fewer guards). How cold (0 to 1) scales each:
+  //  - "dearer": its blacksmith's upgrades cost (1 + dearer x cold) of the list price;
+  //  - "wary": the share of its townsfolk (not its gatekeeper, guard or blacksmith) who open on a wary line, x cold; the
+  //    gatekeeper always says why, the blacksmith what it costs now;
+  //  - "doors": the share of its lived-in doors kept shut to the crew when they knock, x cold;
+  //  - "waves": the share of the crew's waves only stared at, not waved back, x cold;
+  //  - with "guards": the yard fights a creature brought in (1 + fightLonger x cold) times as long (run.json
+  //    broughtIn.fightSeconds), it burns round(moreBurns x cold) more houses, and (fewerGuards x cold) of the town's guards
+  //    (rounded down) keep back from the yard's fight; the gatekeeper always turns out.
+  "standing": {
+    "mode": "welcome", "perCreature": 40, "most": 100, "easePerNight": 10,
+    "dearer": 0.5, "wary": 1.0, "doors": 0.75, "waves": 0.8,
+    "fightLonger": 1.0, "moreBurns": 2, "fewerGuards": 0.75
+  },
   // Quirks a town has on top of its culture, and its board: notices pinned up, and notes left lying about the square.
   // Of the board's notices, after the custom's own order, "boardOwn" are the town's own, written for it (note 669).
   "quirks": [1, 2],
