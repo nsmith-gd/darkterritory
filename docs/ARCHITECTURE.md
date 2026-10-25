@@ -1184,4 +1184,5 @@ written here instead is moved out by `tools/coord/notes.py split`; the Coordinat
 - [1024. A town's standing lowered by what's brought into it (n1-S1, nathaniel1; queue #652; GDD §3.1 "A town remembers" and v1.6's "Not yet"; the…](notes/1024.md)
 - [1026. The GDD against the game again: what it still promises that isn't built (n1-A4, nathaniel1's Token Budget Manager's worker; queue #728; the…](notes/1026.md)
 - [1034. Moments and the reel: commendation clips instead of stills (n1-H2, nathaniel1's Token Budget Manager's worker; queue #256, carried on from…](notes/1034.md)
+- [1029. Tower Jaw's gantry comes down; a structure's fall reaches a joiner (Ash, nathaniel2's Token Budget Manager's worker; queue #732; note…](notes/1029.md)
 <!-- end of the notes index -->

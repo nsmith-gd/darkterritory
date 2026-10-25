@@ -141,7 +141,8 @@ public static class Protocol
     // 89: the Bruin (note 1007): EnemyKind 48 on the wire.
     // 90: the Tapper (note 1011): EnemyKind 49 on the wire.
     // 91: the Close (note 1013): EnemyKind 51 on the wire.
-    public const int Version = 91;
+    // 92: a facility's coaling tower and crane gantry down or cleared (note 1029), bits 11-14 of the Run record's site flags.
+    public const int Version = 92;
 }
 
 public enum MessageType : byte
