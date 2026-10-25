@@ -777,10 +777,10 @@ def soften_face(base, face, amount=0.6):
 
 
 def recipe(name, what, dress, garments, coat=True, off=("strap", "satchel", "lamp"), head=None, grade=None, low_shapes=None,
-           masks=None, shapes=None, scarf=False):
+           masks=None, shapes=None, scarf=False, head_tris=2000):
     crewfigure.build(name, crewfigure.Style(
         dress=dress, preview="TOWN_PREVIEW", figure="bare", hats=False, coat=coat, body_off=off, garments=garments, head=head,
-        grade=grade, low_shapes=low_shapes, masks=masks, shapes={**SHAPES, **(shapes or {})}, views=VIEWS, scarf=scarf, face=True,
+        grade=grade, low_shapes=low_shapes, masks=masks, shapes={**SHAPES, **(shapes or {})}, views=VIEWS, scarf=scarf, face=True, head_tris=head_tris,
         what=f"the townsfolk lookbook's {what}, modelled over tools/blender/crew.py"))
 
 

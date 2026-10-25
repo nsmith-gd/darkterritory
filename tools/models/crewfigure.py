@@ -31,7 +31,7 @@ class Style:
     def __init__(self, head=None, dress=None, shapes=None, masks=None, grade=None, preview="CREW_PREVIEW",
                  what="the crew's clothes and kit, modelled over tools/blender/crew.py", lamp=True, mask=None, figure="helm",
                  gear=None, views=None, hats=True, low_shapes=None, baked=(), shells=("coat",), buttons=None, laces=True,
-                 grime=1.0, size=1024, detail=None, reshape=(), coat=True, body_off=(), garments=None, scarf=True, face=False):
+                 grime=1.0, size=1024, detail=None, reshape=(), coat=True, body_off=(), garments=None, scarf=True, face=False, head_tris=2000):
         self.head, self.dress, self.shapes = head, dress or {}, shapes or {}
         # Displacement of a game part itself before its high copy's made from it (note 407: the silhouette, which the
         # bake's normals can't give): {part: fn(positions, normals) -> metres}, the coat's shell signed as its sculpt is.
@@ -80,6 +80,8 @@ class Style:
         # jaw and chin in the mesh, its eyes open, kept dense in the game mesh, given the head's texels and shaded under
         # the clothes over it. The bare figure only.
         self.face = face
+        # The scan's triangles in the game mesh (fewer for a face kept under a mask: the budget's for what shows).
+        self.head_tris = head_tris
 
 
 
@@ -474,9 +476,9 @@ def build(name, style):
         # The game mesh's head: the scan decimated, on the head bone, blending into the neck under the collar.
         head_low = cook.duplicate(head)
         if style.face:
-            faces.decimate(head_low, 2000, LM)
+            faces.decimate(head_low, style.head_tris, LM)
         else:
-            cook.decimate(head_low, 2000)
+            cook.decimate(head_low, style.head_tris)
         for o in head_low:
             co = np.array([v.co for v in o.data.vertices], np.float32)
             # The whole face rides the head (a chin on the neck bone shears off it when the clips tip the two apart); only the

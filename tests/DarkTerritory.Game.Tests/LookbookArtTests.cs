@@ -49,8 +49,10 @@ public class LookbookArtTests
             var model = Art.Get(c.Modelled);
             Assert.True(model is not null, $"{c.Modelled}.glb isn't built (tools/models/build.sh {c.Modelled})");
             Assert.Equal(c.Modelled, Art.FigureFor(c));
-            // The survivors' bones, by name (Blender 5's export lists them in its own order; the clips and sockets go by name).
-            Assert.Equal(figure.Skeleton.Names.Order(), model.Skeleton.Names.Order());
+            // Every one of the survivors' bones, by name (Blender 5's export lists them in its own order; the clips and sockets
+            // go by name). A subset, not an exact match: the townsfolk are baked on today's crew rig, which has grown the hands'
+            // `fingertips_l`/`_r` since the survivors were baked (note 993); a clip without those keys leaves them at rest.
+            Assert.Empty(figure.Skeleton.Names.Except(model.Skeleton.Names));
             // A character's budget (GDD §27: 4-10k triangles).
             Assert.InRange(model.Parts.Where(p => p.Clip is null).Sum(p => p.Triangles), 4000, 10000);
             // Nothing modelled flies off the figure (a cloth's thickness thrown out where it folds back on itself, as the
