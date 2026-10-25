@@ -113,6 +113,9 @@ public sealed record WallTuning(double WallM = 0.3, double BayDoorM = 4, double 
 /// <summary>How a night ends (GDD v1.4 §23): <see cref="Stranded"/> is a ruptured boiler with the engineering kit lost (§23.2).</summary>
 public enum RunEnd : byte { None, Delivered, Derailed, CrewLost, DawnMissed, Stranded }
 
+/// <summary>A structure Tower Jaw gnaws (note 363): standing, brought down (its wreck on its track), or down and its wreck cleared (note 1029).</summary>
+public enum StructureDown : byte { Standing, Fallen, Cleared }
+
 /// <summary>
 /// What a night's taken and spent so far (note 500), kept by its autosave so a resumed night pays and bills from the start:
 /// the scrip for the finds stowed (<see cref="Run.Scavenged"/>) and the finds themselves, the mail caught
@@ -195,6 +198,9 @@ public sealed partial class Run
     readonly Route.Route _route;
     readonly List<RouteFeature> _facilities;
     readonly double[] _chuteLeft;
+    // Note 1029: each facility's coaling tower and crane gantry, brought down or cleared tonight. The run's, on the wire, so a
+    // client that joins after the fall (or the clearing) sees it down, not standing.
+    readonly StructureDown[] _towers, _gantries;
     double _tenderAtDeparture, _coalLoaded;
     int _ammoAtDeparture;
 
@@ -204,6 +210,8 @@ public sealed partial class Run
         _route = route;
         _facilities = route.Of(FeatureKind.Facility).ToList();
         _chuteLeft = _facilities.Select(f => f.Facility == FacilityKind.CoalingTower ? tuning.Chute.Capacity : 0).ToArray();
+        _towers = new StructureDown[_facilities.Count];
+        _gantries = new StructureDown[_facilities.Count];
         // Each facility's spur, if it has one: the branch whose points are in its zone.
         _spurs = [.. _facilities.Select(f => route.Branches.Select((b, i) => (b, i)).Where(x => x.b.Kind == BranchKind.Spur && f.Contains(x.b.Toe))
             .Select(x => x.i).DefaultIfEmpty(RailLine.MainPath).First())];
@@ -337,8 +345,32 @@ public sealed partial class Run
     public void TowerDown(int facility)
     {
         if (facility >= 0 && facility < _chuteLeft.Length)
+        {
             _chuteLeft[facility] = 0;
+            _towers[facility] = StructureDown.Fallen;
+        }
     }
+
+    /// <summary>A crane gantry brought down (Tower Jaw, note 1029): across its loading track, the crane dead for the night.</summary>
+    public void GantryDown(int facility)
+    {
+        if (facility < 0 || facility >= _gantries.Length)
+            return;
+        _gantries[facility] = StructureDown.Fallen;
+        Sites.ElementAtOrDefault(facility)?.Crane?.Wreck();
+    }
+
+    /// <summary>The crew's cleared a fallen structure's wreck off its track (note 1029): down still, but out of the way.</summary>
+    public void WreckCleared(int facility, bool gantry)
+    {
+        var down = gantry ? _gantries : _towers;
+        if (facility >= 0 && facility < down.Length && down[facility] == StructureDown.Fallen)
+            down[facility] = StructureDown.Cleared;
+    }
+
+    /// <summary>Facility <paramref name="facility"/>'s coaling tower and crane gantry tonight (note 1029).</summary>
+    public StructureDown Tower(int facility) => facility >= 0 && facility < _towers.Length ? _towers[facility] : StructureDown.Standing;
+    public StructureDown Gantry(int facility) => facility >= 0 && facility < _gantries.Length ? _gantries[facility] : StructureDown.Standing;
 
     public double ChuteLeft(int facility) => facility >= 0 && facility < _chuteLeft.Length ? _chuteLeft[facility] : 0;
     public bool Over => Phase is RunPhase.Arrived or RunPhase.Failed;
@@ -1275,7 +1307,8 @@ public sealed partial class Run
 
     /// <summary>Client side: adopts the host's run state.</summary>
     public void Mirror(RunPhase phase, RunEnd end, double seconds, int facility, bool chuteOpen, double[] chuteLeft,
-        IReadOnlyList<SiteState>? sites = null, double scavenged = 0, KitWhere? kit = null)
+        IReadOnlyList<SiteState>? sites = null, double scavenged = 0, KitWhere? kit = null,
+        IReadOnlyList<(StructureDown Tower, StructureDown Gantry)>? down = null)
     {
         Scavenged = scavenged;
         if (kit is { } k)
@@ -1290,6 +1323,14 @@ public sealed partial class Run
         if (sites is not null)
             for (int i = 0; i < Math.Min(sites.Count, _sites.Length); i++)
                 _sites[i]?.Mirror(sites[i]);
+        // Note 1029: what's down tonight, and the crane under a fallen gantry dead, as the host has them.
+        for (int i = 0; down is not null && i < Math.Min(down.Count, _towers.Length); i++)
+        {
+            _towers[i] = down[i].Tower;
+            _gantries[i] = down[i].Gantry;
+            if (down[i].Gantry != StructureDown.Standing && _sites.ElementAtOrDefault(i)?.Crane is { Wrecked: false } crane)
+                crane.Wreck();
+        }
     }
 
     public int FacilityCount => _facilities.Count;

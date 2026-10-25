@@ -123,6 +123,94 @@ public sealed partial class SceneArt
     }
 
     /// <summary>
+    /// A crane gantry Tower Jaw's brought down (note 1029), from its own pieces. Down: the gnawed leg (the far end's, the
+    /// stack's side) a stump, the rest buckled in over the track, the near rail girder sloping off its last leaning leg to the
+    /// ground and the bridge lying across the rails at the gantry's middle (the sim's wreck, closing its track), the trolley and
+    /// cab thrown down beside it. <paramref name="cleared"/>: the crew's dragged it all off the track, the bridge along the stack's
+    /// side and the near legs and girder along the other. The castings are where they were. False without the art's models.
+    /// </summary>
+    public bool FallenCrane(MeshBuilder mesh, Sim.Run.Crane crane, IReadOnlyList<CarFrame> frames, Double3 eye, bool cleared)
+    {
+        var props = PropArt.Of(Look);
+        if (props.Get("crane_leg") is not { } leg || props.Get("crane_girder") is not { } girder || props.Get("crane_bridge") is not { } bridge)
+            return false;
+        // The gantry's own frame: from its first corner on the near side, along it, across it (the track's 3.5 m in), up.
+        var o = crane.Corner(0, 0);
+        var alongD = crane.Corner(1, 0) - o;
+        var acrossD = crane.Corner(0, 1) - o;
+        double length = alongD.Length, width = acrossD.Length, track = -crane.Tuning.Span[0], top = crane.Top;
+        var a = alongD.Normalized;
+        var c = acrossD.Normalized;
+        Double3 P(double along, double across, double up) => o + a * along + c * across + Double3.Up * up;
+        // A piece laid from one point to another: its model's x along that, scaled to the length (the model's own is
+        // <paramref name="unit"/>), its y as near to <paramref name="upish"/> as it'll go.
+        void Lay(MeshAsset m, Double3 from, Double3 to, Double3 upish, float unit)
+        {
+            var x = ToF((to - from).Normalized);
+            var y0 = ToF(upish.Normalized);
+            var y = Vector3.Normalize(y0 - x * Vector3.Dot(y0, x));
+            mesh.Append(m, Matrix4x4.CreateScale((float)(to - from).Length / unit, 1, 1)
+                * Placed(x, y, Vector3.Cross(x, y), Vector3.Zero) * Matrix4x4.CreateTranslation(((from + to) * 0.5).RelativeTo(eye)));
+        }
+        // A leg from its foot toward <paramref name="toward"/> (its model stands 8.6 m up y from its foot), cut to <paramref name="part"/>.
+        void Leg(Double3 foot, Double3 toward, float part)
+        {
+            var y = ToF((toward - foot).Normalized);
+            var side = Vector3.Cross(y, ToF(a));
+            var x = side.LengthSquared() > 1e-4f ? Vector3.Normalize(Vector3.Cross(side, y)) : ToF(c);
+            mesh.Append(leg, Matrix4x4.CreateScale(1, part, 1) * Placed(x, y, Vector3.Cross(x, y), Vector3.Zero) * Matrix4x4.CreateTranslation(foot.RelativeTo(eye)));
+        }
+        // A girder's 5 m lengths from one end to the other, each cut where it broke.
+        void Girder(Double3 from, Double3 to)
+        {
+            int n = Math.Max(1, (int)Math.Round((to - from).Length / 5));
+            for (int i = 0; i < n; i++)
+            {
+                var p0 = Double3.Lerp(from, to, (double)i / n) + Double3.Up * (0.15 * (i % 2));
+                var p1 = Double3.Lerp(from, to, (i + 0.94) / n) + Double3.Up * (0.15 * (i % 2));
+                Lay(girder, p0, p1, Double3.Up, 5);
+            }
+        }
+        double mid = length * 0.5;
+        // The gnawed leg: a stump, cut through like an hourglass where the teeth went in.
+        Leg(P(length, width, 0), P(length, width, 1), 0.14f);
+        if (!cleared)
+        {
+            // The others buckled in over the track: the near ones leaning, the far first end's down across it.
+            Leg(P(0, 0, 0), P(0.4, 3.6, 7.8), 1);
+            Leg(P(length, 0, 0), P(length - 0.6, 7.6, 0.9), 1);
+            Leg(P(0, width, 0), P(0.8, width - 7.9, 1.2), 0.82f);
+            // The near rail girder off the top of the leaning leg to the ground past the stump; the far one fallen flat by the stack.
+            Girder(P(0.3, 3.4, top - 0.9), P(length, track - 0.8, 0.45));
+            Girder(P(0.2, width - 0.9, 0.9), P(length - 0.4, width - 0.3, 0.3));
+            // The bridge across the rails at the middle, its near end up on the sloped girder, its far end in the stack's yard.
+            Lay(bridge, P(mid + 0.6, 1.0, 4.4), P(mid - 0.8, width + 0.6, 0.45), Double3.Up, 12.5f);
+            if (props.Get("crane_trolley") is { } trolley)
+                mesh.Append(trolley, Matrix4x4.CreateRotationZ(1.35f) * Placed(ToF(a), Vector3.UnitY, Vector3.Cross(ToF(a), Vector3.UnitY), Vector3.Zero)
+                    * Matrix4x4.CreateTranslation(P(mid + 2.2, track + 2.4, 0.6).RelativeTo(eye)));
+            if (props.Get("crane_cab") is { } cab)
+                mesh.Append(cab, Matrix4x4.CreateRotationX(-1.2f) * Matrix4x4.CreateRotationY(0.5f) * Placed(ToF(a), Vector3.UnitY, Vector3.Cross(ToF(a), Vector3.UnitY), Vector3.Zero)
+                    * Matrix4x4.CreateTranslation(P(mid + 4.5, width + 1.6, 0.7).RelativeTo(eye)));
+        }
+        else
+        {
+            // Dragged off the track: the near legs and girder along its near side, the bridge and the far legs along the stack's.
+            Leg(P(0, 0, 0), P(0, 0, 1), 0.2f);
+            Leg(P(length, 0, 0), P(length, 0, 1), 0.2f);
+            Leg(P(0, width, 0), P(0, width, 1), 0.2f);
+            Leg(P(2, -1.2, 0.4), P(length, -1.3, 0.4), 1);
+            Girder(P(1, -2.6, 0.3), P(length - 1, -2.4, 0.3));
+            Girder(P(1, width + 1.2, 0.3), P(length - 1, width + 1.0, 0.3));
+            Lay(bridge, P(mid - 6.2, width + 2.8, 0.45), P(mid + 6.2, width + 2.6, 0.45), Double3.Up, 12.5f);
+            if (props.Get("crane_cab") is { } cab)
+                mesh.Append(cab, Matrix4x4.CreateRotationX(-1.4f) * Placed(ToF(a), Vector3.UnitY, Vector3.Cross(ToF(a), Vector3.UnitY), Vector3.Zero)
+                    * Matrix4x4.CreateTranslation(P(length + 2.5, width + 1.5, 0.7).RelativeTo(eye)));
+        }
+        Castings(mesh, crane, frames, eye, loadedOnly: false);
+        return true;
+    }
+
+    /// <summary>
     /// A crane's castings: stacked, on its hook, or loaded into a car. <paramref name="loadedOnly"/>: only those in a car of the
     /// train, which ride on with it wherever its stop's crane is (note 838: the scene drew a stop's castings only near its
     /// crane, so one loaded into car 1 was gone from sight once the train had left the stop). False without the art's model.
