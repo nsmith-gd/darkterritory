@@ -55,17 +55,20 @@ public static partial class Hud
     /// <param name="captions">CAPTIONS (note 349): what's heard now and where, <see cref="Captions.Lines"/>; null with it off.</param>
     /// <param name="photo">The crew photo at the gate taken on this machine tonight (note 721): a delivered night's end card
     /// shows it as a print.</param>
+    /// <param name="gallery">The yard photographer's prints of the campaign so far, tonight's among them (note 1030), as
+    /// thumbnails (<see cref="YardGallery.Thumbs"/>), and how many there are in all: the end card's gallery.</param>
     /// <param name="firstNight">One of this player's first nights with FIRST NIGHTS on (note 350, <see cref="Onboarding.FirstNight"/>):
     /// the yard shows the core controls.</param>
     public static void Build(Overlay o, int width, int height, IPlaySession s, bool crosshair = true,
         IReadOnlyList<(string To, UiStyle.Commendation What, string From)>? commendations = null, IReadOnlyDictionary<int, Still>? stills = null,
         float pixels = 4, TownTalk? talk = null, double now = 0, bool firstNight = false, IReadOnlyList<string>? captions = null,
-        FigureTalk? figures = null, Still? photo = null)
+        FigureTalk? figures = null, Still? photo = null, (IReadOnlyList<GalleryPrint> Prints, int Total)? gallery = null)
     {
         _promptScale = PromptScaleAt(pixels);
         _commendations = commendations;
         _stills = stills;
         _photo = photo;
+        _gallery = gallery;
         o.Clear();
         // TEXT BACKING (note 404): a band behind the print in play, for this build only (the menus over it are on their plate).
         o.Backing = Keys.TextBacking ? new Vector4(0, 0, 0, (float)Math.Clamp(Tuning.TextBacking, 0, 1)) : default;
@@ -1170,6 +1173,8 @@ public static partial class Hud
                 if (r.End == RunEnd.DawnMissed && world.DawnEndsCampaign)
                     Small(CampaignOver, Red, fine: false);
             }
+            // Note 1030: the yard photographer's prints of the campaign so far, at the top right.
+            EndGallery(o, width, height, s, r);
             // GDD v1.4 App. D.12: the incident report, every line in the clerk's voice, under the result; the night's
             // commendations under it.
             // The night's own (D.12), as the host has them, unless a still frame passed some in.
