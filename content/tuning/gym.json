@@ -71,6 +71,7 @@
     "waker": { "from": "Rising far behind the train, at dawn", "answer": "Run: nothing else answers it" },
     "pickers": { "from": "Up out of the drains, for loose crates", "answer": "Guard the crates: they run off with them" },
     "tapper": { "from": "Over the roof behind whoever's at a gun (sit at one first)", "answer": "When it taps, look round at it; or have a friend on the car" },
+    "close": { "from": "Onto the roof of the car with the most of the crew in it (or the nearest car)", "answer": "When the roof bows, someone get out: burst it from the roof, or open the door you're pinned against" },
     "bruin": { "from": "Out of the trees, for the car with the most cargo", "answer": "Hit it from the side or behind, two or three of you: never stand in front of it" },
     "mouseMoose": { "from": "Out of its hole, for the crane's castings (in the yard: walk towards them first)", "answer": "Stand within 6 m of the casting it wants: it runs, and comes back for it" },
     "lodger": { "from": "In the darkest corner of a house", "answer": "Don't go in; or go in and don't linger" },

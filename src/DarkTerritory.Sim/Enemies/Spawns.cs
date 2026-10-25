@@ -554,6 +554,23 @@ public static class Spawns
             return c.Placed();
         })
         { Enabled = t => t.Tapper.On },
+        // The Close (note 1013; the director's playtest of 23 Oct, line 36: "if everybody's crowded into one car ... something
+        // that does a little bit of crowd control"): at speed (boardAbove), a car with a crowd of the crew shut in it for settle
+        // seconds (by tier; its own census, Crowding); one at a time. Off with close.on.
+        new(EnemyKind.Close, c =>
+        {
+            var t = c.Tuning.Close;
+            if (!t.On || c.Train.Dynamics.Speed < t.BoardAbove || c.World.TrainInFort || !c.None(EnemyKind.Close) || Close.For(c) is null)
+                return null;
+            return MooseTuning.ByTier(t.TierWeights, c.Tier);
+        }, c =>
+        {
+            if (Close.For(c) is not { } car)
+                return SpawnContext.Failed(SpawnFailure.NoTarget);
+            c.Add(i => Close.Over(i, car, c.Train, c.Tuning.Close));
+            return c.Placed();
+        })
+        { Enabled = t => t.Close.On },
         // B.8 · The Brakeman (note 364): up at the far end of a moving train; never with a crew of one; every tier, more the
         // harder, the longer the train and with a climb ahead.
         new(EnemyKind.Brakeman, c =>

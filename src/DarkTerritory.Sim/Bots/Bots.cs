@@ -1711,7 +1711,8 @@ public sealed class RoofWalkerBot(int seed, StopHand? job = null) : IWorldBot
             // Note 537: a hound aboard drops in at an open side door (note 472). Warm up in a car off the pack's ground, and in
             // one it comes onto, stay in behind the shut doors, not out onto the roofs among them.
             _warm.Packed = car => OnPacksGround(world, car);
-            _warm.Troubled = car => world.ActiveEnemies.Any(e => !e.Gone && e.Attached == car && e is CarFire { Phase: SpinePhase.Punish });
+            // And a car the Close is on (note 1013): out of it, and not into it, till it's gone.
+            _warm.Troubled = car => world.ActiveEnemies.Any(e => !e.Gone && e.Attached == car && (e is CarFire { Phase: SpinePhase.Punish } || e is Close));
             _warm.Ablaze = (car, end) => EndAblaze(world, car, end);
             _warm.FireOnTheWay = (car, from, end) => FireOnTheWay(world, car, from, end);
             _warm.LeaveOpen = door => door is 0 or 1 && world.Train.Boiler.Ruptured;
@@ -1728,6 +1729,12 @@ public sealed class RoofWalkerBot(int seed, StopHand? job = null) : IWorldBot
         {
             Calls?.CanFeed(Me, false);
             return Decide(self, world.Train, tick);
+        }
+        // The Close (note 1013): out of the car it's bowing in, or up on its roof to burst it.
+        if (Heed.TheClose(self, world) is { } close)
+        {
+            Calls?.CanFeed(Me, false);
+            return close;
         }
         // Note 456: at a gun whose gunner's dead or left behind, it's the gunner now (its own look and legs).
         if (_manning is not null && ManGun(self, world, tick, false, out aimed) is { } gunning)

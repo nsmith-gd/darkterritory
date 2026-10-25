@@ -575,6 +575,19 @@ A car fire burns on cells (decided 6 Oct, GDD App. F.1; ARCHITECTURE note 267). 
 | **Lift** | a grab, **10 s**, then dropped off the train; a friend's blow drops them on the roof |
 | Health | a blow knocks it off; **3** at once kill it. Under **3 m/s** it goes |
 
+## B.23 The Close
+
+*The director's playtest of 2026-10-23, line 36: "if everybody's crowded into one car ... something that does a little bit of crowd control ... It should always be a creature with a clear tell and a clear counter"* (GDD §21; Sloe's `docs/design/creatures/the-close.md`; `close` in `content/tuning/enemies.json`, **off** until the director's verdict; ARCHITECTURE §8 note 1013). `SpecTableTests.TheCloseMatchesB23` pins this table.
+
+| Parameter | Value |
+|---|---|
+| **Comes** | the train at **8 m/s** or more, **3** of the crew (**2** on a crew of 3 or fewer) on one car's floor with its four doors shut for **60 s** (Local), **40 s** (Frontier), 35 s (Dead Lines), **30 s** (Deep Territory); one at a time |
+| **Bow** (the tell) | on that roof, the boards bowing in and creaking like a breath every 3 s, for **10 s**; the car down to fewer than the crowd at any time and it slides off |
+| **Pour** | in through the hatch, **4 s** |
+| **Pin** | everyone on the car's floor held (a look, a voice, and Use on a door of the car in reach); after **6 s** (Frontier) to **4 s** (Deep Territory) each takes **5** a second (never the last point); **20 s** pinned, the weakest dies |
+| **Door** | a door of the car open: the pinned crewmate nearest it let go every **1 s**; fewer than the crowd left and it lets go |
+| Health | **3** blows from outside the car (its roof, the door, the next roof) burst it; a gun's round bursts it; blows from inside do nothing |
+
 # PART C — DEATH AND REVIVAL
 
 > **Superseded by GDD v1.2 Appendix D (Death, Holdouts and Return).** The Vigil is cut. A dead player returns only through a Holdout at a halt, village or yard; bodies are loot (D.9). This part is kept for the record.

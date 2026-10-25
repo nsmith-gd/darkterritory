@@ -646,6 +646,8 @@ public sealed class Director
     /// <summary>Director seconds spent in each stance tonight (note 999), by its name.</summary>
     public IReadOnlyDictionary<string, double> StanceSeconds => _stanceSeconds;
     readonly SortedDictionary<string, double> _stanceSeconds = new(StringComparer.Ordinal);
+    /// <summary>The cars crowded and shut, and for how long (note 1013: the Close's own read; the behaviour reader has no crowding).</summary>
+    public Crowding Crowding { get; } = new();
     /// <summary>Tonight's encounters placed in each stance (note 999), by its name.</summary>
     public IReadOnlyDictionary<string, int> PlacedByStance => _placedByStance;
     readonly SortedDictionary<string, int> _placedByStance = new(StringComparer.Ordinal);
@@ -663,6 +665,9 @@ public sealed class Director
         StoodSeconds = Enemies.Stance.Stopped(Stance) ? StoodSeconds + 1 : 0;
         string name = Enemies.Stance.Name(Stance);
         _stanceSeconds[name] = _stanceSeconds.GetValueOrDefault(name) + 1;
+        // The Close's census (note 1013): which car's been crowded and shut how long, read whether or not targeting's on.
+        if (world.Enemies is { Close.On: true } et)
+            Crowding.Second(world, Crew, et.Close);
         var tt = _t.Encounters.Target;
         if (!tt.On)
         {
@@ -2263,6 +2268,7 @@ public sealed class Director
                 EnemyKind.Bruin => new Bruin(0),
                 EnemyKind.Tapper => new Tapper(0),
                 EnemyKind.HeadWaiter => new HeadWaiter(0),
+                EnemyKind.Close => new Close(0),
                 _ => new ChoirGhost(0),
             };
             d[kind] = (e.Zone, e.Sense, e.Want);

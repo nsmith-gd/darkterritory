@@ -187,6 +187,8 @@
     "bruin": [[0.7, 0.8], [0.6, 1.3]],
     // The Tapper (note 1011): up on its knees at the tap, its body and its head; flat on the roof crawling, a third of that.
     "tapper": [[0.35, 0.5], [0.25, 1.05]],
+    // The Close (note 1013): a long grey sack lying along its car's roof, its middle bulged up through the hatch.
+    "close": [[0.6, 0.3], [0.45, 0.75]],
     // The house creatures (notes 583–586): the Lodger and the Householder man-sized; the Hanger's sac, up in the roof.
     "lodger": [[0.35, 0.5], [0.3, 1.2]],
     "householder": [[0.35, 0.5], [0.3, 1.3]],
@@ -569,6 +571,26 @@
     "tapSeconds": { "local": 5, "frontier": 5, "deadLines": 4, "deepTerritory": 3 },
     "holdSeconds": { "local": 30, "frontier": 30, "deadLines": 20, "deepTerritory": 10 },
     "tierWeights": { "local": 0, "frontier": 1, "deadLines": 1.5, "deepTerritory": 2 }
+  },
+
+  // THE CLOSE · vibration · interior (GDD §21; the director's playtest of 23 Oct 2026, line 36: "if everybody's crowded into
+  // one car ... something that does a little bit of crowd control ... It should always be a creature with a clear tell and a
+  // clear counter"; Sloe's docs/design/creatures/the-close.md §5 and §8, note 1004; ARCHITECTURE §8 note 1013; spec B.23).
+  // Spawns (on): the train at boardAbove m/s or more, crowd crew (crowdSmall on a crew of smallCrew or fewer) in one car with
+  // its doors shut for settle s by tier (its own census, once a director second: the behaviour reader has no crowding); one
+  // at a time; tierWeights. It settles on that roof and bows it in (the tell) bowSeconds; then pours in through the hatch over
+  // pourSeconds and pins everyone in the car (held: a look, a voice and Use only). Pinned crushAfter s by tier, each takes
+  // crushPerSecond a second (never the last point); pinned killSeconds, the weakest dies (the spine's grab and punish), and it
+  // goes. The car down to fewer than the crowd at any time and it slides off. A car door open (either end, either side): it
+  // lets the one nearest it go every getOutSeconds. A blow from outside the car (its roof, the door, the next roof) bursts
+  // health of them it; a gun round bursts it at once; blows from inside go into its thickness. on: false until the
+  // director's verdict (the r716-close edition turns it on).
+  "close": {
+    "on": false, "boardAbove": 8, "crowd": 3, "crowdSmall": 2, "smallCrew": 3, "bowSeconds": 10, "pourSeconds": 4,
+    "crushPerSecond": 5, "killSeconds": 20, "getOutSeconds": 1, "health": 3,
+    "settle": { "local": 60, "frontier": 40, "deadLines": 35, "deepTerritory": 30 },
+    "crushAfter": { "local": 8, "frontier": 6, "deadLines": 5, "deepTerritory": 4 },
+    "tierWeights": { "local": 0.5, "frontier": 1, "deadLines": 1.5, "deepTerritory": 2 }
   },
 
   // THE HEAD WAITER (GDD §21; ARCHITECTURE §8 notes 1004, 1008; docs/design/creatures/head-waiter.md §5 and §8's early column;
@@ -1769,7 +1791,7 @@
     "costs": { "followers": 2, "draggers": 2, "fireFlies": 2, "trackDoll": 3, "cinderHounds": 3, "climbers": 3,
       "whistler": 3, "stoker": 3, "ribbits": 3, "carHugger": 4, "tippyToesie": 4, "gaunt": 4, "sootChildren": 4, "grumbler": 4,
       "passenger": 5, "moose": 3, "gannet": 4, "freightBeetle": 1, "towerJaw": 3, "brakeman": 3, "hotbox": 2, "knotter": 3,
-      "mouseMoose": 2, "bruin": 4, "tapper": 2, "headWaiter": 1 },
+      "mouseMoose": 2, "bruin": 4, "tapper": 2, "headWaiter": 1, "close": 2 },
     // App. B.3/B.8 weights.
     "houndsLivestockWeight": 2.5,
     "houndsHotBoilerWeight": 1.5,

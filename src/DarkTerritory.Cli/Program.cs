@@ -2648,6 +2648,10 @@ static object Screenshot(TrainTuning t, string content, string[] args)
     // the tap (tappertap's).
     if (Str(args, "--tapper", view switch { "tapper" => "crawl", "tappertap" => "tap", _ => "" }) is { Length: > 0 } tapperMode)
         scene.Enemies = Staging.Tapper(scene.Enemies is List<DarkTerritory.Sim.Enemies.Enemy> tapperOthers ? tapperOthers : [], train, tapperMode);
+    // --close bow|pour|pin|burst: the staged Close along a car's roof (note 1013; Staging.Close): bowing it in (the close and
+    // closeroof views').
+    if (Str(args, "--close", view switch { "close" or "closeroof" => "bow", _ => "" }) is { Length: > 0 } closeMode)
+        scene.Enemies = Staging.Close(scene.Enemies is List<DarkTerritory.Sim.Enemies.Enemy> closeOthers ? closeOthers : [], train, closeMode);
     // --lodger hidden|shriek|lunge|chase|break|return: the staged Lodger off the line's left (note 583; Staging.Lodger): folded
     // in its crouch (the lodger view's), shrieking (lodgershriek's).
     if (Str(args, "--lodger", view switch { "lodger" => "hidden", "lodgershriek" => "shriek", _ => "" }) is { Length: > 0 } lodgerMode)

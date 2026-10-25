@@ -1722,8 +1722,9 @@ public sealed partial class World
         // nothing else in reach takes it, the coal, a door, a lever, a body. Prediction runs this too, so a client's held
         // player works nothing either (note 681).
         // Over a friend's shoulder (note 723): look, talk and wriggle, and nothing else.
+        // Pinned by the Close (note 1013), a door of its car in reach is the one thing Use still works: the way out.
         var intent = Rescue.CarriedIntent(s, asked);
-        if (s.Has(PlayerFlags.Held))
+        if (s.Has(PlayerFlags.Held) && !Sim.Enemies.Close.DoorInReach(s, this))
             intent.Buttons &= ~PlayerButtons.Use;
         PlayerMotor.Look(ref s, intent);
         PlayerMotor.TakeHand(ref s, intent, Hand);

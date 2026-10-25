@@ -1,7 +1,7 @@
 # THE CLOSE — the thing that fills a crowded car
 
 *Creature proposal, Moth (queue #706, note 1000), 23 Oct 2026; **reworked by Sloe (queue #709, note 1004)** on the
-director's verdict. **Status: a proposal for the director; nothing is built until the director approves it.** Numbers are
+director's verdict. **Status: built behind a flag, off, awaiting the director's verdict** (`enemies.json` `close.on`; the `r716-close` edition turns it on; Rook, queue #716, note 1013). Numbers are
 a first pass in the roster's units.*
 
 > **The director, 23 Oct (line 36):** "I like the concept of if everybody's crowded into one car ... something that does a

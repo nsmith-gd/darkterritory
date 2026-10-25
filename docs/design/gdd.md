@@ -930,6 +930,11 @@ A long, folded thing that rides the roofs, arms twice the length of its body. Tw
 > **RULE: when it taps, look round. Or have someone at your back.**
 Sit on a gun alone too long at speed and it comes over the roof from behind, where a gun's eyes aren't, and taps twice. A few seconds later it lifts you out of the seat and drops you off the train. Get up and look round at it and it flinches flat and backs off a while; anyone else on the car and it goes over the side; a blow knocks it off, and a friend's makes it drop you. (Spec B.22.)
 
+**THE CLOSE** · *on the roof of a crowded car* *(the director, 2026-10-23; Sloe's design, note 1004; built behind its flag, note 1013)*
+A great soft grey sack, all skin and no bones, that lies along a moving train's roofs. The roof boards bowing in over your heads.
+> **RULE: when the roof bows, someone get out.**
+Crowd into one shut car at speed too long and it settles on the roof and presses the boards in, creaking like breathing. Ten seconds on it pours in through the hatch and pins everyone in the car to the walls; a few seconds more and it crushes them, and twenty seconds pinned the weakest dies. Somebody outside, on its roof, at the door or on the next roof, bursts it with three blows, or the rear gun's round does; or the pinned open the door they're against and get out one at a time until it can't hold the car. (Spec B.23.)
+
 **THE LODGER** · *in the dark of a village house* *(the director, 2026-10-09)*
 A long, starved thing folded into the corner of a back room, breathing.
 > **RULE: when it shrieks, put a door between you.**

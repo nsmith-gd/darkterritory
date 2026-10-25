@@ -56,9 +56,9 @@ public class CreatureBodyTests
         Assert.True(body.Max(s => s.Height + s.Radius) >= 0.6 * top, $"{kind}'s body stops at {body.Max(s => s.Height + s.Radius):0.00} m of its {top:0.00}");
     }
 
-    /// <summary>Kinds drawn from boxes until they're modelled (as the Mouse Moose was, note 790, until note 796): their body's
-    /// checked against that.</summary>
-    static readonly EnemyKind[] StandIns = [EnemyKind.Bruin, EnemyKind.Tapper, EnemyKind.HeadWaiter];
+    /// <summary>Kinds drawn from boxes until they're modelled (as the Mouse Moose was, note 790, until note 796), and the Close,
+    /// procedural (a sack with no limbs, note 1013): their body's checked against what's drawn.</summary>
+    static readonly EnemyKind[] StandIns = [EnemyKind.Bruin, EnemyKind.Tapper, EnemyKind.HeadWaiter, EnemyKind.Close];
 
     [Fact]
     public void EveryCreatureWithABodyIsDrawn()
