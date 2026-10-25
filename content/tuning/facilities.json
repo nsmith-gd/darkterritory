@@ -390,6 +390,11 @@
     // it's already late for the dawn there (then it stands short and has it set back, as for any switch set wrong). False:
     // a spur set ahead is a switch set wrong, as before.
     "crewsStops": true,
+    // Note 1028 (level-design D.1, D.2, I.4): a bot crew clears a yard's blocked siding when the night has time for it, as
+    // note 294's crew would: in for the derelicts with the engine and a car, out past the points, then on up the yard and
+    // the derelicts shoved onto a free road (no cars on it, room for them) and cut off there. Only a siding the yard was
+    // laid with blocked, and only with a free road beyond it. False: the bots work round them, as before.
+    "clearSidings": true,
     // Note 326 (GDD App. F.3: "crews decide whether to split up for more loot, or work the yard together, or the village
     // together"): once the yard's crates are in, this share of the crate hands go to search the village's open houses
     // (the rest shut the doors), each to the nearest hiding spot nobody else has taken within villageReach (m) of where it
@@ -398,6 +403,10 @@
     "villageShare": 0.5,
     "villageReach": 150,
     "villageDawnSpare": 900,
+    // Note 1023 (queue #726; the director, 23 Oct: a basement is "high risk, high reward"): the hands search a house's upstairs
+    // and its basement too, up the flight and down the hatch's ladder, and bring the find back up and out; false, they keep
+    // to the ground floor (note 1005).
+    "villageFloors": true,
     // Note 1031 (level-design T.4: "the bots in its streets"; note 692's handoff: "they work the yard, not the streets"): a
     // bot hand off duty in a town (the crew delivered, or at the gate while someone playing is out in the town, note 995)
     // gets down and walks it, out along one of the townStreets streets nearest the square, up to townStroll m from its

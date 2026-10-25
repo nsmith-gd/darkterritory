@@ -47,6 +47,7 @@
     "storekeeper": { "welcome": 0.3, "hope": 0.1 },
     "fitter":      { "keeping": -0.2, "telling": 0.1, "nerve": 0.2 },
     "blacksmith":  { "nerve": 0.3, "welcome": 0.2, "hope": 0.2 },
+    "buyer":       { "keeping": -0.2, "telling": 0.2, "welcome": 0.3 },
     "lampman":     { "nerve": 0.1, "hope": 0.4 },
     "porter":      { "telling": 0.2, "welcome": 0.2 },
     "driver":      { "keeping": -0.3, "telling": 0.3, "nerve": 0.2, "grief": 0.2 },

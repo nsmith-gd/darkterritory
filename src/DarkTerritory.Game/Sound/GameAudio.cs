@@ -39,6 +39,8 @@ public sealed partial class GameAudio
         _mix = new HotData<MixDef>(Path.Combine(contentRoot, MixDef.File));
         string walls = Path.Combine(contentRoot, WallsTuning.File);
         _walls = File.Exists(walls) ? new HotData<WallsTuning>(walls) : null;
+        string look = Path.Combine(contentRoot, LookTuning.File);
+        CargoOutside = File.Exists(look) ? DataFile.Load<LookTuning>(look).CargoOutside : new();
         Mixer = new Mixer(Bank, _mix.Value);
         PrepareMix(contentRoot);
         Opera = new Opera(contentRoot);
@@ -48,6 +50,8 @@ public sealed partial class GameAudio
     }
 
     public SoundBank Bank { get; }
+    /// <summary>What's in a car heard from outside it (look.json cargoOutside, note 1025): its sounds as loud as what's left of it.</summary>
+    public CargoOutsideTuning CargoOutside { get; set; }
     /// <summary>The yard's voice on the radio (note 240): what it can say, and how long a line takes it.</summary>
     public ClerkVoice Clerk { get; }
     public Mixer Mixer { get; }

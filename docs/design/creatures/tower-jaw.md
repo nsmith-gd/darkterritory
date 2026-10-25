@@ -160,5 +160,6 @@ NEVER     a bridge; it never boards the train
   it down with its heap dragged off the rails. Cues: the chiselling, its threat, driven off, the tower down.
   `dt screenshot --view towerjaw` / `towerjawfall` (or `--towerjaw gnaw|lean|threat|lunge|away|wreck`, on a generated
   night with a coaling tower, frontier:3 unless `--route` says).
-- **Not yet**: the loading crane's gantry doesn't lean or fall (the crane's `Wrecked` only stops it); the cleared state is
-  the scene's memory, so a client joining after the clearing sees the tower standing.
+- **Built (note 1029)**: the loading crane's gantry falls across its loading track at its middle and closes it, as the
+  coaling tower's wreck closes the line, until it's cleared (`dt screenshot --site --crane --gantry down|cleared`); what's
+  down or cleared is the run's, on the wire, so a client joining after the fall or the clearing sees it so.

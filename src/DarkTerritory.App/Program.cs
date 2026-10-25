@@ -1192,6 +1192,12 @@ CampaignState? Play(IPlaySession session, CampaignState? campaign)
     // Talking and reading in the fortress town (note 281): on this machine alone. A press the town took isn't sent to the
     // host while the key's still down (nothing in a town changes the night; a lamp at somebody's feet stays where it is).
     var townTalk = new TownTalk();
+    // The buyer (note 1027): a press with a find in hand goes on to the host, who sells it; what the buyer says is shown once
+    // the host has had it (the find gone from your hands: paid; still there a moment later: the tally's paid for it already).
+    (DarkTerritory.Sim.Towns.Town Town, DarkTerritory.Sim.Towns.Townsperson Buyer, int Find, string Name, double Price, double Until)? pendingSale = null;
+    var townWriting = DarkTerritory.Sim.Towns.TownContent.Load(content)?.Writing;
+    // How long a sale's answer is waited for (s): the host's snapshot is a tick or two away over a good link. Not a design number.
+    const double SaleAnswerSeconds = 1.0;
     // The blacksmith (note 697): whether something's been bought to fit. The host's purchase is the campaign's, saved at once;
     // the yard's hosted again to fit it. A press on them opens their catalogue (note 904), when there's a catalogue at all.
     bool refitWanted = false;
@@ -1536,6 +1542,13 @@ CampaignState? Play(IPlaySession session, CampaignState? campaign)
             inMenu = true;
             useKept = true;
         }
+        // The buyer (note 1027), a find in hand: the press is the host's, to sell it; nothing's said till it's answered.
+        else if (Hit(Control.Use) && session.World.BuyerOffer(session.Player, session.PlayerId) is { } offer && session.World.BuyerInReach(session.Player) is { } atBuyer
+            && Hud.TownTarget(session) is { Kind: DarkTerritory.Sim.Towns.TownTargetKind.Person } sellTo && sellTo.Index == atBuyer.Buyer.Id)
+        {
+            townTalk.Close();
+            pendingSale = (atBuyer.Town, atBuyer.Buyer, offer.Find.Id, session.World.Run?.FindName(offer.Find)?.ToLowerInvariant() ?? "find", offer.Price, now + SaleAnswerSeconds);
+        }
         else if (Hit(Control.Use) && session.World.TownOf(session.Player) is { } town && Hud.TownTarget(session) is var spoken && townTalk.Use(town, spoken, now))
             useKept = spoken is not { Kind: DarkTerritory.Sim.Towns.TownTargetKind.Person } hosting || !town.Plan.People[hosting.Index].Hosting;
         // Dave's card is this machine's alone; Jacob's press goes on to the host as well (a word with him mends the train), and
@@ -1545,6 +1558,14 @@ CampaignState? Play(IPlaySession session, CampaignState? campaign)
             useKept = true;
         if (!Held(Control.Use))
             useKept = false;
+        if (pendingSale is { } sale)
+        {
+            bool gone = !session.World.Bodies.All.Any(b => b.Id == sale.Find && b.HeldBy(session.PlayerId));
+            if ((gone || now >= sale.Until) && townWriting is not null)
+                townTalk.Said(sale.Town, sale.Buyer, TownTalk.Sale(townWriting, sale.Buyer, sale.Name, sale.Price, paid: gone), now);
+            if (gone || now >= sale.Until)
+                pendingSale = null;
+        }
         // Open, the logbook takes the walking keys (note 721): back a night, or on one. Dying shuts it.
         if (crewMemory.Reader.Open)
         {
@@ -2092,27 +2113,34 @@ CampaignState? Play(IPlaySession session, CampaignState? campaign)
             scene.Build(mesh, session.Train.Line, frames, session.Train.Dynamics.Distance, lens.Position);
             photographer.Keep(renderer.Render(mesh, lens, lighting, lighting.FogColor), renderer.Width, renderer.Height, now);
             (scene.Crew, scene.Own, scene.HeldHere) = (shownCrew, shownOwn, shownHeld);
-            if (photographer.Save(album.Night) is { } photoFile)
+            string? photoFile = photographer.Save(album.Night);
+            if (photoFile is not null)
                 Console.WriteLine($"yard photographer: the crew's picture is kept in {photoFile}");
+            // Note 1030: tonight's page carries it, and the campaign's prints so far are laid out on a sheet in the night's folder.
+            crewMemory.Snapped(photographer.Photo!, photoFile);
+            if (crewMemory.CrewKey.Length > 0 && YardGallery.Save(album.Night, crewMemory.YardPrints(), crewMemory.Crew, Hud.Remembering.Gallery) is { } sheet)
+                Console.WriteLine($"yard photographer: the crew's gallery is kept in {sheet}");
         }
         scene.PhotoFlash = photographer.Flash(now);
         scene.Build(mesh, session.Train.Line, frames, session.Train.Dynamics.Distance, camera.Position);
         frameWatch.Mark("scene");
         // GDD v1.4 App. D.12: a bookmark that's due is drawn from its camera now, off screen, with what this machine has of
-        // the world (everyone but whoever's eyes it is), and kept small for the run-end screen. Rare, so a stall's fine.
+        // the world (everyone but whoever's eyes it is), and kept small for the run-end screen. Rare, so a stall's fine (a
+        // clip's frames, note 1034, a fifth of a second apart, ten at most, sixteen clips a night).
         if (stills.Due(session, frames, now) is { Count: > 0 } due)
         {
             var (shownCrew, shownOwn, shownHeld) = (scene.Crew, scene.Own, scene.HeldHere);
             var (shownBodies, shownCut, shownLights, shownWreck, shownDerailed) = (scene.Bodies, scene.CutAway, scene.Lights, scene.Wreck, scene.Derailed);
             (scene.Own, scene.HeldHere) = (null, null);
-            foreach (var (mark, from, peak) in due)
+            foreach (var (mark, from, peak, _) in due)
             {
                 // E.5: a derailment's still is that crew member's peak in the film, drawn as the film draws it.
                 var at = peak is not null ? DerailSequence.Stage(scene, peak, frames) : frames;
                 if (peak is null)
                     scene.Crew = BookmarkStills.Figures(session, frames, clock.Alpha, mark.Viewer);
                 scene.Build(mesh, session.Train.Line, at, session.Train.Dynamics.Distance, from.Position);
-                stills.Keep(mark, renderer.Render(mesh, from, lighting, lighting.FogColor), renderer.Width, renderer.Height, peak is not null);
+                stills.Keep(mark, renderer.Render(mesh, from, lighting, lighting.FogColor), renderer.Width, renderer.Height, peak is not null, now,
+                    session.World.Bookmarks.Tuning.Clip);
                 (scene.Bodies, scene.CutAway, scene.Lights, scene.Wreck, scene.Derailed) = (shownBodies, shownCut, shownLights, shownWreck, shownDerailed);
             }
             (scene.Crew, scene.Own, scene.HeldHere) = (shownCrew, shownOwn, shownHeld);
@@ -2154,7 +2182,7 @@ CampaignState? Play(IPlaySession session, CampaignState? campaign)
         if (hudOn)
         {
             Hud.Build(overlay, UiWidth, UiHeight, session, stills: stills.Stills, pixels: (float)renderer.Height / UiHeight, talk: townTalk, figures: figureTalk, now: now,
-                photo: crewMemory.Photo,
+                photo: crewMemory.Photo, gallery: session.World.Run?.Report is null ? null : crewMemory.EndGallery(),
                 // The first nights' card gives way to a panel opened over it (note 351: it showed through the supplies).
                 firstNight: firstNight && !cardHidden && !Held(Control.Roster) && !showSupplies && cardPage < 0 && !showPlan,
                 captions: frontEnd.Settings.Captions ? captions.Lines() : null);
@@ -2328,6 +2356,14 @@ CampaignState? Play(IPlaySession session, CampaignState? campaign)
 // Spec E: autosave on each departure from a facility, and settle the night into the slot when it's over.
 static CampaignState Autosave(SaveSlots saves, PlayerProfile profile, CampaignState campaign, NetPlaySession session, string content)
 {
+    // Note 1027: what the town's buyer has paid since the tally (anyone's sale, a joiner's too: the host's sim sells), into the
+    // crew's wallet as it's paid, once the night's settled.
+    if (campaign.Current is null && session.Host is not null && session.World.Run is { Report: not null } sold && sold.TakeSoldAfter() is > 0 and var scrip)
+    {
+        campaign = campaign with { Scrip = campaign.Scrip + scrip };
+        saves.Save(campaign);
+        Console.WriteLine($"campaign: the buyer paid {scrip:0} scrip; now {campaign.Scrip:0} scrip");
+    }
     if (campaign.Current is null)
         return campaign;
     if (session.World.Run?.Report is { } report)

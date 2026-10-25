@@ -89,6 +89,10 @@ public sealed class Crane
     /// <summary>The gantry's feet and top, for drawing: its four corners at the ground.</summary>
     public Double3 Corner(int end, int side) => _at(_t.Along + (end == 0 ? -0.5 : 0.5) * _t.Length, _t.Span[side], 0);
     public double Top => _t.Height + 0.6;
+    /// <summary>The gantry's middle over its track, at the rail (note 1029): where it lies across the track once it's down.</summary>
+    public Double3 OverTrack => _at(_t.Along, 0, 0);
+    /// <summary>How far along its track from the site's layout point the gantry's middle is (m).</summary>
+    public double MiddleAlong => _t.Along;
     /// <summary>The ends of the bridge where it is now, at the top.</summary>
     public Double3 BridgeEnd(int side) => _at(Bridge, _t.Span[side], Top);
     /// <summary>How far over <see cref="Top"/> the rail girders' top flange is (m; tools/models depot_modules crane_girder).</summary>

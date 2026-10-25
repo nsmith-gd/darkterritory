@@ -207,6 +207,9 @@ public sealed class FrontEnd
 
     /// <param name="newSeed">Where a new campaign's seed comes from (tests pin it).</param>
     /// <param name="edition">Which game this is (T79): the demo has a quick night on its own tiers, and no campaign.</param>
+    /// <summary>The yard photographer's prints read back for the campaign's end (note 1030).</summary>
+    readonly YardGallery _gallery = new();
+
     public FrontEnd(CampaignTuning campaign, RunTuning run, SaveSlots saves, string settingsPath, Func<ulong>? newSeed = null, EditionTuning? edition = null)
     {
         _edition = edition ?? new();
@@ -2416,7 +2419,13 @@ public sealed class FrontEnd
                 y += 10;
             }
         if (Message is { } m)
+        {
             o.Text(x, y, m.ToUpperInvariant(), Amber);
+            y += 10;
+        }
+        // Note 1030: the campaign's end, its yard photographer's prints, a night each, under the list.
+        if (Screen == Screen.Fortress && Open is { Over: true } ended)
+            CampaignGallery(o, ended, y + 6, width, height);
         // Note 968: the first boot's line, small and faint at the foot of the title menu, over the keys' line.
         if (Screen == Screen.Title && Night is null && PlaytestLine is { } said)
         {
@@ -2444,6 +2453,34 @@ public sealed class FrontEnd
         if (UiStyle.MeasureKeyed(o, hints) > width - 16)
             hints = hints.Replace(" OR MOUSE", "").Replace(" OR CLICK", "");
         UiStyle.Keyed(o, width - 8 - UiStyle.MeasureKeyed(o, hints), height - 13, hints, Dim);
+    }
+
+    /// <summary>
+    /// The yard photographer's gallery on the campaign's end (upgrades.md §4: "the campaign's end card shows every one"; note
+    /// 1030): the crew's prints from its logbook as this machine kept them, the latest <see cref="GalleryTuning.MenuMost"/>,
+    /// from <paramref name="top"/> to over the keys' line, set right; smaller, and fewer rows, where a bigger TEXT SIZE
+    /// leaves less room (at 150% there's none under the list: the night's end card and the folder's sheet still have them).
+    /// Nothing when there are none (no photographer, or the files gone).
+    /// </summary>
+    void CampaignGallery(Overlay o, CampaignState s, float top, int width, int height)
+    {
+        var prints = _gallery.Prints(s.Logbook);
+        if (prints.Count == 0)
+            return;
+        var t = Hud.Remembering.Gallery;
+        int most = Math.Min(prints.Count, Math.Max(1, t.MenuMost)), columns = Math.Clamp(t.MenuColumns, 1, most);
+        // As many rows as fit at a readable size (a mount 4 more than its print, its caption 11 under it, 4 between, the
+        // heading's 13 over them all), the latest rows kept where they don't.
+        for (int rows = (most + columns - 1) / columns; rows >= 1; rows--)
+        {
+            int shown = Math.Min(most, rows * columns), across = Math.Min(columns, shown);
+            float fit = Math.Min(1, Math.Min((width - 24 - across * 8f) / (across * t.MenuWidth), (height - 20 - top - 13 - rows * 19f) / (rows * t.MenuHeight)));
+            if (fit * t.MenuWidth < 40)
+                continue;
+            int w = (int)(t.MenuWidth * fit), h = (int)(t.MenuHeight * fit);
+            Hud.Gallery(o, width - 12, top, _gallery.Thumbs(prints, w * 2, h * 2, shown), prints.Count, w, h, across, 1);
+            return;
+        }
     }
 
     /// <summary>A four-pixel arrow centred on <paramref name="cx"/>, from <paramref name="y"/> down, pointing up or down.</summary>

@@ -45,12 +45,18 @@ public sealed class TownTalk
     /// <param name="wine">Nicki has a glass for you in reach (note 571): her prompt says the hold that takes it.</param>
     /// <param name="selling">The blacksmith's open for the crew (note 697: a campaign night's yard): their prompt says the press
     /// opens the catalogue (note 904: talking to them is buying from them).</param>
-    public static string Prompt(Town town, TownTarget t, bool wine = false, bool selling = false) => t.Kind switch
+    /// <param name="sell">A find in hand at the town's buyer (note 1027: <see cref="Sim.World.BuyerOffer"/>): their prompt says
+    /// the press sells it.</param>
+    public static string Prompt(Town town, TownTarget t, bool wine = false, bool selling = false, bool sell = false) => t.Kind switch
     {
         TownTargetKind.Person when wine && town.Plan.People[t.Index].Hosting => $"{town.Plan.People[t.Index].Name.ToUpperInvariant()}   TALK : [E]   A GLASS : HOLD [E]",
         // Clearly the blacksmith (note 697), whatever the town calls them, and what they sell.
         TownTargetKind.Person when IsSmith(town.Plan.People[t.Index]) =>
             $"{town.Plan.People[t.Index].Name.ToUpperInvariant()}, BLACKSMITH   {(selling ? "UPGRADES" : "TALK")} : [E]",
+        // The buyer (note 1027): what they do, and with a find in hand, that the press sells it (never the price: GDD §19, the
+        // tally's how a crew learns what a find's worth; the buyer says what they paid).
+        TownTargetKind.Person when IsBuyer(town.Plan.People[t.Index]) =>
+            $"{town.Plan.People[t.Index].Name.ToUpperInvariant()}, BUYER   {(sell ? "SELL : [E]" : "TALK : [E]")}",
         TownTargetKind.Person => $"{town.Plan.People[t.Index].Name.ToUpperInvariant()}   TALK : [E]",
         TownTargetKind.Board => $"THE BOARD ({town.Notices.Count} {(town.Notices.Count == 1 ? "NOTICE" : "NOTICES")})   READ : [E]",
         TownTargetKind.Paper => $"{town.Plan.Papers[t.Index].Title.ToUpperInvariant()}   READ : [E]",
@@ -63,12 +69,43 @@ public sealed class TownTalk
     /// <summary>The town's blacksmith, who does the trains (note 697).</summary>
     public static bool IsSmith(Townsperson p) => p.Role == "blacksmith";
 
+    /// <summary>The town's buyer, who pays for finds (note 1027).</summary>
+    public static bool IsBuyer(Townsperson p) => p.Role == "buyer";
+
+    /// <summary>
+    /// What the buyer says of a find the crew pressed Use on them with (note 1027; world/towns.json <c>buyerSays</c>): what they
+    /// paid for it ({price}, {find}), or with it still in hand once the host's had the press, that the tally paid for it.
+    /// </summary>
+    public static string Sale(TownWriting w, Townsperson buyer, string find, double price, bool paid)
+    {
+        var lines = paid ? w.BuyerSays?.Paid : w.BuyerSays?.Tallied;
+        string line = lines is { Length: > 0 } ? lines[(buyer.Id + find.Length) % lines.Length]
+            : paid ? "{price} for the {find}." : "The clerk's paid you for that one already.";
+        return line.Replace("{price}", $"{price:0}").Replace("{find}", find);
+    }
+
+    /// <summary>
+    /// The buyer's card open on what they say of a sale (note 1027): <paramref name="line"/> in place of their next line, typed
+    /// out from <paramref name="now"/>.
+    /// </summary>
+    public void Said(Town town, Townsperson p, string line, double now)
+    {
+        In = town;
+        Open = new TownTarget(TownTargetKind.Person, p.Id);
+        Page = 0;
+        Since = now;
+        _instead = line;
+    }
+
     /// <summary>
     /// Whether a Use press on <paramref name="target"/> opens the blacksmith's catalogue rather than a card (note 904; the
     /// director, 16 Oct: "I would have assumed talking to him, I get the upgrades"): the town's blacksmith, while they sell.
     /// </summary>
     public static bool OpensForge(Town town, TownTarget? target, bool selling) =>
         selling && target is { Kind: TownTargetKind.Person } t && IsSmith(town.Plan.People[t.Index]);
+
+    /// <summary>The buyer's card's foot (note 1027): what they're for, and how.</summary>
+    public const string BuyerBuys = "SELL : [E] WITH A FIND IN HAND";
 
     /// <summary>The blacksmith's card's foot when they aren't selling (note 904): where and when their wares are.</summary>
     public const string ForgeLater = "UPGRADES : AT THE FORGE, IN A CAMPAIGN NIGHT'S YARD";
@@ -230,6 +267,9 @@ public sealed class TownTalk
                     // Note 904: a press on the blacksmith opens the forge while they sell; a card is them not selling now.
                     if (IsSmith(p))
                         again = again.Length > 0 ? $"{again}   {ForgeLater}" : ForgeLater;
+                    // Note 1027: the buyer's what they buy, unless it's a sale they're saying.
+                    if (IsBuyer(p) && _instead is null)
+                        again = again.Length > 0 ? $"{again}   {BuyerBuys}" : BuyerBuys;
                     return new TownCard(TownCardKind.Speech, $"{p.Name}, {p.Title}", line[..typed], again);
                 }
             case TownTargetKind.Board:
