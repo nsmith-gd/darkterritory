@@ -423,8 +423,17 @@ static class PlaythroughCommands
             driver,
             // Note 1028: the blocked sidings (by their branch), how many derelicts each was laid with, and when (s into the night)
             // the crew went in for them, had the siding clear, and had them off the engine's rake: null for what never happened.
-            sidings = sidings.Select(x => new { branch = x.Key, x.Value.Stop, km = x.Value.Km, x.Value.Derelicts, wentIn = x.Value.In, clear = x.Value.Clear,
-                putAway = x.Value.Away, seconds = x.Value.Away - x.Value.In }).ToArray(),
+            sidings = sidings.Select(x => new
+            {
+                branch = x.Key,
+                x.Value.Stop,
+                km = x.Value.Km,
+                x.Value.Derelicts,
+                wentIn = x.Value.In,
+                clear = x.Value.Clear,
+                putAway = x.Value.Away,
+                seconds = x.Value.Away - x.Value.In,
+            }).ToArray(),
             // Note 326: what the crew found at the stops (with --loot): the hiding spots searched, the finds stowed and their scrip.
             loot = last.Run is { } lr ? new
             {
