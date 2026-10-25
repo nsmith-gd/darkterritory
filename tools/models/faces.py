@@ -301,7 +301,7 @@ def paint_eyes(base, at, face, lm, iris=(0.16, 0.1, 0.06)):
     soft = 0.00035
     almond = np.clip((top - z) / soft, 0, 1) * np.clip((z - bottom) / soft, 0, 1) * (np.abs(u) < 1) * near
     out = base.copy()
-    sclera = np.array([0.36, 0.32, 0.28], np.float32)
+    sclera = np.array([0.46, 0.42, 0.37], np.float32)
     # The white dulled toward its corners and under the lid's edge (the lid's shadow on the ball).
     dull = 0.55 + 0.45 * (1 - np.abs(u) ** 2) * np.clip((top - z) / 0.0025, 0.35, 1)
     eye = sclera * dull[..., None]

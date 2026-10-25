@@ -911,7 +911,7 @@ def build(name, style):
     if style.face and scan:
         # Both eyes painted open on the lids, shaded as the face round them is.
         painted = faces.paint_eyes(base, atlas.maps["eyes"], face, LM)
-        shade = (0.6 + 0.4 * atlas.maps["AO"][..., 0] ** 0.6) * (1 - 0.85 * shut)
+        shade = (0.75 + 0.25 * atlas.maps["AO"][..., 0] ** 0.6) * (1 - 0.6 * shut)
         base = np.where((painted != base).any(-1, keepdims=True), painted * shade[..., None], base)
     if not scan:
         base = helm_grade(base, atlas)
