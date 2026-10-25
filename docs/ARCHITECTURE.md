@@ -1182,4 +1182,5 @@ written here instead is moved out by `tools/coord/notes.py split`; the Coordinat
 - [1021. A grabbed crewmate rescued, and the ping's "I'll fetch it" kept (Pia, nathaniel3; queue #724; the director's playtest of 23 Oct,…](notes/1021.md)
 - [1024. A town's standing lowered by what's brought into it (n1-S1, nathaniel1; queue #652; GDD §3.1 "A town remembers" and v1.6's "Not yet"; the…](notes/1024.md)
 - [1026. The GDD against the game again: what it still promises that isn't built (n1-A4, nathaniel1's Token Budget Manager's worker; queue #728; the…](notes/1026.md)
+- [1029. Tower Jaw's gantry comes down; a structure's fall reaches a joiner (Ash, nathaniel2's Token Budget Manager's worker; queue #732; note…](notes/1029.md)
 <!-- end of the notes index -->
