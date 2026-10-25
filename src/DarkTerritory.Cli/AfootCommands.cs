@@ -25,6 +25,9 @@ static class AfootCommands
         // --halt (#651, note 953): at the first abandoned village with a halt, the train stood at the halt on the main line, and
         // the two walks are the halt's own response (director.encounters.halt) on and off, the watch on in both.
         bool halt = args.Contains("--halt");
+        // --indoors (note 1023): at each house with floors, in at its door, down its hatch to the basement's deep end and back up,
+        // up its flight to the far end and back down, and out; where its creatures were, floor by floor.
+        bool indoors = args.Contains("--indoors");
         var stop = (halt
             ? route.Features.FirstOrDefault(f => f.Kind == FeatureKind.Village && f.Stop?.Halt is not null
                 && f.Stop.Buildings.Any(b => b.Kind == BuildingKind.House && b.Zone == StopZone.Village))
@@ -60,12 +63,24 @@ static class AfootCommands
             var houses = stop.Stop!.Buildings.Where(b => b.Kind == BuildingKind.House && b.Zone == StopZone.Village)
                 .Select(b => World(DarkTerritory.Sim.Run.StopWalls.Doorstep(b, 0))).ToList();
             var path = new List<Double3>();
+            // (Each point walked to straight, height and all, inside a house with floors; on the ground anywhere else.)
+            var exact = new List<bool>();
             var here = session.Train.Frames[0].Origin;
+            var walls = session.Train.Walls;
+            int fi = route.Features.ToList().IndexOf(stop);
             while (houses.Count > 0)
             {
                 var next = houses.MinBy(h => (h - here).Length);
                 houses.Remove(next);
                 path.Add(here = next);
+                exact.Add(false);
+                if (indoors && walls is not null && walls.OpenHouses.Where(h => h.Feature == fi && DarkTerritory.Sim.Run.StopWalls.Storeyed(h))
+                    .FirstOrDefault(h => walls.HouseDoors.Any(d => d.House == h.Index && ((d.At - next) with { Y = 0 }).Length < 3)) is { B: not null } house)
+                    foreach (var p in Indoors(walls, house))
+                    {
+                        path.Add(p);
+                        exact.Add(true);
+                    }
             }
             var health = session.PlayerTuning.Health;
             session.Player = new PlayerState { Parent = PlayerState.World, Position = path[0], Health = health };
@@ -85,6 +100,7 @@ static class AfootCommands
                 return [Math.Round(h, 1), Math.Round(Double3.Dot(p - r.Position, right), 2), Math.Round(p.Y - r.Position.Y, 2)];
             }
             double died = -1;
+            var floorSeconds = new Dictionary<string, Dictionary<string, double>>();
             // Note 795: why the director sent nothing, a second at a time, what held its cap, and which kinds' rules would have
             // let them come then (tonight's, their own gates).
             var held = new Dictionary<string, int>();
@@ -107,18 +123,33 @@ static class AfootCommands
                 if (session.Player.Alive && session.Player.Parent == PlayerState.World
                     && !world.ActiveEnemies.Any(e => e.Phase is SpinePhase.Grab or SpinePhase.Punish))
                 {
+                    bool straight = exact[leg % path.Count];
                     var to = path[leg % path.Count] - session.Player.Position;
-                    to = to with { Y = 0 };
-                    if (to.Length < 1)
+                    if (!straight)
+                        to = to with { Y = 0 };
+                    if (to.Length < (straight ? 0.05 : 1))
                         leg++;
                     else
                     {
                         var p = session.Player.Position + to.Normalized * Math.Min(to.Length, speed * SimConstants.TickSeconds);
-                        session.Player = session.Player with { Position = p with { Y = PlayerMotor.GroundAt(p, line, ref hint) } };
+                        session.Player = session.Player with { Position = straight ? p : p with { Y = PlayerMotor.GroundAt(p, line, ref hint) }, Velocity = default };
                     }
                 }
                 session.Step(default);
                 events.AddRange(world.EnemyEvents);
+                // Note 1023: where each creature in a house with floors is, a tick at a time.
+                if (walls is not null)
+                    foreach (var e in world.ActiveEnemies.Where(e => !e.Gone && e.Attached == Enemy.Loose))
+                        if (walls.StoreyedAt(e.Local + Double3.Up * 0.3) is var hi and >= 0)
+                        {
+                            var h = walls.OpenHouseAt(hi);
+                            string where = DarkTerritory.Sim.Run.StopWalls.OnFlight(h, e.Local) ? "flight"
+                                : DarkTerritory.Sim.Run.StopWalls.LevelOf(h, e.Local.Y) switch { < 0 => "basement", > 0 => "upstairs", _ => "ground" };
+                            string key = $"{e.Kind} {e.Id}";
+                            if (!floorSeconds.TryGetValue(key, out var by))
+                                floorSeconds[key] = by = [];
+                            by[where] = by.GetValueOrDefault(where) + SimConstants.TickSeconds;
+                        }
                 if (world.Director is { } wd && wd.Signs.Count > shown.Count)
                     shown.Add(new { at = At(world.Tick), kind = world.Watcher.Kind.ToString(), eye = Line(session.Player.Position + Double3.Up * 1.6), sign = Line(world.Watcher.At) });
                 if (!session.Player.Alive && died < 0)
@@ -147,6 +178,8 @@ static class AfootCommands
                 inSettlement = world.InSettlement,
                 tonight = Spawns.Rules.Where(r => d.Tonight(r.Kind, world)).Select(r => r.Kind.ToString()).ToArray(),
                 shown,
+                // Note 1023: each creature that was in a house with floors, and the seconds it spent on each floor and the flight.
+                onFloors = floorSeconds.ToDictionary(f => f.Key, f => f.Value.ToDictionary(v => v.Key, v => Math.Round(v.Value, 1))),
                 died = died < 0 ? (double?)null : Math.Round(died),
                 death = died < 0 ? null : session.Player.Death.ToString(),
             };
@@ -176,7 +209,8 @@ static class AfootCommands
     {
         string specs = Str(args, "--routes", "local:1-4,frontier:1-4,deadLines:1-4");
         int cars = (int)Opt(args, "--cars", 6), crew = (int)Opt(args, "--crew", 4);
-        var stops = new List<(string Kind, string Spot, IReadOnlyCollection<string> Could, IReadOnlyDictionary<string, int> Lairs, IReadOnlyCollection<string> Houses)>();
+        var stops = new List<(string Kind, string Spot, IReadOnlyCollection<string> Could, IReadOnlyDictionary<string, int> Lairs, IReadOnlyCollection<string> Houses,
+            int Floors, IReadOnlyCollection<string> OnFloors)>();
         var rows = new List<object>();
         foreach (var spec in Specs(specs))
         {
@@ -194,9 +228,9 @@ static class AfootCommands
                 var at = new Dictionary<string, object>();
                 foreach (var (name, zone) in spots)
                 {
-                    var (could, houses, standing, open, lived) = Stood(content, route, f, zone, cars, crew);
-                    stops.Add((kind, name, could, lairs, houses));
-                    at[name] = new { standsAt = standing, could, houses, openHouses = open, livedIn = lived };
+                    var (could, houses, standing, open, lived, floors, onFloors) = Stood(content, route, f, zone, cars, crew);
+                    stops.Add((kind, name, could, lairs, houses, floors, onFloors));
+                    at[name] = new { standsAt = standing, could, houses, openHouses = open, livedIn = lived, withFloors = floors, livedOnFloors = onFloors };
                 }
                 rows.Add(new
                 {
@@ -221,6 +255,9 @@ static class AfootCommands
             could = rules.Where(r => g.Any(s => s.Could.Contains(r))).ToDictionary(r => r, r => g.Count(s => s.Could.Contains(r))),
             never = rules.Where(r => Director.Outdoors(Enum.Parse<EnemyKind>(r)) && !g.Any(s => s.Could.Contains(r))).ToArray(),
             houses = g.SelectMany(s => s.Houses).GroupBy(h => h).OrderBy(h => h.Key, StringComparer.Ordinal).ToDictionary(h => h.Key, h => h.Count()),
+            // Note 1023: the houses with floors at such stops, and what lives on their floors.
+            housesWithFloors = g.Sum(s => s.Floors),
+            livedOnFloors = g.SelectMany(s => s.OnFloors).GroupBy(h => h[..h.IndexOf(' ')]).OrderBy(h => h.Key, StringComparer.Ordinal).ToDictionary(h => h.Key, h => h.Count()),
         });
         return new { routes = specs, crew, byKind, stops = rows };
     }
@@ -230,7 +267,7 @@ static class AfootCommands
     /// buildings of <paramref name="zone"/>, a couple of seconds on: the stop creatures whose rules let them come, the creatures
     /// put in its houses, and whether the run counts the train as standing at a stop.
     /// </summary>
-    static (List<string> Could, List<string> Houses, bool StandsAt, int Open, List<string> Lived) Stood(string content, Route route, RouteFeature f, StopZone zone, int cars, int crew)
+    static (List<string> Could, List<string> Houses, bool StandsAt, int Open, List<string> Lived, int Floors, List<string> OnFloors) Stood(string content, Route route, RouteFeature f, StopZone zone, int cars, int crew)
     {
         var stop = f.Stop!;
         var session = new PrototypeSession(content, route, cars, enemies: true, crew: crew, at: f.Start + stop.StopPoint.S);
@@ -257,7 +294,40 @@ static class AfootCommands
         int fi = route.Features.ToList().IndexOf(f);
         var open = session.Train.Walls?.OpenHouses.Where(h => h.Feature == fi).ToList() ?? [];
         var lived = world.Enemies is { } et ? open.Select(h => Dwelling.Lives(route, stop, h, et.Dwellings, null)).OfType<EnemyKind>().Select(k => k.ToString()).ToList() : [];
-        return (could, houses, world.Run!.StandsAt(session.Train) >= 0, open.Count, lived);
+        // Note 1023: its houses with floors, and what lives in them (on which floor it waits).
+        var floors = open.Where(h => DarkTerritory.Sim.Run.StopWalls.Storeyed(h)).ToList();
+        var onFloors = world.Enemies is { } ft
+            ? floors.Select(h => Dwelling.Lives(route, stop, h, ft.Dwellings, null) is { } k ? $"{k} ({(h.B.Basement ? "basement" : "upstairs")} of a {h.B.Form})" : null)
+                .OfType<string>().ToList()
+            : [];
+        return (could, houses, world.Run!.StandsAt(session.Train) >= 0, open.Count, lived, floors.Count, onFloors);
+    }
+
+    /// <summary>
+    /// The walk round a house with floors (note 1023), from its door: in, to the hatch, down its ladder to the basement's deep
+    /// end and back up, to the flight's foot, up it to the far end upstairs and back down, and out of the door.
+    /// </summary>
+    static IEnumerable<Double3> Indoors(DarkTerritory.Sim.Run.StopWalls walls, DarkTerritory.Sim.Run.StopWalls.OpenHouse h)
+    {
+        var door = walls.HouseDoors.First(d => d.House == h.Index);
+        var inside = door.At - door.Out * 1.0;
+        yield return door.At;
+        yield return inside;
+        if (DarkTerritory.Sim.Run.StopWalls.Hatchway(h) is var (top, foot, inward, onto))
+        {
+            var beside = top + inward * onto;
+            var deep = foot + ((h.Middle - foot) with { Y = 0 }) * 1.6;
+            foreach (var p in new[] { beside, top, foot, deep with { Y = foot.Y }, foot, top, beside })
+                yield return p;
+        }
+        if (DarkTerritory.Sim.Run.StopWalls.Flight(h) is var (bottom, upper))
+        {
+            var far = upper + ((h.Middle - upper) with { Y = 0 }) * 1.6;
+            foreach (var p in new[] { bottom, upper, far with { Y = upper.Y }, upper, bottom })
+                yield return p;
+        }
+        yield return inside;
+        yield return door.At;
     }
 
     /// <summary>"frontier:1-4,local:7" as route specs, one per seed.</summary>
