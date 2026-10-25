@@ -730,7 +730,8 @@ public static partial class MaritimeKit
         }
         if (h.Upstairs)
             panes.Add(new(new Vector3(opens, (float)(TownFloors.Storey + (TownFloors.WindowSill + TownFloors.WindowHead) / 2), z1), Vector3.UnitZ,
-                (float)TownFloors.WindowWidth, (float)(TownFloors.WindowHead - TownFloors.WindowSill), false) { Opens = true });
+                (float)TownFloors.WindowWidth, (float)(TownFloors.WindowHead - TownFloors.WindowSill), false)
+            { Opens = true });
         // The ends: a window or two a floor, and one up in a gable end.
         foreach (int wall in new[] { 2, 3 })
         {

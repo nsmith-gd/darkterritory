@@ -253,7 +253,8 @@ public static partial class MaritimeKit
             back = -back;
         float t = (float)HouseLayout.Wall;
         return new Room(Vector3.Transform(new Vector3(0, (bottom + top) / 2, 0), at), right, up, back,
-            new Vector3((float)h.Width / 2 - t, (top - bottom) / 2, (float)h.Depth / 2 - t)) { Dark = true };
+            new Vector3((float)h.Width / 2 - t, (top - bottom) / 2, (float)h.Depth / 2 - t))
+        { Dark = true };
     }
 
     /// <summary>Where the bedroom's lamp is (the kit's frame): on the washstand.</summary>

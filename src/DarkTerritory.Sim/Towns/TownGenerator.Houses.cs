@@ -493,8 +493,12 @@ public static partial class TownGenerator
             }
             var house = new TownHouse(i, s, d0, sd, width, depth, kind, design, family, text, layout)
             {
-                Party = i == partyAt && layout is not null, Level = fl?.Level ?? 0, Turn = layout is null && left is null ? fl?.Turn ?? 0 : 0,
-                Upstairs = upstairs, Cellar = cellar, Left = left,
+                Party = i == partyAt && layout is not null,
+                Level = fl?.Level ?? 0,
+                Turn = layout is null && left is null ? fl?.Turn ?? 0 : 0,
+                Upstairs = upstairs,
+                Cellar = cellar,
+                Left = left,
             };
             if (fl is not null)
             {
