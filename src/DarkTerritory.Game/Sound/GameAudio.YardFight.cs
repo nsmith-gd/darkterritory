@@ -126,7 +126,7 @@ public sealed partial class GameAudio
         bool flame = HasCue("place-town.flame");
         if (brought == 0 || !flame && !HasCue("place-town.fire"))
             return;
-        int burns = brought * (world.Run?.Tuning.BroughtIn.Burns ?? 1);
+        int burns = brought * (world.Run?.BurnsEach ?? 1);
         var near = TownGenerator.Harmed(town.Plan, burns)
             .Select(h => (House: h, Front: town.World(h.Rail(0, 0).S, h.Rail(0, 0).D)))
             .Where(x => (x.Front - ear).Length <= HouseFireReach)

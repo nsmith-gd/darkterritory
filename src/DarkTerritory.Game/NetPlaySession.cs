@@ -80,6 +80,12 @@ public sealed record SessionSetup(string? Route = null, string Line = "test-loop
     [System.Text.Json.Serialization.JsonIgnore(Condition = System.Text.Json.Serialization.JsonIgnoreCondition.WhenWritingNull)]
     public IReadOnlyDictionary<string, int>? Burnt { get; init; }
     /// <summary>
+    /// How cold the towns are to the campaign's crew (note 1024), by <see cref="Sim.Towns.TownAt.Key"/>, in percent: tonight's
+    /// terminus, if it's one of them, is built as wary of them as it is. Every machine makes the town, so a joiner is sent it.
+    /// </summary>
+    [System.Text.Json.Serialization.JsonIgnore(Condition = System.Text.Json.Serialization.JsonIgnoreCondition.WhenWritingNull)]
+    public IReadOnlyDictionary<string, int>? Cold { get; init; }
+    /// <summary>
     /// A campaign's night (note 632): with campaign.json <c>dawnEndsCampaign</c>, taken at dawn it's the campaign's last, and
     /// every machine's end card says so. Every machine is sent it.
     /// </summary>
@@ -246,7 +252,7 @@ public sealed record SessionSetup(string? Route = null, string Line = "test-loop
                 world.EnableTown(towns, route, route.GateOr(routeTuning.YardLength), loadout.Enemies?.Director.Roster ?? [], LastTown,
                     // And the terminus's (note 600): the town the next night departs from, with any houses the crew's burnt in it
                     // before (note 612).
-                    Sim.Towns.TownAt.Remembered(Sim.Towns.TownAt.Terminus(route, Sim.LineGen.LineGenContent.Cached(content).Config.Tiers.Fortress.Identities), Burnt));
+                    Sim.Towns.TownAt.Remembered(Sim.Towns.TownAt.Terminus(route, Sim.LineGen.LineGenContent.Cached(content).Config.Tiers.Fortress.Identities), Burnt, Cold));
             // The jobs the train makes as it runs (note 331), host and clients alike.
             world.Upkeep = DataFile.Load<UpkeepTuning>(Path.Combine(content, UpkeepTuning.File));
         }

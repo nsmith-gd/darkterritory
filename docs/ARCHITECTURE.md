@@ -1181,4 +1181,6 @@ written here instead is moved out by `tools/coord/notes.py split`; the Coordinat
 - [1020. A crew of two balanced like a crew of three, the Frontier night's end eased, fewer repeats: measured, then proposed on the Creature Tweaker…](notes/1020.md)
 - [1021. A grabbed crewmate rescued, and the ping's "I'll fetch it" kept (Pia, nathaniel3; queue #724; the director's playtest of 23 Oct,…](notes/1021.md)
 - [1022. The towns' houses with floors, cellars and upstairs windows; the villages' L, cross and pair houses with floors (n1-T2, nathaniel1's Token…](notes/1022.md)
+- [1024. A town's standing lowered by what's brought into it (n1-S1, nathaniel1; queue #652; GDD §3.1 "A town remembers" and v1.6's "Not yet"; the…](notes/1024.md)
+- [1026. The GDD against the game again: what it still promises that isn't built (n1-A4, nathaniel1's Token Budget Manager's worker; queue #728; the…](notes/1026.md)
 <!-- end of the notes index -->

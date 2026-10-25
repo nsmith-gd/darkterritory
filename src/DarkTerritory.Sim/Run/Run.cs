@@ -788,12 +788,24 @@ public sealed partial class Run
     public double BringIn(Enemies.Enemy e, double along)
     {
         if (_broughtIn.FindIndex(b => b.Enemy == e.Id) is var i and >= 0)
-            return Math.Max(0, _broughtIn[i].Seconds + Tuning.BroughtIn.FightSeconds - Seconds);
+            return Math.Max(0, _broughtIn[i].Seconds + FightSeconds - Seconds);
         if (Phase == RunPhase.Yard || e.Attached < 0 || _route.Plan?.Terminus is not { Silent: false } t || along < t.GateM)
             return 0;
         _broughtIn.Add(new BroughtIn(e.Id, e.Kind, e.Called, e.Attached, Seconds));
-        return Tuning.BroughtIn.FightSeconds;
+        return FightSeconds;
     }
+
+    /// <summary>
+    /// The terminus town's standing with the crew (note 1024; towns.json <c>standing</c>) and how cold it is to them, in percent:
+    /// with fewer guards on, a cold town fights what's brought in longer and loses more houses to it. Set with the arrival town.
+    /// </summary>
+    public (Towns.StandingTuning Tuning, int Cold)? Standing { get; set; }
+
+    /// <summary>How long the yard fights a creature brought in (s): run.json <c>broughtIn.fightSeconds</c>, longer with fewer guards (note 1024).</summary>
+    public double FightSeconds => Tuning.BroughtIn.FightSeconds * (Standing is { } s ? s.Tuning.Fight(s.Cold) : 1);
+
+    /// <summary>The houses each creature brought in burns: run.json <c>broughtIn.burns</c>, more with fewer guards (note 1024).</summary>
+    public int BurnsEach => Tuning.BroughtIn.Burns + (Standing is { } s ? s.Tuning.Burns(s.Cold) : 0);
 
     /// <summary>Home in through a town terminus's gate (<see cref="HomeFront"/>), or null where home is the terminus zone.</summary>
     public double? TownHome(TrainOnLine train) =>
@@ -1066,7 +1078,7 @@ public sealed partial class Run
             BroughtIn = delivered ? _broughtIn.Count : 0,
             BroughtInFees = broughtFees,
             TownHurt = hurt,
-            TownBurnt = delivered ? Tuning.BroughtIn.Burns * _broughtIn.Count : 0,
+            TownBurnt = delivered ? BurnsEach * _broughtIn.Count : 0,
             Prizes = delivered ? prizes : [],
             Finder = delivered && finder >= 0 ? IncidentLog.NameOf(world, finder) : "",
             FinderWorth = delivered && finder >= 0 ? finderWorth : 0,

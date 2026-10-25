@@ -677,6 +677,8 @@ object CampaignCommand(string content, string verb, string[] args)
     var runTuning = DataFile.Load<DarkTerritory.Sim.Run.RunTuning>(Path.Combine(content, DarkTerritory.Sim.Run.RunTuning.File));
     var saves = new DarkTerritory.Game.SaveSlots(Str(args, "--saves", DarkTerritory.Game.SaveSlots.DefaultDirectory), t.SaveSlots);
     int slot = (int)Opt(args, "--slot", 1);
+    // Note 1024: the towns cold to the crew, and the forge's prices in the one they're in.
+    var standing = DarkTerritory.Sim.Towns.StandingTuning.Load(content);
     object Board(DarkTerritory.Sim.Campaign.CampaignState s) => new
     {
         slot = s.Slot,
@@ -693,7 +695,10 @@ object CampaignCommand(string content, string verb, string[] args)
         contracts = DarkTerritory.Sim.Campaign.Campaign.Offers(t, runTuning, s).Select((c, i) => new { index = i, route = c.Route, perCar = c.PerCar }),
         stores = s.Stores,
         sellBack = DarkTerritory.Sim.Campaign.Campaign.SellBack(t, s),
-        shop = t.Upgrades.Where(u => !s.Upgrades.Contains(u.Id)).Select(u => new { u.Id, u.Name, kind = u.Kind.ToString(), size = u.Size.ToString(), cost = DarkTerritory.Sim.Campaign.Campaign.UpgradeCost(t, s, u), modelled = u.Effect.Count > 0 || u.Tally is not null, refused = DarkTerritory.Sim.Campaign.Campaign.Unavailable(t, s, u) }),
+        shop = t.Upgrades.Where(u => !s.Upgrades.Contains(u.Id)).Select(u => new { u.Id, u.Name, kind = u.Kind.ToString(), size = u.Size.ToString(), cost = DarkTerritory.Sim.Campaign.Campaign.UpgradeCost(t, s, u, standing), modelled = u.Effect.Count > 0 || u.Tally is not null, refused = DarkTerritory.Sim.Campaign.Campaign.Unavailable(t, s, u) }),
+        // Note 1024: how cold each town is to the crew (percent), and what the forge here asks over its list price.
+        standing = s.Standing,
+        dearer = DarkTerritory.Sim.Campaign.Campaign.Dearer(s, standing),
         underway = s.Current?.Route,
         autosave = s.Checkpoint is { } c ? $"left facility {c.Facility} at {c.Seconds / 60:0.0} min" : null,
         s.History,
@@ -726,7 +731,7 @@ object CampaignCommand(string content, string verb, string[] args)
                     // Note 871: the flare pistol, from the Frontier tier.
                     "flare" => DarkTerritory.Sim.Campaign.Campaign.BuyStores(t, s, DarkTerritory.Sim.Campaign.StoreKind.Flare),
                     "sell" => DarkTerritory.Sim.Campaign.Campaign.SellCar(t, s),
-                    _ => DarkTerritory.Sim.Campaign.Campaign.BuyUpgrade(t, s, what),
+                    _ => DarkTerritory.Sim.Campaign.Campaign.BuyUpgrade(t, s, what, standing),
                 };
                 if (p.Ok)
                     saves.Save(p.State);
@@ -784,8 +789,8 @@ object CampaignCommand(string content, string verb, string[] args)
                     : null;
                 var fromTown = s.Town;
                 // As the app settles it (note 591): delivered to a town, the crew's in it for the next night.
-                s = DarkTerritory.Sim.Campaign.Campaign.Arrived(DarkTerritory.Sim.Campaign.Campaign.Settle(s, night, t), night,
-                    DarkTerritory.Sim.Towns.TownAt.Terminus(route, DarkTerritory.Sim.LineGen.LineGenContent.Cached(content).Config.Tiers.Fortress.Identities));
+                s = DarkTerritory.Sim.Campaign.Campaign.Arrived(DarkTerritory.Sim.Campaign.Campaign.Settle(s, night, t, standing), night,
+                    DarkTerritory.Sim.Towns.TownAt.Terminus(route, DarkTerritory.Sim.LineGen.LineGenContent.Cached(content).Config.Tiers.Fortress.Identities), standing);
                 s = s with { LastTown = departed ?? s.LastTown };
                 saves.Save(s);
                 // Each town by name and seed (note 604): play again and the next night's "from" is this one's "to".

@@ -1190,6 +1190,31 @@
       "I was on the yard the night you brought it in. I'd not shot at anything inside the walls before. I'd not wanted to.",
       "We fought it between the houses. Between the houses. You understand me.",
       "Next time you bring one in, we shut the gate with you outside it. The council's voted."
+    ],
+    // Its standing with the crew (note 1024; tuning/towns.json standing), while it's cold to them: the gatekeeper saying why on
+    // the way in ({town}), the townsfolk's wary lines, what's said through a lived-in door kept shut ({family}), and the
+    // blacksmith's word on the price.
+    "standing": [
+      "The last crew brought one of them in through that gate. Your train, your number on the cab. {town} hasn't forgotten.",
+      "The last crew brought one of them in through that gate. That was you. Walk in slow, and check your cars before you do.",
+      "You're the crew that brought one in through that gate. The hall says let you in. The hall doesn't stand where I stand."
+    ],
+    "wary": [
+      "You're off that train. Say what you want from where you are.",
+      "My lad was on the yard the night your lot came in. Don't stop by our door.",
+      "Keep your hands where I can see them. And your cars where the guards can.",
+      "I've nothing to sell you. Not this week.",
+      "They say you check your cars now. They say a lot of things in {town}."
+    ],
+    "door": [
+      "Through the door, not opening it: \"We know whose train that is. Go on past.\" The {family}s' bolt goes across.",
+      "The lamp in the {family}s' window goes out when you knock. Nobody comes.",
+      "A child's voice behind the {family}s' door, hushed at once. The door stays shut."
+    ],
+    "smith": [
+      "Prices are up for your crew. The council's fine for the yard comes out of my forge too, and I'm not paying it for you.",
+      "I'll fit your train. Same work, dearer. Call it what the houses by the yard cost.",
+      "Half the town says I shouldn't serve you. The other half says charge you double. I've split the difference."
     ]
   }
 }

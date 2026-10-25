@@ -1658,11 +1658,8 @@ public sealed class LookbookKit(Look? look)
                 ring[i] = eye + right * (MathF.Cos(a) * 0.023f) + Vector3.UnitY * (MathF.Sin(a) * 0.021f);
                 ringB[i] = eye + right * (MathF.Cos(a) * 0.027f) + Vector3.UnitY * (MathF.Sin(a) * 0.025f);
             }
+            // (Rims only: a lit grey disc for a lens hid her eyes, which the baked face now paints open; note 993.)
             k.Loft([ring, ringB], closed: true, twoSided: true);
-            Glow(k, new Vector3(0.35f, 0.38f, 0.38f), 0.05f);
-            k.Disc(eye, normal, 0.023f, 12);
-            k.Emissive = 0;
-            Colour(k, new Vector3(0.12f, 0.11f, 0.1f), 0.4f, 0.4f);
             // The arm back along the side of the head to the ear.
             var hinge = eye + new Vector3(side * 0.027f, 0, 0);
             k.Cylinder(hinge, f.Head.At(EyeY, side * MathF.PI * 0.55f, 0.01f), 0.0018f, 3);

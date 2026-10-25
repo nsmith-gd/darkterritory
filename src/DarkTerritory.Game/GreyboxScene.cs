@@ -2561,7 +2561,7 @@ public sealed partial class GreyboxScene
 
     /// <summary>The town's guards out on the yard (note 608), their pieces at shoulder height: they fire with the walls' guns.</summary>
     public static IEnumerable<Vector3> YardGuns(Sim.Towns.Town town, Double3 eye) =>
-        town.Fight is null ? [] : town.Plan.People.Where(Sim.Towns.Town.Guards).Select(p => town.Now(p)).Select(n => V(n.Feet + n.Facing * 0.6 + Double3.Up * 1.45, eye));
+        town.Fight is null ? [] : town.Plan.People.Where(town.TurnsOut).Select(p => town.Now(p)).Select(n => V(n.Feet + n.Facing * 0.6 + Double3.Up * 1.45, eye));
 
     /// <summary>The creatures seen brought into the arrival town this night (note 608), by id: each sets houses alight.</summary>
     readonly HashSet<int> _broughtIn = [];
@@ -2599,7 +2599,7 @@ public sealed partial class GreyboxScene
         int brought = Math.Max(_broughtIn.Count, Run?.BroughtIn.Count ?? 0);
         if (brought == 0 || Look?.Art.Effects is not { } fx)
             return;
-        foreach (var h in Sim.Towns.TownGenerator.Harmed(town.Plan, brought * (Run?.Tuning.BroughtIn.Burns ?? 1)))
+        foreach (var h in Sim.Towns.TownGenerator.Harmed(town.Plan, brought * (Run?.BurnsEach ?? 1)))
         {
             var (s, d) = h.Rail(0, 0);
             var front = town.World(s, d);
