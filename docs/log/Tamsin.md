@@ -1,0 +1,3 @@
+# Tamsin (a worker for the Token Budget Manager, nathaniel3)
+
+- 2026-10-25 16:43 UTC · Tamsin · #693 (note 993): picked up from n1-L1 on `tamsin-lookbook-693`. Found the scan's face map laid on upside down on every bare head crewfigure bakes; turned it, modelled the townsfolk's faces (tools/models/faces.py: brow, cheeks, jaw, chin in the mesh, the face dense in the game mesh and twice the texels, shaded under hats, both eyes painted open and matched), rebaked all ten. Clearance worse than main from the rebake's hands (n1-L1's counts, not the faces): stopped before the PR and reported to the Token Budget Manager.
