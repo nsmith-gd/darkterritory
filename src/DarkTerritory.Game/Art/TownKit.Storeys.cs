@@ -25,7 +25,12 @@ public static partial class TownKit
     /// and the light are drawn this much higher (0 for the ground floor of a house that isn't raised).
     /// </summary>
     public static float LevelLift(StopBuilding b, int level) =>
-        StopWalls.Storeyed(b) && (level != 0 || b.Basement) ? (float)StopWalls.FloorAt(b, level) + FrameUnder - Boards : 0;
+        StopWalls.Storeyed(b) && (level != 0 || b.Basement) ? (float)StopWalls.FloorAt(b, level) + FrameUnder - Boards
+        // (A house of parts' other floors, note 1022: its ground floor's a one-floor house's.)
+        : StopWalls.PartFloored(b) && level != 0 ? (float)StopWalls.PartFloorAt(level) + FrameUnder - Boards : 0;
+
+    /// <summary>A house of parts' floored part's eaves over its frame (note 1022): over its upstairs, as a plain house's.</summary>
+    public static float PartEaves => (float)StopWalls.Storey + FrameUnder + 2.85f;
 
     /// <summary>A house with floors' eaves over its frame: a one-floor house's wall's height over its top floor.</summary>
     public static float Eaves(StopBuilding b) => (float)StopWalls.FloorAt(b, b.Upstairs ? 1 : 0) + FrameUnder + 2.85f;
@@ -156,6 +161,92 @@ public static partial class TownKit
             });
         }
         Gabled(k, 0, 0, (float)b.Width, (float)b.Length, true, eaves);
+    }
+
+    /// <summary>
+    /// A house of parts' floors (note 1022), from the sim's own boxes (<see cref="StopWalls.PartShell"/>): the boards with the
+    /// hatch let in and its frame and lid, the cellar's floor and stone walls, the flight, the upper floor and its ceiling, the
+    /// rails, the walls upstairs along its seams, and the ladder down each hatch.
+    /// </summary>
+    /// <param name="box">A box in the house's frame: middle, half sizes, bottom and top over the frame.</param>
+    static void PartShell(Kit k, StopBuilding b, Action<double, double, double, double, float, float> box)
+    {
+        static Vector3 K(double x, double y, float h) => new((float)y, h, (float)-x);
+        float Up(double over) => (float)over + FrameUnder;
+        foreach (var p in StopWalls.PartShell(b, PartEaves - FrameUnder))
+        {
+            switch (p.Part)
+            {
+                case ShellPart.Wall:
+                    if (p.Top < 0)
+                    {
+                        k.Use("stone_block", Palette.BlueGrey * 0.7f, 0.95f, 0.02f, tile: 1.5f);
+                        box(p.X, p.Y, p.HalfX, p.HalfY, Up(p.Bottom), Up(p.Top));
+                    }
+                    else
+                    {
+                        k.Use("plaster_ruin", Palette.BlueGrey, 0.9f, 0.05f, tile: 2);
+                        box(p.X, p.Y, p.HalfX, p.HalfY, Up(p.Bottom), Up(p.Top));
+                    }
+                    break;
+                case ShellPart.Lintel:
+                    k.Use("plaster_ruin", Palette.BlueGrey, 0.9f, 0.05f, tile: 2);
+                    box(p.X, p.Y, p.HalfX, p.HalfY, Up(p.Bottom), Up(p.Top));
+                    break;
+                case ShellPart.Cellar:
+                    k.Use("concrete_stain", Palette.MuddyOlive * 0.6f, 0.95f, 0.05f, tile: 2);
+                    box(p.X, p.Y, p.HalfX, p.HalfY, Up(p.Bottom), Up(p.Top));
+                    break;
+                case ShellPart.Floor:
+                    k.Use("wood_grey", Palette.DeepBrown, 0.9f, 0, tile: 1);
+                    box(p.X, p.Y, p.HalfX, p.HalfY, Up(p.Bottom), Boards);
+                    break;
+                case ShellPart.Upper:
+                    k.Use("wood_floor", Palette.DeepBrown, 0.9f, 0.02f, tile: 1.5f);
+                    box(p.X, p.Y, p.HalfX, p.HalfY, Up(p.Bottom), Up(p.Top));
+                    break;
+                case ShellPart.Tread:
+                    k.Use("wood_grey", Stained, 0.85f, 0.04f, tile: 1);
+                    box(p.X, p.Y, p.HalfX, p.HalfY, Up(p.Top - 0.05), Up(p.Top));
+                    k.Use("wood_grey", Stained * 0.7f, 0.9f, 0.02f, tile: 1);
+                    box(p.X, p.Y, p.HalfX - 0.01, p.HalfY - 0.01, Up(p.Bottom), Up(p.Top - 0.05));
+                    break;
+                case ShellPart.Rail:
+                    {
+                        k.Use("wood_grey", Stained, 0.8f, 0.05f, tile: 1);
+                        box(p.X, p.Y, p.HalfX, p.HalfY, Up(p.Top - 0.06), Up(p.Top));
+                        bool alongX = p.HalfX > p.HalfY;
+                        double run = alongX ? p.HalfX : p.HalfY;
+                        for (double a = -run + 0.05; a <= run - 0.04; a += 0.3)
+                            box(alongX ? p.X + a : p.X, alongX ? p.Y : p.Y + a, 0.02, 0.02, Up(p.Top - StopWalls.RailHeight - StopWalls.Slab), Up(p.Top - 0.06));
+                        break;
+                    }
+            }
+        }
+        // Each hatch: its frame, its lid on the boards past it, and the ladder down.
+        foreach (int part in StopWalls.FlooredParts(b))
+        {
+            if (!b.Basement || StopWalls.PartHatch(b, part) is not { } h)
+                continue;
+            double hs = StopWalls.HatchSize / 2;
+            k.Use("wood_grey", Oak, 0.85f, 0.05f, tile: 1);
+            foreach (int s in new[] { -1, 1 })
+            {
+                box(h.X + s * (hs + 0.04), h.Y, 0.04, hs + 0.08, Boards - 0.01f, Boards + 0.02f);
+                box(h.X, h.Y + s * (hs + 0.04), hs, 0.04, Boards - 0.01f, Boards + 0.02f);
+            }
+            k.Use("wood_grey", Deal, 0.9f, 0.03f, tile: 1);
+            box(h.X - h.InX * (2 * hs + 0.1), h.Y - h.InY * (2 * hs + 0.1), hs, hs, Boards, Boards + 0.05f);
+        }
+        foreach (var (x, y, foot, top, lx, ly, _) in StopWalls.PartLadders(b))
+        {
+            k.Use("wood_grey", Deal * 0.85f, 0.9f, 0.03f, tile: 1);
+            var (ax, ay) = (ly, -lx);
+            foreach (int s in new[] { -1, 1 })
+                box(x + ax * s * 0.22, y + ay * s * 0.22, 0.03, 0.03, Up(foot), Up(top + 0.5));
+            for (double r = foot + 0.3; r < top + 0.3; r += 0.3)
+                k.Rod(K(x - ax * 0.22, y - ay * 0.22, Up(r)), K(x + ax * 0.22, y + ay * 0.22, Up(r)), 0.018f);
+        }
     }
 
     /// <summary>

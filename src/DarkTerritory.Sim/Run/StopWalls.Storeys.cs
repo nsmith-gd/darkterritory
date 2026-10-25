@@ -80,11 +80,12 @@ public sealed partial class StopWalls
 
     /// <summary>
     /// How high over its house's ground a stop's container's find lies (note 1005): on its floor's boards in a storeyed house
-    /// (down in the basement, up the stairs, or on a raised ground floor), else on the ground (0).
+    /// (down in the basement, up the stairs, or on a raised ground floor), or a house of parts' (note 1022), else on the ground (0).
     /// </summary>
     public static double FindUp(StopLayout stop, StopContainer c) =>
-        c.Building >= 0 && c.Building < stop.Buildings.Count && stop.Buildings[c.Building] is { Open: true } b && Storeyed(b) && Walled(stop, c.Building)
-            ? FloorAt(b, c.Level) : 0;
+        c.Building >= 0 && c.Building < stop.Buildings.Count && stop.Buildings[c.Building] is { Open: true } b && Floored(b) && Walled(stop, c.Building)
+            ? LevelAt(b, c.Level) : 0;
+
 
     /// <summary>The way along a storeyed house's axis to its back end (±1): the back door's in it.</summary>
     public static int BackEnd(StopBuilding b)

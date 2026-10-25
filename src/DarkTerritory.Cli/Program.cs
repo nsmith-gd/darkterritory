@@ -2063,6 +2063,40 @@ static object Screenshot(TrainTuning t, string content, string[] args)
     // basement for basement, with an upstairs for upstairs and stairs): down in its basement from the ladder's foot toward its
     // deep end and its chests; upstairs from its back wall toward the stairwell; at the foot of its flight, up it; on its
     // ground floor from inside its front door; or from outside, its plinth, steps and cellar windows. With --lantern, a hand lamp.
+    // --parts basement|upstairs|stairs|outside [--house n] (note 1022): the night's nth house of parts (an L, a cross, a pair) with
+    // floors: down its cellar from the ladder's foot; upstairs over its floored part; at its flight's foot, up it; from outside.
+    if (Str(args, "--parts", "") is { Length: > 0 } partView && generated is not null)
+    {
+        var parted = generated.Features.Where(f => f.Stop is not null)
+            .SelectMany(f => f.Stop!.Buildings.Select((b, i) => (Feature: f, Building: b, Index: i)))
+            .Where(x => DarkTerritory.Sim.Run.StopWalls.PartFloored(x.Building) && DarkTerritory.Sim.Run.StopWalls.Walled(x.Feature.Stop!, x.Index)
+                && (partView != "basement" || DarkTerritory.Sim.Run.StopWalls.PartDown(x.Building))
+                && (partView is not ("upstairs" or "stairs" or "outside") || DarkTerritory.Sim.Run.StopWalls.PartUp(x.Building))).ToList();
+        if (parted.Count == 0)
+            return Print(new { error = $"{Str(args, "--route", "")} has no house of parts with floors for --parts {partView}" });
+        var (f, b, _) = parted[(int)Opt(args, "--house", 0) % parted.Count];
+        double ground = DarkTerritory.Sim.Run.Run.StopWorld(line, f, b.Centre).Y;
+        Double3 At(double x, double y, double up) => DarkTerritory.Sim.Run.Run.StopWorld(line, f, DarkTerritory.Sim.Run.StopWalls.InHouse(b, x, y)) with { Y = ground + up };
+        int part = DarkTerritory.Sim.Run.StopWalls.FlooredParts(b).First(i => partView switch
+        {
+            "basement" => DarkTerritory.Sim.Run.StopWalls.PartHatch(b, i) is not null,
+            "upstairs" or "stairs" => DarkTerritory.Sim.Run.StopWalls.PartStair(b, i) is not null,
+            _ => true,
+        });
+        var q = b.Parts[part];
+        double cellar = -DarkTerritory.Sim.Run.StopWalls.Cellar, up = DarkTerritory.Sim.Run.StopWalls.Storey;
+        camera = partView switch
+        {
+            "basement" when DarkTerritory.Sim.Run.StopWalls.PartHatch(b, part) is { } h =>
+                Camera.LookAt(At(h.X + h.InX * 0.8, h.Y + h.InY * 0.8, cellar + 1.6), At(2 * q.X - h.X, 2 * q.Y - h.Y, cellar + 0.5), 80),
+            "upstairs" when DarkTerritory.Sim.Run.StopWalls.PartStair(b, part) is { } fl && fl.At(fl.End + fl.Dir * 0.3, (fl.Wall + fl.Open) / 2) is var top =>
+                Camera.LookAt(At(top.X, top.Y, up + 1.65), At(2 * q.X - top.X, 2 * q.Y - top.Y, up + 0.4), 85),
+            "stairs" when DarkTerritory.Sim.Run.StopWalls.PartStair(b, part) is { } fl && fl.At(fl.Start - fl.Dir * 0.5, fl.Open - Math.Sign(fl.Wall - fl.Open) * 1.8) is var foot
+                && fl.At(fl.End, (fl.Wall + fl.Open) / 2) is var head =>
+                Camera.LookAt(At(foot.X, foot.Y, 1.65), At(head.X, head.Y, up + 0.8), 80),
+            _ => Camera.LookAt(At(q.X + b.Length * 0.9, q.Y + b.Width * 0.7, 2.5), At(q.X, q.Y, 2.4), 70),
+        };
+    }
     if (Str(args, "--storey", "") is { Length: > 0 } storey && generated is not null)
     {
         var storeyed = generated.Features.Where(f => f.Stop is not null)
