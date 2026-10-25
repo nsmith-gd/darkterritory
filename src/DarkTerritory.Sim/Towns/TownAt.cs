@@ -15,10 +15,16 @@ namespace DarkTerritory.Sim.Towns;
 /// the houses nearest it alight, and the town remembers (<see cref="TownGenerator.Harmed"/>). Rides on the spec after the
 /// seed when there are any (<c>Fort Boudreau/coal/1234/2</c>).
 /// </para>
-public sealed record TownAt(string Name, string Industry, ulong Seed, int Burnt = 0)
+/// <para>
+/// <see cref="Cold"/>: how cold the town is to the crew, in percent (note 1024; GDD §3.1 "A town remembers"): raised by each
+/// creature they brought in, easing night by night (towns.json <c>standing</c>). Rides after the burnt houses when there's
+/// any (<c>Fort Boudreau/coal/1234/1/40</c>), so every machine makes the same wary town.
+/// </para>
+public sealed record TownAt(string Name, string Industry, ulong Seed, int Burnt = 0, int Cold = 0)
 {
     /// <summary>How it rides in a route spec, after its <c>@</c>.</summary>
-    public string Spec => Burnt > 0 ? $"{Name}/{Industry}/{Seed}/{Burnt}" : $"{Name}/{Industry}/{Seed}";
+    public string Spec => Cold > 0 ? $"{Name}/{Industry}/{Seed}/{Burnt}/{Cold}"
+        : Burnt > 0 ? $"{Name}/{Industry}/{Seed}/{Burnt}" : $"{Name}/{Industry}/{Seed}";
 
     /// <summary>Which town it is, whatever's happened to it: how the campaign remembers it (note 608).</summary>
     public string Key => $"{Name}/{Seed}";
@@ -42,6 +48,8 @@ public sealed record TownAt(string Name, string Industry, ulong Seed, int Burnt 
         [var name, var industry, var seed] when name.Length > 0 && ulong.TryParse(seed, out var s) => new TownAt(name, industry, s),
         [var name, var industry, var seed, var burnt] when name.Length > 0 && ulong.TryParse(seed, out var s) && int.TryParse(burnt, out var b) && b >= 0
             => new TownAt(name, industry, s, b),
+        [var name, var industry, var seed, var burnt, var cold] when name.Length > 0 && ulong.TryParse(seed, out var s) && int.TryParse(burnt, out var b) && b >= 0
+            && int.TryParse(cold, out var c) && c >= 0 => new TownAt(name, industry, s, b, c),
         _ => null,
     };
 
@@ -57,8 +65,17 @@ public sealed record TownAt(string Name, string Industry, ulong Seed, int Burnt 
     /// (<paramref name="burnt"/>, by <see cref="Key"/>; note 608), so a terminus the crew's burnt before is built with them as
     /// it's come into. Null, or one it has nothing against, as it is.
     /// </summary>
-    public static TownAt? Remembered(TownAt? town, IReadOnlyDictionary<string, int>? burnt) =>
-        town is not null && burnt is not null && burnt.TryGetValue(town.Key, out int b) && b > 0 ? town with { Burnt = b } : town;
+    /// <para>And how cold it is to the crew now (<paramref name="cold"/>, by <see cref="Key"/>; note 1024).</para>
+    public static TownAt? Remembered(TownAt? town, IReadOnlyDictionary<string, int>? burnt, IReadOnlyDictionary<string, int>? cold = null)
+    {
+        if (town is null)
+            return null;
+        if (burnt is not null && burnt.TryGetValue(town.Key, out int b) && b > 0)
+            town = town with { Burnt = b };
+        if (cold is not null && cold.TryGetValue(town.Key, out int c) && c > 0)
+            town = town with { Cold = c };
+        return town;
+    }
 
     /// <summary><paramref name="spec"/> departing from <paramref name="from"/> (none, as it is).</summary>
     public static string With(string spec, TownAt? from) => from is null ? Split(spec).Spec : $"{Split(spec).Spec}@{from.Spec}";

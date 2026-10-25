@@ -249,6 +249,8 @@ public sealed record PlanFortress(string Name, string Identity, double Departure
     public ulong? TownSeed { get; init; }
     /// <summary>How many of that town's houses are burnt out (note 608): the creatures the crew brought in on earlier nights.</summary>
     public int TownBurnt { get; init; }
+    /// <summary>How cold that town is to the crew, in percent (note 1024): what they brought into it lately.</summary>
+    public int TownCold { get; init; }
 }
 public sealed record PlanTerminus(string Name, bool Silent, bool GateSafe, double GateM, double SkyGlowFromM, double HomeStraightFromM, IReadOnlyList<double[]> Lights)
 {

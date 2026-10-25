@@ -51,7 +51,7 @@ public sealed class Town
     {
         if (arrival is null || !content.Tuning.Enabled || route.Plan?.Terminus is not { Silent: false } terminus)
             return null;
-        var plan = TownGenerator.Generate(content, new TownSite(arrival.Name, arrival.Industry, gate, arrival.Seed, roster, last, arrival.Burnt));
+        var plan = TownGenerator.Generate(content, new TownSite(arrival.Name, arrival.Industry, gate, arrival.Seed, roster, last, arrival.Burnt) { Cold = arrival.Cold });
         double origin = terminus.GateM - plan.Frame.Entry;
         var frame = line.From(origin, gate + FrameBeyond);
         return new Town(plan, content.Tuning, frame, content.Looks) { Origin = origin };
@@ -139,6 +139,24 @@ public sealed class Town
 
     /// <summary>Who turns out to the yard's fight (note 608): the gate's keeper and the town's guards.</summary>
     public static bool Guards(Townsperson p) => p.Role is "gatekeeper" or "guard";
+
+    /// <summary>
+    /// Who turns out to the yard's fight in this town (note 1024): its <see cref="Guards"/>, but with fewer guards on
+    /// (towns.json <c>standing.mode</c> "guards") a town cold to the crew keeps some of its guards back, the last of them by id
+    /// first. The gatekeeper always turns out.
+    /// </summary>
+    public bool TurnsOut(Townsperson p) => TurnsOut(p, Plan, Tuning.Standing);
+
+    /// <summary><see cref="TurnsOut(Townsperson)"/> in <paramref name="plan"/>, by <paramref name="standing"/>.</summary>
+    public static bool TurnsOut(Townsperson p, TownPlan plan, StandingTuning standing)
+    {
+        if (!Guards(p))
+            return false;
+        if (p.Role != "guard" || standing.Mode != StandingMode.Guards || plan.Cold <= 0)
+            return true;
+        int guards = plan.People.Count(q => q.Role == "guard");
+        return plan.People.Count(q => q.Role == "guard" && q.Id < p.Id) < guards - standing.GuardsKept(guards, plan.Cold);
+    }
 
     // Out on the yard (note 608): this far out from the line either side, and this far apart along it.
     const double YardOut = 5.5, YardApart = 6;
@@ -248,12 +266,12 @@ public sealed class Town
     /// <summary>Where somebody is now on their round, which way they face, and what they're doing.</summary>
     public TownPose Now(Townsperson p)
     {
-        if (Fight is { } fight && Guards(p))
+        if (Fight is { } fight && TurnsOut(p))
         {
             // From where they were on their round as it began (their round's clock run back to then).
             double since = Math.Max(0, Clock - _fightFrom);
             var was = At(p, Own(p.Id) - since).Feet;
-            return TurningOut(Plan.People.Count(q => q.Id < p.Id && Guards(q)), fight, since, was, p.Up);
+            return TurningOut(Plan.People.Count(q => q.Id < p.Id && TurnsOut(q)), fight, since, was, p.Up);
         }
         if (_reacting.TryGetValue(p.Id, out var r) && Clock >= r.Start && Clock < r.End)
         {

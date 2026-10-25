@@ -232,6 +232,11 @@ public sealed class FrontEnd
     /// <summary>The blacksmith's catalogue open over the yard (note 697), or null.</summary>
     public SmithyShop? Smithy { get; private set; }
     /// <summary>
+    /// Towns.json <c>standing</c> (note 1024): a town cold to the crew prices its blacksmith's catalogue up (the state's
+    /// <see cref="CampaignState.Town"/>). The app sets it; null, the list prices.
+    /// </summary>
+    public Sim.Towns.StandingTuning? Standing { get; set; }
+    /// <summary>
     /// The host's purchase at the forge (note 697): the app buys it on its own campaign, saves it, and fits it before the gate.
     /// </summary>
     public Func<string, Purchase>? SmithyBuy { get; set; }
@@ -2017,7 +2022,7 @@ public sealed class FrontEnd
         if (free)
             return null;
         var costs = _campaign.Upgrades.Where(u => !s.Upgrades.Contains(u.Id) && Campaign.Unavailable(_campaign, s, u) is null)
-            .Select(u => Campaign.UpgradeCost(_campaign, s, u)).ToList();
+            .Select(u => Campaign.UpgradeCost(_campaign, s, u, Standing)).ToList();
         if (costs.Count == 0 || s.Scrip >= costs.Min())
             return null;
         string earn = "Scrip's paid at the end of a night for what the train delivered. What each thing costs is on its line.";
@@ -2041,7 +2046,7 @@ public sealed class FrontEnd
             foreach (var u in shelf)
             {
                 bool owned = s.Upgrades.Contains(u.Id);
-                double cost = Campaign.UpgradeCost(_campaign, s, u);
+                double cost = Campaign.UpgradeCost(_campaign, s, u, Standing);
                 string? why = owned || free ? null : Campaign.Unavailable(_campaign, s, u);
                 // The shop says which upgrades the night doesn't model yet (ARCHITECTURE §8 note 29).
                 string detail = u.Line ?? $"{(u.Size == UpgradeSize.Major ? "Major" : "Small")}{(u.Effect.Count == 0 && u.Tally is null ? ", not modelled yet" : "")}.";

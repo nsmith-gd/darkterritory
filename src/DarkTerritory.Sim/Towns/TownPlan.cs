@@ -38,6 +38,12 @@ public sealed record TownPlan(
     /// <summary>How many of its houses were burnt by creatures brought in on earlier nights (note 608).</summary>
     public int Burnt { get; init; }
 
+    /// <summary>
+    /// How cold it is to the crew, in percent (note 1024; towns.json <c>standing</c>): what they brought into it lately. Its
+    /// people's lines, its doors and its blacksmith's prices go by it; its guards too, with fewer guards on.
+    /// </summary>
+    public int Cold { get; init; }
+
     /// <summary>What kind of town it is (towns.json <c>forms</c>, note 692): "" the street town of note 335, or a harbour,
     /// a dykeland, a quarry, a tidewater or a glasshouse town.</summary>
     public string Form { get; init; } = "";

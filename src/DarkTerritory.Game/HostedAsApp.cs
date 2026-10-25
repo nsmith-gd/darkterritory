@@ -37,6 +37,8 @@ public static class HostedAsApp
             Flares = s.Stores.Flares,
             LastTown = s.LastTown,
             Burnt = s.Burnt.Count > 0 ? s.Burnt : null,
+            // Note 1024: and how cold each is to the crew.
+            Cold = s.Standing.Count > 0 ? s.Standing : null,
             CampaignNight = true,
             Scrip = s.Scrip,
             // Note 721: whose logbook the night goes in, and which night it is.
