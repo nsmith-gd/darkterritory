@@ -21,6 +21,11 @@ public sealed record LogPage(int Night, string Route, string Date, RunEnd End, d
     public IReadOnlyList<string> Commendations { get; init; } = [];
     /// <summary>The crew photo's file on the machine that wrote the page (note 721), or "" for none (not delivered, or not seen here).</summary>
     public string Photo { get; init; } = "";
+    /// <summary>
+    /// The yard photographer's print of the crew leaving on this night (note 714), its file on the machine that wrote the page
+    /// (note 1030: the end card's gallery is these, a night each), or "" for none (no photographer, or joined on the way).
+    /// </summary>
+    public string Yard { get; init; } = "";
 }
 
 /// <summary>
@@ -63,7 +68,7 @@ public static class Logbook
     /// </summary>
     /// <param name="commended">The night's commendations by name: to whom, which, from whom.</param>
     public static LogPage Page(RunReport r, int night, string route, string date, IEnumerable<(string To, string What, string From)> commended,
-        bool wakers = true, string photo = "") =>
+        bool wakers = true, string photo = "", string yard = "") =>
         new(night, route, date, r.End, r.Net)
         {
             Line = r.End == RunEnd.Delivered ? $"{Ended(r.End)}. {r.CarsDelivered} CARS, {r.CarsLost} LOST. CREW HOME {r.CrewHome}"
@@ -71,18 +76,21 @@ public static class Logbook
             Losses = [.. r.Lines.Where(l => Kept(l.Kind)).Select(l => l.Who.Length > 0 ? $"{l.Who.ToUpperInvariant()}: {l.Text}" : l.Text)],
             Commendations = [.. commended.Select(c => $"{c.To.ToUpperInvariant()}: {c.What}, from {c.From}")],
             Photo = photo,
+            Yard = yard,
         };
 
     /// <summary>
     /// The book with <paramref name="page"/> in it: in its night's place, replacing an earlier copy of that night's page (a
     /// night written again as its commendations come in, or a rejoin's report), keeping a photo the old copy had and the
-    /// new one doesn't.
+    /// new one doesn't (and the yard's print the same way, note 1030).
     /// </summary>
     public static IReadOnlyList<LogPage> With(IReadOnlyList<LogPage> book, LogPage page)
     {
         var old = book.FirstOrDefault(p => p.Night == page.Night);
         if (old is not null && page.Photo.Length == 0 && old.Photo.Length > 0)
             page = page with { Photo = old.Photo };
+        if (old is not null && page.Yard.Length == 0 && old.Yard.Length > 0)
+            page = page with { Yard = old.Yard };
         return [.. book.Where(p => p.Night != page.Night).Append(page).OrderBy(p => p.Night)];
     }
 

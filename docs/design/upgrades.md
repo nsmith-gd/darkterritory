@@ -340,8 +340,8 @@ night.
 
 **Built (note 714):** the fun ones: the three liveries (bought once, painted in again at the blacksmith for nothing), the
 engine nameplate (named at the fortress), the hat rack (HAT in the yard), more emotes (the bow, the salute, the conga) and
-the yard photographer (his picture as she comes out of the gate, on the HUD and in the night's folder; the end card's
-gallery is still to come).
+the yard photographer (his picture as she comes out of the gate, on the HUD and in the night's folder; note 1030: the
+campaign's prints so far on every night's end card, all of them at the campaign's end, and on a sheet in the night's folder).
 
 **Built (note 715):** the first whimsies: Gerald and the garden gnomes (the Gannet takes one for a walker now and then, and the
 clerk reads it out), the canary (quiet while something's aboard, dead in fumes), the steam calliope (a note a pull; a Moose

@@ -3823,6 +3823,14 @@ static object PlaytestBake(string into, string cohort)
     return new { written = Path.GetFullPath(path), build.Channel, build.Cohort };
 }
 
+/// <summary>
+/// <c>--gallery a.png,b.png,...</c> (note 1030): a crew's logbook with the yard photographer's prints in it, the nth file
+/// night n's (`dt screenshot --upgrades yardPhotographer --view yardphoto --route ...` makes one); none without it.
+/// </summary>
+static IReadOnlyList<DarkTerritory.Sim.Campaign.LogPage> GalleryPages(string[] args) =>
+    [.. Str(args, "--gallery", "").Split(',', StringSplitOptions.RemoveEmptyEntries | StringSplitOptions.TrimEntries)
+        .Select((file, i) => new DarkTerritory.Sim.Campaign.LogPage(i + 1, "Frontier 7", "", DarkTerritory.Sim.Run.RunEnd.Delivered, 0) { Yard = Path.GetFullPath(file) })];
+
 /// <summary>The front end on <c>--menu</c>'s screen, with a demo campaign slot unless <c>--saves</c> names real ones.</summary>
 static (DarkTerritory.Game.FrontEnd Menu, DarkTerritory.Game.Screen Screen) DemoMenu(string content, string[] args)
 {
@@ -3841,6 +3849,16 @@ static (DarkTerritory.Game.FrontEnd Menu, DarkTerritory.Game.Screen Screen) Demo
             History = [new DarkTerritory.Sim.Campaign.RunLog(6, "frontier:3", DarkTerritory.Sim.Run.RunEnd.Delivered, 812, 0, 2350)],
             Upgrades = ["lampBrightness"],
         };
+        // --ended (note 632): the campaign over, its train taken at dawn on its seventh night; --gallery a.png,b.png,... (note
+        // 1030): the yard photographer's prints in its logbook, a night each, which its end shows.
+        if (args.Contains("--ended"))
+            demo = demo with
+            {
+                Over = true,
+                Runs = 7,
+                History = [.. demo.History, new DarkTerritory.Sim.Campaign.RunLog(7, "deadLines:2", DarkTerritory.Sim.Run.RunEnd.DawnMissed, -900, 0, 1450)],
+            };
+        demo = demo with { Logbook = GalleryPages(args) };
         saves.Save(demo);
         saves.Delete(2);
         saves.Delete(3);
@@ -4536,8 +4554,22 @@ static object HudShot(string content, string[] args)
             // And yours on a spur's lever, answered (note 936): "DUNMORE: ON THE SPUR".
             pinged.Pings.Add(new PingEvent(9005, (uint)session.HostTick + 1, session.PlayerId, PingKind.Points, -1, f[0].ToWorld(new Double3(4, 0.9, -40)), Taker: 91));
         }
+        // --gallery a.png,b.png,... (note 1030): the yard photographer's prints of the campaign so far, the last tonight's, as
+        // the end card shows them (memory.json's gallery).
+        (IReadOnlyList<GalleryPrint>, int)? gallery = null;
+        if (args.Contains("--gallery"))
+        {
+            Hud.Remembering = DataFile.Load<MemoryTuning>(Path.Combine(content, MemoryTuning.File));
+            var g = Hud.Remembering.Gallery;
+            var yard = new YardGallery();
+            var prints = yard.Prints(GalleryPages(args));
+            gallery = prints.Count == 0 ? null : (yard.Thumbs(prints, g.CardWidth * 2, g.CardHeight * 2, g.CardMost), prints.Count);
+            // --stills dir: and the sheet kept in the night's folder, as the app keeps it as she leaves the yard.
+            if (Str(args, "--stills", "") is { Length: > 0 } sheetDir)
+                (kept ??= []).AddRange(YardGallery.Save(new BookmarkAlbum(sheetDir, DateTime.Now, session.Route?.Name ?? "night").Night, prints, "The Night Mail", g) is { } sheet ? [sheet] : []);
+        }
         // --photo f.png (note 721): the crew photo at the gate (`dt screenshot --view crewphoto`'s) as tonight's, the end card's print.
-        Hud.Build(hud, width, height, session, pixels: scale, firstNight: args.Contains("--first-night"), captions: captioned, photo: photoStill, commendations: args.Contains("--commend")
+        Hud.Build(hud, width, height, session, pixels: scale, firstNight: args.Contains("--first-night"), captions: captioned, photo: photoStill, gallery: gallery, commendations: args.Contains("--commend")
             ? [("Dave", UiStyle.Commendation.CameBackForMe, "Okafor"), ("Priya", UiStyle.Commendation.KeptTheFire, "Dave"),
                 ("Okafor", UiStyle.Commendation.HeldTheSwitch, "Priya"), ("Dunmore", UiStyle.Commendation.LastOneStanding, "Dave")]
             : null, stills: stills.Stills, talk: talk, now: talkNow);

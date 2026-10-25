@@ -17,6 +17,7 @@ public sealed record MemoryTuning
     public const string File = "tuning/memory.json";
     public PhotoTuning Photo { get; init; } = new();
     public LogbookTuning Logbook { get; init; } = new();
+    public GalleryTuning Gallery { get; init; } = new();
 }
 
 /// <summary>The crew photo at the gate (memory.json <c>photo</c>; GDD §9 Arrival, note 721). Field docs live in the file.</summary>
@@ -49,6 +50,21 @@ public sealed record LogbookTuning
     public double Height { get; init; } = 1.25;
     public double Reach { get; init; } = 1.9;
     public double LookDegrees { get; init; } = 22;
+}
+
+/// <summary>The yard photographer's gallery (memory.json <c>gallery</c>; note 1030). Field docs live in the file.</summary>
+public sealed record GalleryTuning
+{
+    public bool EveryNight { get; init; } = true;
+    public int CardWidth { get; init; } = 48;
+    public int CardHeight { get; init; } = 30;
+    public int CardMost { get; init; } = 5;
+    public int MenuWidth { get; init; } = 72;
+    public int MenuHeight { get; init; } = 45;
+    public int MenuColumns { get; init; } = 5;
+    public int MenuMost { get; init; } = 10;
+    public int SheetColumns { get; init; } = 4;
+    public int SheetMargin { get; init; } = 16;
 }
 
 /// <summary>Someone in the crew photo (note 721): who, alive or not, the emote they're holding, and a sooty face (note 717).</summary>
