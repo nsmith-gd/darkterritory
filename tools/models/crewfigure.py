@@ -717,13 +717,22 @@ def build(name, style):
             highs[part] += hs
     if style.gear is not None:
         head += style.gear(TIP, HEAD_C, make)
+
+    def face_shading(worn_lows):
+        """The face shaded under what's worn over it (the clothes modelled over the figure, a cap or a helmet) and the
+        coat's collar: the head bakes from the scan alone. Before the clothes join the body (it holds the head)."""
+        if not (style.face and scan):
+            return {}
+        covers = worn_lows + [g["FRAME_HIGH"]] + ([parts["coat"]] if style.coat else []) + [parts[n] for n in hats]
+        return {"contact": faces.contact(head, covers), "where": faces.where(HEAD_C), "eyes": faces.eyes_at(LM)}
+
+    face_masks = None
+    worn_lows = []
     if style.garments is not None and scan:
         fit = Fit(TIP, HEAD_C, make, g, [g["FRAME_HIGH"]] + ([parts["coat"]] if style.coat else []), head)
         worn = style.garments(fit)
-        if style.face:
-            # The face shaded under what's worn over it, and the coat's collar (the head bakes from the scan alone).
-            covers = [gm.low for gm in worn] + [g["FRAME_HIGH"]] + ([parts["coat"]] if style.coat else [])
-            face_masks = {"contact": faces.contact(head, covers), "where": faces.where(HEAD_C), "eyes": faces.eyes_at(LM)}
+        worn_lows = [gm.low for gm in worn]
+        face_masks = face_shading(worn_lows)
         # (What they've made for their own materials while modelling them: a plaid woven in code.)
         DRESS.update(style.dress)
         for gm in worn:
@@ -735,6 +744,8 @@ def build(name, style):
         body.select_set(True)
         bpy.context.view_layer.objects.active = body
         bpy.ops.object.join()
+    if face_masks is None:
+        face_masks = face_shading([])
     # The scan's own head, full resolution, in the body's group.
     highs["body"] += head
 
@@ -902,7 +913,8 @@ def build(name, style):
         off_eye = np.clip((np.linalg.norm(where - np.array([e.x, e.y + 0.2, e.z + 0.2], np.float32), axis=1) - 0.012) / 0.008,
                           0, 1).reshape(SIZE, SIZE)
         smudge *= off_eye
-        sallow = (base * 0.55 + grey * 0.45) * np.array([0.7, 0.6, 0.53], np.float32)
+        # (Less of it greyed than the crew's: greyed as theirs, the modelled faces read pale in the lineup, note 1033.)
+        sallow = (base * 0.75 + grey * 0.25) * np.array([0.66, 0.55, 0.46], np.float32)
         sallow = sallow * (1 - 0.45 * smudge)[..., None] + soot * (0.45 * smudge)[..., None]
         # Its own forms' shadows deeper than overbake's gentle face grade (the sockets, under the brow, the nose and the
         # lip; they're what the face reads by in the game's light), and the clothes' over it.

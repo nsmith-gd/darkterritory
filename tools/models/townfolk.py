@@ -339,9 +339,12 @@ def hooded(fit, material, name, foot=1.5, brow=1.72, half=1.0, ease=0.012, fulln
                 r = (fit.radius("head", 1.56, a) + ease + 0.03) * (1 - s) + (fit.radius("body", max(z, 1.4), a) + 0.03) * s
                 c = fit.head_c * (1 - s)
             else:
-                r = max(fit.radius("head", min(z, 1.79), a), fit.radius("head", 1.62, a) * 0.93 if z < 1.62 else 0.0) + ease + fullness * back
+                # The cloth's edge round the face tucked onto the head (eased off it, the edge stood proud of the face: a
+                # hard rim round a flat face, the director's note 993).
+                tuck = 1.0 if g >= TAU / 2 else min(1.0, max(0.25, (min(a - g, TAU - g - a)) / 0.35))
+                r = max(fit.radius("head", min(z, 1.79), a), fit.radius("head", 1.62, a) * 0.93 if z < 1.62 else 0.0) + ease * tuck + fullness * back
                 if z > 1.72:
-                    r = (fit.radius("head", 1.72, a) + ease + fullness * back) * max(0.02, shrink)
+                    r = (fit.radius("head", 1.72, a) + ease * tuck + fullness * back) * max(0.02, shrink)
                 c = fit.head_c
             fwd = peak * max(0.0, (z - 1.72) / (top - 1.72))
             row.append(Vector((c.x + math.sin(a) * r, c.y + math.cos(a) * r + fwd, z)))
@@ -754,7 +757,8 @@ def softer(objs, centre):
         co = np.array([v.co for v in me.vertices], np.float32)
         x, y, z = co[:, 0] - centre.x, co[:, 1] - centre.y, co[:, 2]
         jaw = np.clip((1.64 - z) / 0.12, 0, 1) * np.clip((z - 1.48) / 0.04, 0, 1)
-        co[:, 0] = centre.x + x * (1 - 0.1 * jaw)
+        # (The jaw's sides only: drawn in across the mouth too, it pursed the lips, note 1033.)
+        co[:, 0] = centre.x + x * (1 - 0.1 * jaw * np.clip((np.abs(x) - 0.025) / 0.03, 0, 1))
         nose = np.exp(-((z - 1.62) / 0.035) ** 2) * np.exp(-(x / 0.02) ** 2) * (y > 0.09)
         co[:, 1] -= nose * (y - 0.09) * 0.25
         brow = np.exp(-((z - 1.69) / 0.015) ** 2) * (y > 0.08)

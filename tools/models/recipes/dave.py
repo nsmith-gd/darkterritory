@@ -494,7 +494,7 @@ DRESS = {
 }
 
 crewfigure.build("dave", crewfigure.Style(
-    dress=DRESS, figure="dave", hats=False, lamp=False, mask=head_kit,
+    dress=DRESS, figure="dave", hats=False, lamp=False, mask=head_kit, face=True,
     shapes={"dave_vest.0": wales, "dave_vest.1": nap, "dave_vest.3": raised, "dave_vest.5": grain, "crew_atlas.trouser": denim},
     masks={"spatter": spatter, "fleck": fleck_colour, "cloth": cloth, "lining": lining, "bare": bare, "hair": hair_mask}, grade=grade,
     preview="DAVE_PREVIEW",
