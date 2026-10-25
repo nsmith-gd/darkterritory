@@ -152,6 +152,39 @@ public partial class StopCrewTests
     }
 
     [Fact]
+    public void AFindPingedIsFetchedByTheDriverWhileSomeonePlayingHasTheControls()
+    {
+        // Note 1021 (the director's playtest of 23 Oct, line 8: "I pinged one of the towns and Dunmore said, I'll go fetch it
+        // ... and then he starts manning the cab"): someone playing at the controls, the driver handed over to them, is still
+        // the crew's only bot, so it takes the find and says so. It has to go and fetch it, and come back aboard after.
+        var night = new Night(cars: 6, walkers: 0, hands: 0, ids: true, loot: true, modules: ModuleKind.Crates);
+        var train = night.Train;
+        var world = night.World;
+        ToTheLoading(night);
+        world.HoldControls(99, bot: false);
+        var frame = train.Frames[2];
+        var at = frame.ToWorld(new Double3(world.Run!.CurrentSite!.Side * (frame.Shape.Bounds.Max.X + 5), 0.3, 0));
+        var find = world.Bodies.SpawnLoot(at, train.Dynamics.Distance, -1, 0.2);
+        world.Pings.Add(new PingEvent(9, world.Tick, 99, PingKind.Loot, find.Id, at));
+        Roles(night);
+        bool answered = false;
+        var doing = new HashSet<string>();
+        night.Until(() => find.Carrier < 0 && (find.Stowed || find.Parent != PlayerState.World), 240, () =>
+        {
+            Take(night);
+            answered |= night.Calls.Answering(1) == 9;
+            if (night.Driver.PingStep is { Length: > 0 } step)
+                doing.Add(step);
+        });
+        Assert.True(night.Driver.HandedOver);
+        Assert.True(answered, "the driver never took the ping");
+        Assert.True(find.Carrier < 0 && (find.Stowed || find.Parent != PlayerState.World),
+            $"the find's still out (carrier {find.Carrier}, on {find.Parent}); the driver did {string.Join(", ", doing)}");
+        night.Until(() => night.Crew[0].Parent != PlayerState.World && !night.Driver.OutOnPing, 120, () => Take(night));
+        Assert.NotEqual(PlayerState.World, night.Crew[0].Parent);
+    }
+
+    [Fact]
     public void ACranePingedIsWorkedByTheDriverAlone()
     {
         // "Sure, let me go operate the crane": the lone driver at a foundry's loading (its crates in; the crane wants two and

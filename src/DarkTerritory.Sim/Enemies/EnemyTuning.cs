@@ -1822,6 +1822,13 @@ public sealed record CrewBotsTuning
     public double SixDawnMargin { get; init; } = 45;
     public double MournersCarryWithin { get; init; } = 60;
     public double MournersCarrySeconds { get; init; } = 60;
+    /// <summary>
+    /// Note 1021: a crewmate carried off by a Whistler or taken in a car by a Climber is gone for by the nearest bot within
+    /// this much of the grabber (m) ...
+    /// </summary>
+    public double RescueWithin { get; init; } = 80;
+    /// <summary>... with at least this much health (a bot hurt worse leaves it to another).</summary>
+    public int RescueFit { get; init; } = 40;
 }
 
 /// <summary>

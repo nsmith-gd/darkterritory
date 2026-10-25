@@ -1179,4 +1179,5 @@ written here instead is moved out by `tools/coord/notes.py split`; the Coordinat
 - [1018. Ladders taken by jumping or walking into them (Juniper, nathaniel2; queue #721; the director's playtest of 24 Oct: "ladders feel hard to…](notes/1018.md)
 - [1019. A crewmate on speakers no longer sends the crew their own voices back: echo cancellation and an echo gate on the capture path (Wren,…](notes/1019.md)
 - [1020. A crew of two balanced like a crew of three, the Frontier night's end eased, fewer repeats: measured, then proposed on the Creature Tweaker…](notes/1020.md)
+- [1021. A grabbed crewmate rescued, and the ping's "I'll fetch it" kept (Pia, nathaniel3; queue #724; the director's playtest of 23 Oct,…](notes/1021.md)
 <!-- end of the notes index -->

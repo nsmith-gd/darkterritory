@@ -3049,6 +3049,10 @@ public sealed partial class ConductorBot(CrewCalls? calls = null, int member = 0
     {
         calls?.Say(member, StopJob.Driver, self);
         calls?.Away(false);
+        // Note 1021: a job pinged for it, worked (its legs have no stop hand for it).
+        aimed = self;
+        if (HandedPing(self, world) is { } pinged)
+            return pinged with { ThrottleNotch = 0, Buttons = pinged.Buttons & ~(PlayerButtons.Brake | PlayerButtons.Reverser) };
         _legs ??= new RoofWalkerBot(member * 1000 + 977);
         _legs.Me = Me;
         _legs.Calls = calls;
@@ -3200,6 +3204,12 @@ public sealed partial class ConductorBot(CrewCalls? calls = null, int member = 0
         // Note 343: a hound pack aboard and nobody else to fight it: stand the train, and cut its car loose.
         if (CutAlone(self, world, tick) is { } cuttingAlone)
             return Because("cut", cuttingAlone with { Lamp = lamp });
+        // Note 1021: out of the cab after a crewmate a Whistler's carrying off, the nearest bot to them; and the train stood
+        // meanwhile.
+        if (OnARescue(self, world) is { } rescuing)
+            return Because("rescue", rescuing with { Lamp = lamp });
+        if (self.Alive && PlayerMotor.InCab(self, train) && ForTheTaken(world) is { } standingForThem)
+            return Because("taken", Work(self, train, standingForThem) with { Lamp = lamp });
         // Note 936 (GDD §12 "Ping the bots"): out of the cab to a job pinged for it, the crew's only hands; and the train held
         // for a crewmate's.
         if (OnAPing(self, world, tick) is { } pinged)
@@ -3335,7 +3345,7 @@ public sealed partial class ConductorBot(CrewCalls? calls = null, int member = 0
     /// cut alone, a ping, the sandbox), and back to the cab its own way after. Note 955: the relief driver's walker leaves it
     /// to the driving while it is, or its legs took it straight back to the cab from the first step out.
     /// </summary>
-    public bool OutOfCab => _alone is not null || _workingOut || _outToBreach || _outToCut || OutOnPing || Sanding;
+    public bool OutOfCab => _alone is not null || _workingOut || _outToBreach || _outToCut || OutOnPing || OutToRescue || Sanding;
 
     /// <summary>
     /// Grease (App. A.2): "cannot climb grade · cannot brake · cannot accelerate", so the controls can wait. Out of the cab's
