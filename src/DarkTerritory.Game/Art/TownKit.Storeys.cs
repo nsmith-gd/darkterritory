@@ -65,6 +65,10 @@ public static partial class TownKit
                         box(p.X, p.Y, p.HalfX, p.HalfY, Up(Math.Max(p.Bottom, under)), Up(p.Top));
                     }
                     break;
+                case ShellPart.Cheek:
+                    k.Use("stone_block", Palette.BlueGrey * 0.7f, 0.95f, 0.02f, tile: 1);
+                    box(p.X, p.Y, p.HalfX, p.HalfY, Up(-0.3), Up(p.Top));
+                    break;
                 case ShellPart.Step:
                     k.Use("stone_block", Palette.BlueGrey * 0.75f, 0.95f, 0.02f, tile: 1);
                     box(p.X, p.Y, p.HalfX, p.HalfY, Up(Math.Max(p.Bottom, p.Top - 0.6)), Up(p.Top));

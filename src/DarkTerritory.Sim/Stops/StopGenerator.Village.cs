@@ -230,10 +230,11 @@ public static partial class StopGenerator
         {
             var b = g.Buildings[hi];
             var clear = Run.StopWalls.PartKeepClear(b).ToList();
-            bool On(double x, double y) => clear.Any(q => Math.Abs(q.X - x) < q.HalfX + 0.4 && Math.Abs(q.Y - y) < q.HalfY + 0.4);
+            // (With room for whoever searches it to stand and come and go round the hatch: a bot's way keeps well off one.)
+            bool On(double x, double y) => clear.Any(q => Math.Abs(q.X - x) < q.HalfX + 1.0 && Math.Abs(q.Y - y) < q.HalfY + 1.0);
             bool blocked = g.Containers.Any(c => c.Building == hi && c.Level == 0
-                && (Run.StopWalls.Kept(b, c.Kind, c.Index) is var (kx, ky, _, _) && On(kx, ky)
-                    || Run.StopWalls.InsideLocal(b, c.Kind, c.Index) is var (fx, fy) && On(fx, fy)));
+                && (Run.StopWalls.Kept(b, c.Kind, c.Index) is var (kx, ky, nx, ny) && On(kx, ky)
+                    || Run.StopWalls.InsideLocal(b, c.Kind, c.Index) is var (fx, fy) && (On(fx, fy) || On(fx + nx * 0.45, fy + ny * 0.45))));
             if (!blocked)
                 continue;
             g.Buildings[hi] = b with { Form = HouseForm.Plain };
