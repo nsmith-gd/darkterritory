@@ -99,5 +99,7 @@ After the first renders read more like moor than Nova Scotia, three changes:
 
 ## 4. Not yet
 
-- **Boats on the mud at low tide, lobster traps along the wharf, aboiteaux (the dykes' sluices), red maple.**
+- **Aboiteaux (the dykes' sluices).** Built since (note 1031): boats on the mud at low tide (a dory now and then on the near
+  half of a Fundy or dyke shore's flat, `LinesideProps.Mudflats`), lobster traps along a town's wharf (towns.json
+  `between.wharf`), red maple in its fall red in the Maritime biomes (biomes.json `flora.maple`, `NovaKit.RedMaple`).
 - **The Tantramar railway grade doubling as the dyke.** The line runs a low bank beside its dyke rather than on it.

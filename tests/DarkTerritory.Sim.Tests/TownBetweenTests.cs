@@ -80,9 +80,11 @@ public class TownBetweenTests
                     Assert.False(Overlap(s0, s1, ls, hs), $"{what} is on a lane");
                 }
             }
-            // Out of a town type's yard, between the line and its ward walls.
+            // Out of a town type's yard, between the line and its ward walls; but for the traps along a wharf's or a quay's edge
+            // over the water (note 1031), which is the yard's far side on a harbour's, a furnace's or a crag's, out of the crew's way.
+            bool onTheWharf = p.Kind == BetweenKind.Traps && plan.Districts.Any(x => x.Kind == DistrictKind.Quarter && x.Id is "wharf" or "quay" && x.Holds(p.S, p.D));
             foreach (var (ws0, wd0, ws1, _) in plan.Wards)
-                Assert.False(Overlap(s0, s1, Math.Min(ws0, ws1), Math.Max(ws0, ws1)) && (wd0 > 0 ? d0 < wd0 : d1 > wd0), $"{what} is in the yard");
+                Assert.False(!onTheWharf && Overlap(s0, s1, Math.Min(ws0, ws1), Math.Max(ws0, ws1)) && (wd0 > 0 ? d0 < wd0 : d1 > wd0), $"{what} is in the yard");
             // Out of the square, the green, the works and the rail yard.
             var sq = plan.Square;
             Assert.False(Math.Sign(p.D) == sq.Side && Overlap(s0, s1, sq.S0, sq.S1) && Math.Min(Math.Abs(d0), Math.Abs(d1)) < Math.Abs(sq.WallD), $"{what} is in the square");

@@ -243,6 +243,13 @@ public sealed record StopCrewTuning
     public double ShelterOverTrain { get; init; } = 2;
     /// <summary>Note 935: a bot driving runs in to a stop's hold no faster than a stop at this from where it is (m/s²; 0: the brake's curve).</summary>
     public double ApproachEase { get; init; }
+    /// <summary>Note 1031: how far along a town's streets from its square a bot hand strolls between nights (m; 0: it stays aboard).</summary>
+    public double TownStroll { get; init; }
+    /// <summary>Among how many of the streets nearest the square the bots share themselves out.</summary>
+    public int TownStreets { get; init; } = 2;
+    /// <summary>The most a leg of its stroll takes before it stops where it is (s), and how long it stands looking round (s).</summary>
+    public double TownLegSeconds { get; init; } = 45;
+    public double TownLinger { get; init; } = 12;
 }
 
 /// <summary>The grain elevator's spout (GDD §18 "one spout, one car at a time"; spec D.2 gravity chute). Field docs in facilities.json.</summary>
