@@ -79,16 +79,33 @@ public sealed partial class Run
         var d = t.Derelicts;
         foreach (var site in _sites)
         {
-            if (site?.Feature.Stop is not { } stop || site.Spur < 0)
+            if (site is null)
                 continue;
-            var branches = YardTracks(site.Index).Select(b => train.Line.Branches[b]).ToList();
-            foreach (var track in stop.Tracks.Where(tr => tr.Blocked))
+            foreach (var (b, count) in BlockedTracks(train.Line, site.Index))
             {
-                double toe = site.Feature.Start + track.Toe;
-                if (branches.FirstOrDefault(b => Math.Abs(b.Toe - toe) < 0.01 && b.Definition.Side == track.Side) is { } branch)
-                    train.StandDerelicts(branch.Index, branch.End - d.Back, track.Derelicts, d.Integrity, d.Pays);
+                var branch = train.Line.Branches[b];
+                train.StandDerelicts(branch.Index, branch.End - d.Back, count, d.Integrity, d.Pays);
             }
         }
+    }
+
+    /// <summary>
+    /// The sidings a yard's layout blocked (level-design D.2; note 294), as the line's branches, and how many derelicts each was
+    /// laid with: what a bot crew may clear (note 1028). Not where derelicts stand now: the crew may have moved them.
+    /// </summary>
+    public IReadOnlyList<(int Branch, int Derelicts)> BlockedTracks(Rail.RailLine line, int facility)
+    {
+        if (facility < 0 || facility >= _sites.Length || _sites[facility] is not { Spur: >= 0, Feature.Stop: { } stop } site)
+            return [];
+        var branches = YardTracks(facility).Select(b => line.Branches[b]).ToList();
+        var blocked = new List<(int, int)>();
+        foreach (var track in stop.Tracks.Where(tr => tr.Blocked))
+        {
+            double toe = site.Feature.Start + track.Toe;
+            if (branches.FirstOrDefault(b => Math.Abs(b.Toe - toe) < 0.01 && b.Definition.Side == track.Side) is { } branch)
+                blocked.Add((branch.Index, track.Derelicts));
+        }
+        return blocked;
     }
 
     /// <summary>A switchyard's cars still standing on one of its sidings, as the night found them (note 187); not derelicts.</summary>

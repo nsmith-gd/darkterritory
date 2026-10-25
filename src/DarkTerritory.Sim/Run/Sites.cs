@@ -216,6 +216,11 @@ public sealed record StopCrewTuning
     /// that stop: it's made, whatever the reckoning, unless it's late for the dawn. False: stopped short of and set back.
     /// </summary>
     public bool CrewsStops { get; init; } = true;
+    /// <summary>
+    /// Note 1028: a bot crew clears a yard's blocked siding (level-design D.1, D.2) the night has time for: in for its derelicts,
+    /// out past the points, and put away on a free road further up the yard. False: worked round, as before.
+    /// </summary>
+    public bool ClearSidings { get; init; } = true;
     /// <summary>Note 326: the share of the crate hands that go to search the village's houses once the crates are in (0: none).</summary>
     public double VillageShare { get; init; }
     /// <summary>How far from the train a hiding spot may be for a hand to go to it (m).</summary>

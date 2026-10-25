@@ -113,6 +113,13 @@ public sealed partial class CrewCalls
     public bool CanShunt => Has(StopJob.Shunter) || DriverHand;
 
     /// <summary>
+    /// Note 1028: the free road the derelicts this crew drew out of a blocked siding go to (the driver says, as the clearance's
+    /// pick-up is done), until they're put away there or it's given up; null otherwise. Only derelicts the crew drew out: a
+    /// person's are theirs to put where they like (note 294: keeping them ahead of the engine is legal).
+    /// </summary>
+    public int? PutAwayOn { get; set; }
+
+    /// <summary>
     /// Bots for a pair module (spec D.2: the capstan winch and the gantry crane "2 mandatory", the livestock ramp 2–3), at
     /// most two: the winch pair, then the shunter (spare once the train's in), then the driver.
     /// </summary>
@@ -634,9 +641,69 @@ public sealed record StopPlan(int Facility, Site Site, Branch Spur, double Hold,
     /// </summary>
     public bool PickUp { get; init; }
 
-    /// <summary>What a crew member says it's done: the facility for its own stop, the siding for a pick-up.</summary>
-    public int Key => PickUp ? PickUpKeys + Spur.Index : Facility;
-    const int PickUpKeys = 1 << 16;
+    /// <summary>
+    /// Note 1028: a pick-up of a blocked siding's derelicts (level-design D.2), to be put away on <see cref="Road"/> after it.
+    /// </summary>
+    public bool Clears { get; init; }
+    /// <summary>
+    /// Note 1028: the derelicts drawn out of a blocked siding shoved down this one (a free road, <see cref="Spur"/>) and cut off
+    /// there. A <see cref="PickUp"/> too: nothing's loaded, and only the shunter and the driver have a part in it.
+    /// </summary>
+    public bool PutAway { get; init; }
+    /// <summary>Note 1028: a clearance's free road (a branch), or −1.</summary>
+    public int Road { get; init; } = -1;
+
+    /// <summary>What a crew member says it's done: the facility for its own stop, the siding for a pick-up or a put-away.</summary>
+    public int Key => PutAway ? PutAwayKeys + Spur.Index : PickUp ? PickUpKeys + Spur.Index : Facility;
+    const int PickUpKeys = 1 << 16, PutAwayKeys = 2 << 16;
+
+    /// <summary>The cars ahead of the engine in its rake that are derelicts (note 294), front first.</summary>
+    public static IReadOnlyList<Vehicle> DerelictsAhead(TrainOnLine train)
+    {
+        var vehicles = train.Dynamics.Consist.Vehicles;
+        int engine = vehicles.ToList().FindIndex(v => v.IsEngine);
+        return [.. vehicles.Take(Math.Max(0, engine)).Where(v => v.Derelict)];
+    }
+
+    /// <summary>
+    /// Note 1028: the derelicts this crew drew out (<see cref="CrewCalls.PutAwayOn"/>) still ahead of the engine: the put-away
+    /// on their free road, its hold for the rake's front (theirs) short of its points. Null with none, or the road behind.
+    /// </summary>
+    static StopPlan? PutAwayAhead(World world, double from, CrewCalls calls)
+    {
+        if (calls.PutAwayOn is not { } road || world.Run is not { } run || DerelictsAhead(world.Train).Count == 0 || !calls.Has(StopJob.Shunter))
+            return null;
+        var train = world.Train;
+        var spur = train.Line.Branches[road];
+        double hold = spur.Toe - (world.Switches?.Tuning.PointsLength ?? 12) - 2;
+        if (hold < from - 5 || run.Sites.FirstOrDefault(s => s is { Spur: >= 0 } && run.YardTracks(s.Index).Contains(road)) is not { } site)
+            return null;
+        return new StopPlan(site.Index, site, spur, hold, 0, -1) { PickUp = true, PutAway = true };
+    }
+
+    /// <summary>
+    /// Note 1028: where a blocked siding's derelicts (<paramref name="count"/> of them) can be put away once they're out: the
+    /// nearest of the yard's other tracks whose points are past the blocked one's (they come out ahead of the engine, and only
+    /// go on up the line from there), never one the layout blocked, with nothing on it (standing cars, derelicts, any of this
+    /// train's) and room for them; the yard's own track only once its loading's done. −1 with none.
+    /// </summary>
+    static int FreeRoad(World world, Site site, Branch blocked, int count, IReadOnlySet<int> done, IReadOnlyList<(int Branch, int Derelicts)> laid)
+    {
+        var train = world.Train;
+        double points = world.Switches?.Tuning.PointsLength ?? 12;
+        var g = train.Dynamics.Tuning.Geometry;
+        int best = -1;
+        foreach (int track in world.Run!.YardTracks(site.Index))
+        {
+            var b = train.Line.Branches[track];
+            if (b.Toe <= blocked.Toe + 1 || laid.Any(l => l.Branch == track) || track == site.Spur && !done.Contains(site.Index)
+                || train.Rakes.Any(r => r.Path == track) || SpurDrill.Capacity(g, b, points) < count)
+                continue;
+            if (best < 0 || b.Toe < train.Line.Branches[best].Toe)
+                best = track;
+        }
+        return best;
+    }
 
     /// <summary>The next stop the crew can work whose points are ahead of <paramref name="from"/>, if any.</summary>
     /// <param name="takes">Note 617: only a stop this says the crew would make (the driver's allowance for it): one turned down
@@ -645,10 +712,14 @@ public sealed record StopPlan(int Facility, Site Site, Branch Spur, double Hold,
     {
         if (world.Run is not { } run)
             return null;
+        // Note 1028: derelicts the crew drew out of a blocked siding go to their free road before anything else.
+        if (PutAwayAhead(world, from, calls) is { } putAway)
+            return done.Contains(putAway.Key) ? null : putAway;
         var train = world.Train;
         double points = world.Switches?.Tuning.PointsLength ?? 12;
         var g = train.Dynamics.Tuning.Geometry;
         var vehicles = train.Dynamics.Consist.Vehicles;
+        bool clears = run.FacilityTuning?.Crew.ClearSidings == true;
         // The engine's place in its rake: a switchyard's cars picked up go on ahead of it (note 187).
         int engine = vehicles.ToList().FindIndex(v => v.IsEngine);
         StopPlan? best = null;
@@ -656,18 +727,22 @@ public sealed record StopPlan(int Facility, Site Site, Branch Spur, double Hold,
         {
             if (site is not { Spur: >= 0 } || !calls.CanShunt)
                 continue;
+            var laid = clears ? run.BlockedTracks(train.Line, site.Index) : [];
             foreach (int track in run.YardTracks(site.Index))
             {
                 bool own = track == site.Spur;
                 var spur = train.Line.Branches[track];
                 int standing = Run.Run.StandingOn(train, track);
+                // Note 1028: a siding the layout blocked, its derelicts still there, with a free road for them up the yard.
+                int derelicts = !own && laid.Any(l => l.Branch == track) ? Run.Run.DerelictsOn(train, track) : 0;
+                int road = derelicts > 0 && standing == 0 ? FreeRoad(world, site, spur, derelicts, done, laid) : -1;
                 // Its own track for its loading (and any cars standing there); any other only for the cars standing on it.
-                if (own ? done.Contains(site.Index) || !calls.CanWork(site) && standing == 0 : standing == 0 || done.Contains(PickUpKeys + track))
+                if (own ? done.Contains(site.Index) || !calls.CanWork(site) && standing == 0 : standing == 0 && road < 0 || done.Contains(PickUpKeys + track))
                     continue;
                 double hold = spur.Toe - points - 2;
                 if (hold < from - 5 || best is not null && hold >= best.Hold)
                     continue;
-                int fit = SpurDrill.Capacity(g, spur, points) - standing;
+                int fit = SpurDrill.Capacity(g, spur, points) - standing - (road >= 0 ? derelicts : 0);
                 if (own)
                 {
                     // In front of the engine's own cars, what's ahead of it goes in too; and nothing to stop for if the cars that
@@ -688,7 +763,8 @@ public sealed record StopPlan(int Facility, Site Site, Branch Spur, double Hold,
                     // left waiting on the main line.
                     if (fit < engine + 1 || !calls.Has(StopJob.Shunter))
                         continue;
-                    var pickUp = new StopPlan(site.Index, site, spur, hold, engine + 1, vehicles.Count - 1 > engine + 1 ? vehicles[engine + 1].Id : -1) { PickUp = true };
+                    var pickUp = new StopPlan(site.Index, site, spur, hold, engine + 1, vehicles.Count - 1 > engine + 1 ? vehicles[engine + 1].Id : -1)
+                    { PickUp = true, Clears = road >= 0, Road = road };
                     if (takes is null || takes(pickUp))
                         best = pickUp;
                 }
@@ -711,7 +787,8 @@ public sealed record StopPlan(int Facility, Site Site, Branch Spur, double Hold,
             && StopHand.SideDoor(train.Frames[v.Id].Shape, Site.Side) is { } door && v.DoorOpen(door)).Select(v => v.Id);
 
     /// <summary>
-    /// The grain elevator's next car (GDD §18 "one spout, one car at a time"): the car with room in the engine's rake whose
+    /// The grain elevator's next car (GDD §18 "one spout, one car at a time"; never at a pick-up, note 1028: a blocked siding's
+    /// clearance at an elevator stood the derelicts under its spout's place along the wrong track): the car with room in the engine's rake whose
     /// middle comes under the spout with the engine furthest up the spur (short of its buffer stop), and where the engine's
     /// front stands for that. The train's walked back under the spout a car at a time, the way it backs out anyway.
     /// Null when there's no grain, no car left with room that it reaches, or the engine's not down the spur.
@@ -719,7 +796,7 @@ public sealed record StopPlan(int Facility, Site Site, Branch Spur, double Hold,
     public (int Car, double Front)? SpoutTarget(World world)
     {
         var rake = world.Train.Dynamics;
-        if (!Site.Has(ModuleKind.Spout) || Site.Bin <= 1e-6 || rake.Path != Spur.Index)
+        if (PickUp || !Site.Has(ModuleKind.Spout) || Site.Bin <= 1e-6 || rake.Path != Spur.Index)
             return null;
         double spout = Spur.Toe + Site.SpoutAlong;
         (int Car, double Front)? best = null;
@@ -744,7 +821,7 @@ public sealed record StopPlan(int Facility, Site Site, Branch Spur, double Hold,
     public (int Car, double Front)? LiftTarget(World world)
     {
         var rake = world.Train.Dynamics;
-        if (!Site.Has(ModuleKind.Lift) || Site.Ore <= 1e-6 || rake.Path != Spur.Index || world.Run?.FacilityTuning is not { } t)
+        if (PickUp || !Site.Has(ModuleKind.Lift) || Site.Ore <= 1e-6 || rake.Path != Spur.Index || world.Run?.FacilityTuning is not { } t)
             return null;
         double chute = Spur.Toe + Site.LiftAlong;
         var consist = rake.Consist;
@@ -774,7 +851,7 @@ public sealed record StopPlan(int Facility, Site Site, Branch Spur, double Hold,
     public (int Car, double Front)? ConveyorTarget(World world)
     {
         var rake = world.Train.Dynamics;
-        if (!Site.Has(ModuleKind.Conveyor) || Site.Grain <= 1e-6 || rake.Path != Spur.Index)
+        if (PickUp || !Site.Has(ModuleKind.Conveyor) || Site.Grain <= 1e-6 || rake.Path != Spur.Index)
             return null;
         double head = Spur.Toe + Site.ConveyorAlong;
         (int Car, double Front)? best = null;
@@ -799,7 +876,7 @@ public sealed record StopPlan(int Facility, Site Site, Branch Spur, double Hold,
     public (int Car, double Front)? TippleTarget(World world)
     {
         var rake = world.Train.Dynamics;
-        if (!Site.Has(ModuleKind.Tipple) || Site.TippleOre <= 1e-6 || rake.Path != Spur.Index)
+        if (PickUp || !Site.Has(ModuleKind.Tipple) || Site.TippleOre <= 1e-6 || rake.Path != Spur.Index)
             return null;
         double cradle = Spur.Toe + Site.TippleAlong;
         (int Car, double Front)? best = null;
@@ -1221,7 +1298,18 @@ public sealed class StopDriver(CrewCalls calls)
     /// <see cref="Late"/> to cut short: the stop itself (<see cref="PickUpStop"/>) and <see cref="PickUpNoise"/> over it (note 621).
     /// </summary>
     public static double Allowance(StopPlan p, World world) =>
-        p.PickUp ? PickUpStop + PickUpNoise : ToTheLoading(p) + OnwardLoading + LateSpare + AboardGiveUp;
+        p.PickUp ? PickUpStop + PickUpNoise + (p.Clears ? PutAwayStop : 0) : ToTheLoading(p) + OnwardLoading + LateSpare + AboardGiveUp;
+
+    /// <summary>
+    /// Note 1028: a blocked siding's put-away after its pick-up (s): up the yard to the free road's points, the shunter at them,
+    /// shoved in, the shunter up onto the derelicts and the cut, backed out and the points set back.
+    /// </summary>
+    const double PutAwayStop = 150;
+    /// <summary>
+    /// Note 1028: seconds the driver waits at the free road's end for the derelicts' cut before it gives it up and takes them
+    /// out again (kept ahead of the engine, note 294's other way).
+    /// </summary>
+    const double PutAwayGiveUp = 150;
 
     /// <summary>
     /// Note 621: how long after the dawn a train still in is in time (s): with the Wakers up, when they'd catch a stood train
@@ -1751,9 +1839,11 @@ public sealed class StopDriver(CrewCalls calls)
                     var p = Plan!;
                     // Late: the dawn won't wait for the rest (T70).
                     bool late = Late(world, p) || Onward(world, p);
-                    // A pick-up's loading is the coupling, done once it's run up to the end (note 187).
+                    // A pick-up's loading is the coupling, done once it's run up to the end (note 187); a put-away's, the
+                    // derelicts cut off there (note 1028), or given up.
                     // Note 609: or it's had its time, on a short night, for a crew of bots (people playing call their own done).
-                    bool loaded = p.PickUp || Loaded(world, p) || Waited > LoadingGiveUp || late
+                    bool loaded = p.PutAway ? StopPlan.DerelictsAhead(train).Count == 0 || Waited > PutAwayGiveUp || !calls.Has(StopJob.Shunter)
+                        : p.PickUp || Loaded(world, p) || Waited > LoadingGiveUp || late
                         || calls.PeopleHands == 0 && Waited > LoadingFor && _spareAtLoading < (_onwardAllowance ?? StopAllowance) + LoadingGiveUp;
                     // The rest in, the grain elevator's conveyor first (note 400): walked under its head a car at a time, the
                     // shunter starting it at its drive house and roaming its belt for the jams. It reaches the cars ahead of the
@@ -1947,7 +2037,7 @@ public sealed class StopDriver(CrewCalls calls)
                 if (Coal is not null)
                     FinishCoaling(train);
                 else
-                    Finish();
+                    Finish(world);
                 return null; // away as usual
             default:
                 return null;
@@ -2163,12 +2253,18 @@ public sealed class StopDriver(CrewCalls calls)
         Coal = null;
     }
 
-    void Finish()
+    void Finish(World world)
     {
         var p = Plan!;
         Begin(Leg.Cruise);
         _done.Add(p.Key);
-        _log.Add(new StopRecord(p.Facility, (p.Site.Feature.Facility?.ToString() ?? "") + (p.PickUp ? $"PickUp{p.Spur.Index}" : ""), Math.Round(Seconds(_ticks - _stopStart), 1),
+        // Note 1028: a blocked siding's derelicts out, ahead of the engine: their free road next. Put away (or given up): over.
+        if (p.Clears && StopPlan.DerelictsAhead(world.Train).Count > 0)
+            calls.PutAwayOn = p.Road;
+        else if (p.PutAway)
+            calls.PutAwayOn = null;
+        string kind = p.PutAway ? $"PutAway{p.Spur.Index}" : p.Clears ? $"Clear{p.Spur.Index}" : p.PickUp ? $"PickUp{p.Spur.Index}" : "";
+        _log.Add(new StopRecord(p.Facility, (p.Site.Feature.Facility?.ToString() ?? "") + kind, Math.Round(Seconds(_ticks - _stopStart), 1),
             _sledsAtStart - p.Site.SledsLeft, new Dictionary<string, double>(_legs),
             Castings: p.Site.Crane?.Castings.Count(c => c.State == CastingState.Loaded) ?? 0));
         Plan = null;
@@ -3025,9 +3121,52 @@ public sealed partial class StopHand(StopJob job, CrewCalls calls, int member)
         // Note 628: at a pick-up, aboard by the nearest ladder of the engine's rake, not the walk to the cab: frontier:7 seed 3's
         // shunter, on the ballast in the siding as the engine coupled up, walked for the cab steps for the whole 120 s of the
         // aboard wait.
+        // Note 1028: at a put-away's end, the derelicts cut off from the engine's rake where they stand.
+        if (!back && p.PutAway && _reachedEnd && !calls.Leaving && StopPlan.DerelictsAhead(train) is [.., var last])
+            return CutOffDerelicts(self, world, p, last.Id);
         if (!back)
             return p.PickUp && self.Parent == PlayerState.World ? LeftOnTheBallast(self, world) ?? Ride(self, train, p) : Ride(self, train, p);
         return set ? Throw(self, train, p.Spur) : Aboard(self, p);
+    }
+
+    /// <summary>
+    /// Note 1028: the shunter cutting a blocked siding's derelicts off on their free road: down off the train, along the ballast
+    /// to the last derelict's side ladder (the engine's between them and the train's roofs, <see cref="AheadOfTheEngine"/>),
+    /// up and along its roof to its rear gap, and Uncouple on its plate (<see cref="CutAt"/>), the engine standing.
+    /// </summary>
+    PlayerIntent? CutOffDerelicts(in PlayerState self, World world, StopPlan p, int car)
+    {
+        var train = world.Train;
+        if (Math.Abs(train.Dynamics.Velocity) > 0.05)
+            return new PlayerIntent();
+        bool onDerelicts = self.Parent > 0 && train.Vehicles[self.Parent].Derelict;
+        if (onDerelicts && CutAt(self, train, car) is { } cutting)
+            return cutting;
+        Doing = "to the derelicts";
+        if (self.Surface == Surface.Ladder)
+            return new PlayerIntent { MoveZ = 1, Buttons = PlayerButtons.Use };
+        if (self.Parent != PlayerState.World)
+            return GetDown(self, train, p.Spur.Side) ?? new PlayerIntent();
+        var frame = train.Frames[car];
+        Double3? best = null;
+        double bestD = double.MaxValue;
+        var here = PlayerMotor.WorldPosition(self, train);
+        foreach (var ladder in frame.Shape.Ladders)
+        {
+            if (Math.Abs(ladder.Inward.X) < 0.9 || ladder.Foot.Y > 0.5 || ladder.Top < frame.Shape.RoofHeight - 0.5)
+                continue;
+            var at = frame.ToWorld(ladder.Foot - ladder.Inward * 0.3);
+            double d = (Flat(at) - Flat(here)).Length;
+            if (d < bestD)
+                (best, bestD) = (at, d);
+        }
+        if (best is not { } foot)
+            return new PlayerIntent();
+        if (bestD > 1.0)
+            return OnFoot(self, train, p.Spur.Index, foot, null).Step;
+        // At its foot: square to it, on and take hold (Board's way, which keeps off the cars ahead of the engine).
+        double yaw = DMath.Atan2(-(foot.X - here.X), -(foot.Z - here.Z));
+        return new PlayerIntent { LookYaw = Turn(self, yaw), MoveZ = Aligned(self, yaw) ? 1 : 0, Buttons = bestD < 0.6 ? PlayerButtons.Use : PlayerButtons.None };
     }
 
     PlayerIntent? Crank(in PlayerState self, World world, StopPlan p)
