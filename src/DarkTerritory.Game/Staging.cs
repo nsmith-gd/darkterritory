@@ -367,6 +367,40 @@ public static partial class Staging
                 };
             }
         }
+        // The houses with floors (note 1022): up the flight from its foot, the bedrooms from the landing, the window that opens
+        // and the porch roof under it (from the bedroom, and from the yard), down the hatch into the cellar (a hand lamp's
+        // what you see by), a burnt house's floor burnt through, and a boarded house left as it was.
+        if (where is "stairs" or "upstairs" or "bedroom" or "porchroof" or "porchyard" or "downcellar" or "hatch" or "ashcellar" or "boarded" or "boardedup")
+        {
+            var floored = where switch
+            {
+                "downcellar" or "hatch" => plan.Houses.FirstOrDefault(h => h.Cellar && h.Layout is not null),
+                "ashcellar" => plan.Houses.FirstOrDefault(h => h.Cellar && h.Kind == Sim.Towns.HouseKind.Burnt),
+                "boarded" or "boardedup" => plan.Houses.FirstOrDefault(h => h.Left is not null && (where == "boarded" || h.Upstairs)),
+                _ => plan.Houses.FirstOrDefault(h => h.Upstairs && h.Layout is not null),
+            };
+            if (floored is not null)
+            {
+                var fh = floored;
+                Double3 In(double u, double v, double up) => town.InHouse(fh, u, v, up);
+                var (u0, u1, v0, v1) = Sim.Towns.TownFloors.Stair(fh);
+                double um = (u0 + u1) / 2, f1 = Sim.Towns.TownFloors.Storey, cellar = -Sim.Towns.TownFloors.Cellar, wu = Sim.Towns.TownFloors.WindowU(fh);
+                var (hu, hv, _, _) = Sim.Towns.TownFloors.Hatch(fh);
+                int k = -Sim.Towns.TownFloors.StairSide(fh);
+                return where switch
+                {
+                    "stairs" => Ballast.Render.Camera.LookAt(In(um + k * 1.1, v0 - 0.5, 1.6), In(um, v1, f1 + 0.6), 72),
+                    "upstairs" or "boardedup" => Ballast.Render.Camera.LookAt(In(um, v1 + 0.25, f1 + 1.6), In(k * fh.Width / 4, 0.8, f1 + 0.7), 80),
+                    "bedroom" => Ballast.Render.Camera.LookAt(In(k * 0.4, Sim.Towns.TownFloors.UpperPassV(fh) + 0.2, f1 + 1.6), In(k * (fh.Width / 2 - 0.8), 1.2, f1 + 0.5), 80),
+                    "porchroof" => Ballast.Render.Camera.LookAt(In(wu - k * 0.3, fh.Depth - 1.0, f1 + 1.65), In(wu, fh.Depth + 1.0, f1 + 0.3), 75),
+                    "porchyard" => Ballast.Render.Camera.LookAt(In(wu + k * 3, fh.Depth + 6, 1.7), In(wu, fh.Depth, f1 + 0.4), 70),
+                    "downcellar" => Ballast.Render.Camera.LookAt(In(hu + 0.3, hv - 0.9, cellar + 1.6), In(-hu, 0.4, cellar + 0.4), 85),
+                    "hatch" => Ballast.Render.Camera.LookAt(In(hu - k * 0.3, hv - 1.6, 1.65), In(hu, hv, -0.6), 75),
+                    "ashcellar" => Ballast.Render.Camera.LookAt(In(fh.Design.DoorU, 0.4, 2.4), In(hu, hv, -1.2), 75),
+                    _ => Ballast.Render.Camera.LookAt(In(fh.Left!.DoorU - k * 0.1, 0.35, 1.65), In(k * fh.Width / 2, fh.Depth - 0.6, 0.9), 75),
+                };
+            }
+        }
         // The houses (note 281): the first open one, its front, its kitchen from the door, its parlour through the partition.
         // (party: Nicki's house, note 571, from her door; partyside, from the street.)
         var home = (where is "party" or "partyside" or "nicki" ? plan.Houses.FirstOrDefault(h => h.Party) : null)

@@ -52,6 +52,12 @@ public static class TownFloors
     /// <summary>A doorway's head over its floor (m): the lintel over the front door and the upstairs partition's doorway.</summary>
     public const double DoorHead = 2.1;
 
+    /// <summary>
+    /// Where a burnt house's chimney stands, still (u of its middle; v the house's middle): its middle, or toward an end
+    /// (MaritimeKit draws it here). Inside a burnt house with a cellar it stands as a wall; a stovepipe's gone.
+    /// </summary>
+    public static double BurntChimney(TownHouse h) => h.Design.Chimney == HouseChimney.Centre ? 0 : h.Side * (h.Width / 2 - 0.6);
+
     /// <summary>The upstairs window that opens (m): its width, its sill and head over the upper floor (the art's upstairs panes'), its step off outside.</summary>
     public const double WindowWidth = 0.8, WindowSill = 1.0, WindowHead = 2.2, WindowOnto = 0.75;
 
@@ -95,12 +101,12 @@ public static class TownFloors
     /// <summary>
     /// The hatch down, its middle; and its ladder's way off at the top (into the room). An open house's is in the parlour
     /// between the flight's top and the partition, behind the armchair, its ladder down its front edge; a burnt house's floor
-    /// is burnt through in the middle, away from its door.
+    /// is burnt through in a back corner, away from its door.
     /// </summary>
     public static (double U, double V, double InU, double InV) Hatch(TownHouse h)
     {
         if (Rooms(h) is null)
-            return (h.Design.DoorU >= 0 ? -h.Width / 6 : h.Width / 6, h.Depth * 0.55, 0, -1);
+            return ((h.Design.DoorU >= 0 ? -1 : 1) * (h.Width / 2 - 1.0), h.Depth - 1.45, 0, -1);
         return HatchIn(h.Width, h.Depth, StairSide(h));
     }
 
@@ -152,6 +158,9 @@ public static class TownFloors
         yield return new(ShellPart.Wall, -w + t / 2, dp / 2, t / 2, dp / 2, low, top);
         yield return new(ShellPart.Wall, w - t / 2, dp / 2, t / 2, dp / 2, low, top);
         double ix = w - t, iv0 = t, iv1 = dp - t;
+        // A burnt house's chimney, standing (its stack's footprint; MaritimeKit's).
+        if (h.Kind == HouseKind.Burnt && h.Design.Chimney != HouseChimney.Pipe)
+            yield return new(ShellPart.Wall, BurntChimney(h), dp / 2, 0.38, 0.32, low, 9);
         // The partition (an open house's), the doorway through it downstairs; upstairs its own, near the back.
         if (rooms is not null)
         {

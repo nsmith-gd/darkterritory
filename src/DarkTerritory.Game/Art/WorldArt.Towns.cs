@@ -609,6 +609,9 @@ public sealed partial class WorldArt
         // windows dark keeps it low).
         if (h.Kind == HouseKind.Lived)
             Porch(mesh, h.Design.Hull ? Matrix4x4.CreateTranslation(0, MaritimeKit.HullLift, 0) * m : m, h, lit);
+        // Its cellar (note 1022), a dark room under the boards: lit by little but a hand lamp.
+        if (h.Cellar && far < 60)
+            mesh.Rooms.Add(MaritimeKit.CellarRoom(h, m));
         if (h.Layout is null)
             return;
         // An open house's lamps inside, and the light out of its open door onto the step.

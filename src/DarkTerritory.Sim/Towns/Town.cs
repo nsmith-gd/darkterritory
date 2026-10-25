@@ -31,6 +31,7 @@ public sealed class Town
         _line = line;
         Ground = TownGround.Of(plan);
         Walls = [.. BuildWalls()];
+        _holes = [.. Floors().Hatches.Select(h => h with { Top = h.Top + 1 })];
         Ladders = [.. BuildLadders()];
         Index();
         _behind = new double[plan.People.Count];
@@ -347,10 +348,15 @@ public sealed class Town
     /// chest (<paramref name="indoors"/>: a narrower body, between the furniture).</summary>
     public bool Free(Double3 feet, bool indoors = false)
     {
+        // (A house's floors, its rails and lintels are stood on or walked under, note 1022: not in the way. Its open
+        // hatches are: nobody stands over one.)
         foreach (var w in Around(feet, feet, 0.5))
             foreach (double up in (double[])[0.4, 1.2])
-                if (Holds(w, feet + Double3.Up * up, indoors ? 0.15 : 0.3))
+                if (!w.Level && Holds(w, feet + Double3.Up * up, indoors ? 0.15 : 0.3))
                     return false;
+        foreach (var hole in _holes)
+            if (Holds(hole, feet + Double3.Up * 0.4, indoors ? 0.15 : 0.3))
+                return false;
         return true;
     }
 
@@ -373,13 +379,21 @@ public sealed class Town
                 var from = a + across * off + Double3.Up * up;
                 var to = b + across * off + Double3.Up * up;
                 foreach (var w in near)
-                    if (!Holds(w, a + Double3.Up * up, 0.05) && !Holds(w, b + Double3.Up * up, 0.05) && Crosses(w, from, to))
+                    if (!w.Level && !Holds(w, a + Double3.Up * up, 0.05) && !Holds(w, b + Double3.Up * up, 0.05) && Crosses(w, from, to))
                         return false;
             }
+        // Nor across a hatch left open (note 1022), at the boards.
+        foreach (var hole in _holes)
+            foreach (double off in (double[])[-1, 0, 1])
+                if (Crosses(hole, a + across * off + Double3.Up * 0.2, b + across * off + Double3.Up * 0.2))
+                    return false;
         return true;
     }
 
     public TownPlan Plan { get; }
+
+    /// <summary>Its houses' open hatches (note 1022), from their cellars' floors to over their boards: what the townsfolk's ways keep off.</summary>
+    readonly IReadOnlyList<Wall> _holes;
 
     /// <summary>The frame it stands in: the line, or for a terminus's town the line turned round (note 600).</summary>
     public RailLine Line => _line;

@@ -24,7 +24,7 @@ namespace DarkTerritory.Game.Art;
 /// Fronts −Z, the main block's middle at the origin, X along its front (the house's u times its side). An open house's
 /// ground floor is built inside it from the Sim's <see cref="HouseLayout"/>.
 /// </summary>
-public static class MaritimeKit
+public static partial class MaritimeKit
 {
     /// <summary>The casings inside an open house (painted white, gone cream).</summary>
     static readonly Vector3 Trim = new(0.80f, 0.78f, 0.72f);
@@ -182,6 +182,9 @@ public static class MaritimeKit
         if (h.Kind == HouseKind.Burnt)
         {
             Burnt(k, h, b);
+            // Note 1022: its cellar, the boards burnt through over it.
+            if (h.Cellar)
+                Floors(k, h, [], false);
             k.Pop();
             return k.Build($"maritime-burnt-{h.Id}");
         }
@@ -200,8 +203,8 @@ public static class MaritimeKit
             bool glow = lit && h.Kind switch
             {
                 HouseKind.Lived => (n++ * 7 + h.Id) % 3 != 1,
-                // An open house's lamps are downstairs: upstairs, nobody's gone up to bed.
-                HouseKind.Open => p.Ground,
+                // An open house's lamps are downstairs, and upstairs where it has one (note 1022): someone's gone up to bed.
+                HouseKind.Open => p.Ground || h.Upstairs,
                 _ => false,
             };
             Window(k, p, coat, h, glow);
@@ -212,8 +215,11 @@ public static class MaritimeKit
         Chimneys(k, h, b);
         if (h.Design.Fancy)
             Fancy(k, h, b, coat);
-        if (h.Layout is { } l)
+        if (TownFloors.Rooms(h) is { } l)
             Inside(k, h, l, thing, panes);
+        // Note 1022: its floors, upstairs and down.
+        if (TownFloors.Floored(h))
+            Floors(k, h, panes, lit);
         if (h.Design.Hull)
             k.Pop();
         k.Pop();
@@ -410,7 +416,7 @@ public static class MaritimeKit
     /// <summary>The foundation, the walls, the gable ends, the corner boards and fascia, and the roof.</summary>
     static void Shell(Kit k, TownHouse h, Block b, Coat c, float doorX)
     {
-        bool open = h.Layout is not null;
+        bool open = TownFloors.Rooms(h) is not null;
         const float t = (float)HouseLayout.Wall, proud = 0.06f;
         float dw = (float)HouseLayout.DoorWidth, doorH = k.DoorHeight();
         float x0 = b.X0, x1 = b.X1, z0 = b.Z0, z1 = b.Z1;
@@ -444,7 +450,18 @@ public static class MaritimeKit
             k.Box(new Vector3(x0, Found, z0), new Vector3(doorX - dw / 2, front, z0 + t), Kit.Faces.All);
             k.Box(new Vector3(doorX + dw / 2, Found, z0), new Vector3(x1, front, z0 + t), Kit.Faces.All);
             k.Box(new Vector3(doorX - dw / 2, doorH, z0), new Vector3(doorX + dw / 2, front, z0 + t), Kit.Faces.All);
-            k.Box(new Vector3(x0, Found, z1 - t), new Vector3(x1, back, z1), Kit.Faces.All);
+            if (h.Upstairs)
+            {
+                // The window that opens onto the porch roof, cut through (note 1022).
+                float ox = X(h, TownFloors.WindowU(h)), ow = (float)TownFloors.WindowWidth / 2;
+                float sill = (float)(TownFloors.Storey + TownFloors.WindowSill), head = (float)(TownFloors.Storey + TownFloors.WindowHead);
+                k.Box(new Vector3(x0, Found, z1 - t), new Vector3(ox - ow, back, z1), Kit.Faces.All);
+                k.Box(new Vector3(ox + ow, Found, z1 - t), new Vector3(x1, back, z1), Kit.Faces.All);
+                k.Box(new Vector3(ox - ow, Found, z1 - t), new Vector3(ox + ow, sill, z1), Kit.Faces.All);
+                k.Box(new Vector3(ox - ow, head, z1 - t), new Vector3(ox + ow, back, z1), Kit.Faces.All);
+            }
+            else
+                k.Box(new Vector3(x0, Found, z1 - t), new Vector3(x1, back, z1), Kit.Faces.All);
             k.Box(new Vector3(x0, Found, z0), new Vector3(x0 + t, sides, z1), Kit.Faces.All);
             k.Box(new Vector3(x1 - t, Found, z0), new Vector3(x1, sides, z1), Kit.Faces.All);
         }
@@ -586,6 +603,8 @@ public static class MaritimeKit
     {
         if (h.Layout is not { } l)
             yield break;
+        foreach (var upstairs in UpstairsLights(h))
+            yield return upstairs;
         int kx = l.Kitchen * h.Side;
         foreach (var x in l.Things)
         {
@@ -616,7 +635,11 @@ public static class MaritimeKit
     static float Z(TownHouse h, double v) => (float)(v - h.Depth / 2);
 
     /// <summary>A window: its middle on the wall's outer face, the way it faces out, its size, and whether it's the ground floor's.</summary>
-    readonly record struct Pane(Vector3 At, Vector3 Out, float W, float H, bool Ground);
+    readonly record struct Pane(Vector3 At, Vector3 Out, float W, float H, bool Ground)
+    {
+        /// <summary>The upstairs window that opens onto the porch roof (note 1022): drawn open, its sash up.</summary>
+        public bool Opens { get; init; }
+    }
     // ---------------------------------------------------------------------------------------------------------------
     // Windows
 
@@ -625,7 +648,7 @@ public static class MaritimeKit
     static List<Pane> Windows(TownHouse h, Block b, float doorX)
     {
         var d = h.Design;
-        var layout = h.Layout;
+        var layout = TownFloors.Rooms(h);
         float x0 = b.X0, x1 = b.X1, z0 = b.Z0, z1 = b.Z1, w = b.W, depth = b.D;
         float dh = (float)HouseLayout.DoorWidth / 2;
         // A window's room along its wall: its casing, and its shutters' when it has them.
@@ -697,13 +720,17 @@ public static class MaritimeKit
         // A gable-front's attic window, up in the gable over the street (the Cape Breton studio's).
         if (b.GableFront && b.Ridge - b.Eave > 1.7f)
             panes.Add(new(new Vector3(0, b.Eave + (b.Ridge - b.Eave) * 0.36f, z0), -Vector3.UnitZ, 0.65f, 0.95f, false));
-        // The back.
+        // The back; with an upstairs (note 1022), its window over the porch roof in place of any upstairs one beside it.
+        float opens = h.Upstairs ? X(h, TownFloors.WindowU(h)) : float.NaN;
         foreach (float x in Fit(1, x0, x1, 2, layout is null ? [(-0.4f, 0.4f)] : []))
         {
             panes.Add(new(new Vector3(x, GroundWindow, z1), Vector3.UnitZ, 0.8f, 1.2f, true));
-            if ((b.GableFront ? b.Eave : b.BackEave) >= 5)
+            if ((b.GableFront ? b.Eave : b.BackEave) >= 5 && !(MathF.Abs(x - opens) < 1.3f))
                 panes.Add(new(new Vector3(x, GroundWindow + Storey, z1), Vector3.UnitZ, 0.8f, 1.2f, false));
         }
+        if (h.Upstairs)
+            panes.Add(new(new Vector3(opens, (float)(TownFloors.Storey + (TownFloors.WindowSill + TownFloors.WindowHead) / 2), z1), Vector3.UnitZ,
+                (float)TownFloors.WindowWidth, (float)(TownFloors.WindowHead - TownFloors.WindowSill), false) { Opens = true });
         // The ends: a window or two a floor, and one up in a gable end.
         foreach (int wall in new[] { 2, 3 })
         {
@@ -757,11 +784,15 @@ public static class MaritimeKit
             k.Use("glass_dirty", Palette.SootBlack, 0.4f, 0.4f, tile: 1);
             k.Shade(h.Kind == HouseKind.Empty ? 0.12f : 0.35f);
         }
-        k.Panel(at + n * 0.01f, n, Vector3.UnitY, ww, wh, Vector2.Zero, Vector2.One);
+        // The window that opens (note 1022): its lower sash pushed up behind the upper, the bottom half open.
+        var glass = p.Opens ? at + Vector3.UnitY * (wh / 4) : at;
+        k.Panel(glass + n * 0.01f, n, Vector3.UnitY, ww, p.Opens ? wh / 2 : wh, Vector2.Zero, Vector2.One, twoSided: p.Opens);
         k.Emissive = 0;
-        // The sash: the meeting rail across the middle, and the muntins of its panes.
+        // The sash: the meeting rail across the middle (the open one's raised sash's bottom rail), and the muntins of its panes.
         TrimPaint(k, c.Trim * 0.92f);
         Slab(k, at, n, ww / 2, 0.025f, 0, 0.045f);
+        if (p.Opens)
+            return;
         int across = h.Design.Windows switch { 1 => 3, 2 => 1, _ => 2 };
         for (int i = 1; i < across; i++)
             Slab(k, at + along * (-ww / 2 + ww * i / across), n, 0.015f, wh / 2, 0, 0.035f);
@@ -805,7 +836,7 @@ public static class MaritimeKit
     static void Door(Kit k, TownHouse h, Block b, Coat c, float doorX, bool lit)
     {
         var d = h.Design;
-        bool open = h.Layout is not null;
+        bool open = TownFloors.Rooms(h) is not null;
         float dw = (float)HouseLayout.DoorWidth, doorH = k.DoorHeight(), z0 = b.Z0;
         float dz = z0;
         if (d.Porch == HousePorch.Vestibule)
@@ -849,6 +880,20 @@ public static class MaritimeKit
             k.Quad(peak, new Vector3(doorX + hw + 0.1f, y, dz - 0.85f), new Vector3(doorX + hw + 0.1f, y, dz), peak with { Z = dz }, twoSided: true);
             Siding(k, c);
             Face(k, new Vector3(doorX - hw, y, dz - 0.85f), new Vector3(doorX + hw, y, dz - 0.85f), peak, -Vector3.UnitZ, true);
+        }
+        if (open && h.Left is not null)
+        {
+            // A boarded house left open (note 1022): its door's boards prised off, two leant against the wall beside it, one
+            // hanging by a nail across the doorway's head.
+            k.Use("wood_grey", Palette.DeepBrown, 0.95f, 0, tile: 1);
+            float side = doorX > 0 ? -1 : 1, foot = doorX + side * (dw / 2 + 0.35f);
+            foreach (float lean in new[] { 0.0f, 0.22f })
+            {
+                var bottom = new Vector3(foot + side * lean, 0.05f, dz - 0.45f);
+                var top = new Vector3(foot + side * lean, doorH * 0.85f, dz - 0.06f);
+                k.Rod(bottom, top, 0.08f);
+            }
+            k.Rod(new Vector3(doorX - dw / 2 - 0.15f, doorH * 0.92f, dz - 0.07f), new Vector3(doorX + dw / 2 - 0.1f, doorH * 0.62f, dz - 0.09f), 0.08f);
         }
         if (open)
             return;
@@ -1130,25 +1175,55 @@ public static class MaritimeKit
     static void Burnt(Kit k, TownHouse h, Block b)
     {
         float w = b.W, d = b.D;
+        // Over a cellar (note 1022) it's walked into, where its door was: its foundation a ring round its charred boards
+        // (Floors), no wall standing across the door, and no beam fallen across the hole.
+        bool cellar = h.Cellar;
+        float doorX = X(h, h.Design.DoorU), dw = (float)HouseLayout.DoorWidth / 2, t = (float)HouseLayout.Wall;
+        bool AtDoor(float x0, float x1, float z) => cellar && z < 0 && x1 > doorX - dw && x0 < doorX + dw;
         k.Use("stone_block", Palette.Charcoal, 0.85f, 0.05f, tile: 1.2f);
-        k.Box(new Vector3(-w / 2 - 0.06f, -0.4f, -d / 2 - 0.06f), new Vector3(w / 2 + 0.06f, Found, d / 2 + 0.06f), Kit.Faces.Sides | Kit.Faces.PosY);
+        if (!cellar)
+            k.Box(new Vector3(-w / 2 - 0.06f, -0.4f, -d / 2 - 0.06f), new Vector3(w / 2 + 0.06f, Found, d / 2 + 0.06f), Kit.Faces.Sides | Kit.Faces.PosY);
+        else
+        {
+            k.Box(new Vector3(-w / 2 - 0.06f, -0.4f, -d / 2 - 0.06f), new Vector3(doorX - dw, Found, -d / 2 + t), Kit.Faces.All);
+            k.Box(new Vector3(doorX + dw, -0.4f, -d / 2 - 0.06f), new Vector3(w / 2 + 0.06f, Found, -d / 2 + t), Kit.Faces.All);
+            k.Box(new Vector3(-w / 2 - 0.06f, -0.4f, d / 2 - t), new Vector3(w / 2 + 0.06f, Found, d / 2 + 0.06f), Kit.Faces.All);
+            k.Box(new Vector3(-w / 2 - 0.06f, -0.4f, -d / 2 + t), new Vector3(-w / 2 + t, Found, d / 2 - t), Kit.Faces.All);
+            k.Box(new Vector3(w / 2 - t, -0.4f, -d / 2 + t), new Vector3(w / 2 + 0.06f, Found, d / 2 - t), Kit.Faces.All);
+        }
         k.Use("wood_grey", Palette.SootBlack, 0.95f, 0, tile: 1);
         k.Tint = new Vector3(0.12f, 0.1f, 0.09f);
         var rng = new Random(77 + h.Id);
         for (float x = -w / 2; x < w / 2 - 0.1f; x += 0.9f)
             foreach (float z in new[] { -d / 2, d / 2 - 0.15f })
-                k.Box(new Vector3(x, Found, z), new Vector3(Math.Min(x + 0.9f, w / 2), Found + 0.3f + (float)rng.NextDouble() * 1.4f, z + 0.15f));
+            {
+                float top = Found + 0.3f + (float)rng.NextDouble() * 1.4f, x1 = Math.Min(x + 0.9f, w / 2);
+                if (!AtDoor(x, x1, z))
+                    k.Box(new Vector3(x, Found, z), new Vector3(x1, top, z + 0.15f));
+                else
+                {
+                    // Either side of the doorway.
+                    if (doorX - dw > x)
+                        k.Box(new Vector3(x, Found, z), new Vector3(doorX - dw, top, z + 0.15f));
+                    if (doorX + dw < x1)
+                        k.Box(new Vector3(doorX + dw, Found, z), new Vector3(x1, top, z + 0.15f));
+                }
+            }
         for (float z = -d / 2; z < d / 2 - 0.1f; z += 0.9f)
             foreach (float x in new[] { -w / 2, w / 2 - 0.15f })
                 k.Box(new Vector3(x, Found, z), new Vector3(x + 0.15f, Found + 0.3f + (float)rng.NextDouble() * 1.2f, Math.Min(z + 0.9f, d / 2)));
         // A charred beam or two fallen across.
-        k.Rod(new Vector3(-w / 2 + 0.3f, Found + 0.2f, -d / 2 + 0.5f), new Vector3(w / 2 - 0.6f, Found + 0.9f, d / 2 - 0.4f), 0.1f);
-        k.Rod(new Vector3(w / 2 - 0.5f, Found + 0.1f, -d / 2 + 0.8f), new Vector3(-w / 2 + 1.2f, Found + 0.5f, d / 2 - 1.0f), 0.08f);
+        if (!cellar)
+        {
+            k.Rod(new Vector3(-w / 2 + 0.3f, Found + 0.2f, -d / 2 + 0.5f), new Vector3(w / 2 - 0.6f, Found + 0.9f, d / 2 - 0.4f), 0.1f);
+            k.Rod(new Vector3(w / 2 - 0.5f, Found + 0.1f, -d / 2 + 0.8f), new Vector3(-w / 2 + 1.2f, Found + 0.5f, d / 2 - 1.0f), 0.08f);
+        }
         if (h.Design.Chimney != HouseChimney.Pipe)
         {
             k.Use("brick_soot", Palette.RustRed, 0.9f, 0.05f, tile: 1.2f);
             k.Tint = new Vector3(0.35f, 0.25f, 0.2f);
-            float cx = h.Design.Chimney == HouseChimney.Centre ? 0 : w / 2 - 0.6f;
+            // Where the Sim stands it (TownFloors.BurntChimney).
+            float cx = X(h, TownFloors.BurntChimney(h));
             k.Box(new Vector3(cx - 0.38f, 0, -0.32f), new Vector3(cx + 0.38f, b.Ridge + 0.9f, 0.32f), Kit.Faces.All & ~Kit.Faces.NegY);
         }
     }
@@ -1165,12 +1240,21 @@ public static class MaritimeKit
         const float t = (float)HouseLayout.Wall, ceil = (float)HouseLayout.Ceiling, floor = 0.02f, skin = 0.03f;
         float doorH = k.DoorHeight();
         int kx = l.Kitchen * h.Side;
+        // A boarded house left as it was (note 1022): nobody home, no lamp lit, dust sheets over what was sat at.
+        bool lived = h.Layout is not null;
         // The floor boards, and the ceiling over the downstairs.
-        k.Use("wood_floor", Palette.DeepBrown, 0.8f, 0.1f, tile: 1.5f);
-        k.Box(new Vector3(x0 + t, -0.05f, z0 + t), new Vector3(x1 - t, floor, z1 - t), Kit.Faces.PosY);
-        k.Use("wood_grey", Palette.DeepBrown, 0.9f, 0, tile: 1.2f);
-        k.Tint = new Vector3(0.55f, 0.5f, 0.42f);
-        k.Box(new Vector3(x0 + t, ceil, z0 + t), new Vector3(x1 - t, ceil + 0.05f, z1 - t), Kit.Faces.NegY);
+        // (Over a cellar the boards have the hatch let in, under an upstairs the ceiling the well: Floors draws them, note 1022.)
+        if (!h.Cellar)
+        {
+            k.Use("wood_floor", Palette.DeepBrown, 0.8f, 0.1f, tile: 1.5f);
+            k.Box(new Vector3(x0 + t, -0.05f, z0 + t), new Vector3(x1 - t, floor, z1 - t), Kit.Faces.PosY);
+        }
+        if (!h.Upstairs)
+        {
+            k.Use("wood_grey", Palette.DeepBrown, 0.9f, 0, tile: 1.2f);
+            k.Tint = new Vector3(0.55f, 0.5f, 0.42f);
+            k.Box(new Vector3(x0 + t, ceil, z0 + t), new Vector3(x1 - t, ceil + 0.05f, z1 - t), Kit.Faces.NegY);
+        }
         // Plaster inside the walls, papered a faded green, with tongue-and-groove wainscot below.
         void InnerWall(Vector3 min, Vector3 max)
         {
@@ -1221,8 +1305,20 @@ public static class MaritimeKit
         float hinge = dx - Math.Sign(dx) * dh;
         k.Box(new Vector3(Math.Min(hinge, hinge + Math.Sign(dx) * 0.05f), floor, z0 + t + skin), new Vector3(Math.Max(hinge, hinge + Math.Sign(dx) * 0.05f), doorH, z0 + t + skin + 2 * dh));
         foreach (var x in l.Things)
-            Thing(k, x, X(h, x.U), Z(h, x.V), kx, doorH);
-        if (thing is not null)
+        {
+            if (!lived && x.Kind is "table" or "armchair" or "chair" or "dresser" or "cabinet")
+            {
+                // Under its dust sheet, gone grey, its hem on the boards.
+                k.Use("wool", Palette.BoardEnamel, 0.95f, 0, tile: 1);
+                k.Tint = new Vector3(0.42f, 0.41f, 0.38f);
+                float hx = (float)x.HalfU + 0.04f, hz = (float)x.HalfV + 0.04f, cx = X(h, x.U), cz = Z(h, x.V);
+                k.Box(new Vector3(cx - hx, floor, cz - hz), new Vector3(cx + hx, (float)Math.Max(x.Height, 0.9) + 0.03f, cz + hz), Kit.Faces.Sides | Kit.Faces.PosY);
+                k.Tint = Vector3.One;
+                continue;
+            }
+            Thing(k, x, X(h, x.U), Z(h, x.V), kx, doorH, lived);
+        }
+        if (thing is not null && lived)
         {
             var (u, v, ht) = l.Place(thing, h.Width, h.Depth);
             Small(k, thing, X(h, u), Z(h, v), (float)ht);
@@ -1230,7 +1326,7 @@ public static class MaritimeKit
     }
 
     /// <summary>A piece of the layout's furniture, at its place (<paramref name="cx"/>, <paramref name="cz"/>) in the kit's frame; <paramref name="kx"/> the way to the kitchen along x.</summary>
-    static void Thing(Kit k, HouseThing x, float cx, float cz, int kx, float doorH)
+    static void Thing(Kit k, HouseThing x, float cx, float cz, int kx, float doorH, bool lived = true)
     {
         // A thing's half-extent along u is along x either way (the side flips the sign, not the axis).
         float hx = (float)x.HalfU, hz = (float)x.HalfV, ht = (float)x.Height;
@@ -1247,7 +1343,7 @@ public static class MaritimeKit
                 k.Box(new Vector3(cx - hx * 0.8f, ht, cz + hz - 0.15f), new Vector3(cx + hx * 0.8f, ht + 0.45f, cz + hz));
                 k.Cylinder(new Vector3(cx, ht, cz + hz * 0.4f), new Vector3(cx, (float)HouseLayout.Ceiling, cz + hz * 0.4f), 0.08f, 8);
                 k.Use("ember_crack", Palette.FurnaceOrange, 0.5f, 0);
-                k.Emissive = 0.8f;
+                k.Emissive = lived ? 0.8f : 0;
                 k.Panel(new Vector3(cx - kx * (hx + 0.005f), 0.5f, cz), new Vector3(-kx, 0, 0), Vector3.UnitY, 0.3f, 0.2f, Vector2.Zero, Vector2.One);
                 k.Emissive = 0;
                 break;
@@ -1291,7 +1387,7 @@ public static class MaritimeKit
                 k.Use("brass", Palette.TarnishedBrass, 0.3f, 0.6f);
                 k.Cylinder(new Vector3(cx, 0.7f, cz), new Vector3(cx, 0.8f, cz), 0.07f, 10, radiusB: 0.04f);
                 k.Use("lantern_pane", Palette.LampAmber, 0, 0, tile: 0.25f);
-                k.Emissive = 1;
+                k.Emissive = lived ? 1 : 0;
                 k.Cylinder(new Vector3(cx, 0.8f, cz), new Vector3(cx, 1.02f, cz), 0.05f, 10, radiusB: 0.035f);
                 k.Emissive = 0;
                 break;
@@ -1306,6 +1402,9 @@ public static class MaritimeKit
                 for (float px = cx - hx + 0.15f; px < cx + hx - 0.1f; px += 0.26f)
                     k.Disc(new Vector3(px, 1.52f, cz + hz - 0.13f), -Vector3.UnitZ, 0.11f, 10);
                 break;
+            case "stairs" when !x.Solid:
+                // The open flight up (note 1022): its treads are the floors' (Floors).
+                break;
             case "stairs":
                 // The stair boxed in, its door (toward the partition) shut, a line of light under it.
                 k.Use("wood_siding", Palette.DeepBrown, 0.85f, 0.05f, tile: 1);
@@ -1316,7 +1415,7 @@ public static class MaritimeKit
                 k.Tint = new Vector3(0.45f, 0.35f, 0.3f);
                 k.Box(new Vector3(Math.Min(face, face + kx * 0.04f), 0.03f, cz - 0.4f), new Vector3(Math.Max(face, face + kx * 0.04f), doorH - 0.05f, cz + 0.4f));
                 k.Use("window_lit", Palette.LampAmber, 0.1f, 0.3f, tile: 1);
-                k.Emissive = 1;
+                k.Emissive = lived ? 1 : 0;
                 k.Panel(new Vector3(face + kx * 0.045f, 0.02f, cz), Vector3.UnitY, new Vector3(kx, 0, 0), 0.8f, 0.05f, Vector2.Zero, Vector2.One);
                 k.Emissive = 0;
                 break;
