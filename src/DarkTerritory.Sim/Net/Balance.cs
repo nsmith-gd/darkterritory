@@ -25,6 +25,8 @@ public sealed record BalanceTuning(int SurvivableCrew, double SurvivableDelivere
     public WantBalanceTuning WantBalance { get; init; } = new();
     /// <summary>App. B.10's tier progression: the harder tier against the easier at matched crew and cars (note 1032).</summary>
     public TierProgressionTuning Tiers { get; init; } = new();
+    /// <summary>GDD §34's desync and crash sweep across 2–8 clients (note 1032).</summary>
+    public StabilityTuning Stability { get; init; } = new();
 }
 
 /// <summary>GDD App. B.10 "Want balance" (note 1032). Field docs live in balance.json.</summary>

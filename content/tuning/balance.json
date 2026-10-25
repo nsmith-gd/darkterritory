@@ -126,5 +126,16 @@
   // 1032; dt balance --tiers local,deepTerritory). At every crew size and train length the sweep ran on both tiers, the
   // harder tier's nights get home no more often than the easier's, and its threats land (punishes an hour out on the
   // line) at least punishRatio times as often. DESIGN-TODO: first pass, "meaningfully" read as a quarter again.
-  "tiers": { "easier": "local", "harder": "deepTerritory", "punishRatio": 1.25 }
+  "tiers": { "easier": "local", "harder": "deepTerritory", "punishRatio": 1.25 },
+
+  // GDD §34 "Stability: desync and crash detection across 2–8 clients" (dt harness stability; note 1032): each of crews on
+  // the test loop for seconds, once on a perfect link and once on the rough one (90 ms ±20, 3 % loss, as the nightly
+  // soak's eight). A desync: on the perfect link a client corrected by perfectMaxCorrectionM or more (prediction matches
+  // the host but for another's cab input a round trip late, NetcodeTests); on the rough link by roughMaxCorrectionM or
+  // more, or more often than once every roughCorrectionsPerTicks ticks (the soak's own limits). On either, a client that
+  // heard snapshotShare of the snapshots or fewer, a crew short of its clients, or a night that threw.
+  "stability": {
+    "crews": [2, 3, 4, 5, 6, 7, 8], "seconds": 120,
+    "perfectMaxCorrectionM": 0.001, "roughMaxCorrectionM": 2, "roughCorrectionsPerTicks": 180, "snapshotShare": 0.9
+  }
 }

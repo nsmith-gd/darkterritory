@@ -125,6 +125,8 @@ return args switch
     ["site", "sweep", ..] => Print(SweepStops(routeTuning, LoadStops(content), (int)Opt(args, "--seeds", 60))),
     ["site", ..] => Print(ShowStop(content, routeTuning, LoadStops(content), args)),
     ["linegen", var verb, ..] => Print(LineGenCommands.Run(content, verb, args)),
+    // dt harness stability: GDD §34's desync and crash detection across 2–8 clients (note 1032); exits 1 on either.
+    ["harness", "stability", ..] => AuditCommands.Stability(content, args),
     ["harness", ..] => Print(RunHarness(args)),
     ["wreck", ..] => Print(WreckCommands.Run(content, args)),
     ["trailer", ..] => Print(TrailerCommands.Run(content, args)),

@@ -37,6 +37,52 @@ public class NetcodeTests
         Assert.All(r.Clients, c => Assert.True(c.Snapshots > r.Ticks * 0.9));
     }
 
+    /// <summary>
+    /// GDD §34 "Stability: desync and crash detection across 2–8 clients" (note 1032): a crew of two and of five, on a perfect
+    /// link and the rough one, judged as `dt harness stability` judges each of 2–8 (eight is the tests above and the soak).
+    /// </summary>
+    [Theory]
+    [InlineData(2, "perfect")]
+    [InlineData(2, "rough")]
+    [InlineData(5, "perfect")]
+    [InlineData(5, "rough")]
+    public void NoDesyncAtAnyCrewSize(int crew, string link)
+    {
+        var t = DataFile.Load<BalanceTuning>(Path.Combine(DataFile.FindContentRoot(), BalanceTuning.File)).Stability;
+        var r = Harness.Run(TestLoop, T, P, new HarnessOptions
+        {
+            Bots = crew,
+            Seconds = 30,
+            Seed = crew,
+            Link = link == "perfect" ? LinkConditions.Perfect : LinkConditions.Rough,
+        });
+        var row = Stability.Judge(crew, link, r, null, t);
+        Assert.True(row.Pass, string.Join("; ", row.Desynced));
+        Assert.Equal(crew, row.Clients);
+    }
+
+    [Fact]
+    public void ADesyncOrACrashFailsTheStabilitySweep()
+    {
+        var t = new StabilityTuning();
+        static ClientReport Client(byte id, double corrected, int corrections = 0, int snapshots = 3600) =>
+            new(id, "bot", corrected, corrections, snapshots, 0, true, "Roof", "car 1", 0, 0);
+        HarnessReport Night(params ClientReport[] clients) => new(3600, 120, "", 0, 0, 0, 0, 0, 0, 0, clients.Max(c => c.MaxCorrectionM), 0, clients);
+        Assert.True(Stability.Judge(2, "perfect", Night(Client(1, 0), Client(2, 0.0004)), null, t).Pass);
+        // A centimetre off on a perfect link is a desync; on the rough one, it isn't.
+        Assert.False(Stability.Judge(2, "perfect", Night(Client(1, 0), Client(2, 0.01)), null, t).Pass);
+        Assert.True(Stability.Judge(2, "rough", Night(Client(1, 0), Client(2, 0.01, 3)), null, t).Pass);
+        // Rough: 2 m off, or correcting more than once every 180 ticks, or deaf to the snapshots.
+        Assert.False(Stability.Judge(2, "rough", Night(Client(1, 2.5, 1), Client(2, 0)), null, t).Pass);
+        Assert.False(Stability.Judge(2, "rough", Night(Client(1, 0.2, 25), Client(2, 0)), null, t).Pass);
+        Assert.False(Stability.Judge(2, "rough", Night(Client(1, 0), Client(2, 0, snapshots: 3000)), null, t).Pass);
+        // A client short, or a night that threw.
+        Assert.False(Stability.Judge(3, "perfect", Night(Client(1, 0), Client(2, 0)), null, t).Pass);
+        var crash = Stability.Judge(4, "rough", null, "InvalidOperationException: boom", t);
+        Assert.False(crash.Pass);
+        Assert.False(Stability.Report([Stability.Judge(2, "perfect", Night(Client(1, 0), Client(2, 0)), null, t), crash]).Pass);
+    }
+
     [Fact]
     public void EightPlayerSnapshotFitsInOnePacket() =>
         Assert.True(Harness.Run(TestLoop, T, P, new HarnessOptions { Bots = 8, Seconds = 2 }).SnapshotBytes < 1200);

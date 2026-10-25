@@ -178,6 +178,49 @@ static class AuditCommands
         return result.Pass ? 0 : 1;
     }
 
+    /// <summary>
+    /// dt harness stability [--crews 2,3,8] [--seconds s] [--links perfect,rough] [--parallel p]: GDD §34 "Stability: desync
+    /// and crash detection across 2–8 clients" (note 1032). Each crew size on each link, a night of bots on the test loop;
+    /// exits 1 on a desync or a crash.
+    /// </summary>
+    public static int Stability(string content, string[] args)
+    {
+        var c = Load(content);
+        var t = c.Balance.Stability;
+        var crews = Str(args, "--crews", "") is { Length: > 0 } cs ? [.. cs.Split(',').Select(x => int.Parse(x, CultureInfo.InvariantCulture))] : t.Crews;
+        var links = Str(args, "--links", "perfect,rough").Split(',');
+        double seconds = Opt(args, "--seconds", t.Seconds);
+        var line = DarkTerritory.Sim.Rail.RailLine.Load(Path.Combine(content, "lines/test-loop.json"));
+        var nights = (from crew in crews from link in links select (crew, link)).ToList();
+        var rows = new StabilityRow[nights.Count];
+        var clock = System.Diagnostics.Stopwatch.StartNew();
+        Parallel.For(0, nights.Count, new ParallelOptions { MaxDegreeOfParallelism = (int)Opt(args, "--parallel", Environment.ProcessorCount) }, i =>
+        {
+            var (crew, link) = nights[i];
+            HarnessReport? report = null;
+            string? crash = null;
+            try
+            {
+                report = Harness.Run(line, c.Train, c.Player, new HarnessOptions
+                {
+                    Bots = crew,
+                    Seconds = seconds,
+                    Seed = crew,
+                    Link = link == "perfect" ? Ballast.Net.LinkConditions.Perfect : Ballast.Net.LinkConditions.Rough,
+                }, c.Boiler);
+            }
+            catch (Exception e)
+            {
+                crash = $"{e.GetType().Name}: {e.Message}";
+            }
+            rows[i] = DarkTerritory.Sim.Net.Stability.Judge(crew, link, report, crash, t);
+            Console.Error.WriteLine($"crew {crew} {link}: {(rows[i].Pass ? "ok" : "FAILED")}, {clock.Elapsed.TotalSeconds:0} s");
+        });
+        var result = DarkTerritory.Sim.Net.Stability.Report(rows);
+        Print(new { seconds = Math.Round(clock.Elapsed.TotalSeconds), nightSeconds = seconds, result });
+        return result.Pass ? 0 : 1;
+    }
+
     static string Str(string[] args, string name, string fallback)
     {
         int i = Array.IndexOf(args, name);
