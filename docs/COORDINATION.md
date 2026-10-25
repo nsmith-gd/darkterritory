@@ -486,8 +486,8 @@ Status: **open**, **claimed**, **in review** (a PR is up), **done** (merged). **
 | 734 | **The towns' and the shore's leftovers (level-design T.4, maritime-rules §4; note 1026 rank 10):** the bots in the town's streets between nights, each town form's own paving and crops, boats at its piers and on the mud at low tide, lobster traps along the wharf, red maple in the Maritime biomes. Take the World Building board's open notes first (COORDINATION "World building notes"). S each, any one a PR. Towns (B2; `Towns/TownForms.cs`, `HouseDesign.cs`), the town and lineside kits (C1), `BotCrew`; looked at with `dt screenshot --route r --town ...`. No director's call | — | — | — (note 1026 has the audit) | open for pick-up |
 | 735 | **What the harness verifies: the checks still missing (GDD B.10, D.14, E.11, §34; note 1026 rank 13):** tests or `dt` reports for want balance landing near its shares and Deep harder than Local at the same crew and cars (`Net/Balance.cs`), every seeded contradiction solvable (B.10); every Holdout reachable on foot from the stopped train and no farming over randomised deaths (D.14; `HoldoutSiteTests`, `AttributionTests`); no wreck particle more than 2 cm inside a solid and the film's finished shots checked for a clean camera (E.11; `dt wreck`, `FilmTests`); desync pass/fail over 2-8 clients (§34; `Net/Harness.cs`); the 3.5 m fire cells timed again (spec C.5). Size M, splittable. Verification. No director's call | — | — | — (note 1026 has the audit) | open for pick-up |
 
-The GDD artifact (claude.ai/artifact/PrfaZjyZb1rWcWWuiPm1Dx) was republished on 21 Oct at about 19:20 UTC (Sage, version 48,
-from main's gdd.md at 656985a4, after Quinn's #1548, note 966); whoever lands a gdd.md change republishes it.
+The GDD artifact (claude.ai/artifact/PrfaZjyZb1rWcWWuiPm1Dx) was republished on 25 Oct at about 19:25 UTC (nathaniel1, version 49,
+from main's gdd.md at 8943b414, after #1793, note 1026); whoever lands a gdd.md change republishes it.
 
 ## Taking numbers (note 521)
 
