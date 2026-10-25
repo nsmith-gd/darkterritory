@@ -210,6 +210,31 @@ static class PlaythroughCommands
         uint lastHeldTick = uint.MaxValue;
         // Note 860: each stop the train stood at (Director.StopAt), what was there and what got aboard while it stood.
         var stopVisits = new Dictionary<int, StopVisit>();
+        // Note 1028: each siding a yard was laid blocked (note 294), and when the night's crew went in for its derelicts, had it
+        // clear and had them off the engine's rake again (put away on a free road, or by whoever drew them out).
+        var sidings = new SortedDictionary<int, Siding>();
+        void SidingAudit(World world)
+        {
+            if (world.Run is not { } run)
+                return;
+            var train = world.Train;
+            double now = world.Tick * SimConstants.TickSeconds;
+            if (sidings.Count == 0)
+                foreach (var site in run.Sites)
+                    if (site is not null)
+                        foreach (var (b, n) in run.BlockedTracks(train.Line, site.Index))
+                            sidings[b] = new Siding(site.Feature.Facility?.ToString() ?? "", Math.Round(train.Line.Branches[b].Toe / 1000, 2), n);
+            int ahead = train.Dynamics.Consist.Vehicles.Count(v => v.Derelict);
+            foreach (var (b, siding) in sidings)
+            {
+                if (siding.In is null && train.Dynamics.Path == b)
+                    siding.In = Math.Round(now, 1);
+                if (siding.Clear is null && DarkTerritory.Sim.Run.Run.DerelictsOn(train, b) == 0)
+                    siding.Clear = Math.Round(now, 1);
+                if (siding.Clear is not null && siding.Away is null && ahead == 0)
+                    siding.Away = Math.Round(now, 1);
+            }
+        }
 
         // After each tick: each enemy as it arrives and at each beat of its spine that a crew would be watching for, and the
         // line between.
@@ -219,6 +244,7 @@ static class PlaythroughCommands
             double now = world.Tick * SimConstants.TickSeconds;
             RoofAudit(world, crew);
             LampAndBendAudit(world);
+            SidingAudit(world);
             stokerSince = world.StokerWaiting ? stokerSince < 0 ? now : stokerSince : -1;
             // The scene watching every tick, as the app's does each frame: what it takes in now it draws going later.
             scene.Enemies = world.ActiveEnemies;
@@ -395,6 +421,10 @@ static class PlaythroughCommands
             stops = StopsReport(last, stopVisits),
             // Note 935: with a bot crew, the bot at the controls: the gauge in the red, its runs in past a stop, crew left behind.
             driver,
+            // Note 1028: the blocked sidings (by their branch), how many derelicts each was laid with, and when (s into the night)
+            // the crew went in for them, had the siding clear, and had them off the engine's rake: null for what never happened.
+            sidings = sidings.Select(x => new { branch = x.Key, x.Value.Stop, km = x.Value.Km, x.Value.Derelicts, wentIn = x.Value.In, clear = x.Value.Clear,
+                putAway = x.Value.Away, seconds = x.Value.Away - x.Value.In }).ToArray(),
             // Note 326: what the crew found at the stops (with --loot): the hiding spots searched, the finds stowed and their scrip.
             loot = last.Run is { } lr ? new
             {
@@ -508,6 +538,15 @@ static class PlaythroughCommands
     {
         int i = Array.IndexOf(args, name);
         return i >= 0 && i + 1 < args.Length ? double.Parse(args[i + 1], CultureInfo.InvariantCulture) : fallback;
+    }
+
+    /// <summary>Note 1028: a blocked siding in a playthrough, and when it was cleared.</summary>
+    sealed class Siding(string stop, double km, int derelicts)
+    {
+        public string Stop => stop;
+        public double Km => km;
+        public int Derelicts => derelicts;
+        public double? In, Clear, Away;
     }
 
     /// <summary>Note 860: one stop the train stood at in a playthrough, and what it met there.</summary>
