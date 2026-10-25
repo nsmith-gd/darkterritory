@@ -1640,6 +1640,43 @@ public static class MaritimeKit
         return k.Build($"dory-aground-{variant}");
     }
 
+    /// <summary>
+    /// A stack of salt hay on its staddle (note 1031; the Tantramar's marsh hay, stacked out on the marsh over the tide on a
+    /// ring of posts): the posts driven in from the bed, the poles laid across them a metre over the water, the stack on
+    /// them, round and sloped to a peak, its pole up through it, grey-gold and gone dark at the foot with the wet.
+    /// </summary>
+    public static MeshAsset Haystack(Look? look, int variant)
+    {
+        var k = new Kit(look, 9580 + variant);
+        const float deck = 1.5f, ring = 1.6f;
+        k.Use("wood_grey", Palette.DeepBrown, 0.9f, 0, tile: 1);
+        for (int i = 0; i < 8; i++)
+        {
+            float a = i * MathF.Tau / 8 + variant * 0.2f;
+            k.Cylinder(new Vector3(MathF.Sin(a) * ring, 0, MathF.Cos(a) * ring), new Vector3(MathF.Sin(a) * ring, deck, MathF.Cos(a) * ring), 0.07f, 5, caps: false);
+        }
+        foreach (float x in new[] { -0.8f, 0, 0.8f })
+            k.Box(new Vector3(x - 0.06f, deck - 0.12f, -ring - 0.1f), new Vector3(x + 0.06f, deck, ring + 0.1f), Kit.Faces.Sides | Kit.Faces.PosY);
+        // The stack: a drum, then its shoulders drawn in to the peak; tied down with ropes weighted at their ends.
+        float h = 3.2f + variant * 0.3f, r = 2.0f;
+        k.Use("fleece", Palette.DeepBrown, 0.95f, 0, tile: 1.5f);
+        k.Tint = new Vector3(0.95f, 0.78f, 0.45f) * (0.85f + variant * 0.06f);
+        k.Cylinder(new Vector3(0, deck, 0), new Vector3(0, deck + h * 0.4f, 0), r * 0.92f, 12, capA: true, capB: false, radiusB: r);
+        k.Cylinder(new Vector3(0, deck + h * 0.4f, 0), new Vector3(0, deck + h, 0), r, 12, capA: false, capB: false, radiusB: 0.15f);
+        k.Use("wood_grey", Palette.DeepBrown, 0.9f, 0, tile: 1);
+        k.Tint = Vector3.One;
+        k.Cylinder(new Vector3(0, deck, 0), new Vector3(0.05f, deck + h + 0.6f, 0.03f), 0.05f, 5, caps: false);
+        k.Use("wool", Palette.DeepBrown, 0.9f, 0, tile: 0.5f);
+        k.Tint = new Vector3(0.5f, 0.42f, 0.3f);
+        foreach (float a in new[] { 0.4f, 2.0f })
+        {
+            var (c, sn) = (MathF.Cos(a + variant), MathF.Sin(a + variant));
+            k.Rod(new Vector3(c * r * 1.01f, deck + h * 0.4f, sn * r * 1.01f), new Vector3(0, deck + h + 0.02f, 0), 0.02f);
+            k.Rod(new Vector3(-c * r * 1.01f, deck + h * 0.4f, -sn * r * 1.01f), new Vector3(0, deck + h + 0.02f, 0), 0.02f);
+        }
+        return k.Build($"haystack-{variant}");
+    }
+
     /// <summary>The afloat dory's hull, its bow to −Z, its waterline at 0.</summary>
     static void Hull(Kit k, int variant)
     {

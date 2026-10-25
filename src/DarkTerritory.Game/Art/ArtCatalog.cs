@@ -133,12 +133,13 @@ public static class ArtCatalog
                 list.Add(new($"floor-{fk.ToString().ToLowerInvariant()}-{fv}", SmallProp, () => NovaKit.Floor(look, fk, fv)));
             }
         list.Add(new("dead-tree", SmallProp, () => WorldKit.DeadTree(look, 0, 10)));
-        // Red maple in its fall red, and a dory left on the mud by the tide (note 1031).
+        // Red maple in its fall red, a dory left on the mud by the tide and a dykeland's salt hay on its staddle (note 1031).
         for (int v = 0; v < 3; v++)
         {
             int variant = v;
             list.Add(new($"maple-{v}", SmallProp, () => NovaKit.RedMaple(look, variant)));
             list.Add(new($"dory-aground-{v}", SmallProp, () => MaritimeKit.Aground(look, variant)));
+            list.Add(new($"haystack-{v}", SmallProp, () => MaritimeKit.Haystack(look, variant)));
         }
         list.Add(new("tuft", SmallProp, () => WorldKit.Tuft(look, 0, weed: false)));
         list.Add(new("brass-weed", SmallProp, () => WorldKit.Tuft(look, 0, weed: true)));

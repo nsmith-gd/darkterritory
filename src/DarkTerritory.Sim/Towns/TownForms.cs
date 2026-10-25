@@ -1218,6 +1218,41 @@ public static class TownForms
             // The boat landing on the far side, its punts.
             District(DistrictKind.Deck, "landing", Rect(-L * 0.62, -L * 0.62 + 50, wr - 40, wr - 26), StageLevel);
             Landmark("dory", -L * 0.62 + 20, wr - 22, 1, 0, pad: 0.3);
+            // The salt hay (note 1031; the hay barn's "salt hay off the marsh, cut at low tide"): stacks on their staddles out in
+            // the open marsh between the walks, as the Tantramar's stood, clear of every walk, stage and landmark. On a stream
+            // of their own, so nothing laid before moves.
+            var hrng = _rngFor("form.staddles");
+            for (int tries = 0, stacks = 0; tries < Staddles * 12 && stacks < Staddles; tries++)
+            {
+                int side = hrng.Chance(0.5) ? 1 : -1;
+                double u = hrng.Range(-L + 20, -20), d = side * hrng.Range(30, (side < 0 ? wl : wr) - 20);
+                if (!OpenMarsh(_gate + u, d))
+                    continue;
+                Landmark("haystack", u, d, 0, 1, pad: 0.5);
+                stacks++;
+            }
+        }
+
+        /// <summary>How many salt hay stacks a dykeland town's marsh has, and how far each keeps from a walk or a landmark (m; note 1031).</summary>
+        const int Staddles = 9;
+        const double StaddleClear = 7;
+
+        /// <summary>Whether (s, d) is open marsh: water all round it, inside the wall, clear of the walks and the landmarks.</summary>
+        bool OpenMarsh(double s, double d)
+        {
+            if (!InWall(s, d) || EdgeDistance(s, d) < WallPad + StaddleClear || !Open(s, d))
+                return false;
+            for (int i = 0; i < 9; i++)
+            {
+                double a = i * Math.PI / 4, r = i == 8 ? 0 : StaddleClear;
+                if (GroundAt(s + r * DMath.Cos(a), d + r * DMath.Sin(a)).Kind != DistrictKind.Water)
+                    return false;
+            }
+            foreach (var w in _l.Ways)
+                for (int i = 1; i < w.Points.Count; i++)
+                    if (SegDist(s, d, w.Points[i - 1], w.Points[i]) < w.Width / 2 + StaddleClear)
+                        return false;
+            return _l.Landmarks.All(x => Math.Abs(x.S - s) + Math.Abs(x.D - d) > StaddleClear * 2);
         }
 
         /// <summary>A line's length (m).</summary>
