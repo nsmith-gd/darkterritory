@@ -673,7 +673,8 @@ public sealed class Town
     {
         // What stands of it shut: its block (a shut house's), its wing, its enclosed porch (HouseDesign), turned as its body
         // is (note 490); and its yard's fences, sheds, woodpiles and the rest (note 335), square to its lot.
-        foreach (var (u0, u1, v0, v1, height) in h.Parts())
+        bool floored = TownFloors.Floored(h);
+        foreach (var (u0, u1, v0, v1, height) in h.Parts().Skip(floored && h.Kind == HouseKind.Burnt ? 1 : 0))
         {
             var (s, d) = h.Body((u0 + u1) / 2, (v0 + v1) / 2);
             yield return Box(s, d, (u1 - u0) / 2, (v1 - v0) / 2, height, turn: h.Turn);
@@ -682,6 +683,18 @@ public sealed class Town
         {
             var (s, d) = h.Rail((y.U0 + y.U1) / 2, (y.V0 + y.V1) / 2);
             yield return Box(s, d, Math.Abs(y.U1 - y.U0) / 2, Math.Abs(y.V1 - y.V0) / 2, y.Height);
+        }
+        // Note 1022: a house with floors stands as its shell (TownFloors), its furniture on each floor.
+        if (floored)
+        {
+            foreach (var b in TownFloors.Shell(h))
+                yield return HouseBox(h, b.X, b.Y, b.HalfX, b.HalfY, b.Bottom, b.Top) with { Level = b.Part is not (ShellPart.Wall or ShellPart.Tread) };
+            if (TownFloors.Rooms(h) is { } rooms)
+                foreach (var x in rooms.Things.Where(x => x.Solid))
+                    yield return HouseBox(h, x.U, x.V, x.HalfU, x.HalfV, -0.05, Math.Max(0.5, x.Height));
+            foreach (var x in TownFloors.Furniture(h).Where(x => x.Solid))
+                yield return HouseBox(h, x.U, x.V, x.HalfU, x.HalfV, TownFloors.Storey - 0.05, TownFloors.Storey + Math.Max(0.5, x.Height)) with { Level = true };
+            yield break;
         }
         if (h.Layout is not { } l)
             yield break;
@@ -703,6 +716,62 @@ public sealed class Town
         foreach (var x in l.Things)
             if (x.Solid)
                 yield return Part(x.U - x.HalfU, x.U + x.HalfU, x.V - x.HalfV, x.V + x.HalfV, Math.Max(0.5, x.Height));
+    }
+
+    /// <summary>
+    /// A box of a house's body (note 1022): its middle (u, v in the house's frame), half sizes, and its bottom and top over the
+    /// house's ground floor (the town's ground at its middle), turned as its body stands.
+    /// </summary>
+    Wall HouseBox(TownHouse h, double u, double v, double halfU, double halfV, double bottom, double top)
+    {
+        var (s, d) = h.Body(u, v);
+        var t = _line.Sample(s);
+        var at = t.Position + Right(t) * d;
+        var along = new Double3(t.Tangent.X, 0, t.Tangent.Z).Normalized;
+        var axis = h.Turn == 0 ? along : (along * DMath.Cos(h.Turn) + Right(t) * DMath.Sin(h.Turn)).Normalized;
+        double floor = FloorOf(h);
+        return new Wall(at with { Y = 0 }, axis, halfU, halfV, floor + bottom, floor + top);
+    }
+
+    /// <summary>A house's ground floor's boards in the world (note 1022): the town's ground at its middle.</summary>
+    public double FloorOf(TownHouse h) => World(h.S, h.D).Y;
+
+    /// <summary>A point of a house's body (u, v in its own frame; up over its ground floor's boards) in the world (note 1022).</summary>
+    public Double3 InHouse(TownHouse h, double u, double v, double up)
+    {
+        var (s, d) = h.Body(u, v);
+        var t = _line.Sample(s);
+        return (t.Position + Right(t) * d) with { Y = FloorOf(h) + up };
+    }
+
+    /// <summary>
+    /// Its houses' cellars (note 1022), each its footprint inside the walls up to a little over the ground floor (in it the
+    /// earth isn't stood on: <see cref="StopWalls.Under"/>) and its floor; their ladders (the hatches', the upstairs windows');
+    /// and the hatches as holes in the boards. <see cref="World.EnableTown"/> stands them with the town's walls.
+    /// </summary>
+    public (IReadOnlyList<(Wall Footprint, double Floor)> Cellars, IReadOnlyList<WorldLadder> Ladders, IReadOnlyList<Wall> Hatches) Floors()
+    {
+        var cellars = new List<(Wall, double)>();
+        var ladders = new List<WorldLadder>();
+        var hatches = new List<Wall>();
+        foreach (var h in Plan.Houses.Where(TownFloors.Floored))
+        {
+            if (h.Cellar)
+            {
+                double t = HouseLayout.Wall;
+                cellars.Add((HouseBox(h, 0, h.Depth / 2, h.Width / 2 - t, h.Depth / 2 - t, -TownFloors.Cellar - 1, 0.5), FloorOf(h) - TownFloors.Cellar));
+                var (hu, hv, _, _) = TownFloors.Hatch(h);
+                double hs = TownFloors.HatchOf(h) / 2;
+                hatches.Add(HouseBox(h, hu, hv, hs, hs, -TownFloors.Cellar, 0));
+            }
+            foreach (var (u, v, foot, top, inU, inV, onto) in TownFloors.Ladders(h))
+            {
+                var at = InHouse(h, u, v, foot);
+                var inward = InHouse(h, u + inU, v + inV, foot) - at;
+                ladders.Add(new WorldLadder(at, InHouse(h, u, v, top), inward.Normalized, onto));
+            }
+        }
+        return (cellars, ladders, hatches);
     }
 
     /// <summary>How deep a heap's layers are (m): under player.json stepUp (0.35), so a heap is walked up. Not a design number.</summary>

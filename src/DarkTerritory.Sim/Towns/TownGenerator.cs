@@ -585,8 +585,10 @@ public static partial class TownGenerator
                 // The stair door is on the box's face toward the partition; the photograph on the partition.
                 double u = thing.Kind == "stairs" ? thing.U + layout.Kitchen * (thing.HalfU + 0.05) : thing.U;
                 var p = h.Rail(u, thing.V);
-                Fix(thing.Kind == "stairs" ? "stairdoor" : thing.Kind, thing.Kind switch { "stairs" => "the stair door", "stove" => "the range", _ => "a photograph" },
-                    fill.In(Room(thing.Kind), null, vars), p.S, p.D, 0, -h.Side, h.Id, thing.Kind switch { "stove" => 0.9, "stairs" => 1.2, _ => 1.6 });
+                // With an upstairs (note 1022) the stair's open: its own words.
+                bool flight = thing.Kind == "stairs" && h.Upstairs;
+                Fix(thing.Kind == "stairs" ? "stairdoor" : thing.Kind, thing.Kind switch { "stairs" => flight ? "the stairs" : "the stair door", "stove" => "the range", _ => "a photograph" },
+                    fill.In(Room(flight ? "flight" : thing.Kind), null, vars), p.S, p.D, 0, -h.Side, h.Id, thing.Kind switch { "stove" => 0.9, "stairs" => 1.2, _ => 1.6 });
             }
         }
 
@@ -698,7 +700,7 @@ public static partial class TownGenerator
         var gone = harmed.Select(h => h.Id).ToHashSet();
         string Fill(string text, string? family = null) => text.Replace("{town}", plan.Name).Replace("{family}", family ?? "");
         var houses = plan.Houses.Select(h => gone.Contains(h.Id)
-            ? h with { Kind = HouseKind.Burnt, Layout = null, Text = said.Houses.Length > 0 ? Fill(rng.Pick(said.Houses), h.Family) : h.Text }
+            ? h with { Kind = HouseKind.Burnt, Layout = null, Left = null, Upstairs = false, Cellar = false, Text = said.Houses.Length > 0 ? Fill(rng.Pick(said.Houses), h.Family) : h.Text }
             : h).ToList();
         var people = plan.People.Select(p =>
         {

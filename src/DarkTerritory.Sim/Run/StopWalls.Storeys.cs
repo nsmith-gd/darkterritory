@@ -6,8 +6,8 @@ using DarkTerritory.Sim.Train;
 
 namespace DarkTerritory.Sim.Run;
 
-/// <summary>What a piece of a storeyed house's shell is (note 1005): the art's material for it.</summary>
-public enum ShellPart : byte { Wall, Lintel, Plinth, Step, Floor, Cellar, Tread, Upper, Rail }
+/// <summary>What a piece of a storeyed house's shell is (note 1005): the art's material for it (<see cref="Roof"/>: a town house's porch roof, note 1022).</summary>
+public enum ShellPart : byte { Wall, Lintel, Plinth, Step, Floor, Cellar, Tread, Upper, Rail, Roof }
 
 /// <summary>A piece of a storeyed house's shell, in its own frame: its middle and half sizes, its bottom and top over its ground.</summary>
 public readonly record struct ShellBox(ShellPart Part, double X, double Y, double HalfX, double HalfY, double Bottom, double Top);
@@ -307,6 +307,18 @@ public sealed partial class StopWalls
                 return Math.Min(ground, floor);
         }
         return ground;
+    }
+
+    /// <summary>
+    /// A town's houses with floors (note 1022): their cellars' footprints (the earth isn't stood on in one under its top:
+    /// its floor is), their ladders and hatches, standing beside the stops' houses' (they're the town's walls, so no owner).
+    /// </summary>
+    public void AddFloors(IEnumerable<(Wall Footprint, double Floor)> cellars, IEnumerable<WorldLadder> ladders, IEnumerable<Wall> hatches)
+    {
+        foreach (var (foot, floor) in cellars)
+            AddBasement(0, foot, floor);
+        _ladders.AddRange(ladders.Select(l => (0, l)));
+        _hatches.AddRange(hatches.Select(h => (0, h)));
     }
 
     /// <summary>A copy's basements and ladders (<see cref="Clear"/>): those of the buildings it still has.</summary>

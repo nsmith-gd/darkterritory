@@ -1128,6 +1128,10 @@ public sealed partial class World
         Train.Ladders = [.. Town.Ladders, .. Arrival?.Ladders ?? []];
         if (Arrival is not null)
             Train.Walls.Add(Arrival.Walls);
+        // Note 1022: their houses' floors: the cellars, the hatches' and the windows' ladders.
+        foreach (var town in (Towns.Town?[])[Town, Arrival])
+            if (town?.Floors() is var (cellars, ladders, hatches))
+                Train.Walls.AddFloors(cellars, ladders, hatches);
         StandGates();
         // A town type's ground laid over the land (note 692): its terraces, benches, decks and water are what's stood on.
         Town.Lay(Train.Line);
