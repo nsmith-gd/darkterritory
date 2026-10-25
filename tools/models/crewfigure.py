@@ -22,6 +22,7 @@ import numpy as np
 from mathutils import Matrix, Vector
 
 import cook
+import faces
 import overbake
 from overbake import bell, fine, smooth01
 
@@ -30,7 +31,7 @@ class Style:
     def __init__(self, head=None, dress=None, shapes=None, masks=None, grade=None, preview="CREW_PREVIEW",
                  what="the crew's clothes and kit, modelled over tools/blender/crew.py", lamp=True, mask=None, figure="helm",
                  gear=None, views=None, hats=True, low_shapes=None, baked=(), shells=("coat",), buttons=None, laces=True,
-                 grime=1.0, size=1024, detail=None, reshape=(), coat=True, body_off=(), garments=None, scarf=True):
+                 grime=1.0, size=1024, detail=None, reshape=(), coat=True, body_off=(), garments=None, scarf=True, face=False):
         self.head, self.dress, self.shapes = head, dress or {}, shapes or {}
         # Displacement of a game part itself before its high copy's made from it (note 407: the silhouette, which the
         # bake's normals can't give): {part: fn(positions, normals) -> metres}, the coat's shell signed as its sculpt is.
@@ -75,6 +76,10 @@ class Style:
         self.garments = garments
         # False: the scarf at the neck left off (under a hood, a wrap, a high collar it's only triangles).
         self.scarf = scarf
+        # True: the scan's face modelled (tools/models/faces.py, note 993): one face both sides, its brow, cheekbones,
+        # jaw and chin in the mesh, its eyes open, kept dense in the game mesh, given the head's texels and shaded under
+        # the clothes over it. The bare figure only.
+        self.face = face
 
 
 
@@ -398,11 +403,16 @@ def build(name, style):
         skin = bpy.data.materials.new("scan_skin")
         skin.use_nodes = True
         tex = skin.node_tree.nodes.new("ShaderNodeTexImage")
-        tex.image = bpy.data.images.load(skin_img)
+        tex.image = faces.skin(skin_img) if style.face else bpy.data.images.load(skin_img)
         skin.node_tree.links.new(tex.outputs["Color"], skin.node_tree.nodes["Principled BSDF"].inputs["Base Color"])
         for o in head:
             o.data.materials.clear()
             o.data.materials.append(skin)
+            # The scan's texture coordinates run down its map (made for three.js, whose loader flips the image), so
+            # Blender laid it on upside down: the stubble round the eyes, the lips on the chin, the eyes' red flecks
+            # on the cheeks (note 993: every bare head baked before it). Turned the right way up.
+            for d in o.data.uv_layers.active.data:
+                d.uv = (d.uv[0], 1.0 - d.uv[1])
         lo, hi = place_scan(head, HEAD_C)
         print("[dt] head", tuple(round(c, 3) for c in lo), tuple(round(c, 3) for c in hi))
 
@@ -451,13 +461,22 @@ def build(name, style):
         # The scan's landmarks, before any style reshapes it: the nose tip, and the eyes above and behind it.
         hco = np.concatenate([np.array([v.co for v in o.data.vertices], np.float32) for o in head])
         TIP = Vector(hco[hco[:, 1].argmax()])
+        LM = None
+        if style.face:
+            LM = faces.landmarks(head)
+            faces.symmetric(head)
+            faces.model(head, LM)
+            print("[dt] face modelled: eyes", [tuple(round(c, 3) for c in e) for e in LM["eyes"]])
         if style.head is not None:
             style.head(head, HEAD_C)
 
 
         # The game mesh's head: the scan decimated, on the head bone, blending into the neck under the collar.
         head_low = cook.duplicate(head)
-        cook.decimate(head_low, 2000)
+        if style.face:
+            faces.decimate(head_low, 2000, LM)
+        else:
+            cook.decimate(head_low, 2000)
         for o in head_low:
             co = np.array([v.co for v in o.data.vertices], np.float32)
             # The whole face rides the head (a chin on the neck bone shears off it when the clips tip the two apart); only the
@@ -699,6 +718,10 @@ def build(name, style):
     if style.garments is not None and scan:
         fit = Fit(TIP, HEAD_C, make, g, [g["FRAME_HIGH"]] + ([parts["coat"]] if style.coat else []), head)
         worn = style.garments(fit)
+        if style.face:
+            # The face shaded under what's worn over it, and the coat's collar (the head bakes from the scan alone).
+            covers = [gm.low for gm in worn] + [g["FRAME_HIGH"]] + ([parts["coat"]] if style.coat else [])
+            face_masks = {"contact": faces.contact(head, covers), "where": faces.where(HEAD_C)}
         # (What they've made for their own materials while modelling them: a plaid woven in code.)
         DRESS.update(style.dress)
         for gm in worn:
@@ -710,7 +733,9 @@ def build(name, style):
         body.select_set(True)
         bpy.context.view_layer.objects.active = body
         bpy.ops.object.join()
-    # The scan's own head, full resolution, in the body's group.
+    # The scan's own head, full resolution, in the body's group; the modelled face's eyeballs with it.
+    if style.face and scan:
+        head += faces.eyeballs(LM)
     highs["body"] += head
 
     from mathutils.bvhtree import BVHTree  # noqa: E402
@@ -816,7 +841,8 @@ def build(name, style):
 
 
     atlas = overbake.Atlas(name, parts, BAKED, kind, size=style.size)
-    atlas.unwrap(boosts={FACE: 3.5, HANDS: 1.8, MASK: 2.5, HELM: 2.2, PAINT: 2.2, GEAR: 1.6}, special={FACE: head_uv} if scan else {})
+    atlas.unwrap(boosts={FACE: 4.0 if style.face else 3.5, HANDS: 1.8, MASK: 2.5, HELM: 2.2, PAINT: 2.2, GEAR: 1.6},
+                 special={FACE: faces.head_uv(HEAD_C, TIP) if style.face else head_uv} if scan else {})
     # Each part bakes from its own high copy (a cap never shadows the helmet it isn't worn with). The head bakes as a group
     # of its own, from the scan, with a tight cage: the cloth's high copy is subdivided in from its game mesh by a
     # centimetre or two, but a face's cage that deep projects the cheeks onto the nose.
@@ -842,6 +868,8 @@ def build(name, style):
     masks = dict(style.masks)
     if not scan:
         masks["patch"] = patches
+    if style.face and scan:
+        masks.update(face_masks)
     atlas.bake(groups, cages={"head": (0.006, 0.02)} if scan else {}, hide=[parts["shovel"]], masks=masks)
 
     # The colour, darkened by the occlusion and sooted: soot in every crease, the mud and wet of the ballast climbing the
@@ -865,6 +893,22 @@ def build(name, style):
     grey = base.mean(-1, keepdims=True)
     sallow = (base * 0.55 + grey * 0.45) * tone
     sallow = sallow * (1 - 0.55 * smudge)[..., None] + soot * (0.55 * smudge)[..., None]
+    if style.face and scan:
+        # The modelled face's soot in smudges by where on the head they are, mirrored (the atlas's noise put a blotch over
+        # one eye and not the other), kept off the eyes; and the face shaded under the clothes over it.
+        where = atlas.maps["where"].reshape(-1, 3) * np.array([0.2, 0.4, 0.4], np.float32)
+        smudge = np.clip(cook.noise_np(where, 17, 22.0) * 0.8 + cook.noise_np(where, 19, 70.0) * 0.4, 0, 1).reshape(SIZE, SIZE)
+        e = LM["eyes"][1] - HEAD_C
+        off_eye = np.clip((np.linalg.norm(where - np.array([e.x, e.y + 0.2, e.z + 0.2], np.float32), axis=1) - 0.012) / 0.008,
+                          0, 1).reshape(SIZE, SIZE)
+        smudge *= off_eye
+        sallow = (base * 0.55 + grey * 0.45) * np.array([0.7, 0.6, 0.53], np.float32)
+        sallow = sallow * (1 - 0.45 * smudge)[..., None] + soot * (0.45 * smudge)[..., None]
+        # Its own forms' shadows deeper than overbake's gentle face grade (the sockets, under the brow, the nose and the
+        # lip; they're what the face reads by in the game's light), and the clothes' over it.
+        sallow = sallow * (0.6 + 0.4 * atlas.maps["AO"][..., 0] ** 0.6)[..., None]
+        shut = np.clip(atlas.maps["contact"], 0, 1) ** 0.7
+        sallow = sallow * (1 - 0.85 * shut)[..., None]
     base = np.where(face[..., None], base * (1 - style.grime) + sallow * style.grime, base)
     if not scan:
         base = helm_grade(base, atlas)

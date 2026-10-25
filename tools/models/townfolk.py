@@ -780,7 +780,7 @@ def recipe(name, what, dress, garments, coat=True, off=("strap", "satchel", "lam
            masks=None, shapes=None, scarf=False):
     crewfigure.build(name, crewfigure.Style(
         dress=dress, preview="TOWN_PREVIEW", figure="bare", hats=False, coat=coat, body_off=off, garments=garments, head=head,
-        grade=grade, low_shapes=low_shapes, masks=masks, shapes={**SHAPES, **(shapes or {})}, views=VIEWS, scarf=scarf,
+        grade=grade, low_shapes=low_shapes, masks=masks, shapes={**SHAPES, **(shapes or {})}, views=VIEWS, scarf=scarf, face=True,
         what=f"the townsfolk lookbook's {what}, modelled over tools/blender/crew.py"))
 
 
