@@ -34,17 +34,7 @@ public sealed partial class ConductorBot
         _pingHand ??= new StopHand(StopJob.Driver, calls, member);
         _pingHand.PlayerId = Me;
         if (calls.OrderOf(Me) is not { Kind: not PingKind.Cab } order)
-        {
-            if (!_outOnPing)
-                return null;
-            // Done: back up into the cab, anything in its arms put down first (a find it fetched, down aboard the cab).
-            if (self.Has(PlayerFlags.Heavy) || world.Bodies.CarriedBy(Me) is not null && PlayerMotor.InCab(self, train))
-                return _pingHand.LetGo() with { Buttons = PlayerButtons.Use | PlayerButtons.Brake, ThrottleNotch = -4 };
-            if (_pingHand.SetBackAlone(self, world, null) is { } back)
-                return back with { Buttons = back.Buttons | PlayerButtons.Brake, ThrottleNotch = -4 };
-            _outOnPing = _firedToLeave = false;
-            return null;
-        }
+            return _outOnPing ? BackFromAPing(self, world) is { } back ? back with { Buttons = back.Buttons | PlayerButtons.Brake, ThrottleNotch = -4 } : null : null;
         if (!_outOnPing)
         {
             // Down at a stop's loading already (note 261): straight on to the job from there.
@@ -74,6 +64,44 @@ public sealed partial class ConductorBot
         Stops?.Decide(self, world); // its clock runs on while it's out of the cab
         var step = doing ?? new PlayerIntent();
         return step with { Buttons = step.Buttons | PlayerButtons.Brake, ThrottleNotch = -4 };
+    }
+
+    /// <summary>
+    /// Done with a ping's job: back up into the cab, anything in its arms put down first (a find it fetched, down aboard the
+    /// cab). Null once it's there (and no longer out on it).
+    /// </summary>
+    PlayerIntent? BackFromAPing(in PlayerState self, World world)
+    {
+        if (self.Has(PlayerFlags.Heavy) || world.Bodies.CarriedBy(Me) is not null && PlayerMotor.InCab(self, world.Train))
+            return _pingHand!.LetGo() with { Buttons = PlayerButtons.Use };
+        if (_pingHand!.SetBackAlone(self, world, null) is { } back)
+            return back;
+        _outOnPing = _firedToLeave = false;
+        return null;
+    }
+
+    /// <summary>
+    /// Note 1021 (the director's playtest of 23 Oct, line 8: "I pinged one of the towns and Dunmore said, I'll go fetch it ...
+    /// and then he starts manning the cab"): handed over (someone playing holds the controls, note 574), the driver is still
+    /// the crew's only pair of hands to the pings (<see cref="CrewCalls.Pings"/>), so it takes a find, the town, the crane,
+    /// the cargo or the points, and says so. But its walker's legs (<see cref="Handed"/>) have no stop hand to work them with:
+    /// it never went, and the order ran out its time. Now it works them as <see cref="OnAPing"/> does, through its
+    /// <see cref="StopHand"/>, while the train stands (whoever has the controls drives; a fire stays the legs'), and comes
+    /// back aboard after. Null with no such order and nothing to come back from.
+    /// </summary>
+    PlayerIntent? HandedPing(in PlayerState self, World world)
+    {
+        if (calls is null || Me < 0 || !self.Alive)
+        {
+            _outOnPing = false;
+            return null;
+        }
+        _pingHand ??= new StopHand(StopJob.Driver, calls, member);
+        _pingHand.PlayerId = Me;
+        if (calls.OrderOf(Me) is not { Kind: not (PingKind.Cab or PingKind.Fire) } order || world.Train.Dynamics.Speed > CabControls.StandingBelow)
+            return _outOnPing ? BackFromAPing(self, world) : null;
+        _outOnPing = true;
+        return _pingHand.Ordered(self, world, order.Kind, order.Target) ?? new PlayerIntent();
     }
 
     /// <summary>
