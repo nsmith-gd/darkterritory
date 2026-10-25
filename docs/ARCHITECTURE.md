@@ -1187,6 +1187,6 @@ written here instead is moved out by `tools/coord/notes.py split`; the Coordinat
 - [1027. The buyer in the square: finds sold in the town itself (n1-S2, nathaniel1; queue #657; GDD §3.1 "Not yet": "turning loot into scrip in the…](notes/1027.md)
 - [1028. Bots clear a blocked siding: in for the derelicts, out past the points, and put away on a free road up the yard (Pine, nathaniel2; queue…](notes/1028.md)
 - [1029. Tower Jaw's gantry comes down; a structure's fall reaches a joiner (Ash, nathaniel2's Token Budget Manager's worker; queue #732; note…](notes/1029.md)
-- [1034. Moments and the reel: commendation clips instead of stills (n1-H2, nathaniel1's Token Budget Manager's worker; queue #256, carried on from…](notes/1034.md)
 - [1030. The yard photographer's gallery on the end card (Vera, nathaniel3's Token Budget Manager's worker; queue #733; docs/design/upgrades.md §4…](notes/1030.md)
+- [1034. Moments and the reel: commendation clips instead of stills (n1-H2, nathaniel1's Token Budget Manager's worker; queue #256, carried on from…](notes/1034.md)
 <!-- end of the notes index -->
