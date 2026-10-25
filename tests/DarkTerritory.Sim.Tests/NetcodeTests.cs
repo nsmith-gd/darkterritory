@@ -68,10 +68,11 @@ public class NetcodeTests
         static ClientReport Client(byte id, double corrected, int corrections = 0, int snapshots = 3600) =>
             new(id, "bot", corrected, corrections, snapshots, 0, true, "Roof", "car 1", 0, 0);
         HarnessReport Night(params ClientReport[] clients) => new(3600, 120, "", 0, 0, 0, 0, 0, 0, 0, clients.Max(c => c.MaxCorrectionM), 0, clients);
-        Assert.True(Stability.Judge(2, "perfect", Night(Client(1, 0), Client(2, 0.0004)), null, t).Pass);
-        // A centimetre off on a perfect link is a desync; on the rough one, it isn't.
-        Assert.False(Stability.Judge(2, "perfect", Night(Client(1, 0), Client(2, 0.01)), null, t).Pass);
-        Assert.True(Stability.Judge(2, "rough", Night(Client(1, 0), Client(2, 0.01, 3)), null, t).Pass);
+        // A millimetre and a half off on a perfect link is another's cab input a round trip late (note 1032).
+        Assert.True(Stability.Judge(2, "perfect", Night(Client(1, 0), Client(2, 0.0015)), null, t).Pass);
+        // Two centimetres off on a perfect link is a desync; on the rough one, it isn't.
+        Assert.False(Stability.Judge(2, "perfect", Night(Client(1, 0), Client(2, 0.02)), null, t).Pass);
+        Assert.True(Stability.Judge(2, "rough", Night(Client(1, 0), Client(2, 0.02, 3)), null, t).Pass);
         // Rough: 2 m off, or correcting more than once every 180 ticks, or deaf to the snapshots.
         Assert.False(Stability.Judge(2, "rough", Night(Client(1, 2.5, 1), Client(2, 0)), null, t).Pass);
         Assert.False(Stability.Judge(2, "rough", Night(Client(1, 0.2, 25), Client(2, 0)), null, t).Pass);

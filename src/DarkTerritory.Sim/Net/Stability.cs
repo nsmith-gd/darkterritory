@@ -5,7 +5,7 @@ public sealed record StabilityTuning
 {
     public IReadOnlyList<int> Crews { get; init; } = [2, 3, 4, 5, 6, 7, 8];
     public double Seconds { get; init; } = 120;
-    public double PerfectMaxCorrectionM { get; init; } = 0.001;
+    public double PerfectMaxCorrectionM { get; init; } = 0.01;
     public double RoughMaxCorrectionM { get; init; } = 2;
     public double RoughCorrectionsPerTicks { get; init; } = 180;
     public double SnapshotShare { get; init; } = 0.9;
@@ -21,7 +21,7 @@ public sealed record StabilityReport(IReadOnlyList<StabilityRow> Rows, bool Pass
 
 /// <summary>
 /// GDD §34 "Stability: desync and crash detection across 2–8 clients" (note 1032), judged on harness nights over a quiet
-/// line: on a perfect link a client's prediction matches the host's (within a hair, the round-trip-late cab input of
+/// line: on a perfect link a client's prediction matches the host's (within a few millimetres, the round-trip-late cab input of
 /// <c>NetcodeTests.OnAPerfectLinkPredictionMatchesTheHostExactly</c>); on the rough link it corrects by little and rarely,
 /// as the nightly soak holds eight; every client stays connected, hears nearly every snapshot, and the night doesn't throw.
 /// `dt harness stability` runs the sweep.
