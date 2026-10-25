@@ -159,8 +159,9 @@ public class CaptionsTests
     [Fact]
     public void NoCaptionNamesACreature()
     {
-        // Each creature's name and its words ("TIPPY", "HOUND"), but not the plain words a sound is said in (a car's FIRE).
-        string[] plain = ["CAR", "FIRE", "TRACK"];
+        // Each creature's name and its words ("TIPPY", "HOUND"), but not the plain words a sound is said in (a car's FIRE; the
+        // hounds' howl CLOSE, near, not the Close of note 1013).
+        string[] plain = ["CAR", "FIRE", "TRACK", "CLOSE"];
         string[] hazards = [nameof(EnemyKind.CarFire), nameof(EnemyKind.Sleepers), nameof(EnemyKind.Drift)];
         var banned = Enum.GetNames<EnemyKind>().Where(k => !hazards.Contains(k))
             .SelectMany(k => System.Text.RegularExpressions.Regex.Split(k, "(?<!^)(?=[A-Z])").Append(k))
