@@ -721,7 +721,7 @@ def build(name, style):
         if style.face:
             # The face shaded under what's worn over it, and the coat's collar (the head bakes from the scan alone).
             covers = [gm.low for gm in worn] + [g["FRAME_HIGH"]] + ([parts["coat"]] if style.coat else [])
-            face_masks = {"contact": faces.contact(head, covers), "where": faces.where(HEAD_C)}
+            face_masks = {"contact": faces.contact(head, covers), "where": faces.where(HEAD_C), "eyes": faces.eyes_at(LM)}
         # (What they've made for their own materials while modelling them: a plaid woven in code.)
         DRESS.update(style.dress)
         for gm in worn:
@@ -733,9 +733,7 @@ def build(name, style):
         body.select_set(True)
         bpy.context.view_layer.objects.active = body
         bpy.ops.object.join()
-    # The scan's own head, full resolution, in the body's group; the modelled face's eyeballs with it.
-    if style.face and scan:
-        head += faces.eyeballs(LM)
+    # The scan's own head, full resolution, in the body's group.
     highs["body"] += head
 
     from mathutils.bvhtree import BVHTree  # noqa: E402
@@ -910,6 +908,11 @@ def build(name, style):
         shut = np.clip(atlas.maps["contact"], 0, 1) ** 0.7
         sallow = sallow * (1 - 0.85 * shut)[..., None]
     base = np.where(face[..., None], base * (1 - style.grime) + sallow * style.grime, base)
+    if style.face and scan:
+        # Both eyes painted open on the lids, shaded as the face round them is.
+        painted = faces.paint_eyes(base, atlas.maps["eyes"], face, LM)
+        shade = (0.6 + 0.4 * atlas.maps["AO"][..., 0] ** 0.6) * (1 - 0.85 * shut)
+        base = np.where((painted != base).any(-1, keepdims=True), painted * shade[..., None], base)
     if not scan:
         base = helm_grade(base, atlas)
     if style.grade is not None:

@@ -62,9 +62,6 @@ def landmarks(objs):
     return {"tip": Vector(tip), "eyes": [Vector((-ex, ey, ez)), Vector((ex, ey, ez))], "eye_w": float(np.mean(widths))}
 
 
-EYE_R = 0.0118
-
-
 def skin(path):
     """The scan's map, cleaned: below the jaw (its last 150 rows: the cut neck's flaps and a pale lozenge rimmed in red,
     which the throat takes) the rows above it mirrored down, skin continuing; and the lips' studio flush calmed."""
@@ -108,8 +105,7 @@ def symmetric(objs):
 
 def model(objs, lm, brow=1.0):
     """The face's forms pushed into the scan, about the landmarks (`lm`): the brow ridge, the cheekbones and the hollows
-    under them, the bridge of the nose, the jaw's angle and the chin; and the eyes opened into almonds. `brow` scales the
-    brow ridge (a woman's is less)."""
+    under them, the bridge of the nose, the jaw's angle and the chin. `brow` scales the brow ridge."""
     tip, (el, er) = lm["tip"], lm["eyes"]
     ex, ey, ez = er.x, er.y, er.z
     for o in objs:
@@ -149,64 +145,9 @@ def model(objs, lm, brow=1.0):
         d[:, 1] += 0.0035 * chin
         d[:, 2] -= 0.0015 * chin
         co += d * front[:, None]
-        # The eyes opened: the shut lids drawn back into an almond round each eye's middle (its corners pointed, its
-        # top arched), behind its eyeball's front (a millimetre and a half behind the lid's middle), so the ball shows
-        # in it; round the almond the lids lie over the ball, never behind it.
-        x, z = co[:, 0], co[:, 2]
-        lm["balls"] = []
-        for e in (el, er):
-            u = (x - e.x) / (lm["eye_w"] * 0.92)
-            # (Its lower lid closer to the middle than its upper: the white under the iris read as a bag under the eye.)
-            mid = e.z - 0.0002 + 0.0008 * (1 - u * u)
-            v = (z - mid) / np.where(z > mid, 0.0041, 0.0028)
-            r = np.sqrt(u * u + v * v / np.clip(1 - u * u, 0.05, 1) ** 1.2)
-            near = co[:, 1] > e.y - 0.015
-            opened = np.clip((1 - r) / 0.25, 0, 1) * near * front
-            c = Vector((e.x, e.y - 0.0015 - EYE_R, e.z))
-            lm["balls"].append(c)
-            ball = c.y + np.sqrt(np.clip(EYE_R ** 2 - (x - c.x) ** 2 - (z - c.z) ** 2, 0, None))
-            co[:, 1] += (1 - opened) * near * np.clip(ball + 0.0006 - co[:, 1], 0, None)
-            co[:, 1] -= opened * np.clip(co[:, 1] - (ball - 0.001), 0, None)
         for v, c in zip(me.vertices, co):
             v.co = c
         me.update()
-
-
-def eyeballs(lm, colour=(0.22, 0.15, 0.09)):
-    """An eyeball behind each opened lid: a sphere of white, its iris (`colour`) and pupil round its front, looking
-    ahead. High parts only (the bake paints them into the opening; the game mesh has no eyes of its own)."""
-    m = bpy.data.materials.new("eye")
-    m.use_nodes = True
-    nt = m.node_tree
-    # Round the ball's front (+Y): how far round it each point is, by its normal; the ramp's stops the pupil's and the
-    # iris's edges.
-    geo = nt.nodes.new("ShaderNodeNewGeometry")
-    sep = nt.nodes.new("ShaderNodeSeparateXYZ")
-    ramp = nt.nodes.new("ShaderNodeValToRGB")
-    nt.links.new(geo.outputs["Normal"], sep.inputs[0])
-    nt.links.new(sep.outputs["Y"], ramp.inputs["Fac"])
-    stops = ramp.color_ramp.elements
-    stops[0].position, stops[0].color = 0.77, (0.44, 0.4, 0.36, 1)
-    stops[1].position, stops[1].color = 0.79, (*colour, 1)
-    for at, rgb in ((0.95, colour), (0.962, (0.08, 0.06, 0.05)), (0.97, (0.02, 0.018, 0.016))):
-        e = stops.new(at)
-        e.color = (*rgb, 1)
-    nt.links.new(ramp.outputs["Color"], nt.nodes["Principled BSDF"].inputs["Base Color"])
-    out = []
-    for c in lm["balls"]:
-        bm = bmesh.new()
-        bmesh.ops.create_uvsphere(bm, u_segments=48, v_segments=32, radius=EYE_R)
-        me = bpy.data.meshes.new("eyeball")
-        bm.to_mesh(me)
-        bm.free()
-        o = bpy.data.objects.new("eyeball", me)
-        bpy.context.scene.collection.objects.link(o)
-        me.materials.append(m)
-        for v in me.vertices:
-            v.co += c
-        me.shade_smooth()
-        out.append(o)
-    return out
 
 
 def decimate(objs, target, lm, first=1.2):
@@ -324,3 +265,64 @@ def where(head_c):
         q = co - np.array([head_c.x, head_c.y, head_c.z], np.float32)
         return np.clip(np.stack([np.abs(q[:, 0]) / 0.2, q[:, 1] / 0.4 + 0.5, q[:, 2] / 0.4 + 0.5], 1), 0, 1)
     return mask
+
+
+# The box round the eyes the `eyes` mask measures in (m): its 8 bits a quarter of a millimetre across it.
+EYE_BOX = (0.064, 0.04, 0.04)
+
+
+def eyes_at(lm):
+    """A mask fn: each point's place in the box round the eyes, (|x|, z, y) from its corner, 0..1, fine enough to paint
+    an eye by (`paint_eyes`)."""
+    e = lm["eyes"][1]
+    lo = np.array([0.0, e.z - EYE_BOX[1] / 2, e.y - EYE_BOX[2] * 0.75], np.float32)
+
+    def mask(co, kind=""):
+        q = np.stack([np.abs(co[:, 0]), co[:, 2], co[:, 1]], 1) - lo
+        return np.clip(q / np.array(EYE_BOX, np.float32), 0, 1)
+    return mask
+
+
+def paint_eyes(base, at, face, lm, iris=(0.16, 0.1, 0.06)):
+    """Both eyes painted open on the shut lids, the same either side (`at`: the `eyes` mask's bake, HxWx3; `face`: the
+    head's texels), as a figure of the PS2's was: an almond of white, dulled into its corners and under the upper lid's
+    shadow, the iris under the lid's edge, the pupil, the lashes' dark line along the top and a fainter one under it,
+    the lid's crease above. The geometry keeps the scan's shut lid, smooth over the eyeball's curve."""
+    e = lm["eyes"][1]
+    w = lm["eye_w"] * 0.88
+    x = at[..., 0] * EYE_BOX[0]
+    z = at[..., 1] * EYE_BOX[1] + e.z - EYE_BOX[1] / 2
+    y = at[..., 2] * EYE_BOX[2] + e.y - EYE_BOX[2] * 0.75
+    near = face & (at[..., 2] > 0.02) & (at[..., 2] < 0.98) & (np.abs(y - e.y) < 0.008)
+    u = (x - e.x) / w
+    inside_u = np.clip(1 - u * u, 0, 1)
+    top = e.z + 0.0005 + 0.0042 * inside_u ** 0.75
+    bottom = e.z - 0.0008 - 0.0026 * inside_u ** 0.9
+    soft = 0.00035
+    almond = np.clip((top - z) / soft, 0, 1) * np.clip((z - bottom) / soft, 0, 1) * (np.abs(u) < 1) * near
+    out = base.copy()
+    sclera = np.array([0.36, 0.32, 0.28], np.float32)
+    # The white dulled toward its corners and under the lid's edge (the lid's shadow on the ball).
+    dull = 0.55 + 0.45 * (1 - np.abs(u) ** 2) * np.clip((top - z) / 0.0025, 0.35, 1)
+    eye = sclera * dull[..., None]
+    # The iris, its top under the lid, darker at its rim; the pupil.
+    ic = (e.x, e.z + 0.0004)
+    r = np.hypot(x - ic[0], z - ic[1])
+    ir = np.clip((0.0052 - r) / 0.0004, 0, 1)
+    rim = np.clip((r - 0.0036) / 0.0016, 0, 1)
+    irisc = np.array(iris, np.float32) * (1 - 0.5 * rim[..., None])
+    eye = eye * (1 - ir[..., None]) + irisc * ir[..., None]
+    pup = np.clip((0.0021 - r) / 0.0003, 0, 1)
+    eye = eye * (1 - pup[..., None]) + np.array([0.015, 0.012, 0.01], np.float32) * pup[..., None]
+    # A glint, the same on both (up and toward the nose's side).
+    gl = np.clip((0.0007 - np.hypot(x - (ic[0] - 0.0017), z - (ic[1] + 0.0017))) / 0.0003, 0, 1)
+    eye = eye * (1 - 0.7 * gl[..., None]) + 0.7 * gl[..., None] * np.array([0.7, 0.68, 0.64], np.float32)
+    out = out * (1 - almond[..., None]) + eye * almond[..., None]
+    # The lashes along the top edge, thickest at its outer half; a fainter line along the bottom; the crease above.
+    band = (np.abs(u) < 1.08) & near
+    lash = np.clip(1 - np.abs(z - top - 0.0003) / (0.00055 + 0.0003 * np.clip(u, 0, 1)), 0, 1) * band
+    lower = np.clip(1 - np.abs(z - bottom + 0.0002) / 0.0004, 0, 1) * band * 0.45
+    crease = np.clip(1 - np.abs(z - (top + 0.0036 + 0.0008 * inside_u)) / 0.0011, 0, 1) * band * 0.3 * inside_u
+    dark = np.clip(lash + lower + crease, 0, 1)
+    ink = np.array([0.025, 0.018, 0.015], np.float32)
+    return out * (1 - dark[..., None]) + ink * dark[..., None]
