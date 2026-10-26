@@ -51,6 +51,9 @@ return args switch
     // dt moments [--replay night.dtrec | --route r --bots n --seconds s] [--top 6] [--reel]: a night's clip-worthy moments scored, and a
     // short reel of the best (queue #256, note 1034).
     ["moments", ..] => MomentsCommands.Run(content, args),
+    // dt social [--only a,b] [--seconds s] [--seeds n] [--crews 1,2]: GDD §20's social test, criteria 2, 3 and 5 per creature from
+    // staged grabs and bot nights, and the crew's numbers -> out/social (queue #255, note 1038).
+    ["social", ..] => SocialCommands.Run(content, args),
     // dt feedback pull | list | show <id> | make: the director's notes from inside the game, and their moments (note 516).
     ["feedback", ..] => FeedbackCommands.Run(content, args),
     // dt review diff <before> <after>: a pull request's review packet, its shots and numbers against main's (note 517).
