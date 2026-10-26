@@ -28,12 +28,36 @@ public sealed record SocialTuning
     public double ReachM { get; init; } = 2.5;
     public double BlamedShare { get; init; } = 0.5;
     public double SplitM { get; init; } = 26;
+    /// <summary>Note 1051: creatures whose criterion 3 is judged by the car lost, not a kill's window (the Passenger, Q3's default).</summary>
+    public IReadOnlyList<string> CarLost { get; init; } = [];
+    /// <summary>Note 1051: creatures whose staged grab has the crew singing (the Choir, note 720; Q3's default), and the song.</summary>
+    public IReadOnlyList<string> Sung { get; init; } = [];
+    public SocialSong Song { get; init; } = new();
+    /// <summary>Note 1051: creature flags on for the whole run (<see cref="SocialTest.Flags"/>' names); the rest are shown both ways.</summary>
+    public IReadOnlyList<string> Flags { get; init; } = [];
+    /// <summary>Note 1051: an insisted Stoker boards at the tender on the bot nights (<see cref="World.InsistStokerBoards"/>).</summary>
+    public bool StokerBoards { get; init; }
 
     /// <summary>The creatures measured: the tuning's, else the director's roster and everything that grabs, in roster order.</summary>
     public IReadOnlyList<EnemyKind> Kinds() => Creatures.Count > 0
         ? [.. Creatures.Select(k => Enum.Parse<EnemyKind>(k, ignoreCase: true))]
         : [.. Combinations.Roster.Concat(GrabAudit.Grabbers).Distinct()];
 }
+
+/// <summary>
+/// Note 1051: the song the staged crew sing (a voice level of <paramref name="Level"/> ± <paramref name="Swing"/>, a beat every
+/// <paramref name="BeatSeconds"/>), everyone on the same beat: in time with a friend, it's singing (player.json voices.singing).
+/// </summary>
+public sealed record SocialSong(double Level = 110, double Swing = 50, double BeatSeconds = 1.2)
+{
+    public byte At(double seconds) => (byte)Math.Clamp(Math.Round(Level + Swing * Math.Sin(2 * Math.PI * seconds / Math.Max(0.1, BeatSeconds))), 0, 255);
+}
+
+/// <summary>
+/// Note 1051: a creature flag shown the other way from the run's: the staged grab alone and with a friend with it on, and
+/// criterion 3 so.
+/// </summary>
+public sealed record SocialFlagged(string Flag, string Creature, GrabCheck? Alone, GrabCheck? Paired, SocialVerdict Two, SocialVerdict Act);
 
 /// <summary>
 /// One grab seen on a bot night: whose creature, how long it held (s), how long till a friend was within reach of the held
@@ -49,7 +73,12 @@ public sealed record SocialGrab(double Held, double? Reach, string End);
 /// up far more than a person would; <paramref name="Pings"/> the pings made (GDD §12), a player's own call. <paramref name="Seconds"/>: how long it ran.
 /// </summary>
 public sealed record SocialNight(string Creature, int Crew, int Seed, IReadOnlyList<string> Bots, int Deaths, int Failures, int Blamed,
-    IReadOnlyList<SocialGrab> Grabs, double SplitSeconds, int Calls, int Pings, double DeadSeconds, bool Engaged, double Seconds);
+    IReadOnlyList<SocialGrab> Grabs, double SplitSeconds, int Calls, int Pings, double DeadSeconds, bool Engaged, double Seconds)
+{
+    /// <summary>Note 1051: seconds the train stood (under <see cref="SocialTest.StandingBelow"/>), and metres it ran, on the night.</summary>
+    public double StoodSeconds { get; init; }
+    public double Metres { get; init; }
+}
 
 /// <summary>A criterion's verdict for a creature: "pass", "fail" or "unmeasured" (nothing happened that could judge it), and why.</summary>
 public sealed record SocialVerdict(string Result, string Why);
@@ -67,11 +96,21 @@ public sealed record SocialRow(string Creature, GrabCheck? Alone, GrabCheck? Pai
 
 /// <summary>A creature's nights at one crew size, summed: per night where it says so.</summary>
 public sealed record SocialCrewSum(int Crew, int Nights, int Engaged, double DeathsPerNight, double FailuresPerNight, int Failures, int Blamed,
-    int Grabs, int Broken, int Killed, double? MeanHeld, double? MeanReach, double SplitPerNight, double CallsPerNight, double DeadPerNight);
+    int Grabs, int Broken, int Killed, double? MeanHeld, double? MeanReach, double SplitPerNight, double CallsPerNight, double DeadPerNight)
+{
+    /// <summary>Note 1051: seconds the train stood a night, and metres it ran.</summary>
+    public double StoodPerNight { get; init; }
+    public double MetresPerNight { get; init; }
+}
 
 /// <summary>The whole test: every creature's row, the crew's numbers over every night, and which creatures fail what.</summary>
 public sealed record SocialReport(string Route, int Cars, double Seconds, int Seeds, IReadOnlyList<int> Crews, IReadOnlyList<SocialRow> Rows,
-    IReadOnlyList<SocialNight> Nights, object Crew, IReadOnlyDictionary<string, IReadOnlyList<string>> Fails);
+    IReadOnlyList<SocialNight> Nights, object Crew, IReadOnlyDictionary<string, IReadOnlyList<string>> Fails)
+{
+    /// <summary>Note 1051: the flags on for the run, and each measured creature's flags shown on (staged only).</summary>
+    public IReadOnlyList<string> FlagsOn { get; init; } = [];
+    public IReadOnlyList<SocialFlagged> Flagged { get; init; } = [];
+}
 
 /// <summary>
 /// GDD §20's social test made into numbers (queue #255, ARCHITECTURE §8 note 1038). For each creature: the staged grab
@@ -88,6 +127,26 @@ public static class SocialTest
         IncidentKind.Runaway, IncidentKind.CarLost,
     ];
 
+    /// <summary>
+    /// Note 1051 (queue #750): the creature flags built for the director's questions of note 1050 (Q1, Q2), off in the game, by
+    /// name: the creature they're on and the tuning with each on.
+    /// </summary>
+    public static IReadOnlyDictionary<string, (EnemyKind Kind, Func<EnemyTuning, EnemyTuning> On)> Flags { get; } =
+        new SortedDictionary<string, (EnemyKind, Func<EnemyTuning, EnemyTuning>)>(StringComparer.Ordinal)
+        {
+            ["knotter.tautHold"] = (EnemyKind.Knotter, e => e with { Knotter = e.Knotter with { TautHold = e.Knotter.TautHold with { On = true } } }),
+            ["whistler.carry"] = (EnemyKind.Whistler, e => e with { Whistler = e.Whistler with { Carry = e.Whistler.Carry with { On = true } } }),
+        };
+
+    /// <summary>The content with <paramref name="flags"/> on (<see cref="Flags"/>' names; an unknown one throws).</summary>
+    public static AuditContent Content(string content, IEnumerable<string> flags)
+    {
+        var c = Content(content);
+        foreach (string f in flags)
+            c = c with { Enemies = (Flags.TryGetValue(f, out var flag) ? flag.On : throw new ArgumentException($"no flag {f}; there are {string.Join(", ", Flags.Keys)}"))(c.Enemies) };
+        return c;
+    }
+
     public static AuditContent Content(string content) => new(
         DataFile.Load<Sim.Train.TrainTuning>(Path.Combine(content, Sim.Train.TrainTuning.File)),
         DataFile.Load<PlayerTuning>(Path.Combine(content, PlayerTuning.File)),
@@ -100,7 +159,7 @@ public static class SocialTest
     /// <summary>Runs the test: <paramref name="parallel"/> nights at once (each night is its own, so the result is the same at any count).</summary>
     public static SocialReport Run(string content, SocialTuning t, int parallel = 1, Action<string>? progress = null)
     {
-        var c = Content(content);
+        var c = Content(content, t.Flags);
         var kinds = t.Kinds();
         var route = Sim.LineGen.Routes.Generate(content, t.Route, t.Cars);
         double yard = route.GateOr(RouteTuning.Load(content).YardLength);
@@ -137,6 +196,7 @@ public static class SocialTest
                 YardLength = yard,
                 Insist = [kind],
                 InsistEvery = t.InsistEvery,
+                InsistStokerBoards = t.StokerBoards,
                 Look = combos.Look,
                 Observe = watch.Step,
             }, c.Boiler);
@@ -146,10 +206,16 @@ public static class SocialTest
         });
         var rows = kinds.Select(k =>
         {
-            bool grabs = GrabAudit.Grabbers.Contains(k);
-            var alone = grabs ? GrabAudit.Check(c, k, 1) : null;
-            var paired = grabs ? GrabAudit.Check(c, k, 2) : null;
+            var (alone, paired) = Staged(c, k, t);
             return Judge(k, alone, paired, [.. nights.Where(n => n.Creature == k.ToString())], t);
+        }).ToList();
+        // Note 1051: each measured creature's flags the other way, staged (its nights are the run's).
+        var flagged = Flags.Where(f => kinds.Contains(f.Value.Kind) && !t.Flags.Contains(f.Key)).Select(f =>
+        {
+            var on = Content(content, [.. t.Flags, f.Key]);
+            var (alone, paired) = Staged(on, f.Value.Kind, t);
+            var row = Judge(f.Value.Kind, alone, paired, [], t);
+            return new SocialFlagged(f.Key, f.Value.Kind.ToString(), alone, paired, row.Two, row.Act);
         }).ToList();
         var fails = new SortedDictionary<string, IReadOnlyList<string>>(StringComparer.Ordinal)
         {
@@ -172,8 +238,25 @@ public static class SocialTest
                 deadPerNight = Mean(mine.Select(n => n.DeadSeconds)),
             };
         }).ToList();
-        return new SocialReport(t.Route, t.Cars, t.Seconds, t.Seeds, t.Crews, rows, nights, crewNumbers, fails);
+        return new SocialReport(t.Route, t.Cars, t.Seconds, t.Seeds, t.Crews, rows, nights, crewNumbers, fails) { FlagsOn = t.Flags, Flagged = flagged };
     }
+
+    /// <summary>
+    /// A creature's staged grab alone and with a friend (null for one that doesn't grab). Note 1051: the crew sing at those in
+    /// <see cref="SocialTuning.Sung"/> (the Choir: its answer is singing together, note 720, which the bots never do).
+    /// </summary>
+    public static (GrabCheck? Alone, GrabCheck? Paired) Staged(AuditContent c, EnemyKind k, SocialTuning t)
+    {
+        if (!GrabAudit.Grabbers.Contains(k))
+            return (null, null);
+        Func<int, double, byte>? voice = Named(t.Sung, k) ? (_, seconds) => t.Song.At(seconds) : null;
+        return (GrabAudit.Check(c, k, 1, voice: voice), GrabAudit.Check(c, k, 2, voice: voice));
+    }
+
+    static bool Named(IReadOnlyList<string> names, EnemyKind k) => names.Any(n => string.Equals(n, k.ToString(), StringComparison.OrdinalIgnoreCase));
+
+    /// <summary>m/s: the train's standing, for <see cref="SocialNight.StoodSeconds"/> (the cab controls' own standing mark).</summary>
+    public const double StandingBelow = Sim.Net.CabControls.StandingBelow;
 
     static double Mean(IEnumerable<double> xs) => xs.Any() ? Math.Round(xs.Average(), 2) : 0;
 
@@ -188,9 +271,14 @@ public static class SocialTest
             return new SocialCrewSum(g.Key, all.Count, all.Count(n => n.Engaged), Mean(all.Select(n => (double)n.Deaths)), Mean(all.Select(n => (double)n.Failures)),
                 all.Sum(n => n.Failures), all.Sum(n => n.Blamed), grabs.Count, grabs.Count(x => x.End == "broken"), grabs.Count(x => x.End == "killed"),
                 grabs.Count > 0 ? Math.Round(grabs.Average(x => x.Held), 2) : null, reached.Count > 0 ? Math.Round(reached.Average(), 2) : null,
-                Mean(all.Select(n => n.SplitSeconds)), Mean(all.Select(n => (double)n.Calls + n.Pings)), Mean(all.Select(n => n.DeadSeconds)));
+                Mean(all.Select(n => n.SplitSeconds)), Mean(all.Select(n => (double)n.Calls + n.Pings)), Mean(all.Select(n => n.DeadSeconds)))
+            {
+                StoodPerNight = Mean(all.Select(n => n.StoodSeconds)),
+                MetresPerNight = Mean(all.Select(n => n.Metres)),
+            };
         }).ToList();
-        return new SocialRow(kind.ToString(), alone, paired, byCrew, Two(alone, paired, byCrew, t), Act(alone, paired, nights, t), Blame(nights, t));
+        var act = Named(t.CarLost, kind) ? CarLost(alone, paired, t) : Act(alone, paired, nights, t);
+        return new SocialRow(kind.ToString(), alone, paired, byCrew, Two(alone, paired, byCrew, t), act, Blame(nights, t));
     }
 
     /// <summary>Criterion 2: the staged grab alone against with a friend; with none, the nights' failures at the least and next crew.</summary>
@@ -231,6 +319,23 @@ public static class SocialTest
         return new(ok ? "pass" : "fail", $"{source}: {w:0.0} s (band {t.ActMinSeconds:0}-{t.ActMaxSeconds:0} s)" + reach);
     }
 
+    /// <summary>
+    /// Criterion 3 by the car lost (note 1051; note 1050 Q3's default, the Passenger): its grab is the car's uncoupling, held
+    /// until the car's gone, so the band's ceiling (how long a kill may drag) doesn't fit it. It passes if alone the car is lost
+    /// no sooner than <see cref="SocialTuning.ActMinSeconds"/> after the grab (time for a friend to act) and with a friend it's
+    /// kept (the grab broken, the car still on).
+    /// </summary>
+    static SocialVerdict CarLost(GrabCheck? alone, GrabCheck? paired, SocialTuning t)
+    {
+        if (alone is not { Grabbed: true } a)
+            return new("unmeasured", "judged by the car lost: no staged grab");
+        string friend = paired is { Grabbed: true } p ? p.Freed ? $"with a friend the car's kept ({p.HeldSeconds:0.0} s)" : $"with a friend it's lost too ({p.Detail})" : "no grab staged with a friend";
+        if (a.Freed)
+            return new("pass", $"judged by the car lost: alone it's never lost ({a.Detail}); {friend}");
+        bool ok = a.HeldSeconds >= t.ActMinSeconds && paired is { Grabbed: true, Freed: true };
+        return new(ok ? "pass" : "fail", $"judged by the car lost: alone it's lost {a.HeldSeconds:0.0} s after the grab (at least {t.ActMinSeconds:0} s to act); {friend}");
+    }
+
     /// <summary>Criterion 5: the share of its nights' failures the report names a crewmate's contributing action for.</summary>
     static SocialVerdict Blame(IReadOnlyList<SocialNight> nights, SocialTuning t)
     {
@@ -254,13 +359,17 @@ public static class SocialTest
         readonly HashSet<int> _pings = [];
         IReadOnlyList<string> _bots = [];
         int _incidents, _deaths, _failures, _blamed;
-        double _split, _dead;
+        double _split, _dead, _stood;
+        double? _from;
         bool _engaged;
         World? _world;
 
         public void Step(uint tick, IReadOnlyList<(IBot Bot, PlayerState State)> crew, World world)
         {
             _world = world;
+            _from ??= world.Train.Dynamics.Distance;
+            if (Math.Abs(world.Train.Dynamics.Speed) < StandingBelow)
+                _stood += SimConstants.TickSeconds;
             if (_bots.Count == 0)
                 _bots = [.. crew.Select(c => c.Bot.Name)];
             var at = crew.Select(c => c.State.Alive ? PlayerMotor.WorldPosition(c.State, world.Train) : (Double3?)null).ToList();
@@ -305,6 +414,10 @@ public static class SocialTest
             new(kind.ToString(), crew, seed, _bots, _deaths, _failures, _blamed,
                 [.. _grabs, .. _open.Values.Select(g => new SocialGrab(Math.Round(((_world?.Tick ?? g.From) - g.From) * SimConstants.TickSeconds, 2),
                     g.Reach is { } r ? Math.Round((r - g.From) * SimConstants.TickSeconds, 2) : (double?)null, "held"))],
-                Math.Round(_split, 1), report.Voice?.Calls ?? 0, _pings.Count, Math.Round(_dead, 1), _engaged, Math.Round(report.Seconds, 1));
+                Math.Round(_split, 1), report.Voice?.Calls ?? 0, _pings.Count, Math.Round(_dead, 1), _engaged, Math.Round(report.Seconds, 1))
+            {
+                StoodSeconds = Math.Round(_stood, 1),
+                Metres = Math.Round(_world is { } w && _from is { } from ? Math.Abs(w.Train.Dynamics.Distance - from) : 0, 1),
+            };
     }
 }

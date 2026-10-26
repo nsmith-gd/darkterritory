@@ -489,6 +489,12 @@ public sealed partial class World
     /// train never left. Null: every insisted kind wherever its spawn can place it.
     /// </summary>
     public IReadOnlySet<EnemyKind>? InsistByRule { get; set; }
+    /// <summary>
+    /// Note 1051: an insisted Stoker boards at the tender and crosses the footplate (as the heat brings one, note 263), where a
+    /// crewmate at the firebox can club it, instead of going straight into the firebox. `dt social` stages it so; false
+    /// everywhere else.
+    /// </summary>
+    public bool InsistStokerBoards { get; set; }
     readonly Dictionary<EnemyKind, double> _insistGone = [];
 
     /// <summary>
@@ -3100,7 +3106,8 @@ public sealed partial class World
     /// <summary>
     /// The combination audit's spawns (note 186): each insisted kind, when none of it is about and it's been gone long
     /// enough, put in by its own spawn rule's placement (which may still find nowhere: no crane, no marsh ahead). The Stoker
-    /// goes straight into the firebox; the Choir is gathered in the meter's step.
+    /// goes straight into the firebox (or with <see cref="InsistStokerBoards"/> boards at the tender); the Choir is gathered
+    /// in the meter's step.
     /// </summary>
     void InsistOn(IReadOnlyList<EnemyKind> insist, EnemyTuning t, Director d)
     {
@@ -3133,7 +3140,7 @@ public sealed partial class World
     int AddStoker(EnemyTuning t)
     {
         int id = _nextEnemyId++;
-        _enemies.Add(Stoker.InFirebox(id, Train, false, t.Stoker));
+        _enemies.Add(InsistStokerBoards ? Stoker.AtTender(id, Train, t.Stoker) : Stoker.InFirebox(id, Train, false, t.Stoker));
         return id;
     }
 

@@ -265,6 +265,25 @@ public sealed record WhistlerTuning
     public double Health { get; init; } = 3;
     public double StopWeight { get; init; } = 0.3;
     public int MinCars { get; init; } = 2;
+    /// <summary>Note 1051: on, the whole carry (the run and the nest) takes <see cref="SocialWindow.Seconds"/> (GDD §20's 8–20 s).</summary>
+    public SocialWindow Carry { get; init; } = new() { Seconds = 20 };
+
+    /// <summary>
+    /// How long a carry holds before it kills, given its run to the nest (s): the run and <see cref="NestSeconds"/>; with
+    /// <see cref="Carry"/> on, its seconds, the nest's wait shortened to fit, and none when the run alone is longer (eaten on
+    /// arrival: it never kills short of its nest).
+    /// </summary>
+    public double CarrySeconds(double run) => Carry.On ? Math.Max(run, Carry.Seconds) : run + NestSeconds;
+}
+
+/// <summary>
+/// Note 1051 (queue #750; the director's questions of note 1050, Q1 and Q2): a grab's window held to GDD §20's 8–20 s for a
+/// friend to act, behind its flag, off until the director answers. Field docs live in enemies.json.
+/// </summary>
+public sealed record SocialWindow
+{
+    public bool On { get; init; }
+    public double Seconds { get; init; }
 }
 
 /// <summary>Tippy Toesie (v1.1 App. A.5, B.5). Field docs live in enemies.json.</summary>
@@ -1774,6 +1793,10 @@ public sealed record KnotterTuning
     public double SlipPerSecond { get; init; } = 0.45;
     public double CoilSeconds { get; init; } = 1.5;
     public double Health { get; init; } = 8;
+    /// <summary>Note 1051: on, the coil holds <see cref="SocialWindow.Seconds"/> before it pulls under (GDD §20's 8–20 s).</summary>
+    public SocialWindow TautHold { get; init; } = new() { Seconds = 8 };
+    /// <summary>How long a slip's coil holds before it pulls under: <see cref="TautHold"/>'s with it on, else <see cref="CoilSeconds"/>.</summary>
+    public double HoldSeconds => TautHold.On ? TautHold.Seconds : CoilSeconds;
     public Dictionary<string, double> TierWeights { get; init; } = new() { ["local"] = 1, ["frontier"] = 1.5, ["deadLines"] = 2, ["deepTerritory"] = 2.5 };
 }
 

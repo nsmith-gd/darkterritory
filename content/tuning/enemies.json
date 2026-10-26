@@ -284,7 +284,12 @@
   "whistler": {
     "stoppedBelow": 0.3, "whistleAfterStop": 4, "whistleSeconds": 2.5, "passReach": 1.6, "pairRadius": 3, "spotReach": 2.5,
     "runSpeed": 4.5, "nestDistance": 30, "nestMinDistance": 8, "nestStep": 4, "nestMaxSlope": 0.4, "nestMaxRise": 6, "nestSiteReach": 110,
-    "nestSeconds": 20, "health": 3, "stopWeight": 0.3, "minCars": 2
+    "nestSeconds": 20, "health": 3, "stopWeight": 0.3, "minCars": 2,
+    // Note 1051 (queue #750; GDD §20 criterion 3, "the kill takes long enough for a friend to act (8-20s)"; the director's
+    // question, note 1050 Q2): the 30 m run and the nest's 20 s kill at 26.7 s, past §20's ceiling. On, the whole carry (the
+    // run and the nest) takes `seconds`: the nest's wait shortened to fit, and none if the run alone is longer (eaten as it
+    // gets there). Off until the director answers: the long chase into the dark, as before.
+    "carry": { "on": false, "seconds": 20 }
   },
 
   // The world is solid (the director, 6 Oct 2026: "creatures, carries and players must respect the terrain and geometry";
@@ -799,7 +804,11 @@
   "knotter": {
     "boardAbove": 8, "minCars": 3, "creepSeconds": 4, "gap": 5, "forceSeconds": 6, "slackBelow": 0.3,
     "slipAbove": 2, "slipPerSecond": 0.45, "coilSeconds": 1.5, "health": 8,
-    "tierWeights": { "local": 1, "frontier": 1.5, "deadLines": 2, "deepTerritory": 2.5 }
+    "tierWeights": { "local": 1, "frontier": 1.5, "deadLines": 2, "deepTerritory": 2.5 },
+    // Note 1051 (queue #750; GDD §20 criterion 3, "the kill takes long enough for a friend to act (8-20s)"; the director's
+    // question, note 1050 Q1): a slip pulls under coilSeconds after, too soon for a friend not already at the gap. On, the
+    // line holds them taut `seconds` before it pulls under instead. Off until the director answers.
+    "tautHold": { "on": false, "seconds": 8 }
   },
 
   // The crew bots' answers to the six of 8 Oct (ARCHITECTURE §8 note 367; notes 362–367; not the creatures' own numbers, the

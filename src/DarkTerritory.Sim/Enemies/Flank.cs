@@ -321,7 +321,7 @@ public sealed class Whistler(int id) : Enemy(id)
                         Attached = Loose;
                         // How long the run to it takes (replicated: the nest's drawn under it once it's there).
                         Extra2 = run / t.RunSpeed;
-                        Grab(ctx, victim, run / t.RunSpeed + t.NestSeconds);
+                        Grab(ctx, victim, t.CarrySeconds(run / t.RunSpeed));
                         return;
                     }
                     return;

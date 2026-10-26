@@ -115,7 +115,7 @@ public static partial class Staging
             };
             var k = new Knotter(KnotterId);
             k.Restore(phase, seconds, t.Health, car, new Double3(g.PlateX, g.CouplerHeight, l + gap / 2), train.Dynamics.Distance, 0, (double)mode, 0, 0,
-                holding: mode == KnotterMode.Coil ? LoneId : -1, grabWindow: t.CoilSeconds);
+                holding: mode == KnotterMode.Coil ? LoneId : -1, grabWindow: t.HoldSeconds);
             threats.Add(k);
             if (mode == KnotterMode.Coil)
             {
