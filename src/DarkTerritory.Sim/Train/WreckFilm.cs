@@ -1623,7 +1623,8 @@ public sealed class WreckFilm
             var ground = lot.Ground;
             double length = (frames.Count - 1) * Dt;
             var shots = new List<FilmShot>();
-            var (wideEye, wideLook) = Wide(frames[Math.Min(frames.Count - 1, Rate / 2)], lot);
+            double estTo0 = Math.Min(length, t.EstablishingSeconds * t.BaseSlow);
+            var (wideEye, wideLook) = Wide(frames[Math.Min(frames.Count - 1, Rate / 2)], lot, t, start, frames, 0, estTo0);
             shots.Add(new FilmShot(ShotKind.Freeze, -1, t.FreezeSeconds, 0, 0, 1, wideEye, wideEye, wideLook, wideLook, 55, ""));
             double estTo = Math.Min(length, t.EstablishingSeconds * t.BaseSlow);
             shots.Add(new FilmShot(ShotKind.Establishing, -1, t.EstablishingSeconds, 0, estTo, 1, wideEye, wideEye + (wideLook - wideEye) * 0.08, wideLook, wideLook, 55, ""));
@@ -1643,7 +1644,7 @@ public sealed class WreckFilm
                     $"{p.Name.ToUpperInvariant()} - {p.Role.ToUpperInvariant()}", rig, rigAt)
                 { Cut = cut });
             }
-            var (endEye, endLook) = Wide(frames[^1], lot);
+            var (endEye, endLook) = Wide(frames[^1], lot, t, start, frames, Math.Max(0, length - t.SettleSeconds * (t.BaseSlow + 1) / 2), length);
             double settleFrom = Math.Max(0, length - t.SettleSeconds * (t.BaseSlow + 1) / 2);
             shots.Add(new FilmShot(ShotKind.Settle, -1, t.SettleSeconds, settleFrom, length, 1, endEye, endEye + (endLook - endEye) * -0.1, endLook, endLook, 55, ""));
             shots.Add(new FilmShot(ShotKind.Cause, -1, t.CauseSeconds, length, length, 1, endEye, endEye, endLook, endLook, 55, start.Cause));
@@ -1651,7 +1652,8 @@ public sealed class WreckFilm
         }
 
         /// <summary>E.4 O14: a wide of every ragdoll and the engine, from high on the side away from the consist's middle.</summary>
-        static (Double3 Eye, Double3 Look) Wide(FilmFrame frame, Lot lot)
+        /// <param name="from">The recorded seconds its shot shows, from and <paramref name="to"/> (a tunnel's wide is kept clear over them, note 1055).</param>
+        static (Double3 Eye, Double3 Look) Wide(FilmFrame frame, Lot lot, FilmTuning t, FilmStart start, IReadOnlyList<FilmFrame> frames, double from, double to)
         {
             var ground = lot.Ground;
             var points = frame.Ragdolls.Select(r => r[2]).Append(frame.Cars[0].Origin).ToList();
@@ -1672,11 +1674,16 @@ public sealed class WreckFilm
                 if (world.InRock(centre + Double3.Up * 12))
                 {
                     var back = (frame.Cars[0].Back with { Y = 0 }).Length > 1e-6 ? (frame.Cars[0].Back with { Y = 0 }).Normalized : new Double3(0, 0, 1);
-                    // Down the bore from whichever end is clear (of the rock and anything standing; the dollies' 10% either way too).
-                    bool Clear(Double3 e) => world.Touch(e, 0.5) is null && world.Touch(e + (e - centre) * 0.1, 0.5) is null && world.Touch(e - (e - centre) * 0.1, 0.5) is null;
-                    var tries = from far in new[] { Math.Min(60, extent * 1.5), 40, 25, 15 }
+                    // Down the bore from whichever end is clear (of the rock and anything standing, and of the cars and the bodies by
+                    // O4's lens clearance through its shot; the dollies' 10% either way too).
+                    bool Clear(Double3 e) => new[] { e, e + (e - centre) * 0.1, e - (e - centre) * 0.1 }.All(x => world.Touch(x, 0.5) is null
+                        && Enumerable.Range((int)(from * Rate), Math.Max(1, (int)Math.Ceiling(to * Rate) - (int)(from * Rate) + 1)).Select(f => frames[Math.Min(frames.Count - 1, f)])
+                            .All(fr => fr.Ragdolls.All(r => r.All(j => (j - x).Length >= t.LensClearance + t.CameraRadius))
+                                && fr.Cars.Select((c, i) => (c, i)).All(c => c.i >= start.Cars.Count || Outside(c.c, start.Cars[c.i], x) >= t.LensClearance + t.CameraRadius)));
+                    var tries = from far in new[] { Math.Min(60, extent * 1.5), 50, 40, 30, 25, 20, 15 }
                                 from way in new[] { 1.0, -1.0 }
-                                select world.Hold(centre + back * (way * far) + Double3.Up * 3, 0.5);
+                                from up in new[] { 3.0, 1.5, 5 }
+                                select world.Hold(centre + back * (way * far) + Double3.Up * up, 0.5);
                     eye = tries.FirstOrDefault(Clear, world.Hold(centre + back * Math.Min(60, extent * 1.5) + Double3.Up * 3, 0.5));
                 }
                 for (int k = 1; k <= 20 && world.InRock(eye); k++)
@@ -1807,6 +1814,13 @@ public sealed class WreckFilm
                 return (null, f0, -1, default);
             var (rigged, rigAt) = Rigging(start, frames, doll, f0, f1, chosen);
             return (chosen, best is null ? longest!.Value.Lost : -1, rigged, rigAt);
+        }
+
+        /// <summary>How far a point is outside a car's box (0 inside it).</summary>
+        static double Outside((Double3 Origin, Double3 Right, Double3 Up, Double3 Back) pose, FilmCar car, Double3 world)
+        {
+            var l = ToLocal(pose, world);
+            return new Double3(Math.Max(0, Math.Abs(l.X) - car.HalfWidth), l.Y < 0 ? -l.Y : Math.Max(0, l.Y - car.Height), Math.Max(0, Math.Abs(l.Z) - car.HalfLength)).Length;
         }
 
         static bool InBox((Double3 Origin, Double3 Right, Double3 Up, Double3 Back) pose, FilmCar car, Double3 world)
