@@ -493,8 +493,8 @@ Status: **open**, **claimed**, **in review** (a PR is up), **done** (merged). **
 | 741 | **Lit tells not lit enough (note 1037 ranks 1-2):** a car fire's first 15 s shows nothing from outside at 60 m (no smoke from the roof or the doors, no lit windows), and the Fire Flies are 0-4 px at 20 m (a few moths, their count and glow constants in `CreatureArt.FireFlies`). Effects: smoke and window glow from the first cell alight, scaled by intensity; the moths lit and the lamp's glass glowing as the swarm fills, their numbers moved to look.json. Checked with `dt tells --only carFire,fireFlies`. Size M. Effects (`IncidentArt`, `CreatureArt`) | nathaniel1 (n1-E1) | `n1-e1-lit-tells` | 1041 | working (26 Oct) |
 | 742 | **The visual tell audit's staging gaps (note 1037 ranks 8-9):** `dt tells` can't yet stand the Follower (it rides whoever is off the train), the Track Doll and the Choir (gone before the shot), or the Tapper (nobody at a gun); the Freight Beetle is behind the yard's sheds from every side; the Hotbox shows nothing 120 s in. Stage each in `TellAudit` (a crewmate stepped down, a moving train, a gunner, the eye on the beetle's track, the hotbox's glow checked against `dt screenshot --view hotbox`) and measure it. Size S. Developer tools (`src/DarkTerritory.Dev/Tells`) | nathaniel1 (n1-G1) | `n1-g1-tell-staging` | 1043 | working (26 Oct) |
 
-The GDD artifact (claude.ai/artifact/PrfaZjyZb1rWcWWuiPm1Dx) was republished on 26 Oct at about 01:50 UTC (nathaniel1, version 50,
-from main's gdd.md at f589d7fd, after #1799's buyer and #1803); whoever lands a gdd.md change republishes it.
+The GDD artifact (claude.ai/artifact/PrfaZjyZb1rWcWWuiPm1Dx) was republished on 26 Oct at about 04:50 UTC (nathaniel1, version 51,
+from main's gdd.md at d438b621, after #1833's and #1838's Part Eleven q4 and q8 markers); whoever lands a gdd.md change republishes it.
 
 ## Taking numbers (note 521)
 
