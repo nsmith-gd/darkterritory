@@ -2699,8 +2699,10 @@ public sealed partial class World
     /// </summary>
     public List<string> Beats { get; } = new();
     /// <summary>
-    /// Seconds out on the line with nothing happening: no beat, and nothing out there telegraphing, committing or punishing.
-    /// Counted from the gate (not in the yard, nor once the night's over). The director won't let it pass its pace.
+    /// Seconds out on the line with nothing happening: no beat, nothing out there telegraphing, committing or punishing, and
+    /// nothing working a harm on the train. Counted from the director's grace's end (not in the yard or the grace, not with
+    /// the crew all dead, nor once the night's over; note 1059). The director reads it with enemies.json
+    /// <c>pressure.pressQuietSeconds</c> set.
     /// </summary>
     public double QuietSeconds { get; private set; }
     /// <summary>
@@ -2711,6 +2713,8 @@ public sealed partial class World
     /// </summary>
     public double QuietMetres { get; private set; }
     DarkTerritory.Sim.Run.RunPhase _lastPhase;
+    /// <summary>The director's clock: the run's seconds when the yard's safe (note 263), else the world's.</summary>
+    double DirectorSeconds => Run is { Tuning.YardIsSafe: true } r ? r.Seconds : ElapsedSeconds;
 
     void Pace()
     {
@@ -2737,8 +2741,16 @@ public sealed partial class World
         // (the line's terminus_safe, the final approach): the quiet there is the night letting go (T74).
         double front = Train.Dynamics.Distance;
         bool home = HomeStretch;
-        bool out_ = (Run is null || Run.Phase is DarkTerritory.Sim.Run.RunPhase.Underway or DarkTerritory.Sim.Run.RunPhase.AtFacility) && !home;
+        bool out_ = (Run is null || Run.Phase is DarkTerritory.Sim.Run.RunPhase.Underway or DarkTerritory.Sim.Run.RunPhase.AtFacility) && !home
+            // Nor the director's grace (note 1059): the night's quiet spell of 20–90 s by design (note 266), a quiet the game
+            // means as the debt reads it; the pace is judged from its end, so a night with a long grace isn't over by rights.
+            && !(Director is { } director && DirectorSeconds < director.Grace)
+            // Nor a crew all dead (note 1059): the train stood on the line till dawn with nobody to be quiet for.
+            && (_context is not { } paced || paced.Crew.Count == 0 || paced.Crew.Any(c => c.Player.State.Alive));
         bool active = _enemies.Any(e => !e.Gone && e.Phase is SpinePhase.Telegraph or SpinePhase.Commit or SpinePhase.Punish)
+            // Nor while one works a harm on the train (note 881's Working: a Brakeman at the brakes, a Hotbox in its truck):
+            // the train's stood or burning, not quiet (note 1059: a Brakeman held a night at a stop 17 minutes, "quiet").
+            || _enemies.Any(e => !e.Gone && e.Working(this))
             // The line at its hardest (linegen plan §15.4): the director sends nothing of its own there because the terrain's
             // the problem, and a crew working a train over it isn't sitting through a quiet (T76).
             || Route?.Plan?.Director is { } context && context.PressureAt(front) >= context.PressureCeiling;
@@ -3002,7 +3014,7 @@ public sealed partial class World
             // haven't been out in the Territory for it.
             // Chosen, placed by its rule, then accounted only if it placed (note 885: the spawn transaction); told to the
             // encounter log (note 880) as it went.
-            else if (d.Choose(this, Run is { Tuning.YardIsSafe: true } r ? r.Seconds : ElapsedSeconds, _enemies, NoSpawnFinalApproach) is { } attempt)
+            else if (d.Choose(this, DirectorSeconds, _enemies, NoSpawnFinalApproach) is { } attempt)
             {
                 var outcome = d.Commit(this, attempt, Spawns.For(attempt.Kind) is { } rule
                     ? rule.Spawn(new SpawnContext(this, t, d) { Free = attempt.Free })

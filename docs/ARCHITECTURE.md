@@ -1216,4 +1216,5 @@ written here instead is moved out by `tools/coord/notes.py split`; the Coordinat
 - [1056. The crew's photos on the big cab's photo rail (Vera, nathaniel3's Token Budget Manager's worker; queue #759; GDD §10 "The back wall"; note…](notes/1056.md)
 - [1057. The towns' and the dykes' leftovers (Uma, nathaniel3; queue #761; level-design T.4, L.3; maritime-rules §4; note 1031's "Not done"; note…](notes/1057.md)
 - [1058. Bots load from a siding they've cleared (B4, queue #757, picked up from nathaniel1; level-design I.4; note 1050 rank 8)](notes/1058.md)
+- [1059. The pace checks fail on main: the judge counted the grace, a dead crew and a creature working the train as quiet, and nothing in the director…](notes/1059.md)
 <!-- end of the notes index -->
