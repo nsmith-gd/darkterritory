@@ -428,6 +428,9 @@ public static class Views
             // At the back wall (--kettle s, --cuckoo c): the kettle on its shelf, the cuckoo clock, the photo rail, the trophy
             // shelf and the crew's hooks, from the gallery's back tread.
             "backwall" => BackWallCamera(engine),
+            // (Not one of Names.) The photo rail close (note 1056): stood under it at the back wall, a crewmate's eye up at the
+            // frames over the left-hand way out, the crew's photos pinned in them (dt screenshot --rail a.png,b.png,...).
+            "photorail" => PhotoRailCamera(engine),
             // Square off the engine's left side, the whole of it: the short boiler still a steam engine's (smokebox, stack,
             // domes), the long cab with its gallery windows.
             "engineside" => Camera.LookAt(engine.ToWorld(new Double3(-17, 2.6, 0.5)), engine.ToWorld(new Double3(0, 2.4, 0.5)), 62),
@@ -674,6 +677,17 @@ public static class Views
         var floor = Art.TrainKit.GalleryFloor(engine.Shape);
         double top = floor?.Max.Y ?? deck, z = floor is { } f ? f.Min.Z + 0.55 : cab.Max.Z - 1;
         return Camera.LookAt(engine.ToWorld(new Double3(0.25, top + Eye, z)), engine.ToWorld(new Double3(0, deck + 1.2, cab.Min.Z - 30)), 75);
+    }
+
+    static Camera PhotoRailCamera(CarFrame engine)
+    {
+        var cab = engine.Shape.Cab!.Value;
+        double deck = cab.Min.Y + 0.1;
+        // Facing the back wall, its left-hand frames are at +X: from a step in from the wall and toward the middle, up at them.
+        var top = Art.TrainKit.PhotoFrame(engine.Shape, 0);
+        var low = Art.TrainKit.PhotoFrame(engine.Shape, 5);
+        var at = new Double3((top.X + low.X) / 2, (top.Y + low.Y) / 2, top.Z);
+        return Camera.LookAt(engine.ToWorld(new Double3(at.X - 0.5, deck + Eye, at.Z - 1.9)), engine.ToWorld(at), 50);
     }
 
     static Camera BackWallCamera(CarFrame engine)
