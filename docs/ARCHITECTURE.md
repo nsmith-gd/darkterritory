@@ -1202,4 +1202,5 @@ written here instead is moved out by `tools/coord/notes.py split`; the Coordinat
 - [1042. Dark creatures kept seeable on dark ground (n1-D1, nathaniel1's Token Budget Manager's worker; queue #740; note 1037 ranks 3-7;…](notes/1042.md)
 - [1043. The visual tell audit's staging gaps: `dt tells` stands every creature (n1-G1, nathaniel1's Token Budget Manager's worker; queue #742; note…](notes/1043.md)
 - [1045. Tower Jaw's fall is a punish (Ines, the Token Budget Manager's worker, nathaniel3; queue #743; note 1036's finding; GDD App. A.1, A.9,…](notes/1045.md)
+- [1049. The Stoker's cab eye in the visual tell audit (n1-D1, nathaniel1's Token Budget Manager's worker; queue #748, from #740's note 1042;…](notes/1049.md)
 <!-- end of the notes index -->
