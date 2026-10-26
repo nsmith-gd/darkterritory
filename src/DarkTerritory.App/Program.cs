@@ -2100,6 +2100,9 @@ CampaignState? Play(IPlaySession session, CampaignState? campaign)
         // The dark answering a draw (note 287): eyes at the lamp's edge.
         scene.Answer = session.World.Answer;
         scene.AnswerShowSeconds = session.World.Director?.Tuning.Draw.ShowSeconds ?? 7;
+        // Note 1056: the nights' crew photos pinned on the big cab's photo rail.
+        scene.Rail = crewMemory.RailPhotos();
+        (scene.RailCells, scene.RailGlow) = (Hud.Remembering.Rail.Cells, Hud.Remembering.Rail.Glow);
         // Watched afoot (note 327): eyes toward what lives at the stop.
         scene.Watcher = session.World.Watcher;
         // The night's odd things at the stops (note 730): a new night's are its own.

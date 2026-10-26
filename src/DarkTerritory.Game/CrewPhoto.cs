@@ -18,6 +18,16 @@ public sealed record MemoryTuning
     public PhotoTuning Photo { get; init; } = new();
     public LogbookTuning Logbook { get; init; } = new();
     public GalleryTuning Gallery { get; init; } = new();
+    public RailTuning Rail { get; init; } = new();
+}
+
+/// <summary>The big cab's photo rail (memory.json <c>rail</c>; note 1056). Field docs live in the file.</summary>
+public sealed record RailTuning
+{
+    public const string Latest = "latest", First = "first";
+    public string Keep { get; init; } = Latest;
+    public int Cells { get; init; } = 40;
+    public float Glow { get; init; } = 0.2f;
 }
 
 /// <summary>The crew photo at the gate (memory.json <c>photo</c>; GDD §9 Arrival, note 721). Field docs live in the file.</summary>
