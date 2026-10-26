@@ -168,7 +168,11 @@ public enum ShoreKind : byte { Sea, Fundy, Dyke, River }
 /// a dyke's crest <paramref name="DykeM"/> out, its fields <paramref name="FieldsM"/> under the rail (Dyke).
 /// </summary>
 public sealed record PlanShore(string Id, ShoreKind Kind, string Edge, double S0, double S1, int Side, double LevelM, double NearM, double CoveM,
-    double CoveWavelengthM, double Phase, double FlatM, double DykeM = 0, double FieldsM = 0);
+    double CoveWavelengthM, double Phase, double FlatM, double DykeM = 0, double FieldsM = 0)
+{
+    /// <summary>A dyke shore whose dyke is the railway grade (note 1057; the Tantramar's): no dyke of its own, the marsh under the line's bank.</summary>
+    public bool OnGrade => Kind == ShoreKind.Dyke && DykeM <= 0;
+}
 
 public enum LimitSource : byte { LineSpeed, Board, Form19, Restricted, Yard, Curve, Bridge, Brass }
 

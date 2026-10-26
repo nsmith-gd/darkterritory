@@ -148,7 +148,7 @@ public sealed partial class WorldArt
         /// a smear from the fields to the marsh, over an aboiteau's gate at its seaward toe; its own band of finer columns from
         /// a little short of its landward toe to a little past its seaward one draws it as the Sim's terrain has it.
         /// </remarks>
-        public IReadOnlyList<LakeBand> LakeBands => _lakeBands ??= [.. Plan.Lakes.Select(Band).OfType<LakeBand>(), .. Plan.Shores.Where(sh => sh.Kind == ShoreKind.Dyke).Select(Dyke)];
+        public IReadOnlyList<LakeBand> LakeBands => _lakeBands ??= [.. Plan.Lakes.Select(Band).OfType<LakeBand>(), .. Plan.Shores.Where(sh => sh.Kind == ShoreKind.Dyke && !sh.OnGrade).Select(Dyke)];
         LakeBand[]? _lakeBands;
 
         LakeBand Dyke(PlanShore sh)

@@ -229,8 +229,10 @@ public sealed record RoadRules(double[] OffsetM, double[] WanderM, double[] Wand
     double BankSlope, double MinM, double ClearM);
 
 /// <summary>Acadian dykeland (maritime-rules.md §4): hay fields dead flat under the rail, a dyke along the shore, salt marsh and mud past it.</summary>
+/// <param name="OnGrade">The share of dyke shores whose dyke is the railway grade itself (note 1057; the Tantramar's), the
+/// salt marsh right under the line's own bank, no dyke out past the fields.</param>
 public sealed record DykeRules(double FieldsBelowRailM, double HeightM, double CrestM, double SideSlope, double[] OutM, double MarshAboveWaterM, double LandwardM,
-    double MaxRailRangeM);
+    double MaxRailRangeM, double OnGrade = 0);
 
 /// <summary>§14.</summary>
 public sealed record WeatherRules(double FogLowGround, double FogCrest, double WindExposed, double WetAdhesion,

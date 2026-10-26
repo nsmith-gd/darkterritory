@@ -106,6 +106,10 @@ sealed partial class LineBuilder
             {
                 dyke = rng.Range(dr.OutM);
                 fields = dr.FieldsBelowRailM;
+                // Note 1057 (maritime-rules §4; the Tantramar: "the railway grade itself holds back the tide in places"): on
+                // a stream of its own, so nothing else moves, the grade is the dyke, the marsh right under the line's bank.
+                if (Rng("dyke-grade", "main", _shores.Count).NextDouble() < dr.OnGrade)
+                    dyke = 0;
                 // The dyke stands between the fields and the water: the shore is out past it.
                 near = Math.Max(near, dyke + dr.CrestM + dr.HeightM / dr.SideSlope + 12);
                 cove *= 0.3;

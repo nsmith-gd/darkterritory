@@ -293,7 +293,10 @@ public sealed partial class LinesideProps
                 if (chance > AboiteauChance || !Clear(along))
                     continue;
                 double seaward = sh.Side > 0 ? Math.PI / 2 : -Math.PI / 2;
-                double outer = sh.Side * (sh.DykeM + half + 0.4), inner = sh.Side * (sh.DykeM - half - 0.4);
+                // On the grade (note 1057) the box runs under the line: the gate at its bank's seaward foot, the intake at the
+                // landward one across the track.
+                double outer = sh.OnGrade ? sh.Side * GradeToe : sh.Side * (sh.DykeM + half + 0.4);
+                double inner = sh.OnGrade ? -sh.Side * GradeToe : sh.Side * (sh.DykeM - half - 0.4);
                 var gate = PieceOf("aboiteauGate", along, outer, seaward, 1, 0.3, variant, GroundAt(along, outer));
                 var intake = PieceOf("aboiteauIntake", along, inner, seaward + Math.PI, 1, 0.3, variant, GroundAt(along, inner));
                 // Both, or neither: half a sluice is nothing.
@@ -306,8 +309,23 @@ public sealed partial class LinesideProps
         }
     }
 
+    static bool Aboiteau(LinesideProp p) => p.Kind == LinesideKind.Piece && p.Species is "aboiteauGate" or "aboiteauIntake";
+
+    /// <summary>An aboiteau's other half: its gate's intake, or its intake's gate (the pair are dealt at one place along).</summary>
+    LinesideProp? Partner(LinesideProp p)
+    {
+        string other = p.Species == "aboiteauGate" ? "aboiteauIntake" : "aboiteauGate";
+        foreach (var q in Aboiteaux(p.Along - AboiteauEvery, p.Along + AboiteauEvery, double.MaxValue))
+            if (q.Species == other && q.Along == p.Along)
+                return q;
+        return null;
+    }
+
     /// <summary>How far apart the aboiteaux are along a dyke (m), and the share of those places that have one.</summary>
     const double AboiteauEvery = 260, AboiteauChance = 0.8;
+
+    /// <summary>How far out from the line its bank's foot is where the grade is the dyke (m): past its ballast and its fill.</summary>
+    const double GradeToe = 9;
 
     /// <summary>How often a 20 m cell of mudflat has a boat on it, and how far out across the flat it lies at most (of its width).</summary>
     const double MudBoats = 0.09, MudBoatOut = 0.4;
