@@ -143,6 +143,7 @@ public sealed partial class GameAudio
         Booster(train, rake, derailed);
         BedAirflow(world, train, rake, dt, derailed);
         BedLabour(train, rake, dt, derailed);
+        GrowthCreak(world, train, rake, dt, derailed);
         BendWarning(world, train, derailed);
         BoilerAlarms(train, engine, dt, primed);
         TrainDamage(train, engine, rake);
@@ -447,6 +448,31 @@ public sealed partial class GameAudio
         {
             double z = (_trainRng.Next() * 2 - 1) * nearest.Shape.HalfLength;
             Cue("bed-groan.creak", nearest.ToWorld(new Double3(0, 1.5, z)), Occlusion(nearest.Index), (float)(0.4 + 0.6 * _trainRng.Next()));
+        }
+    }
+
+    /// <summary>
+    /// The corruption grown on the train (note 1039; World.Growth, look.json trainGrowth): a car grown past creakFrom (under
+    /// it, or at either of its couplings) creaks wetly at creakSpeed and over, the more the faster and the more it's grown.
+    /// The train's rake speed and the world's growth, as this machine has them: nothing's sent.
+    /// </summary>
+    void GrowthCreak(World world, TrainOnLine train, TrainDynamics rake, double dt, bool derailed)
+    {
+        if (derailed || world.Growth is not { } grown || rake.Speed < Growth.CreakSpeed)
+            return;
+        double fast = Math.Clamp(rake.Speed / (2 * Growth.CreakSpeed), 0.5, 1);
+        for (int i = 0; i < train.Vehicles.Count && i < train.Frames.Count; i++)
+        {
+            int id = train.Vehicles[i].Id;
+            double g = Math.Max(grown.Car(id), Math.Max(id > 0 ? grown.Coupling(id - 1) : 0, grown.Coupling(id)));
+            if (g < Growth.CreakFrom)
+                continue;
+            double over = (g - Growth.CreakFrom) / Math.Max(1e-6, 1 - Growth.CreakFrom);
+            if (!Odds(Growth.CreaksPerSecond * (0.3 + 0.7 * over) * fast, dt))
+                continue;
+            var car = train.Frames[i];
+            double z = (_trainRng.Next() * 2 - 1) * car.Shape.HalfLength;
+            Cue("train-growth.creak", car.ToWorld(new Double3(0, 0.9, z)), Occlusion(i), (float)(0.5 + 0.5 * over));
         }
     }
 

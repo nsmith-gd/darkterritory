@@ -17,7 +17,7 @@ static class WreckCommands
         // Into a 300 m curve at speed: the engine goes off its outside, the rest after it.
         // --straight: on the level and straight (a Sleeper, points run through), nothing to throw it but the kick.
         var line = args.Contains("--straight") ? new RailLine(new LineDefinition("wreck", [new TrackSegment(5000)]))
-            : new RailLine(new LineDefinition("wreck", [new TrackSegment(2000), new TrackSegment(600, 1 / 300.0), new TrackSegment(2000)]));
+            : new RailLine(new LineDefinition("wreck", [new TrackSegment(2000), new TrackSegment(600, 300), new TrackSegment(2000)]));
         var train = new TrainOnLine(new TrainDynamics(Consist.Uniform(trainTuning, cars, 1)), line, 2250);
         train.Dynamics.Velocity = speed;
         var world = new World(train) { WreckTuning = tuning };
@@ -79,7 +79,7 @@ static class WreckCommands
             foreach (double speed in speeds)
             {
                 var line = args.Contains("--straight") ? new RailLine(new LineDefinition("wreck", [new TrackSegment(5000)]))
-                    : new RailLine(new LineDefinition("wreck", [new TrackSegment(2000), new TrackSegment(600, 1 / 300.0), new TrackSegment(2000)]));
+                    : new RailLine(new LineDefinition("wreck", [new TrackSegment(2000), new TrackSegment(600, 300), new TrackSegment(2000)]));
                 var train = new TrainOnLine(new TrainDynamics(Consist.Uniform(trainTuning, cars, 1)), line, 2250);
                 train.Dynamics.Velocity = speed;
                 train.RefreshFrames();
@@ -111,7 +111,16 @@ static class WreckCommands
                     crew,
                     speed,
                     pass = ok,
-                    interpenetration = new { over = probe.Over, inside = probe.Inside, seen = probe.Seen, deepest = Math.Round(probe.Deepest, 4), at = Math.Round(probe.At, 3), what = probe.What },
+                    interpenetration = new
+                    {
+                        over = probe.Over,
+                        inside = probe.Inside,
+                        seen = probe.Seen,
+                        deepest = Math.Round(probe.Deepest, 4),
+                        at = Math.Round(probe.At, 3),
+                        what = probe.What,
+                        worst = probe.Worst.Select(w => new { depth = Math.Round(w.Depth, 4), at = Math.Round(w.At, 3), w.What })
+                    },
                     camera = faults,
                 });
             }
