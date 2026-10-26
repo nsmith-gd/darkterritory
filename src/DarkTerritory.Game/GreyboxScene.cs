@@ -858,6 +858,9 @@ public sealed partial class GreyboxScene
             creatures.FireDoorOpen = FireDoorOpen
                 ? Art.TrainKit.FireDoor(frames[0].Shape) - ToF(frames[0].Shape.Interactables.First(i => i.Kind == InteractableKind.Firebox).Position)
                 : null;
+        // The headlamp, for a Track Doll's glaze to catch (Art/CreatureArt.HeadlampLit).
+        if (Look?.Art.Creatures is { } headlamp)
+            headlamp.HeadlampLit = LampLit;
         // On the stack's rim, looking down the boiler at the cab (App. A.5 "it perches on the smokestack").
         double down = StokerLowFor - (StokerDownAt - StokerDescendSeconds);
         if (StokerLowFor >= 0 && down < StokerDescendSeconds && Look?.Art.Creatures is { } perching && frames.Count > 0
