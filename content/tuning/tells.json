@@ -36,7 +36,7 @@
   // creature to aim (m over where it stands), and what the tell is. Distances cite the creature's own number where it has
   // one (enemies.json); the rest are the distance its answer needs (the gym's notes: brake, run, call it out). "settle":
   // its own seconds before the shot (a fire taking hold), or for those the audit waits on, the most it waits (the Choir's ghosts
-  // to come, the Track Doll to be warnM ahead of the cab, Hotbox to glow). "moving": the train held at this speed (m/s) from the
+  // to come, the Track Doll to be warnM ahead of the cab, Hotbox to glow, the Tapper to tap, Tippy Toesie to come out). "moving": the train held at this speed (m/s) from the
   // call to the shot (note 1043: the Track Doll goes from a standing train, the Tapper leaves one under enemies.json tapper
   // leaveBelow, and Hotbox at a stand comes half out of its truck instead of glowing; the audit gives it its knockSeconds' heat).
   // "hidden": why it's out of sight on purpose until it acts: drawn and measured, never counted a failure.
@@ -55,7 +55,7 @@
     "trackDoll":     { "warnM": 60, "from": ["cab"], "aim": 0.4, "what": "a doll on the rail in the headlamp", "settle": 40, "moving": 12 },
     "carHugger":     { "warnM": 30, "from": ["roof", "foot"], "aim": 1.0, "what": "a mass under the line clamping the last car" },
     "whistler":      { "warnM": 12, "from": ["gap"], "aim": 1.2, "what": "a shape waiting in a coupling gap" },
-    "tippyToesie":   { "warnM": 6,  "from": ["foot"], "aim": 1.0, "what": "something right behind you when you turn" },
+    "tippyToesie":   { "warnM": 6,  "from": ["foot"], "aim": 1.0, "what": "something right behind you when you turn", "settle": 15 },
     "fireFlies":     { "warnM": 20, "from": ["roof", "foot"], "aim": 0.0, "what": "a swarm round a lit car's lamp", "settle": 4 },
     "ribbit":        { "warnM": 25, "from": ["foot"], "aim": 0.4, "what": "a pack coming out of the warren, throats swelling" },
     "grumbler":      { "warnM": 20, "from": ["foot"], "aim": 0.6, "what": "a hunched gnawer at the castings" },

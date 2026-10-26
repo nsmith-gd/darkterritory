@@ -25,14 +25,15 @@ public class TellAuditTests
 
     /// <summary>
     /// Note 1043: what the gym's call alone couldn't stand (the Follower on a crewmate stepped down, the Track Doll ahead of a
-    /// moving train, the Choir's ghosts come, the Tapper behind a gunner, Hotbox glowing, the Freight Beetle seen on its track)
+    /// moving train, the Choir's ghosts come, the Tapper behind a gunner, Hotbox glowing, the Freight Beetle seen on its track,
+    /// Tippy Toesie out behind someone stood still on the ground)
     /// is staged, and is in its frame: something of it differs from the frame without it from every viewpoint. (Whether it's
     /// seen enough is the audit's table, not this.)
     /// </summary>
     [Fact]
     public void TheCreaturesTheGymCantStandAloneAreStagedAndInFrame()
     {
-        string[] staged = ["follower", "trackDoll", "choir", "tapper", "hotbox", "freightBeetle"];
+        string[] staged = ["follower", "trackDoll", "choir", "tapper", "hotbox", "freightBeetle", "tippyToesie"];
         TellAudit.Report report;
         try { report = TellAudit.Run(Content, staged, ["clear"], output: null); }
         catch (Ballast.Render.GpuUnavailableException e) { Assert.Skip($"no Vulkan: {e.Message}"); throw; }

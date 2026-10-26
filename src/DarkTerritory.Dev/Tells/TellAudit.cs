@@ -58,7 +58,9 @@ public static class TellAudit
         using var shot = new WorldShot(content, host.World.Route, tuning.Width, tuning.Height) { Forgetful = true };
         if (output is not null)
             Directory.CreateDirectory(output);
-        var names = only ?? [.. tuning.Tells.Keys];
+        // Those staged on a moving train last (note 1043): put back where it stood, the night still isn't as it was (the stop
+        // left and come back to), and the Moose and Tippy Toesie called after it couldn't come.
+        var names = (only ?? [.. tuning.Tells.Keys]).OrderBy(n => tuning.Tells.TryGetValue(n, out var e) && e.Moving > 0).ToList();
         var nights = conditions ?? [.. tuning.Conditions.Keys];
         double scale = 720.0 * 720.0 / ((double)tuning.Height * tuning.Height);
         var tells = new List<Tell>();
@@ -73,7 +75,9 @@ public static class TellAudit
             // Where the train stood: a tell staged on a moving train (tells.json "moving") puts it back after.
             var (home, track) = (train.Dynamics.Distance, train.Dynamics.Path);
             host.Stand(you, Stage(host, you, kind));
-            Step(night, gym, host, 0.2);
+            // Tippy Toesie comes out only for whoever's already stood still and alone its idleSeconds: hidden, it waits at the
+            // line's start, and the night lets it go from there the next tick.
+            Step(night, gym, host, kind == EnemyKind.TippyToesie && host.World.Enemies is { } et ? et.TippyToesie.IdleSeconds + 0.2 : 0.2);
             var called = gym.Call(host, you, kind);
             Prime(host, you, tell, called.Ids);
             Step(night, gym, host, tell.Settle ?? tuning.Settle, tell.Moving, () => Ready(host, you, kind, tell, called.Ids));
@@ -303,8 +307,8 @@ public static class TellAudit
     }
 
     /// <summary>
-    /// Where the caller stands before the call (note 1043): in the cab, as the gym stands them; stepped down onto the stop's
-    /// ground for the Follower (it rides only whoever's off the train, on a follower ground where the stop has one); seated at
+    /// Where the caller stands before the call (note 1043): in the cab, as the gym stands them; on the ground beside it for
+    /// Tippy Toesie (it comes up behind whoever's stood still and alone); stepped down onto the stop's ground for the Follower (it rides only whoever's off the train, on a follower ground where the stop has one); seated at
     /// a gun for the Tapper (it comes only behind a gunner).
     /// </summary>
     static PlayerState Stage(HostSession host, byte you, EnemyKind kind)
@@ -312,7 +316,17 @@ public static class TellAudit
         var was = host.Players.First(p => p.Id == you).State;
         var train = host.World.Train;
         var state = PlayerMotor.SpawnInCab(train, host.PlayerTuning);
-        if (kind == EnemyKind.Follower)
+        if (kind == EnemyKind.TippyToesie)
+        {
+            // A step off the cab's side, on the ground, facing the train, so behind them is open ground: in the cab, "behind"
+            // is clamped into the cab's few feet, and toward the engine is the gym's safe ring, which drives it off as it comes.
+            var away = train.Frames[0].Right;
+            var spot = PlayerMotor.WorldPosition(state, train) + away * (train.Frames[0].Shape.HalfWidth + 3);
+            double hint = train.Dynamics.Distance;
+            train.Line.Nearest(spot, ref hint);
+            state = PlayerMotor.SpawnOnGround(spot, train.Line, hint, host.PlayerTuning) with { Yaw = Math.Atan2(away.X, away.Z) };
+        }
+        else if (kind == EnemyKind.Follower)
         {
             var cab = PlayerMotor.WorldPosition(state, train);
             var ground = host.World.Enemies is { } t ? CreatureSites.Of(host.World, Sim.Stops.LairKind.FollowerGround, t.Sites.Around) : [];
@@ -339,8 +353,8 @@ public static class TellAudit
     /// <summary>
     /// Whether the creature's in the pose its tell is of (note 1043), for those that come to it over time: the Choir's ghosts
     /// come (it gathers first), the Track Doll is the tell's distance ahead of the cab on a moving train, Hotbox glows, the
-    /// Tapper's up on its knees behind the gunner, tapping (its telegraph; crawling up, it lies flat). The rest are as the gym
-    /// calls them.
+    /// Tapper's up on its knees behind the gunner, tapping (its telegraph; crawling up, it lies flat), Tippy Toesie's come out
+    /// behind the caller. The rest are as the gym calls them.
     /// </summary>
     static bool Ready(HostSession host, byte you, EnemyKind kind, TellTuning.Entry tell, IReadOnlyList<int> ids)
     {
@@ -353,6 +367,7 @@ public static class TellAudit
             EnemyKind.TrackDoll => called.Any(e => ((e.WorldPosition(world.Train) - me) with { Y = 0 }).Length <= tell.WarnM),
             EnemyKind.Hotbox => called.OfType<Hotbox>().Any(h => h.Mode == HotboxMode.Glow),
             EnemyKind.Tapper => called.OfType<Tapper>().Any(t => t.Mode == TapperMode.Tap),
+            EnemyKind.TippyToesie => called.OfType<TippyToesie>().Any(t => !t.Hidden),
             _ => false,
         };
     }
