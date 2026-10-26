@@ -1192,4 +1192,5 @@ written here instead is moved out by `tools/coord/notes.py split`; the Coordinat
 - [1031. The towns' and the shore's leftovers (Uma, nathaniel3; queue #734; level-design T.4, maritime-rules §4; note 1026's rank 10)](notes/1031.md)
 - [1032. What the harness verifies: the checks the GDD promised that nothing ran (Silas, the Token Budget Manager's worker, nathaniel3; queue #735;…](notes/1032.md)
 - [1034. Moments and the reel: commendation clips instead of stills (n1-H2, nathaniel1's Token Budget Manager's worker; queue #256, carried on from…](notes/1034.md)
+- [1039. Corruption seen growing on the train: black, wet and veined at the couplings, under the cars and in the tender, where boarders came on, a…](notes/1039.md)
 <!-- end of the notes index -->

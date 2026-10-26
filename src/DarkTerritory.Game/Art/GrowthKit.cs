@@ -34,6 +34,7 @@ public static class GrowthKit
             else if (!engine)
                 Underneath(k, rng, l, w, Share(own));
         }
+        k.Emissive = 0;
         return k.Build("train-growth");
     }
 
@@ -41,13 +42,23 @@ public static class GrowthKit
     const float Under = 0.98f, Sill = 1.05f, CouplerY = 0.9f;
 
     /// <summary>The wet black crust: the tar's, near-black and glossy.</summary>
-    static void Crust(Kit k) => k.Use("tar", Palette.SootBlack, 0.1f, 0.9f, tile: 0.6f);
+    static void Crust(Kit k)
+    {
+        k.Emissive = 0;
+        k.Use("tar", Palette.SootBlack, 0.1f, 0.35f, tile: 0.6f);
+        k.Shade(0.35f);
+    }
 
-    /// <summary>The veins through it: dark, a bruise's red under the black, wet.</summary>
+    /// <summary>
+    /// The veins through it: a bruise's red under the black, wet, and faintly lit from inside (as the Corruption's trees'
+    /// pods are, note 696), so they read on a car's dark side at night where the black crust alone wouldn't.
+    /// </summary>
     static void Veins(Kit k)
     {
-        k.Use("flesh", new Vector3(0.2f, 0.05f, 0.07f), 0.2f, 0.75f);
-        k.Shade(0.45f);
+        k.Use("flesh", new Vector3(0.42f, 0.06f, 0.1f), 0.2f, 0.75f);
+        // (Over the flesh's texture too: Use leaves a texture untinted.)
+        k.Tint = new Vector3(0.5f, 0.08f, 0.11f);
+        k.Emissive = 0.32f;
     }
 
     /// <summary>A lump of the growth: a squashed, uneven blob of <paramref name="r"/>'s half-sizes round <paramref name="c"/>.</summary>
@@ -67,7 +78,7 @@ public static class GrowthKit
             }
             rings.Add(ring);
         }
-        k.Loft(rings, closed: true);
+        k.Loft(rings, closed: true, facing: Vector3.Zero);
         k.Cap(rings[0], -Vector3.UnitY);
         k.Cap(rings[^1], Vector3.UnitY);
     }
@@ -82,7 +93,7 @@ public static class GrowthKit
         int steps = Math.Max(2, (int)(length / 0.18f));
         for (int i = 0; i < steps; i++)
         {
-            var next = at + dir * (length / steps) + kink * (float)(rng.NextDouble() - 0.5) * 0.16f;
+            var next = at + dir * (length / steps) + kink * (float)(rng.NextDouble() - 0.5) * 0.4f;
             k.Rod(at, next, r * (1 - 0.6f * i / steps), 4);
             at = next;
         }
@@ -178,8 +189,9 @@ public static class GrowthKit
         {
             int side = rng.Next(2) * 2 - 1;
             float z = ((float)rng.NextDouble() * 2 - 1) * span * (0.35f + 0.65f * g);
-            var from = new Vector3(side * (w + 0.012f), Sill - 0.08f, z);
-            Vein(k, rng, from, Vector3.UnitY, Vector3.UnitZ, 0.2f + 0.9f * g * (0.4f + 0.6f * (float)rng.NextDouble()), 0.018f);
+            // (Proud of the boards' relief, which stands a little off the body's bounds.)
+            var from = new Vector3(side * (w + 0.05f), Sill - 0.08f, z);
+            Vein(k, rng, from, Vector3.UnitY, Vector3.UnitZ, 0.2f + 0.9f * g * (0.4f + 0.6f * (float)rng.NextDouble()), 0.04f);
         }
         // Along the sill itself, a black bead of it under the boards.
         Crust(k);
@@ -189,7 +201,7 @@ public static class GrowthKit
             for (int i = 0; i < beads; i++)
             {
                 float z = ((float)rng.NextDouble() * 2 - 1) * span * (0.3f + 0.7f * g);
-                Lump(k, rng, new Vector3(side * (w - 0.02f), Sill - 0.06f, z), new Vector3(0.05f + 0.04f * g, 0.05f + 0.03f * g, 0.25f + 0.5f * g));
+                Lump(k, rng, new Vector3(side * (w + 0.02f), Sill - 0.06f, z), new Vector3(0.07f + 0.06f * g, 0.07f + 0.05f * g, 0.3f + 0.6f * g));
             }
         }
     }
