@@ -758,7 +758,14 @@
     "minCrew": 2, "minCars": 4, "movingAbove": 3, "climbSeconds": 2, "walk": 2.5, "flee": 5, "windSeconds": 4,
     "spook": 12, "lose": 20, "hide": [30, 60], "cornerSpan": 10, "lashEvery": 2.5, "lashReach": 2.5, "lashDamage": 30, "health": 4,
     "perCarsWeight": 6, "climbWeight": 2, "climbAhead": 1000, "climbPercent": 2,
-    "tierWeights": { "local": 1, "frontier": 1.5, "deadLines": 2, "deepTerritory": 2.5 }
+    "tierWeights": { "local": 1, "frontier": 1.5, "deadLines": 2, "deepTerritory": 2.5 },
+    // His voice on the crew's radio (GDD Part Eleven q4, "a voice on your own channel that isn't crew"; queue #729, ARCHITECTURE
+    // §8 note 1040). OFF until the director answers note 1026's Q1. On: at most once a night, while he's hidden (out of sight)
+    // at least hiddenFor s with no living crewmate within farFrom m of him (never near), he says on the radio channel only, to
+    // everyone with a radio but the crewmate whose voice it is, a few words that crewmate said on the radio themselves: one
+    // of their radio utterances (at least minSeconds long, cut to maxSeconds) that ended between minAge and within s ago,
+    // picked by the night's seed. The night's report names it. The Passenger never speaks (its tell), so it's him.
+    "radio": { "on": false, "hiddenFor": 3, "farFrom": 26, "minSeconds": 0.6, "maxSeconds": 2.5, "minAge": 20, "within": 900 }
   },
 
   // HOTBOX · vibration · train (GDD §21, App. A.3, B.3; the director's brief of 8 Oct 2026; ARCHITECTURE §8 note 367;

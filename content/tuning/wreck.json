@@ -132,6 +132,10 @@
     // E.11's checks of the finished film (note 1032; FilmTests, dt wreck --film): "no particle rests inside a solid by more
     // than 2 cm at the end of any substep" (restInside, m), and E.4 O3's camera "at least 1 m above terrain and water"
     // (groundClearance, m; the planner holds its candidates to the same 1 m).
-    "restInside": 0.02, "groundClearance": 1
+    "restInside": 0.02, "groundClearance": 1,
+    // A body pinned between the ground and a car come down on it (E.3: "one that comes down on a body pins it, which crushes
+    // it. Nothing is pushed out to somewhere safe") is crushed flat where it lies, each pinned joint no bigger than the gap,
+    // so it's in neither (E.11; note 1035). false: as before note 1035, the joint fought between the two, up to 32 cm in.
+    "flatten": true
   }
 }

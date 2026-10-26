@@ -296,5 +296,15 @@
       "salt":       { "length": 540, "left": 150, "right": 150, "lot": [6.5, 9.5], "lotDepth": 7,  "setback": 0.6, "waterLevel": -0.6, "waterDepth": 0.5, "terraceLevel": 0, "margin": 110, "packed": true },
       "crag":       { "length": 560, "left": 160, "right": 160, "lot": [6.5, 9.5], "lotDepth": 7,  "setback": 0.6, "waterLevel": -3.0, "waterDepth": 1.6, "terraceLevel": 16, "rise": 12, "margin": 190, "roll": 5, "packed": true }
     }
-  }
+  },
+
+  // The houses with floors (queue #725, ARCHITECTURE §8 note 1022; the director, 23 Oct 2026, docs/playtest/2026-10-23.md
+  // line 36: "more complex houses that have multiple levels, including basements. Those basements should get pretty dark";
+  // #710's villages carried to the towns, note 1005). Of the open houses (their household at home), those of two storeys
+  // have an upstairs at "upstairs" (up a flight in the parlour: the bedrooms, lamplit, and a window onto the porch roof
+  // out the back), and any has a cellar at "cellar" (down a hatch's ladder, dark). A burnt house keeps its cellar at
+  // "burntCellar" (its floor burnt through over it). Of the boarded houses, "boarded" are left as they were inside, their
+  // door's boards prised off, no more than "boardedMost" a town (the nearest the square first), their floors at the
+  // open houses' shares. First readings: every open house that can has an upstairs, most a cellar.
+  "floors": { "enabled": true, "upstairs": 1.0, "cellar": 0.8, "burntCellar": 0.6, "boarded": 0.25, "boardedMost": 2 }
 }

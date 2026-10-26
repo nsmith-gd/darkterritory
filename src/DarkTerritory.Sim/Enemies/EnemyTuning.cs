@@ -1715,6 +1715,23 @@ public sealed record BrakemanTuning
     public double ClimbAhead { get; init; } = 1000;
     public double ClimbPercent { get; init; } = 2;
     public Dictionary<string, double> TierWeights { get; init; } = new() { ["local"] = 1, ["frontier"] = 1.5, ["deadLines"] = 2, ["deepTerritory"] = 2.5 };
+    /// <summary>His voice on the crew's radio (GDD Part Eleven q4; note 1040): off by default.</summary>
+    public RadioVoiceTuning Radio { get; init; } = new();
+}
+
+/// <summary>
+/// A corrupted human on the crew's radio (GDD Part Eleven q4; queue #729, ARCHITECTURE §8 note 1040). Field docs live in
+/// enemies.json <c>brakeman.radio</c>. Off until the director answers note 1026's Q1.
+/// </summary>
+public sealed record RadioVoiceTuning
+{
+    public bool On { get; init; }
+    public double HiddenFor { get; init; } = 3;
+    public double FarFrom { get; init; } = 26;
+    public double MinSeconds { get; init; } = 0.6;
+    public double MaxSeconds { get; init; } = 2.5;
+    public double MinAge { get; init; } = 20;
+    public double Within { get; init; } = 900;
 }
 
 /// <summary>Hotbox (GDD §21, App. A.3, B.3; ARCHITECTURE §8 note 367). Field docs live in enemies.json.</summary>

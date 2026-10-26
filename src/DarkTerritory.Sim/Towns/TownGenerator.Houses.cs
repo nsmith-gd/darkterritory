@@ -407,6 +407,10 @@ public static partial class TownGenerator
             homes.Party = folk!.Writing.Party;
         var families = folk is not null ? new Deck<string>(folk.Families(rngFor("houses.families")), null) : new Deck<string>([.. content.Surnames], rngFor("houses.families"));
         var srng = rngFor("houses.spots");
+        // Note 1022: the houses' floors, and the boarded ones left as they were inside, on a stream of their own.
+        var frng = rngFor("houses.floors");
+        var ft = t.Floors;
+        int leftOpen = 0;
         string Empty(string kind) => w.EmptyHouses.TryGetValue(kind, out var texts) && texts.Length > 0 ? looks.Pick(texts) : "";
         for (int i = 0; i < sizes.Count + lostHouses; i++)
         {
@@ -460,8 +464,42 @@ public static partial class TownGenerator
             if (character.Hull > 0 && layout is null && hullRng.Chance(character.Hull))
                 design = design with { Hull = true };
             var fl = row < 0 ? form!.Lots[i] : null;
+            // Note 1022: its floors. Every house draws alike, so whichever it is the next is as it would be.
+            double fUp = frng.NextDouble(), fCellar = frng.NextDouble(), fLeft = frng.NextDouble();
+            HouseLayout? left = null;
+            bool upstairs = false, cellar = false;
+            if (ft.Enabled)
+            {
+                // A boarded house left as it was (towns.json floors.boarded): standing square (its rooms are the rail frame's,
+                // as an open one's), no enclosed porch or hull, its door far enough off the middle to be its kitchen's.
+                double doorOff = Math.Abs(design.DoorU);
+                if (kind == HouseKind.Boarded && leftOpen < ft.BoardedMost && fLeft < ft.Boarded && !design.Hull && design.Porch != HousePorch.Vestibule
+                    && (fl?.Turn ?? 0) == 0 && doorOff >= HouseLayout.PassWidth / 2 + HouseLayout.DoorWidth / 2 + 0.25 && doorOff <= width / 2 - HouseLayout.DoorWidth / 2 - 0.3)
+                {
+                    left = HouseLayout.For(width, depth, Math.Sign(design.DoorU)) with { DoorU = design.DoorU };
+                    leftOpen++;
+                    if (w.EmptyHouses.TryGetValue("prised", out var prised) && prised.Length > 0)
+                        text = frng.Pick(prised);
+                }
+                if (layout is not null || left is not null)
+                {
+                    upstairs = design.Storeys >= 2 && design.Eaves >= TownFloors.Storey + 2.2 && fUp < ft.Upstairs;
+                    cellar = fCellar < ft.Cellar;
+                    layout = layout?.Floored(width, depth, upstairs, cellar);
+                    left = left?.Floored(width, depth, upstairs, cellar);
+                }
+                else if (kind == HouseKind.Burnt)
+                    cellar = fCellar < ft.BurntCellar;
+            }
             var house = new TownHouse(i, s, d0, sd, width, depth, kind, design, family, text, layout)
-            { Party = i == partyAt && layout is not null, Level = fl?.Level ?? 0, Turn = layout is null ? fl?.Turn ?? 0 : 0 };
+            {
+                Party = i == partyAt && layout is not null,
+                Level = fl?.Level ?? 0,
+                Turn = layout is null && left is null ? fl?.Turn ?? 0 : 0,
+                Upstairs = upstairs,
+                Cellar = cellar,
+                Left = left,
+            };
             if (fl is not null)
             {
                 // A town type's lot (note 692): a yard only where it's square to the line and has room behind.
@@ -483,7 +521,7 @@ public static partial class TownGenerator
             // Nothing ruled straight (note 490): a shut house on a street a few degrees off true, the row across the green's
             // far street turned to it; no further than its lot has room for, its yard square to the lot.
             double turnDraw = trng.NextDouble(), turnBy = trng.Range(wt.Turn[0], wt.Turn[1]) * (trng.Chance(0.5) ? 1 : -1);
-            if (layout is null && row > 0)
+            if (layout is null && left is null && row > 0)
             {
                 double deg = turnDraw < wt.TurnChance ? turnBy : 0;
                 if (homes.Green is { } g && row == 4 && Math.Sign(d0) == side && s > g.S0 - CrescentPast && s < g.S1 + CrescentPast)

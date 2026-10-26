@@ -4694,6 +4694,8 @@ public sealed partial class GreyboxScene
     {
         /// <summary>A house with a basement (note 1005): how far under its ground floor's boards the basement's floor is, its dark room.</summary>
         public float Cellar { get; init; }
+        /// <summary>A house of parts' (note 1022): which of its parts the cellar's under (null: all of them).</summary>
+        public IReadOnlyList<int>? CellarParts { get; init; }
     }
 
     /// <summary>The light indoors (note 475): the look's, or the old numbers for the greybox.</summary>
@@ -4760,8 +4762,13 @@ public sealed partial class GreyboxScene
                     bool storeyed = Sim.Run.StopWalls.Storeyed(b);
                     houses.Add(new OpenHouse(o, (At(1, 0) - o).Normalized, (At(0, 1) - o).Normalized, parts,
                         light is var (lx, ly, height, _) ? At(lx, ly) + Double3.Up * height : null, light?.Lamp ?? false, (int)(f.Start * 7 + i),
-                        storeyed ? Art.TownKit.Eaves(b) - 0.17f - Art.TownKit.LevelLift(b, 0) : 3.0f, Feature: fi, Building: i)
-                    { Cellar = b.Basement && storeyed ? (float)Sim.Run.StopWalls.Cellar : 0 });
+                        storeyed ? Art.TownKit.Eaves(b) - 0.17f - Art.TownKit.LevelLift(b, 0) : Sim.Run.StopWalls.PartUp(b) ? Art.TownKit.PartEaves - 0.17f : 3.0f,
+                        Feature: fi, Building: i)
+                    // (A house of parts' cellar, note 1022, under its floored part only.)
+                    {
+                        Cellar = b.Basement && storeyed || Sim.Run.StopWalls.PartDown(b) ? (float)Sim.Run.StopWalls.Cellar : 0,
+                        CellarParts = Sim.Run.StopWalls.PartDown(b) ? [.. Sim.Run.StopWalls.FlooredParts(b).Where(p => Sim.Run.StopWalls.PartHatch(b, p) is not null)] : null,
+                    });
                 }
             }
             _openHouses = cached = (route, line, houses);
@@ -4793,7 +4800,7 @@ public sealed partial class GreyboxScene
                 var centre = h.Origin + h.X * part.X + h.Y * part.Y + Double3.Up * ((wallHeight - Under) / 2);
                 mesh.Rooms.Add(new Room(Vector3.Transform(V(centre, eye), moved.Moved), right, up, back, new Vector3((float)part.Length / 2, (wallHeight + Under) / 2, (float)part.Width / 2)));
                 // Its basement (note 1005), a dark room under the boards: lit by little but a hand lamp.
-                if (h.Cellar > 0)
+                if (h.Cellar > 0 && (h.CellarParts is null || h.CellarParts.Contains(h.Parts.ToList().IndexOf(part))))
                 {
                     float deep = h.Cellar - (float)Sim.Run.StopWalls.Slab + Under;
                     var under = h.Origin + h.X * part.X + h.Y * part.Y + Double3.Up * (-h.Cellar - Under + deep / 2);
