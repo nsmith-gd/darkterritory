@@ -513,8 +513,8 @@ Status: **open**, **claimed**, **in review** (a PR is up), **done** (merged). **
 | 761 | **The towns' and the dykes' leftovers (level-design T.4, L.3; maritime-rules §4; note 1031's "Not done"; note 1050 rank 11):** stilts under the dykeland's houses; the townsfolk's rounds kept off a quarry or hill town's bench wall; street folk facing a turned house; aboiteaux (sluice gates in the dyke's bank); the Tantramar grade as the dyke; a hand-laid line's trees and leavings solid (`LinesideProps.cs` returns none for it); L.3's finds and bodies set on the land, porches inside their box. The World Building board's open notes come first. Size S each. B2, C1 (`Towns/TownForms.cs`, `HouseDesign.cs`, `TownRounds`, `PlanArt`, `Run/LinesideProps.cs`). No director's call | nathaniel1 (open for pick-up) | — | — | `open for pick-up` |
 | 762 | **systems-spec A.3's sound table brought up to the roster (note 1050 rank 13):** no row for the Brakeman, Tower Jaw, the Freight Beetle, Hotbox, the Knotter, the Mourners, the Pickers, the Moose Mouse, the house creatures, nor (flagged off) the Bruin, the Tapper and the Close, though their `tell-*` and `cs-*` sounds are in `content/audio`. Each row's tell, band and sound from the content, checked by `dt audio render --listener all`. Size S, docs. AU1 (`systems-spec.md`). No director's call | nathaniel1 (open for pick-up) | — | — | `open for pick-up` |
 
-The GDD artifact (claude.ai/artifact/PrfaZjyZb1rWcWWuiPm1Dx) was republished on 26 Oct at about 04:50 UTC (nathaniel1, version 51,
-from main's gdd.md at d438b621, after #1833's and #1838's Part Eleven q4 and q8 markers); whoever lands a gdd.md change republishes it.
+The GDD artifact (claude.ai/artifact/PrfaZjyZb1rWcWWuiPm1Dx) was republished on 26 Oct at about 12:05 UTC (nathaniel1, version 52,
+from main's gdd.md at 0714bc7f, after #1863's stale markers, note 1050); whoever lands a gdd.md change republishes it.
 
 ## Taking numbers (note 521)
 
