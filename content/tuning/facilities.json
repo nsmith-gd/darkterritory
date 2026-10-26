@@ -395,6 +395,15 @@
     // the derelicts shoved onto a free road (no cars on it, room for them) and cut off there. Only a siding the yard was
     // laid with blocked, and only with a free road beyond it. False: the bots work round them, as before.
     "clearSidings": true,
+    // Note 1058 (level-design I.4): a siding the crew cleared whose gantry still has castings stacked under it is loaded there
+    // (after the put-away, the train set back down the main to its points, the pair at that gantry). loadCranedSidings: every
+    // siding with a gantry and castings (not only a cleared one) is a stop of its own, as the night has time for it (off: the
+    // director's call; more cargo, more time in the yard).
+    "loadClearedSidings": true, "loadCranedSidings": false,
+    // sidingsFirst: such a siding is cleared and loaded before the facility's own track (the crew set back to that after).
+    // The cars that go in are the train's first either way; off (the director's call), the own track's loading fills them
+    // first and the gantry gets what room they've left (in practice, only when the own track's loading was given up or cut short).
+    "sidingsFirst": false,
     // Note 326 (GDD App. F.3: "crews decide whether to split up for more loot, or work the yard together, or the village
     // together"): once the yard's crates are in, this share of the crate hands go to search the village's open houses
     // (the rest shut the doors), each to the nearest hiding spot nobody else has taken within villageReach (m) of where it

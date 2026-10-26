@@ -99,6 +99,74 @@ public partial class StopCrewTests
         Assert.DoesNotContain(Plans(world, f.Start - 600, calls), p => p.Clears || p.PutAway);
     }
 
+    // Note 1058 (level-design I.4): a siding the crew cleared is loaded at its own gantry.
+
+    /// <summary>
+    /// A night with a yard whose layout blocked a siding with a gantry over it (castings stacked in its bays), a free road for
+    /// its derelicts up the yard past it, and live power: the route and the facility's index.
+    /// </summary>
+    static (Route.Route Route, int Facility) BlockedCranedSidingWithARoad()
+    {
+        foreach (var tier in new[] { RouteTier.Frontier, RouteTier.DeadLines, RouteTier.DeepTerritory })
+            for (ulong seed = 1; seed < 400; seed++)
+            {
+                var route = RouteGenerator.Generate(Tuning.Route, tier, seed);
+                var facilities = route.Of(FeatureKind.Facility).ToList();
+                for (int i = 0; i < facilities.Count; i++)
+                {
+                    var f = facilities[i];
+                    if (f.Stop?.Tracks.Any(t => t.Blocked && t.Crane is { Bays: > 0 }) != true || f.Stop.Power != Stops.PowerState.Live)
+                        continue;
+                    var world = new World(new TrainOnLine(new TrainDynamics(Consist.Uniform(T, 8, 0.5)), route.Build(), f.Start - 600, Tuning.Boiler));
+                    // (The gantries stand with the loot dealt.)
+                    world.EnableBodies();
+                    world.EnableRun(Tuning.Run, route, 600, authority: true, F, L);
+                    var run = world.Run!;
+                    var line = world.Train.Line;
+                    var tracks = run.YardTracks(i);
+                    var blocked = run.BlockedTracks(line, i);
+                    if (tracks.Count > 0 && blocked.Any(b => run.YardCraneOn(line, i, b.Branch) is { Left: > 0 } && tracks.Any(t => t != tracks[0]
+                        && blocked.All(x => x.Branch != t) && line.Branches[t].Toe > line.Branches[b.Branch].Toe + 1)))
+                        return (route, i);
+                }
+            }
+        throw new InvalidOperationException("no route has a blocked siding under a gantry with a free road past it");
+    }
+
+    [Fact]
+    public void ABotCrewLoadsASidingItClearedAtItsGantry()
+    {
+        // (Sidings first: the own track first, its loading fills the cars that'd go in, and the gantry gets nothing. The yards'
+        // own tracks are laid first at their throats and are their longest: a siding's never longer.)
+        var (route, facility) = BlockedCranedSidingWithARoad();
+        var first = F with { Crew = F.Crew with { SidingsFirst = true } };
+        var r = FacilityWork.Run(route, facility, T, P, Tuning.Boiler, Tuning.Run, first, Tuning.Route.Junctions, cars: 8, hands: 2, seconds: 2400,
+            yardLength: Tuning.Route.YardLength, loot: L);
+        string said = $"legs {string.Join(">", r.Legs)}; did {string.Join(", ", r.Doing)}; stops {string.Join(", ", r.Stops.Select(s => $"{s.Kind} {s.Seconds:0} ({s.Castings})"))}";
+        Assert.True(r.Departed, $"never left: {said}");
+        // Cleared, the derelicts put away up the yard, then back down the main to the cleared siding and its gantry worked.
+        var stops = r.Stops.ToList();
+        int clear = stops.FindIndex(s => s.Kind.Contains("Clear")), putAway = stops.FindIndex(s => s.Kind.Contains("PutAway"));
+        int siding = stops.FindIndex(s => s.Kind.Contains("Siding"));
+        Assert.True(clear >= 0 && putAway > clear && siding > putAway, said);
+        Assert.True(r.Stops[siding].Castings > 0, $"no castings loaded at the cleared siding's gantry: {said}");
+        Assert.Equal(0, r.StillBlocked);
+        Assert.Equal(0, r.DerelictsAboard);
+        Assert.Equal(r.Crew, r.Alive);
+    }
+
+    [Fact]
+    public void WithClearedSidingsLeftTheCrewClearsButDoesntLoadThere()
+    {
+        var (route, facility) = BlockedCranedSidingWithARoad();
+        var off = F with { Crew = F.Crew with { LoadClearedSidings = false, SidingsFirst = true } };
+        var r = FacilityWork.Run(route, facility, T, P, Tuning.Boiler, Tuning.Run, off, Tuning.Route.Junctions, cars: 8, hands: 2, seconds: 1800,
+            yardLength: Tuning.Route.YardLength, loot: L);
+        Assert.True(r.Departed, $"never left: legs {string.Join(">", r.Legs)}");
+        Assert.Contains(r.Stops, s => s.Kind.Contains("Clear"));
+        Assert.DoesNotContain(r.Stops, s => s.Kind.Contains("Siding"));
+    }
+
     /// <summary>Every stop a crew would make from <paramref name="from"/> on, in order.</summary>
     static List<StopPlan> Plans(World world, double from, CrewCalls calls)
     {

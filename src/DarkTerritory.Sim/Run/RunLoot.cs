@@ -148,6 +148,7 @@ public sealed partial class Run
             if (site?.Feature.Stop is not { } stop)
                 continue;
             var cranes = new List<Crane>();
+            var tracks = new List<int>();
             foreach (var track in stop.Tracks)
             {
                 if (track.Crane is not { Bays: > 0 } rw || track.Primary && site.Crane is not null)
@@ -162,8 +163,10 @@ public sealed partial class Run
                 var feature = site.Feature;
                 var line = _lootLine!;
                 cranes.Add(new Crane(tuning, (along, across, up) => StopWorld(line, feature, new Pt(mid + along, d + toward * across), up)));
+                tracks.Add(track.Index);
             }
             site.YardCranes = cranes;
+            site.YardCraneTracks = tracks;
         }
     }
 

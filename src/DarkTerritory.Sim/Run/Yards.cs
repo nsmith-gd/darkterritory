@@ -108,6 +108,22 @@ public sealed partial class Run
         return blocked;
     }
 
+    /// <summary>
+    /// Note 1058: the gantry standing over one of a yard's tracks (a branch of the line), other than the facility's own crane;
+    /// null with none. Matched to the layout's track as <see cref="BlockedTracks"/> matches them, by its toe and side.
+    /// </summary>
+    public Crane? YardCraneOn(Rail.RailLine line, int facility, int branch)
+    {
+        if (facility < 0 || facility >= _sites.Length || _sites[facility] is not { Spur: >= 0, Feature.Stop: { } stop } site || branch < 0 || branch >= line.Branches.Count)
+            return null;
+        var b = line.Branches[branch];
+        for (int i = 0; i < site.YardCranes.Count; i++)
+            if (stop.Tracks.FirstOrDefault(t => t.Index == site.YardCraneTracks[i]) is { } track
+                && Math.Abs(site.Feature.Start + track.Toe - b.Toe) < 0.01 && track.Side == b.Definition.Side)
+                return site.YardCranes[i];
+        return null;
+    }
+
     /// <summary>A switchyard's cars still standing on one of its sidings, as the night found them (note 187); not derelicts.</summary>
     public static int StandingOn(TrainOnLine train, int branch) =>
         train.Rakes.Where(r => r.Path == branch && train.Standing(r)).Sum(r => r.Consist.Vehicles.Count(v => !v.Derelict && !v.IsHandcar));
