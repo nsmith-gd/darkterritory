@@ -1204,4 +1204,5 @@ written here instead is moved out by `tools/coord/notes.py split`; the Coordinat
 - [1043. The visual tell audit's staging gaps: `dt tells` stands every creature (n1-G1, nathaniel1's Token Budget Manager's worker; queue #742; note…](notes/1043.md)
 - [1044. A review rubric (`REVIEW.md`) and the cross-model review (n1-W2, nathaniel1's Token Budget Manager's worker; queue #259, carried on from…](notes/1044.md)
 - [1045. Tower Jaw's fall is a punish (Ines, the Token Budget Manager's worker, nathaniel3; queue #743; note 1036's finding; GDD App. A.1, A.9,…](notes/1045.md)
+- [1050. The GDD against the game a third time: what it still promises that isn't built (n1-A5, nathaniel1's Token Budget Manager's worker; queue…](notes/1050.md)
 <!-- end of the notes index -->

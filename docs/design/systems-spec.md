@@ -88,8 +88,8 @@ whoever has to hear it.
 | The Passenger | **Silent by design** (it never speaks) | — | — |
 | ~~The Switchman~~ | *Cut: the director, 16 Oct 2026 ("I think we cut them"; note 852). Its tell was visual: the figure at the lever, the lamp wrong* | — | — |
 | Grumbler | Gnawing on the crates | 1.4–2.2k | grumbler-gnaw |
-| The Moose *(added 7 Oct, note 339; the sounds are the audio chat's to make)* | Warning: a cough-like grunt and teeth clacking; the charge: hooves on ballast; a ram: an iron boom through the car | grunt 150Hz–1.5k, clack 2–4k | tell-moose-* (note 334) |
-| The Gannet *(added 7 Oct, note 340; the sounds are the audio chat's to make)* | The fold: a crack of wings, then a rising whistle of air for 1.6 s; overhead, harsh "arrah" calls that stop when it picks a walker; the bank: a long rising scream | whistle 2–5 kHz rising; calls 1–3 kHz | tell-gannet-* (note 384) |
+| The Moose *(added 7 Oct, note 339; its sounds are in, `content/audio/samples/` `tell-moose-*`, `cs-moose-*`)* | Warning: a cough-like grunt and teeth clacking; the charge: hooves on ballast; a ram: an iron boom through the car | grunt 150Hz–1.5k, clack 2–4k | tell-moose-* (note 334) |
+| The Gannet *(added 7 Oct, note 340; its sounds are in, `content/audio/samples/` `tell-gannet-*`, `cs-gannet-strike`)* | The fold: a crack of wings, then a rising whistle of air for 1.6 s; overhead, harsh "arrah" calls that stop when it picks a walker; the bank: a long rising scream | whistle 2–5 kHz rising; calls 1–3 kHz | tell-gannet-* (note 384) |
 | The Choir | Layered voices, multiplying as it gathers | 300Hz–4k, wide | choir-voice |
 | Car fire *(App. C.5)* | Crackle and pop through the boards | 6–9k | car-fire |
 | The Head Waiter *(Sloe's proposal, note 1004; built behind `headWaiter.on`, off until the director's verdict, note 1008; a synth stand-in until the audio chat's takes)* | A spoon on a wine glass, three clear rings, from right behind the lounger: told from the low clearance's cord slaps (4–7k) by being rung, from the Fire Flies and the car fire by band, from the cab's bell by pitch | 4.6–5.6k | tell-head-waiter.glass (audited alone: `AudioBench.FlaggedTellBands`) |
