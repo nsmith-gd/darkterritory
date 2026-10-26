@@ -445,9 +445,10 @@ public sealed class TerrainField
             if (l < 0)
                 return land + (fields - land) * Smooth(dr.LandwardM, dr.LandwardM * 0.6, -l);
             double run = dr.HeightM / dr.SideSlope, half = dr.CrestM / 2 + run;
-            if (l < sh.DykeM - half)
+            // The grade the dyke (note 1057): the salt marsh from under the line's own bank out, no dyke of its own.
+            if (!sh.OnGrade && l < sh.DykeM - half)
                 return fields;
-            if (l <= sh.DykeM + half)
+            if (!sh.OnGrade && l <= sh.DykeM + half)
                 return fields + dr.HeightM * Math.Clamp((half - Math.Abs(l - sh.DykeM)) / run, 0, 1);
             if (l < d)
                 return sh.LevelM + dr.MarshAboveWaterM + 0.1 * Value(x / 6, z / 6, _seed ^ 0x5A17);

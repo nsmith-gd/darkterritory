@@ -200,10 +200,13 @@ public static class TownRounds
         var at = town.World(p.S, p.D, p.Up);
         // Nobody stands where somebody already is this slot.
         bool Room(Double3 there) => stood.All(o => (o - there).Length > 0.9);
+        // A clear way there on foot: nothing solid across it, and no step down or up a bench's or a terrace's wall (note 1057:
+        // a quarry's or a hill town's walls are the ground's own, which Town.Clear walks through).
+        bool Way(Double3 there, double s, double d) => town.Clear(at, there) && OnFoot(town.Ground, p.S, p.D, s, d);
         RoundStop? Along(double by, string act)
         {
             var there = town.World(p.S + by, p.D, p.Up);
-            return Room(there) && Dry(p.S + by, p.D) && town.Free(there) && town.Clear(at, there)
+            return Room(there) && Dry(p.S + by, p.D) && town.Free(there) && Way(there, p.S + by, p.D)
                 ? new RoundStop(p.S + by, p.D, by > 0 ? 1 : -1, 0, act, []) : null;
         }
         // Never off the end of a stage into the water (note 841: a Flooder town's lamp-carriers walk its stages).
@@ -241,7 +244,8 @@ public static class TownRounds
                 continue;
             var goal = place.Approach ?? (place.S, place.D);
             var there = town.World(goal.S, goal.D, p.Up);
-            if ((there - at).Length > 40 || !Room(town.World(place.S, place.D, p.Up)) || !town.Free(there) || !town.Clear(at, there))
+            if ((there - at).Length > 40 || !Room(town.World(place.S, place.D, p.Up)) || !town.Free(there) || !Way(there, goal.S, goal.D)
+                || !OnFoot(town.Ground, goal.S, goal.D, place.S, place.D))
                 continue;
             taken.Add(place.Key);
             return new RoundStop(place.S, place.D, place.FaceS, place.FaceD, place.Act, place.Approach is { } step ? [step] : []);
@@ -267,7 +271,8 @@ public static class TownRounds
                     continue;
                 var goal = place.Approach ?? (place.S, place.D);
                 var there = town.World(goal.S, goal.D, p.Up);
-                if ((there - at).Length > Reach || !Room(town.World(place.S, place.D, p.Up)) || !town.Free(there) || !town.Clear(at, there))
+                if ((there - at).Length > Reach || !Room(town.World(place.S, place.D, p.Up)) || !town.Free(there) || !Way(there, goal.S, goal.D)
+                || !OnFoot(town.Ground, goal.S, goal.D, place.S, place.D))
                     continue;
                 taken.Add(place.Key);
                 return new RoundStop(place.S, place.D, place.FaceS, place.FaceD, place.Act, place.Approach is { } step ? [step] : []);
@@ -301,7 +306,7 @@ public static class TownRounds
             {
                 var there = town.World(s, d, p.Up);
                 string key = $"wall{Math.Round(s)}.{Math.Round(d)}";
-                if (taken.Contains(key) || !b.Holds(s, d) || (there - at).Length > Reach || !Room(there) || !town.Free(there) || !town.Clear(at, there))
+                if (taken.Contains(key) || !b.Holds(s, d) || (there - at).Length > Reach || !Room(there) || !town.Free(there) || !Way(there, s, d))
                     continue;
                 taken.Add(key);
                 return new RoundStop(s, d, fs, fd, "idle", []);
@@ -318,7 +323,7 @@ public static class TownRounds
                 // In front of them, a step off, facing them.
                 double s = other.S + other.FaceS * 1.2, d = other.D + other.FaceD * 1.2;
                 var there = town.World(s, d, p.Up);
-                if ((there - at).Length > 30 || !Room(there) || !town.Free(there) || !town.Clear(at, there))
+                if ((there - at).Length > 30 || !Room(there) || !town.Free(there) || !Way(there, s, d))
                     continue;
                 taken.Add($"talk{other.Id}");
                 return new RoundStop(s, d, -other.FaceS, -other.FaceD, "talk", []);
@@ -326,6 +331,31 @@ public static class TownRounds
             return null;
         }
     }
+
+    /// <summary>
+    /// Whether the ground from (s0, d0) to (s1, d1), straight, is walked (note 1057): no step along it higher than a stride
+    /// (<see cref="TownGround.Stride"/>), so not over a bench's, a terrace's or a ward's wall; up a stair or a ramp, a stride
+    /// at a time, it is.
+    /// </summary>
+    public static bool OnFoot(TownGround g, double s0, double d0, double s1, double d1)
+    {
+        if (g.Flat)
+            return true;
+        double len = Math.Sqrt((s1 - s0) * (s1 - s0) + (d1 - d0) * (d1 - d0));
+        int n = Math.Max(1, (int)Math.Ceiling(len / FootStep));
+        double last = g.Level(s0, d0);
+        for (int i = 1; i <= n; i++)
+        {
+            double level = g.Level(s0 + (s1 - s0) * i / n, d0 + (d1 - d0) * i / n);
+            if (Math.Abs(level - last) > TownGround.Stride)
+                return false;
+            last = level;
+        }
+        return true;
+    }
+
+    /// <summary>How finely <see cref="OnFoot"/> walks the ground (m): half its cell.</summary>
+    const double FootStep = TownGround.Cell / 2;
 
     // Note 963: how far a temperament takes somebody on a slot (m, as far as the square's places), how far in from a wall they
     // stand to look over it, and how far off the line at the gate. Not design numbers: where people stand.

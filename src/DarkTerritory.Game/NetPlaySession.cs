@@ -47,6 +47,9 @@ public sealed record SessionSetup(string? Route = null, string Line = "test-loop
     /// <summary>Flare pistols bought for the night (note 871), each loaded with campaign.json's <c>stores.flares.each</c>.</summary>
     [System.Text.Json.Serialization.JsonIgnore(Condition = System.Text.Json.Serialization.JsonIgnoreCondition.WhenWritingDefault)]
     public int Flares { get; init; }
+    /// <summary>Boxes of fusees bought for the night (note 1052), each holding campaign.json's <c>stores.fusees.each</c>.</summary>
+    [System.Text.Json.Serialization.JsonIgnore(Condition = System.Text.Json.Serialization.JsonIgnoreCondition.WhenWritingDefault)]
+    public int Fusees { get; init; }
     /// <summary>
     /// The host's only: this host has never had a child's call, so tonight's first is a real child (GDD App. B.6, A.6 "the first
     /// one a host player ever meets is always real"). The app reads it from the host's profile; the Sim gets the bool.
@@ -142,9 +145,9 @@ public sealed record SessionSetup(string? Route = null, string Line = "test-loop
             DataFile.Load<CombatTuning>(Path.Combine(content, CombatTuning.File)),
             DataFile.Load<EnemyTuning>(Path.Combine(content, EnemyTuning.File)));
         loadout = Sim.Campaign.Campaign.WithSpareKits(loadout, SpareKits);
-        if (Powder > 0 || SpareLamps > 0 || SpareExtinguishers > 0 || Flares > 0)
+        if (Powder > 0 || SpareLamps > 0 || SpareExtinguishers > 0 || Flares > 0 || Fusees > 0)
             loadout = Sim.Campaign.Campaign.WithStores(DataFile.Load<Sim.Campaign.CampaignTuning>(Path.Combine(content, Sim.Campaign.CampaignTuning.File)),
-                loadout, new Sim.Campaign.Stores(Powder, SpareLamps, SpareExtinguishers, Flares));
+                loadout, new Sim.Campaign.Stores(Powder, SpareLamps, SpareExtinguishers, Flares, Fusees));
         return Upgrades.Count == 0 ? loadout
             : Sim.Campaign.Campaign.Apply(DataFile.Load<Sim.Campaign.CampaignTuning>(Path.Combine(content, Sim.Campaign.CampaignTuning.File)), Upgrades, loadout);
     }
@@ -1577,6 +1580,65 @@ public sealed class NetPlaySession : IPlaySession, IDisposable
     /// they've ridden with.
     /// </summary>
     public void ShareSave(byte[] save) => Host?.ShareSave(save);
+
+    // ---- A joiner buys at the forge (GDD §3.1, §11; note 1054) ----
+
+    /// <summary>A joiner at the blacksmith orders upgrade <paramref name="id"/> of the host (note 1054): intent, never state.</summary>
+    public void Order(string id)
+    {
+        if (Host is null)
+            Client.Order(id);
+    }
+
+    /// <summary>A joiner's shop shut after ordering (note 1054): the host fits what it bought for them.</summary>
+    public void OrderDone()
+    {
+        if (Host is null)
+            Client.Order("", done: true);
+    }
+
+    /// <summary>A joiner: the host's next answer to its orders at the forge (note 1054), or null.</summary>
+    public Sim.Net.OrderAnswer? TakeOrderAnswer() => Host is null ? Client.TakeOrderAnswer() : null;
+
+    readonly HashSet<byte> _boughtFor = [];
+
+    /// <summary>What the host answers a joiner's order when there's no crew's scrip to pay with: a night that isn't a campaign's.</summary>
+    public const string NoPurse = "There's no crew's scrip on this night: the forge sells on a campaign's nights.";
+
+    /// <summary>
+    /// The host (note 1054): its joiners' orders at the forge, bought in the order they came with <paramref name="buy"/> (the
+    /// campaign's purchase, the same the host's own menu makes: paid from the crew's scrip, GDD §11, and saved), each answered
+    /// to the joiner who ordered it in the words the host's menu would say. <paramref name="crew"/> is the crew's campaign as
+    /// it stands (null, or <paramref name="buy"/> null: not a campaign's night, and every order's refused). True when a joiner
+    /// who was bought something has shut the shop: the yard's to be hosted again, fitted (note 697's refit).
+    /// </summary>
+    public bool ServeOrders(Sim.Campaign.CampaignTuning tuning, Func<Sim.Campaign.CampaignState?> crew, Func<string, Sim.Campaign.Purchase>? buy)
+    {
+        if (Host is not { } host)
+            return false;
+        bool refit = false;
+        foreach (var order in host.TakeOrders())
+        {
+            if (order.Done)
+            {
+                refit |= _boughtFor.Remove(order.From);
+                continue;
+            }
+            var before = crew();
+            if (before is null || buy is null)
+            {
+                host.AnswerOrder(order.From, new(order.Id, false, NoPurse, before?.Scrip ?? 0, false));
+                continue;
+            }
+            string name = tuning.Upgrades.FirstOrDefault(u => u.Id == order.Id)?.Name ?? order.Id;
+            bool had = before.Upgrades.Contains(order.Id);
+            var p = buy(order.Id);
+            if (p.Ok)
+                _boughtFor.Add(order.From);
+            host.AnswerOrder(order.From, new(order.Id, p.Ok, FrontEnd.SmithyWords(name, had, p, order.Id), p.State.Scrip, p.State.Upgrades.Contains(order.Id)));
+        }
+        return refit;
+    }
 
     /// <summary>A joiner: the crew's save, if the host's sent one since the last take (note 724). The host's own is its slot's.</summary>
     public byte[]? TakeCrewSave() => Client.TakeCrewSave() is { } save && Host is null ? save : null;

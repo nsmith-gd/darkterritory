@@ -517,7 +517,7 @@ Eventually the crew sees lights. Then walls. Then cannon towers. The gates open 
 - **The footplate** (its first 2.5 m), exactly as it was: the coal bunker front left, the firebox beside it, the driver's console under the right window, the levers, the whistle cord, the vent, the tool rack. One person stood there still reaches the coal, the fire and the controls without turning round ("we are going to have this game playable by a single player").
 - **The chart table**, standing height, in the middle behind the footplate: the run map lies on it under a hooded lamp, the train's place on it moving, the bends with their speeds and the stops marked, as on the plate it used to hang on. Along its front edge, a small lamp for each crewmate: lit while they're aboard, dark when they're down on the ground or dead, so whoever has the table sees who's missing. There's room to walk by it on either side.
 - **The gallery**, a raised floor a step up (0.45 m, a tread half way), its benches down the middle facing forward, long windows down its sides. From up there everyone sees the line out of the front windows over the heads at the controls: "Everybody wants to be where they can see the tracks, because making people feel comfortable is seeing where they're going."
-- **The back wall**, the boiler's end, warm with it: the doors out to the running boards on either side, the ways along the boiler, and its gimmicks: a kettle on the warming shelf that starts to sing as the boiler nears its redline; a cuckoo clock whose bird comes out once a minute over the last three minutes before dawn; a rail of empty frames for the crew's photos (*hung empty: the crew photo at the gate, note 721, isn't pinned in them yet; queue #759, note 1050*); a trophy shelf; a hook for each crewmate, their cap on it while they're off the train; and a shelf kept for the gramophone.
+- **The back wall**, the boiler's end, warm with it: the doors out to the running boards on either side, the ways along the boiler, and its gimmicks: a kettle on the warming shelf that starts to sing as the boiler nears its redline; a cuckoo clock whose bird comes out once a minute over the last three minutes before dawn; a rail of frames for the crew's photos, each delivered night's crew photo at the gate (note 721) pinned in the next, eight frames over the two ways out, the oldest taken down when they're full (*note 1056*); a trophy shelf; a hook for each crewmate, their cap on it while they're off the train; and a shelf kept for the gramophone.
 
 Early crews run **engine plus one or two cars.** Experienced crews run **engine, armour, cannons, utility cars and many freight cars.**
 
@@ -945,7 +945,7 @@ Stay in its house a moment, or come close, and it shrieks, then lunges: if it re
 **THE HOLLOW HOUSE** · *one of the village's houses* *(the director, 2026-10-09)*
 A house like the others, that rumbles when you're in it.
 > **RULE: know the house you're in.**
-Step inside and the ground starts rumbling under it. Anyone still inside when the rumble ends, its doors slam shut one after another and the house sinks and comes down on them. Out in time, and it goes still again.
+Step inside and the ground starts rumbling under it. Anyone still inside when the rumble ends, its doors slam shut one after another, then its windows, and the house sinks and comes down on them. Out in time, by a door or a window not yet slammed, and it goes still again.
 *(The director, 13 Oct 2026, from the creature gym, App. F.5.)* The village's houses have real doors and windows, which open and shut. In the Hollow House, a door slamming shut is what's coming, and a crewmate can still get out through a door or a window while they slam. The house really comes down: its walls and roof sink and fall in.
 
 **THE HANGER** · *in a village house's roof* *(the director, 2026-10-09)*
@@ -3142,7 +3142,7 @@ genre ... It's extremely important that friends exceeds our target meaningfully.
 
 ## F.5 2026-10-13 — the creature gym, Test build 21 (ca0d37e)
 
-*Since (note 1050): the "In progress" rows below for queue #412–#415 are done (#948, #957, #1080, #1082); of the "Open" ones, the Soot Child's kill, two-armed carry and last-second tell are in (note 823), the Waker as a titan (note 679), the Lodger's sounds (note 767), the houses' doors (note 401) and the Hollow House's fall (note 585). Still open: the houses' windows (queue #751); the Dragger under the roof's edge stays undrawn by design (A.4; `dt tells` counts it hidden, note 1037).*
+*Since (note 1050): the "In progress" rows below for queue #412–#415 are done (#948, #957, #1080, #1082); of the "Open" ones, the Soot Child's kill, two-armed carry and last-second tell are in (note 823), the Waker as a titan (note 679), the Lodger's sounds (note 767), the houses' doors (note 401), the Hollow House's fall (note 585) and the houses' windows (note 1053). Still open: the Dragger under the roof's edge stays undrawn by design (A.4; `dt tells` counts it hidden, note 1037).*
 
 **Played:** the director, alone in the creature gym (§34.1) of the developer Test build of ca0d37e, calling the creatures one by one and letting them do their worst. Fifteen notes were sent from inside it (F8), each as a test report.
 
@@ -3174,7 +3174,7 @@ genre ... It's extremely important that friends exceeds our target meaningfully.
 - A lone player's struggle is a chance, at best 15% (raised to a coin flip on 14 Oct, note 737), and what held them doesn't vanish; while held, Use is the struggle's alone (App. C.1).
 - The Waker is a titan on two legs, three times the size, whose stride is what keeps up with the train (§8).
 - A rescued child is carried in both arms, and a Soot Child gives a last-second tell (the Soot Children).
-- The village houses' doors and windows shut and can be escaped through, and the Hollow House really comes down (the Hollow House). *The doors (note 401), the collapse (note 585) and the basements' windows (note 1005) are in; the houses' own windows still don't shut or let anyone out (queue #751, note 1050).*
+- The village houses' doors and windows shut and can be escaped through, and the Hollow House really comes down (the Hollow House). *Done: the doors (note 401), the collapse (note 585), the basements' windows (note 1005), and the houses' own windows (note 1053): each ground-floor window has a shutter that a crewmate shuts or opens with Use held, and an open one is climbed out of (or in) by walking into it. The Hollow House slams its windows after its doors, so one not yet slammed is a way out.*
 - A developer build's reports go into one file in the game's folder (§34.2).
 
 ## F.4 2026-10-08 — main's test builds, the night of 7–8 Oct

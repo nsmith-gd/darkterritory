@@ -848,6 +848,9 @@ public static partial class Hud
         BodyKind.Extinguisher => "THE EXTINGUISHER",
         // The flare pistol (note 871), by its flares left.
         BodyKind.FlarePistol => b.Charge >= 1 ? $"THE FLARE PISTOL ({(int)b.Charge} LEFT)" : "THE FLARE PISTOL (EMPTY)",
+        // A box of fusees (note 1052), by its fusees left; one burning, by itself.
+        BodyKind.Fusees => b.Charge >= 1 ? $"THE FUSEES ({(int)b.Charge} LEFT)" : "THE FUSEE BOX (EMPTY)",
+        BodyKind.Fusee => "A FUSEE, BURNING",
         // A tool on a locker's shelf (note 649).
         BodyKind.Tool => $"THE {ToolName(Kit.At(b.Tools, 0))}",
         BodyKind.Loot => world.Run?.FindName(b)?.ToUpperInvariant() ?? "THE FIND",
@@ -856,7 +859,8 @@ public static partial class Hud
         // A two-person jackpot (note 719), by what it is: "AN END OF THE SAFE".
         BodyKind.Heavy when world.Run?.FindName(b) is { } jackpot => $"AN END OF THE {jackpot.ToUpperInvariant()}",
         BodyKind.Heavy => "AN END OF THE HEAVY CRATE",
-        BodyKind.Ragdoll => "A BODY",
+        // On the stretcher (note 1052): it goes up a ladder with you.
+        BodyKind.Ragdoll => world.Train.Dynamics.Tuning.Kit.Stretcher ? "A BODY, ON THE STRETCHER" : "A BODY",
         BodyKind.Child => "THE CHILD",
         // The BBQ deck's (note 698).
         BodyKind.Beer => "A BEER",
@@ -1252,6 +1256,12 @@ public static partial class Hud
         // line (App. A.4: "the whistle sounds with no hand on the cord" is its tell), so one with no name is the Whistler.
         if (p.Alive && world.WhistleSeconds > 0 && world.WhistleBy >= 0)
             Small(world.WhistleBy == s.PlayerId ? "THE WHISTLE: YOUR HAND'S ON THE CORD" : $"THE WHISTLE: {IncidentLog.NameOf(world, world.WhistleBy).ToUpperInvariant()} ON THE CORD", Dim);
+        // Note 1052: the communication cord's last pull, for as long as cordBell.showSeconds (the cab's bell strikes its number);
+        // and in the cab the end-of-train telltale gone out, the train parted behind it (never where: the lamp can't say).
+        if (p.Alive && CordLine(world, s.PlayerId) is { } cord)
+            Small(cord, Amber);
+        if (p.Alive && PlayerMotor.InCab(p, world.Train) && Telltale.Lit(world.Train) == false)
+            Small("THE TELLTALE'S OUT: THE TRAIN'S PARTED BEHIND YOU", world.Tick / 10 % 2 == 0 ? Red : Amber);
         // Note 739: the crew's pings, whose and on what (their marks are drawn on the world: PingMarks).
         foreach (var pinged in PingMarks.Lines(world, s.PlayerId))
             Small(pinged, Ink);
@@ -2326,6 +2336,19 @@ public static partial class Hud
     }
 
     /// <summary>
+    /// The communication cord's last pull (note 1052; upgrades.md §7.3: "pulled anywhere, the cab's bell rings with the car's
+    /// number"), while train.json <c>kit.cordBell.showSeconds</c> lasts: which car, and whose hand. Null with none showing.
+    /// </summary>
+    public static string? CordLine(World world, int me)
+    {
+        var cord = world.Cord;
+        if (!cord.Any || world.Tick < cord.Tick || (world.Tick - cord.Tick) * SimConstants.TickSeconds >= world.Train.Dynamics.Tuning.Kit.CordBell.ShowSeconds)
+            return null;
+        return cord.By == me ? $"THE CORD: YOU PULLED IT IN CAR {cord.Car}"
+            : $"THE CORD: PULLED IN CAR {cord.Car} ({IncidentLog.NameOf(world, cord.By).ToUpperInvariant()})";
+    }
+
+    /// <summary>
     /// A prompt written with the default keys ([E], [T], [K]) as the player has them bound (T80's CONTROLS; note 426): every
     /// key the HUD names is written as its control's default and said as the player's own, so a rebind can't leave one saying
     /// the wrong key. Labels that aren't a control's default are left as written: the menus' and the vote's (they can't be
@@ -2862,10 +2885,14 @@ public static partial class Hud
             return world.Run.SearchProgress(spot) is > 0 and < 1 and var searched
                 ? $"SEARCHING THE {SpotName(spot.Container.Kind)} ({searched * 100:0}%)"
                 : $"SEARCH THE {SpotName(spot.Container.Kind)} : HOLD [E]";
-        // An open house's door (note 401), empty-handed, as the hands and the search leave it.
+        // An open house's door (note 401), empty-handed, as the hands and the search leave it; or its window (note 1053), open
+        // climbed through by walking into it, and a jackpot house's barred till its lock's picked.
         if (world.Bodies.CarriedBy(s.PlayerId) is null && world.DoorInReach(p) is { } door)
             // A jackpot house's locked door (note 719): the wrench picks it, held, and how far it's got.
-            return train.Walls!.Locked(door.Key)
+            return Sim.Run.StopWalls.IsWindow(door.Key)
+                ? train.Walls!.Barred(door.Key) ? "WINDOW BARRED : THE DOOR'S LOCKED"
+                : train.Walls.Shut(door.Key) ? "OPEN THE WINDOW : HOLD [E]" : "SHUT THE WINDOW : HOLD [E]   CLIMB THROUGH : WALK INTO IT"
+                : train.Walls!.Locked(door.Key)
                 ? train.Walls.Picking(door.Key) is > 0 and var picked ? $"PICKING THE LOCK ({picked * 100:0}%)"
                     : Repairs.WrenchInHand(p) ? "PICK THE LOCK : HOLD [E]" : "LOCKED : THE WRENCH OPENS IT"
                 : train.Walls.Shut(door.Key) ? "OPEN THE DOOR : HOLD [E]" : "SHUT THE DOOR : HOLD [E]";

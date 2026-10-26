@@ -169,6 +169,9 @@ public sealed partial class StopWalls
     /// </summary>
     public const double DoorWidth = 1.2, WallThickness = 0.2;
 
+    /// <summary>How far under its ground a building's wall stands (m): no gap under it on a slope.</summary>
+    const double Sunk = -3;
+
     /// <summary>Half a village well's stone ring across, square (m): WorldArt draws it 0.9 m round (note 730). Not a design number.</summary>
     public const double WellHalf = 0.95;
 
@@ -651,24 +654,29 @@ public sealed partial class StopWalls
                     walls.AddStoreyed(stop, i, owner, t,
                         (x, y, hx, hy, lo, hi) => Placed(x, y, hx, hy, 0) with { Bottom = ground + lo, Top = ground + hi },
                         (x, y, h) => Run.StopWorld(line, f, Plan.World(b, x, y)) with { Y = ground + h });
+                    int firstHouse = walls._houses.Count;
                     walls.AddHouse(fi, i, b, line, f, (x, y, hx, hy, key) => Placed(x, y, hx, hy, t.TopM) with { Door = key });
+                    walls.AddWindows(fi, i, b, owner, firstHouse, (x, y, hx, hy, lo, hi) => Placed(x, y, hx, hy, 0) with { Bottom = ground + lo, Top = ground + hi },
+                        (x, y, h) => Run.StopWorld(line, f, Plan.World(b, x, y)) with { Y = ground + h });
                     continue;
                 }
                 // An open house stands as its four walls with a door, its cupboards and cabinets, and the heavy furniture a
                 // ransack left against its walls (note 326); the rest of the shut ones as their footprints' boxes; a shed, the hero
                 // and a Holdout as their shells by their doors (note 279).
-                IEnumerable<(double X, double Y, double HalfX, double HalfY, double Top)> boxes = !Walled(stop, i)
-                    ? Shelled(stop, i) ? Shell(stop, i, t).Select(w => (w.Part.X, w.Part.Y, w.Part.Length / 2, w.Part.Width / 2, w.Top))
-                        .Concat(Benches(stop, i).Select(x => (x.X, x.Y, x.HalfX, x.HalfY, t.TopM))).Concat(Van(stop, i)) : []
+                // (An open house's walls with its windows cut out of them, note 1053: under, over and either side of each.)
+                var openings = Walled(stop, i) && b.Open ? WindowOpenings(b).ToList() : [];
+                IEnumerable<(double X, double Y, double HalfX, double HalfY, double Bottom, double Top)> boxes = !Walled(stop, i)
+                    ? Shelled(stop, i) ? Shell(stop, i, t).Select(w => (w.Part.X, w.Part.Y, w.Part.Length / 2, w.Part.Width / 2, Sunk, w.Top))
+                        .Concat(Benches(stop, i).Select(x => (x.X, x.Y, x.HalfX, x.HalfY, Sunk, t.TopM))).Concat(Van(stop, i).Select(v => (v.X, v.Y, v.HalfX, v.HalfY, Sunk, v.Top))) : []
                     : b.Open
-                        ? OpenWalls(b).Concat(Furniture(b, stop.Containers.Where(c => c.Building == index && c.Level == 0)).Select(x => (x.X, x.Y, x.HalfX, x.HalfY)))
-                            .Concat(ClutterOf(stop, index).Where(x => x.Solid).Select(x => (x.X, x.Y, x.Box.HalfX, x.Box.HalfY)))
-                            .Select(w => (w.X, w.Y, w.HalfX, w.HalfY, t.TopM))
+                        ? OpenWalls(b).SelectMany(w => Cut(w, openings, Sunk, t.TopM)).Select(p => (p.X, p.Y, p.HalfX, p.HalfY, p.Bottom, p.Top))
+                            .Concat(Furniture(b, stop.Containers.Where(c => c.Building == index && c.Level == 0)).Select(x => (x.X, x.Y, x.HalfX, x.HalfY, Sunk, t.TopM)))
+                            .Concat(ClutterOf(stop, index).Where(x => x.Solid).Select(x => (x.X, x.Y, x.Box.HalfX, x.Box.HalfY, Sunk, t.TopM)))
                         // A well is its stone ring (WorldArt's, 0.9 m round), not its 5 m plot: note 730's well is walked up to.
-                        : b.Kind == BuildingKind.Well ? [(0, 0, WellHalf, WellHalf, t.WellTopM)]
+                        : b.Kind == BuildingKind.Well ? [(0, 0, WellHalf, WellHalf, Sunk, t.WellTopM)]
                         : (b.Parts.Count > 0 ? b.Parts : [new FootprintPart(0, 0, b.Length, b.Width)])
-                            .Select(p => (p.X, p.Y, p.Length / 2, p.Width / 2, t.TopM));
-                Wall Placed(double x, double y, double hx, double hy, double top)
+                            .Select(p => (p.X, p.Y, p.Length / 2, p.Width / 2, Sunk, t.TopM));
+                Wall Placed(double x, double y, double hx, double hy, double top, double bottom = Sunk)
                 {
                     var centre = Plan.World(b, x, y);
                     var at = Run.StopWorld(line, f, centre);
@@ -676,10 +684,10 @@ public sealed partial class StopWalls
                     var right = Double3.Cross(tg.Tangent, Double3.Up).Normalized;
                     var tangent = new Double3(tg.Tangent.X, 0, tg.Tangent.Z).Normalized;
                     var axis = (tangent * DMath.Cos(b.Yaw) + right * DMath.Sin(b.Yaw)).Normalized;
-                    return new Wall(at with { Y = 0 }, axis, hx, hy, at.Y - 3, at.Y + top) { Owner = owner };
+                    return new Wall(at with { Y = 0 }, axis, hx, hy, at.Y + bottom, at.Y + top) { Owner = owner };
                 }
-                foreach (var (x, y, hx, hy, top) in boxes)
-                    walls.Add(Placed(x, y, hx, hy, top));
+                foreach (var (x, y, hx, hy, bottom, top) in boxes)
+                    walls.Add(Placed(x, y, hx, hy, top, bottom));
                 // A house of parts with floors (note 1022): its floors' solids, its cellars and their ladders, over its middle's ground.
                 if (Walled(stop, i) && PartFloored(b))
                 {
@@ -688,9 +696,15 @@ public sealed partial class StopWalls
                         (x, y, hx, hy, lo, hi) => Placed(x, y, hx, hy, 0) with { Bottom = ground + lo, Top = ground + hi },
                         (x, y, h) => Run.StopWorld(line, f, Plan.World(b, x, y)) with { Y = ground + h });
                 }
-                // Its doors (note 401): each a wall in its doorway that stands only while it's shut.
+                // Its doors (note 401): each a wall in its doorway that stands only while it's shut; and its windows (note 1053),
+                // each a wall in its opening likewise, and the ladders through it.
                 if (Walled(stop, i) && b.Open)
+                {
+                    int firstHouse = walls._houses.Count;
                     walls.AddHouse(fi, i, b, line, f, (x, y, hx, hy, key) => Placed(x, y, hx, hy, t.TopM) with { Door = key });
+                    walls.AddWindows(fi, i, b, owner, firstHouse, (x, y, hx, hy, lo, hi) => Placed(x, y, hx, hy, hi, lo),
+                        (x, y, h) => Run.StopWorld(line, f, Plan.World(b, x, y)) + Double3.Up * h);
+                }
             }
         }
         return walls;

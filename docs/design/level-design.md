@@ -541,7 +541,8 @@ meaning"), turned into ground plans the walled town's houses and people stand on
 
 ## T.4 Not yet
 
-See note 692's handoff: stilts under the marsh's houses, the town's people on its ground, the seamless hand-over itself,
-and whether a form should follow the land (a harbour where the plan has a shore) rather than the trade. Built since (note
+See note 692's handoff: the seamless hand-over itself, and whether a form should follow the land (a harbour where the plan
+has a shore) rather than the trade. Built since (note 1057): stilts under a dykeland's stage houses, the townsfolk's rounds
+kept off a bench's or a terrace's wall, the street folk before a turned house (already so; pinned). Built since (note
 1031): the forms' own ground, paved quarters and ways; the glasshouse beds' crops and the dykeland's salt hay on staddles;
 boats at the piers and traps along the wharf; the bots in the streets between nights (facilities.json `crew.townStroll`).

@@ -168,7 +168,11 @@ public enum ShoreKind : byte { Sea, Fundy, Dyke, River }
 /// a dyke's crest <paramref name="DykeM"/> out, its fields <paramref name="FieldsM"/> under the rail (Dyke).
 /// </summary>
 public sealed record PlanShore(string Id, ShoreKind Kind, string Edge, double S0, double S1, int Side, double LevelM, double NearM, double CoveM,
-    double CoveWavelengthM, double Phase, double FlatM, double DykeM = 0, double FieldsM = 0);
+    double CoveWavelengthM, double Phase, double FlatM, double DykeM = 0, double FieldsM = 0)
+{
+    /// <summary>A dyke shore whose dyke is the railway grade (note 1057; the Tantramar's): no dyke of its own, the marsh under the line's bank.</summary>
+    public bool OnGrade => Kind == ShoreKind.Dyke && DykeM <= 0;
+}
 
 public enum LimitSource : byte { LineSpeed, Board, Form19, Restricted, Yard, Curve, Bridge, Brass }
 
@@ -229,6 +233,19 @@ public sealed record PlanDirector(IReadOnlyList<PlanTag> Tags, IReadOnlyList<Pla
 
     /// <summary>The terrain pressure at a main-line distance.</summary>
     public double PressureAt(double s) => Pressure.Values.Count == 0 ? 0 : Pressure.Values[Math.Clamp((int)(s / Pressure.StepM), 0, Pressure.Values.Count - 1)];
+
+    /// <summary>
+    /// §15.1: an enemy's weight (by its content name) under <paramref name="tags"/>, each tag's own multiplier for it in turn;
+    /// a kind a tag doesn't name stays as it was under it (note 1048: read as 0, a climb left only the Cinder Hounds to send).
+    /// </summary>
+    public double AffinityOf(IEnumerable<string> tags, string kind)
+    {
+        double w = 1;
+        foreach (var tag in tags)
+            if (Affinity.GetValueOrDefault(tag) is { } table && table.TryGetValue(kind, out double m))
+                w *= m;
+        return w;
+    }
 
     /// <summary>The tags over a main-line distance.</summary>
     public IEnumerable<string> TagsAt(double s) => Tags.Where(t => t.Edge == "main" && s >= t.S0 && s <= t.S1).Select(t => t.Tag);

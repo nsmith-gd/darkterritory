@@ -1086,6 +1086,20 @@ public sealed partial class HostSession
             CallKick(c, payload[1]);
             return;
         }
+        // Note 1054: a joiner's order at the blacksmith, for the game to buy from the crew's scrip.
+        if (payload.Length > 1 && payload[0] == (byte)MessageType.Order)
+        {
+            try
+            {
+                var or = new NetReader(payload);
+                or.U8();
+                Ordered(c, Messages.ReadOrder(ref or, c.Id));
+            }
+            catch (Exception ex) when (ex is EndOfStreamException or InvalidDataException or OverflowException)
+            {
+            }
+            return;
+        }
         // Note 298: trying an outfit on, in the yard.
         if (payload.Length == 2 && payload[0] == (byte)MessageType.Wear)
         {

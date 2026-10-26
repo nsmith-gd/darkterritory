@@ -12,6 +12,7 @@ namespace DarkTerritory.Game.Tests;
 /// the triangles and draws allowed; the culling keeps what's on screen; the eyes' shared shadows change nothing. The
 /// times are `dt perf`'s, on real hardware.
 /// </summary>
+[Collection(GpuCollection.Name)]
 public class PerfBudgetTests
 {
     static readonly string Content = DataFile.FindContentRoot();

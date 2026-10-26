@@ -9,8 +9,9 @@ using DarkTerritory.Dev.Social;
 /// s for a friend to act) and 5 (someone gets blamed), per creature from staged grabs and bot nights (<see cref="SocialTest"/>),
 /// and the crew's own numbers (time split up, calls made, the dead watching). Thresholds in content/tuning/social.json.
 /// <list type="bullet">
-/// <item><c>dt social [--only gaunt,ribbit] [--seconds 120] [--seeds 2] [--crews 1,2] [--route frontier:7] [--parallel n]</c>
-/// -> out/social/social.json and out/social/social.md (a creature's pass or fail on each criterion, and why).</item>
+/// <item><c>dt social [--only gaunt,ribbit] [--seconds 120] [--seeds 2] [--crews 1,2] [--route frontier:7] [--parallel n]
+/// [--flags knotter.tautHold,whistler.carry]</c> -> out/social/social.json and out/social/social.md (a creature's pass or fail
+/// on each criterion, and why; note 1051: with the creature flags on, and those off shown on, staged).</item>
 /// </list>
 /// </summary>
 static class SocialCommands
@@ -29,6 +30,7 @@ static class SocialCommands
             Seeds = (int)Opt(args, "--seeds", t.Seeds),
             Cars = (int)Opt(args, "--cars", t.Cars),
             Crews = Str(args, "--crews", "") is { Length: > 0 } cs ? [.. cs.Split(',').Select(x => int.Parse(x, CultureInfo.InvariantCulture))] : t.Crews,
+            Flags = Str(args, "--flags", "") is { Length: > 0 } f ? f.Split(',') : t.Flags,
         };
         var report = SocialTest.Run(content, t, (int)Opt(args, "--parallel", Environment.ProcessorCount), Console.Error.WriteLine);
         File.WriteAllText(Path.Combine(dir, "social.json"), JsonSerializer.Serialize(report, DataFile.Options));
@@ -57,6 +59,26 @@ static class SocialCommands
         foreach (var row in r.Rows)
             md.AppendLine($"| {row.Creature} | {row.Two.Result} | {row.Act.Result} | {row.Blame.Result} |");
         md.AppendLine();
+        if (r.FlagsOn.Count > 0)
+        {
+            md.AppendLine($"Creature flags on for the run (note 1051): {string.Join(", ", r.FlagsOn)}.");
+            md.AppendLine();
+        }
+        if (r.Flagged.Count > 0)
+        {
+            md.AppendLine("## With the flags (note 1051)");
+            md.AppendLine();
+            md.AppendLine("Each creature flag that's off for the run, on, in the staged grab (its nights are the run's above).");
+            md.AppendLine();
+            md.AppendLine("| Flag | Creature | 2: better by two | 3: 8–20 s to act |");
+            md.AppendLine("|---|---|---|---|");
+            foreach (var f in r.Flagged)
+                md.AppendLine($"| {f.Flag} | {f.Creature} | {f.Two.Result} | {f.Act.Result} |");
+            md.AppendLine();
+            foreach (var f in r.Flagged)
+                md.AppendLine($"- **{f.Flag}**: 2, {f.Two.Why}. 3, {f.Act.Why}.");
+            md.AppendLine();
+        }
         md.AppendLine("## Why");
         md.AppendLine();
         foreach (var row in r.Rows)

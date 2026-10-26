@@ -118,6 +118,8 @@ public sealed partial class GreyboxScene
     /// <summary>Each flare as last seen (note 964): where it was first (the muzzle, if it was just fired), and where it was last, when.</summary>
     /// <summary>How far a burning flare's light reaches (m; note 964).</summary>
     public const float FlareReach = 30;
+    /// <summary>How far a fusee's red reaches on what's round it (m; note 1052): a street's width, under a flare's.</summary>
+    public const float FuseeReach = 12;
 
     readonly Dictionary<int, (Double3 First, double FirstAt, bool Fired, Double3 Last, double LastAt, Vector3 Velocity)> _flares = new();
 
@@ -640,6 +642,9 @@ public sealed partial class GreyboxScene
             // The houses' doors (note 401): hanging open into the room, or shut in the doorway.
             if (Walls is { HouseDoors.Count: > 0 } doored)
                 HouseDoors(mesh, line, Route, doored, eye);
+            // And their windows' shutters (note 1053): swung back against the wall outside, or shut over the opening.
+            if (Walls is { HouseWindows.Count: > 0 } windowed)
+                HouseWindows(mesh, line, Route, windowed, eye);
             // Each Holdout's way in, shut or broken open (App. D.7): its door, lock or barricade by its state.
             if (Holdouts is not null && Look is not null)
                 Look.Art.World.Entrances(mesh, line, Route, Holdouts, eye, (float)ValleyDepth, Time);
@@ -694,6 +699,15 @@ public sealed partial class GreyboxScene
                 {
                     FlareLight(mesh, at, eye, b.Id, b.Charge);
                     FlareFlight(mesh, b, at, eye);
+                }
+        // Fusees burning (note 1052): a red pool round each, the way back marked.
+        if (Bodies is not null)
+            foreach (var b in Bodies.Where(b => b.Kind == Sim.Physics.BodyKind.Fusee && b.Charge > 0))
+                if (BodyWorld(b, frames, b.Centre) is { } at && (at - eye).Length < 120)
+                {
+                    float sputter = 0.8f + 0.2f * MathF.Sin((float)(Time * 17) + b.Id) * MathF.Sin((float)(Time * 5.3) + 3 * b.Id);
+                    float burn = 0.5f + 0.5f * (float)Math.Clamp(b.Charge, 0, 1);
+                    Practical(mesh, new PointLight(V(at + Double3.Up * 0.3, eye), Art.SceneArt.FuseeGlow * 3.5f * sputter * burn, FuseeReach), -2 - b.Id);
                 }
         if (_flares.Count > 0 && Bodies is not null)
             foreach (int gone in _flares.Keys.Where(id => !Bodies.Any(b => b.Id == id)).ToList())

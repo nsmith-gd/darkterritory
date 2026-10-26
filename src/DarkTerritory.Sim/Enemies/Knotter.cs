@@ -151,7 +151,8 @@ public sealed class Knotter(int id) : Enemy(id)
 
     /// <summary>
     /// Whoever's on its back at speed may slip (a chance a second, by a hash of the tick and who: the same on every run): it
-    /// coils round them (the grab), dragging them under over <c>coilSeconds</c> unless a friend pulls them up.
+    /// coils round them (the grab), dragging them under over <c>coilSeconds</c> (<c>tautHold</c>'s with it on, note 1051)
+    /// unless a friend pulls them up.
     /// </summary>
     void Slips(EnemyContext ctx, KnotterTuning t, double speed)
     {
@@ -170,7 +171,7 @@ public sealed class Knotter(int id) : Enemy(id)
             if (!Enter(ctx, SpinePhase.Commit))
                 return;
             SetMode(KnotterMode.Coil);
-            Grab(ctx, p.Id, t.CoilSeconds);
+            Grab(ctx, p.Id, t.HoldSeconds);
             return;
         }
     }

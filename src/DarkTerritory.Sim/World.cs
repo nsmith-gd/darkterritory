@@ -241,6 +241,11 @@ public sealed partial class World
         counts["canaryDead"] = Whimsy.Canary == CanaryMood.Dead ? 1 : 0;
         counts["volunteers"] = Volunteers;
         counts["ballsThrown"] = BallsThrown;
+        // The crew's tools (note 1052).
+        counts["cordPulls"] = CordPulls;
+        counts["telltaleOut"] = TelltaleOuts;
+        counts["fusees"] = FuseesStruck;
+        counts["stretchered"] = Stretchered;
         return counts;
     }
     /// <summary>The fires each Cinder Hound pack has lit tonight, by its pack (note 915: a feeding pack sated).</summary>
@@ -489,6 +494,12 @@ public sealed partial class World
     /// train never left. Null: every insisted kind wherever its spawn can place it.
     /// </summary>
     public IReadOnlySet<EnemyKind>? InsistByRule { get; set; }
+    /// <summary>
+    /// Note 1051: an insisted Stoker boards at the tender and crosses the footplate (as the heat brings one, note 263), where a
+    /// crewmate at the firebox can club it, instead of going straight into the firebox. `dt social` stages it so; false
+    /// everywhere else.
+    /// </summary>
+    public bool InsistStokerBoards { get; set; }
     readonly Dictionary<EnemyKind, double> _insistGone = [];
 
     /// <summary>
@@ -728,6 +739,9 @@ public sealed partial class World
         // Note 871: the flare pistols, loaded (their flares left in Charge), beside the extinguishers.
         for (int i = 0; i < kit.FlarePistols; i++)
             Bodies.SpawnCrate(Train, guard.Id, new Ballast.Double3(0.2, floor, room.Min.Z + 1.2 + 0.4 * i), Physics.BodyKind.FlarePistol).Charge = kit.FlareShots;
+        // Note 1052: the boxes of fusees, beyond them.
+        for (int i = 0; i < kit.Fusees; i++)
+            Bodies.SpawnCrate(Train, guard.Id, new Ballast.Double3(0.2, floor, room.Min.Z + 2.2 + 0.4 * i), Physics.BodyKind.Fusees).Charge = kit.FuseesEach;
         // Hand-carried loot (GDD v1.1 App. C.4): toys, for the Track Doll to steal.
         for (int i = 0; i < kit.Toys; i++)
             Bodies.SpawnCrate(Train, guard.Id, new Ballast.Double3(0.6, floor, room.Max.Z - 1.2 - 0.5 * i), Physics.BodyKind.Toy).Noise =
@@ -1244,14 +1258,17 @@ public sealed partial class World
 
     /// <summary>
     /// The door an open house's doorway has that a crewmate could work (note 401): on foot, alive, within run.json
-    /// <c>walls.houseDoorReachM</c> of its doorway, with no hiding spot in reach (that's the search's). Alike on host and client,
-    /// for the HUD.
+    /// <c>walls.houseDoorReachM</c> of its doorway, with no hiding spot in reach (that's the search's). With no door in reach, a
+    /// window within as much of it (note 1053; its key's negative, <see cref="Sim.Run.StopWalls.IsWindow"/>). Alike on host and
+    /// client, for the HUD.
     /// </summary>
     public Sim.Run.HouseDoor? DoorInReach(in PlayerState s)
     {
         if (!s.Alive || s.Parent != PlayerState.World || Train.Walls is not { HouseDoors.Count: > 0 } walls || Run?.SpotInReach(s, Train) is not null)
             return null;
-        return walls.DoorInReach(PlayerMotor.WorldPosition(s, Train), (_walls ?? new Sim.Run.WallTuning()).HouseDoorReachM);
+        var at = PlayerMotor.WorldPosition(s, Train);
+        double reach = (_walls ?? new Sim.Run.WallTuning()).HouseDoorReachM;
+        return walls.DoorInReach(at, reach) ?? walls.WindowInReach(at, reach);
     }
 
     /// <summary>
@@ -1369,6 +1386,7 @@ public sealed partial class World
         }
         else if (!done && held >= (_walls ?? new Sim.Run.WallTuning()).HouseDoorSeconds - 1e-9)
         {
+            // (A barred window, note 1053, doesn't open: SetShut leaves it.)
             walls!.SetShut(key, !walls.Shut(key));
             done = true;
         }
@@ -1850,6 +1868,8 @@ public sealed partial class World
         Launch(s, intent, playerId);
         // The flare pistol (note 871): Fire with it in hand.
         FireFlare(s, intent, playerId);
+        // A fusee (note 1052): Fire with the box in hand.
+        StrikeFusee(s, intent, playerId);
         if (handsTookIt && Bodies.CarriedBy(playerId) is { Kind: Physics.BodyKind.Ragdoll } lifted)
             Physics.Bodies.TakeTools(ref s, lifted);
         // Searching an open house's hiding spot (note 326), empty-handed, with a Use the hands didn't take.
@@ -1894,7 +1914,12 @@ public sealed partial class World
             // Playing the instrument in your hands (note 700): every machine hears you, in time with the band.
             s.Flags = Bodies.Playing(playerId) && s.Alive ? s.Flags | PlayerFlags.Playing : s.Flags & ~PlayerFlags.Playing;
             // D.9's solo remainer: the last one alive, with a body, may still climb (slowly).
-            bool solo = s.Alive && Bodies.CarriedBy(playerId) is { Kind: Physics.BodyKind.Ragdoll } && LastCrew.Count(c => c.State.Alive && c.Id != playerId) == 0;
+            // Note 1052: or anyone with the stretcher fitted (upgrades.md §7.3: "carry a body at walking pace, and up a ladder").
+            bool body = s.Alive && Bodies.CarriedBy(playerId) is { Kind: Physics.BodyKind.Ragdoll };
+            bool stretcher = body && Train.Dynamics.Tuning.Kit.Stretcher;
+            bool solo = body && (stretcher || LastCrew.Count(c => c.State.Alive && c.Id != playerId) == 0);
+            if (stretcher && s.Surface == Surface.Ladder && Bodies.CarriedBy(playerId) is { } stretchered)
+                _stretchered.Add(stretchered.Id);
             s.Flags = solo ? s.Flags | PlayerFlags.SoloCarry : s.Flags & ~PlayerFlags.SoloCarry;
             bool repairKit = Bodies.CarriedBy(playerId) is { Kind: Physics.BodyKind.RepairKit };
             s.Flags = repairKit ? s.Flags | PlayerFlags.RepairKit : s.Flags & ~PlayerFlags.RepairKit;
@@ -2007,6 +2032,8 @@ public sealed partial class World
         // shorts and longs come out as blown.
         if ((intent.Has(PlayerActions.Whistle) || OnTheCord(s, intent)) && Net.CabControls.CanDrive(s, Train))
             Whistled(Math.Max(SimConstants.TickSeconds, Train.Dynamics.Tuning.Whistle.TailSeconds) + SimConstants.TickSeconds, playerId);
+        // The communication cord (note 1052): the same key in any car behind the engine, when it's fitted.
+        PullCord(s, intent, playerId);
         // The lamp in the car you're in (GDD v1.1 App. A.5): on the press, the host's to set.
         if (Authority && intent.Has(PlayerActions.CarLamp) && !_lampWas.Contains(playerId) && s.Parent > 0 && s.Parent < Train.Frames.Count
             && PlayerMotor.Indoors(s, Train))
@@ -3106,7 +3133,8 @@ public sealed partial class World
     /// <summary>
     /// The combination audit's spawns (note 186): each insisted kind, when none of it is about and it's been gone long
     /// enough, put in by its own spawn rule's placement (which may still find nowhere: no crane, no marsh ahead). The Stoker
-    /// goes straight into the firebox; the Choir is gathered in the meter's step.
+    /// goes straight into the firebox (or with <see cref="InsistStokerBoards"/> boards at the tender); the Choir is gathered
+    /// in the meter's step.
     /// </summary>
     void InsistOn(IReadOnlyList<EnemyKind> insist, EnemyTuning t, Director d)
     {
@@ -3139,7 +3167,7 @@ public sealed partial class World
     int AddStoker(EnemyTuning t)
     {
         int id = _nextEnemyId++;
-        _enemies.Add(Stoker.InFirebox(id, Train, false, t.Stoker));
+        _enemies.Add(InsistStokerBoards ? Stoker.AtTender(id, Train, t.Stoker) : Stoker.InFirebox(id, Train, false, t.Stoker));
         return id;
     }
 

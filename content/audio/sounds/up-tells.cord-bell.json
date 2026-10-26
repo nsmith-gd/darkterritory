@@ -1,0 +1,17 @@
+// The communication cord (note 1052; upgrades.md §7.3: "pulled anywhere, the cab's bell rings with the car's number"): the
+// cord's own gong on the cab's back wall, struck once a stroke, the car's number of strokes (GameAudio.CrewTools spaces them
+// train.json kit.cordBell.strokeSeconds apart). Lower and rounder than the overspeed's communication bell (its strike at
+// 1.2 kHz, two quick hard strokes, warn-overspeed.json) so the two are never mistaken: a strike at 820 Hz with its partials
+// at 1.9 and 2.95 kHz, a softer clapper, a longer ring, a slower count. Tier 3, train state, heard best in the cab. A synth
+// definition; a recorded take can replace it through the audio checklist (AU1's).
+{
+  "tier": 3, "duration": 1.1, "maxInstances": 10, "minDistance": 3, "maxDistance": 45, "rolloff": 1.0, "gainDb": 2,
+  "layers": [
+    { "source": "sine", "frequency": 820, "gain": 0.6, "envelope": [[0, 0], [0.006, 1], [0.18, 0.5], [0.7, 0.1], [1.05, 0]] },
+    { "source": "sine", "frequency": 1905, "gain": 0.26, "envelope": [[0, 0], [0.004, 1], [0.1, 0.3], [0.45, 0]] },
+    { "source": "sine", "frequency": 2950, "gain": 0.12, "envelope": [[0, 0], [0.003, 1], [0.06, 0.2], [0.3, 0]] },
+    { "source": "sine", "frequency": 410, "gain": 0.22, "envelope": [[0, 0], [0.012, 1], [0.6, 0.35], [1.05, 0]] },
+    // The clapper, padded: a duller tick than the overspeed bell's.
+    { "source": "noise", "gain": 0.16, "filters": [{ "type": "bandPass", "frequency": 1800, "q": 1.5 }], "envelope": [[0, 1], [0.015, 0]] }
+  ]
+}

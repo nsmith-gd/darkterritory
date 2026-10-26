@@ -310,7 +310,8 @@ public enum PlayerFlags : uint
     None = 0,
     /// <summary>
     /// Carrying a body, the last of the crew alive (GDD v1.4 App. D.9 "solo remainer"): <see cref="Heavy"/>'s pace on the
-    /// ground, but a ladder may still be climbed, slowly (<see cref="PlayerTuning.SoloBodyClimb"/>; note 181).
+    /// ground, but a ladder may still be climbed, slowly (<see cref="PlayerTuning.SoloBodyClimb"/>; note 181). Note 1052: and
+    /// anyone carrying a body on the stretcher (train.json <c>kit.stretcher</c>), at its pace.
     /// </summary>
     SoloCarry = 1,
     /// <summary>
@@ -944,6 +945,18 @@ public static class PlayerMotor
     static bool Catches((double Top, SurfaceKind Kind)? top, double feet, double drop) =>
         top is { } t && (t.Top >= feet - EdgeStepDown || t.Kind != SurfaceKind.Deck && t.Top >= feet - drop);
 
+    /// <summary>
+    /// How fast up or down a ladder (m/s): player.json <c>ladderClimb</c>; with a body, the last one alive's
+    /// <c>soloBodyClimb</c> (D.9), or with the stretcher fitted anyone's, at train.json <c>kit.stretcher.climb</c> (note 1052).
+    /// </summary>
+    static double Climb(in PlayerState s, TrainOnLine train, PlayerTuning p)
+    {
+        if (!s.Has(PlayerFlags.SoloCarry))
+            return p.LadderClimb;
+        var kit = train.Dynamics.Tuning.Kit;
+        return kit.Stretcher ? Math.Max(p.SoloBodyClimb, kit.StretcherCarry.Climb) : p.SoloBodyClimb;
+    }
+
     /// <summary>Whether the ladder key would take hold of a ladder from here (T94: the HUD says so).</summary>
     public static bool LadderInReach(in PlayerState s, TrainOnLine train, PlayerTuning p) => LadderInReachOf(s, train, p) is not null;
 
@@ -1394,7 +1407,7 @@ public static class PlayerMotor
         }
         // A ladder standing in the world (note 973: a houseboat's, leant against its bow): the same, reached for where it is
         // at the climber's height, as it leans; from its deck, from its top.
-        foreach (var ladder in WorldLadders(train))
+        foreach (var ladder in WorldLadders(train, world))
         {
             var on = ladder.At(world.Y);
             double dx = world.X - on.X, dz = world.Z - on.Z;
@@ -1438,15 +1451,18 @@ public static class PlayerMotor
             && velocity.X * inward.X + velocity.Z * inward.Z >= l.AirTowards;
     }
 
-    /// <summary>The ladders standing in the world: a town's (note 973) and the stops' houses' (note 1005: a hatch's, a cellar window's crates).</summary>
-    public static IEnumerable<WorldLadder> WorldLadders(TrainOnLine train) => train.Walls is { } w ? train.Ladders.Concat(w.Ladders) : train.Ladders;
+    /// <summary>
+    /// The ladders standing in the world that a body at <paramref name="at"/> might reach: a town's (note 973) and the stops'
+    /// houses' (note 1005: a hatch's, a cellar window's crates; note 1053: an open window's, inside and out).
+    /// </summary>
+    public static IEnumerable<WorldLadder> WorldLadders(TrainOnLine train, Double3 at) => train.Walls is { } w ? train.Ladders.Concat(w.LaddersNear(at)) : train.Ladders;
 
     /// <summary>The world's ladder a climber parented to the world is on (note 973): the nearest, where it is at their height.</summary>
     static WorldLadder? HeldWorldLadder(TrainOnLine train, Double3 at)
     {
         WorldLadder? best = null;
         double bestDistance = double.MaxValue;
-        foreach (var ladder in WorldLadders(train))
+        foreach (var ladder in WorldLadders(train, at))
         {
             double d = ((at - ladder.At(at.Y)) with { Y = 0 }).Length;
             if (d < bestDistance)
@@ -1472,7 +1488,7 @@ public static class PlayerMotor
             s.Surface = Surface.Air;
             return;
         }
-        double climb = s.Has(PlayerFlags.SoloCarry) ? p.SoloBodyClimb : p.LadderClimb;
+        double climb = Climb(s, train, p);
         double y = s.Position.Y + Math.Clamp(intent.MoveZ, -1, 1) * climb * dt;
         if (y >= ladder.Top.Y)
         {
@@ -1515,7 +1531,7 @@ public static class PlayerMotor
 
         double top = ladder.Top;
         // D.9: the last one standing hauls a body up a ladder at a quarter of the pace.
-        double climb = s.Has(PlayerFlags.SoloCarry) ? p.SoloBodyClimb : p.LadderClimb;
+        double climb = Climb(s, train, p);
         double y = s.Position.Y + Math.Clamp(intent.MoveZ, -1, 1) * climb * dt;
         if (y >= top)
         {
