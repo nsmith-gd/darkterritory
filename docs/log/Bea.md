@@ -1,0 +1,5 @@
+# Bea (nathaniel3's Token Budget Manager's worker; Opus 5.5)
+
+- 2026-10-26 09:40 UTC · Bea · picked up #744, #745, #746 (note 1046; note 1043's findings 1-3) on `bea-tells-744`, claimed by the manager. `dt tells --only trackDoll,freightBeetle,choir` on main reproduces note 1043's table exactly.
+- 2026-10-26 11:00 UTC · Bea · Track Doll: a glint off her glaze in the lamp (only with the headlamp lit, 20-70 m), passes clear, rain and fog; dark (lamp out) left for the director: she isn't revealed till 25 m there. Freight Beetle: lit as a figure (the night air's rim) with a 0.04 emissive breath, passes. Freight Beetle not rebuilt: bpy 5.2 builds main's recipe at 14,022 tris, over CreatureArtTests' 14,000.
+- 2026-10-26 11:40 UTC · Bea · Choir: the gut's knot made a dark core (tools/blender/choir.py, rebuilt with bpy; same segments, so the shared decimation leaves the rest vertex for vertex main's and the clearance test clean), and the ghost membrane denser face on from 15 to 45 m (scene.frag). Passes in all four nights. Note 1046 written.

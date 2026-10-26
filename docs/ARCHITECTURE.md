@@ -1200,4 +1200,5 @@ written here instead is moved out by `tools/coord/notes.py split`; the Coordinat
 - [1039. Corruption seen growing on the train: black, wet and veined at the couplings, under the cars and in the tender, where boarders came on, a…](notes/1039.md)
 - [1040. A corrupted human's voice on the crew's radio (n1-R2, nathaniel1's Token Budget Manager's worker; queue #729; GDD Part Eleven q4; note 1026…](notes/1040.md)
 - [1043. The visual tell audit's staging gaps: `dt tells` stands every creature (n1-G1, nathaniel1's Token Budget Manager's worker; queue #742; note…](notes/1043.md)
+- [1046. The three art tells under the floor: the Track Doll's glint, the Freight Beetle's rim, the Choir's dark cores (Bea, nathaniel3's Token…](notes/1046.md)
 <!-- end of the notes index -->
