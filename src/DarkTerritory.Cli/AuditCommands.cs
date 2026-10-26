@@ -62,7 +62,7 @@ static class AuditCommands
 
     /// <summary>
     /// dt balance --pairs|--triples [--wide] [--routes a,b] [--crews 2,4,8] [--seeds n] [--every-hazard] [--at-stops] [--sample n]
-    /// [--seconds s] [--hazards clear,wet] [--only a,b] [--parallel p]: GDD §34's combination fairness, over a grid of routes and
+    /// [--seconds s] [--hazards clear,wet] [--only a,b] [--parallel p] [--trace dir]: GDD §34's combination fairness, over a grid of routes and
     /// crew sizes (note 204). dt balance --conflicts [--only a+b,...]: App. B.10's contradiction quality, the director's
     /// conflict table's pairs instead of the roster's, each staged where it's made (note 1032).
     /// </summary>
@@ -148,6 +148,8 @@ static class AuditCommands
                 InsistEvery = t.InsistEvery,
                 Look = t.Look,
                 Hazards = hz,
+                // --trace dir (note 1036): each night a second at a time, to read what its verdict came of.
+                Observe = Str(args, "--trace", "") is { Length: > 0 } traceDir ? Trace(traceDir, $"{string.Join("+", kinds)}-{hz.Name}-{routeName.Replace(':', '_')}-c{crew}-s{seed}") : null,
             }, c.Boiler);
             runs[i] = DarkTerritory.Sim.Net.Combinations.Run(night, report, t, crew);
             int n = Interlocked.Increment(ref done);
@@ -219,6 +221,30 @@ static class AuditCommands
         var result = DarkTerritory.Sim.Net.Stability.Report(rows);
         Print(new { seconds = Math.Round(clock.Elapsed.TotalSeconds), nightSeconds = seconds, result });
         return result.Pass ? 0 : 1;
+    }
+
+    /// <summary>
+    /// <c>--trace dir</c> (note 1036): each sweep night a second at a time in <c>dir/kinds-hazards-route-cCrew-sSeed.txt</c>: the
+    /// train's speed and distance, every crewmate (car, place in its frame, yaw, health, death, surface, flags), every creature
+    /// not gone (its phase, the car it's on, where along the line), the roof warning and the Choir. What a night's verdict
+    /// came of, read without a window.
+    /// </summary>
+    static Action<uint, IReadOnlyList<(DarkTerritory.Sim.Bots.IBot Bot, DarkTerritory.Sim.Player.PlayerState State)>, DarkTerritory.Sim.World> Trace(string dir, string name)
+    {
+        Directory.CreateDirectory(dir);
+        var w = new StreamWriter(Path.Combine(dir, name + ".txt")) { AutoFlush = true };
+        return (t, bots, world) =>
+        {
+            if (t % DarkTerritory.Sim.SimConstants.TickRate != 0)
+                return;
+            var sb = new System.Text.StringBuilder().Append(CultureInfo.InvariantCulture, $"{t * DarkTerritory.Sim.SimConstants.TickSeconds:0}s v{world.Train.Dynamics.Velocity:0.0} d{world.Train.Dynamics.Distance:0}");
+            foreach (var (b, s) in bots)
+                sb.Append(CultureInfo.InvariantCulture, $" [{b.Name} car{s.Parent} {s.Position.X:0.0},{s.Position.Y:0.0},{s.Position.Z:0.0} y{s.Yaw:0.00} hp{s.Health} {s.Death} {s.Surface} {s.Flags}]");
+            foreach (var e in world.ActiveEnemies.Where(e => !e.Gone))
+                sb.Append(CultureInfo.InvariantCulture, $" <{e.Kind}#{e.Id} {e.Phase} car{e.Attached} d{e.LineDistance:0} lat{e.Lateral:0.0}>");
+            sb.Append(CultureInfo.InvariantCulture, $" roofWarning={world.Lineside?.Warning(world.Train)?.Kind.ToString() ?? "-"} choir={world.Choir.Build:0.00}{(world.Choir.Present ? " here" : "")}");
+            w.WriteLine(sb.ToString());
+        };
     }
 
     static string Str(string[] args, string name, string fallback)

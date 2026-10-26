@@ -299,6 +299,64 @@ public class LinesideTests
     }
 
     [Fact]
+    public void ABotStillOnARoofAsTheMouthComesCrouchesUnderIt()
+    {
+        // Note 1036 (queue #739): on frontier:7's wet rail a crew of two's gunner, sent forward along the engine's hood to the
+        // cab's hatch (no car to shelter in from there), walked it under the roof warning and met the mouth at the hatch. Bots
+        // never crouched. Heed.Mouth: the last few seconds to the mouth, and under it, whoever's still up on a roof crouches,
+        // whatever its legs were about; well short of it, or at a gun, its intent is its own.
+        Assert.True(S.RoofWarning.CrouchClearsMouth);
+        var route = Tunnel();
+        PlayerState Walk(bool heeds, out bool crouchedEarly, out bool crouchedUnder)
+        {
+            var train = new TrainOnLine(new TrainDynamics(Consist.Uniform(T, 5, 1)), route.Build(), 1400);
+            var world = new World(train, Tuning.Combat);
+            world.EnableBodies();
+            world.EnableLineside(S, route);
+            world.Hand = P.Hand;
+            world.Movement = P;
+            var s = PlayerMotor.SpawnOnRoof(train, 2, 4, P);
+            (crouchedEarly, crouchedUnder) = (false, false);
+            while (train.Dynamics.RearDistance < 1750 && s.Alive)
+            {
+                // About something else up there (the hurt gunner's legs had it walking the hood), never getting down.
+                var intent = new PlayerIntent { Buttons = PlayerButtons.Run };
+                var warning = world.Lineside!.Warning(train);
+                if (heeds)
+                    intent = Heed.Mouth(intent, s, world);
+                if (intent.Has(PlayerMoves.Crouch) && warning is { Seconds: > Heed.MouthCrouchSeconds })
+                    crouchedEarly = true;
+                crouchedUnder |= world.Lineside.UnderLowClearance(s, train) && s.Has(PlayerFlags.Crouched);
+                train.Dynamics.Velocity = 12;
+                world.BeginTick();
+                world.CrewAct(ref s, intent, 1);
+                world.Step(new TrainControls { Reverser = 1 });
+                world.ApplyDamage(_ => s, (_, v) => s = v, [1]);
+                PlayerMotor.Step(ref s, intent, train, P, T, SimConstants.TickSeconds, applyLook: false);
+            }
+            return s;
+        }
+        var blind = Walk(heeds: false, out _, out _);
+        Assert.Equal(DeathCause.Struck, blind.Death);
+        var heeding = Walk(heeds: true, out bool early, out bool under);
+        Assert.True(heeding.Alive, $"crouched under the mouth: {heeding.Death}");
+        Assert.True(under, "never crouched under the mouth");
+        Assert.False(early, $"crouched more than {Heed.MouthCrouchSeconds} s short of the mouth");
+
+        // At the guard van's gun it's down behind the shield already: its intent stands.
+        var t2 = new TrainOnLine(new TrainDynamics(Consist.Uniform(T, 5, 1)), route.Build(), 1495);
+        var w2 = new World(t2, Tuning.Combat);
+        w2.EnableLineside(S, route);
+        t2.Dynamics.Velocity = 12;
+        var guard = t2.Dynamics.Consist.Vehicles.Last(v => v.Kind == VehicleKind.Guard);
+        var mount = t2.Frames[guard.Id].Shape.Gun!.Value;
+        var gunner = PlayerMotor.SpawnOnRoof(t2, guard.Id, mount.Position.Z - mount.Facing.Z * 0.7, P);
+        Assert.NotNull(w2.Lineside!.Warning(t2));
+        Assert.False(Heed.Mouth(new PlayerIntent(), gunner, w2).Has(PlayerMoves.Crouch));
+        Assert.True(Heed.Mouth(new PlayerIntent(), PlayerMotor.SpawnOnRoof(t2, 2, 0, P), w2).Has(PlayerMoves.Crouch));
+    }
+
+    [Fact]
     public void GreaseTakesTheGrip()
     {
         var route = Line([new TrackSegment(3000)], new RouteFeature(FeatureKind.Grease, 500, 700));
