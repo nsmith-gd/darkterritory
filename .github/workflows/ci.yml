@@ -51,9 +51,11 @@ jobs:
       - run: dotnet format Ballast.slnx --verify-no-changes
         if: runner.os == 'Linux'
       - run: dotnet build Ballast.slnx -c Release
-      # At most two test projects at once: Sim, Game and Dev (the visual tell audit, ~5-7 GB in software Vulkan) all running
-      # together ran a 16 GB runner out of memory (26 Oct: #1845, #1846, #1847 killed mid-run, exit 137/143).
-      - run: dotnet test --solution Ballast.slnx -c Release --no-build --max-parallel-test-modules 2
+      # Memory on a 16 GB runner (26 Oct: main's Linux test step killed from #1847 on, exit 137): every Vulkan device uploads
+      # the look's textures, ~7 GB in software Vulkan. So at most two test projects at once; Game.Tests' Vulkan classes one at
+      # a time (GpuCollection); and Dev.Tests (the visual tell audit, ~7.5 GB) on its own after the rest (TestsApart).
+      - run: dotnet test --solution Ballast.slnx -c Release --no-build --max-parallel-test-modules 2 -p:TestsApart=true
+      - run: dotnet test --project tests/DarkTerritory.Dev.Tests -c Release --no-build
       - run: dotnet run --project src/DarkTerritory.Cli -c Release --no-build -- train table
       - run: dotnet run --project src/DarkTerritory.Cli -c Release --no-build -- art check
       # The gallery (tools/review/gallery.txt), drawn in one process with one dressed renderer (note 517: the look's layers

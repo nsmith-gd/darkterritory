@@ -12,6 +12,7 @@ using DarkTerritory.Sim.Train;
 namespace DarkTerritory.Game.Tests;
 
 /// <summary>The pixel font, the overlay, and what the HUD says (T23).</summary>
+[Collection(GpuCollection.Name)]
 public class HudTests
 {
     static readonly string Content = DataFile.FindContentRoot();

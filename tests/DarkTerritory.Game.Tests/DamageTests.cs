@@ -12,6 +12,7 @@ namespace DarkTerritory.Game.Tests;
 /// decal and mask layers"): states and scars read off integrity, the same scars on the same car every time, and a car
 /// getting worse keeps the marks it had.
 /// </summary>
+[Collection(GpuCollection.Name)]
 public class DamageTests
 {
     static readonly string Content = DataFile.FindContentRoot();
