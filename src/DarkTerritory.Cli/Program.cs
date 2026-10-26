@@ -433,6 +433,9 @@ BalanceReport RunBalance(string[] args)
         }, boiler);
         rows[i] = Balance.Row(n, report);
         Console.Error.WriteLine($"{n.Tier}:{n.Seed} crew {n.Crew} cars {n.Cars}: {rows[i].End}, net {rows[i].Net}, lost {rows[i].CrewLost}");
+        // --quiets: each night's stretches quiet over 30 s, and what the director was holding for (note 1059).
+        if (args.Contains("--quiets") && report.Pacing is { } pace)
+            Console.Error.WriteLine(string.Join("\n", pace.LongQuiets.Select(q => $"  {n.Tier}:{n.Seed} crew {n.Crew}: {q}")));
     });
     return Balance.Judge(rows, targets, enemies.Director.WantShares);
 }
