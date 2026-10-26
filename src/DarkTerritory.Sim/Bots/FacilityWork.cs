@@ -55,7 +55,7 @@ public static class FacilityWork
     /// <param name="from">How far short of the spur's points it starts (m).</param>
     public static FacilityWorkReport Run(Route.Route route, int facility, TrainTuning t, PlayerTuning p, BoilerTuning? boiler, RunTuning run,
         FacilityTuning facilities, JunctionTuning junctions, int cars = 8, int hands = 2, double seconds = 1500, double yardLength = 600,
-        bool stock = false, double from = 600)
+        bool stock = false, double from = 600, Stops.LootTuning? loot = null)
     {
         var features = route.Of(FeatureKind.Facility).ToList();
         var line = route.Build();
@@ -65,7 +65,8 @@ public static class FacilityWork
         var world = new World(train);
         world.EnableBodies();
         world.EnableSwitches(junctions);
-        world.EnableRun(run, route, yardLength, authority: true, facilities);
+        // (With the stops' loot dealt, the yard's gantries stand over its sidings, castings in their bays: note 1058.)
+        world.EnableRun(run, route, yardLength, authority: true, facilities, loot);
         // As a night leaves the fortress (note 492): the guard van's hand lamps, the radios, the extinguishers and the lockers.
         if (stock)
             world.Stock();

@@ -178,7 +178,7 @@ public sealed partial class StopHand
     /// </summary>
     static WreckHeap? DarkHeap(World world, StopPlan p, Double3 from)
     {
-        if (!p.Site.Has(ModuleKind.Wreck) || world.Run is not { } run)
+        if (!p.Has(ModuleKind.Wreck) || world.Run is not { } run)
             return null;
         return p.Site.Heaps.Where(h => !h.Found && h.Salvage > 0 && !run.Lit(world, h.Centre))
             .OrderBy(h => (Flat(h.Centre) - Flat(from)).Length).ThenBy(h => h.Index).FirstOrDefault();

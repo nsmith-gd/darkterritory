@@ -68,6 +68,16 @@ public static class ArtCatalog
         list.Add(new("flare-pistol", SmallProp, () => PropKit.FlarePistol(look)));
         list.Add(new("flare-pistol-held", SmallProp, () => PropKit.FlarePistolHeld(look)));
         list.Add(new("flare", SmallProp, () => PropKit.Flare(look)));
+        // The crew's tools (note 1052): a box of fusees and one burning; the cord's line along a car and its gong in the cab;
+        // the end-of-train telltale's lamp.
+        list.Add(new("fusee-box", SmallProp, () => PropKit.FuseeBox(look)));
+        list.Add(new("fusee", SmallProp, () => PropKit.Fusee(look)));
+        list.Add(new("cord-line", SmallProp, () => TrainKit.CordLine(look, (float)(2 * cargo.HalfLength - 0.5))));
+        list.Add(new("cord-gong", SmallProp, () => TrainKit.CordGong(look)));
+        list.Add(new("telltale-lamp", SmallProp, () => TrainKit.TelltaleLamp(look)));
+        // The stretcher stowed on the van's wall, and a roof gangplank's plate (note 1052).
+        list.Add(new("stretcher", SmallProp, () => TrainKit.Stretcher(look)));
+        list.Add(new("gangplank", SmallProp, () => TrainKit.GangplankPlate(look, new System.Numerics.Vector3(0.8f, 0.06f, 2.1f))));
         // The voice's fittings (note 720): the speaking tube's horn and its pipe down to the floor, and the whistle codes' card.
         list.Add(new("speaking-tube", SmallProp, () => VoiceKit.TubeEnd(look, (float)SpeakingTube.MouthHeight + 0.1f)));
         list.Add(new("whistle-card", MediumProp, () => VoiceKit.WhistleCard(look, "WHISTLE CODES",
@@ -144,6 +154,11 @@ public static class ArtCatalog
             list.Add(new($"maple-{v}", SmallProp, () => NovaKit.RedMaple(look, variant)));
             list.Add(new($"dory-aground-{v}", SmallProp, () => MaritimeKit.Aground(look, variant)));
             list.Add(new($"haystack-{v}", SmallProp, () => MaritimeKit.Haystack(look, variant)));
+            if (v < 2)
+            {
+                list.Add(new($"aboiteau-gate-{v}", SmallProp, () => MaritimeKit.AboiteauGate(look, variant)));
+                list.Add(new($"aboiteau-intake-{v}", SmallProp, () => MaritimeKit.AboiteauIntake(look, variant)));
+            }
         }
         list.Add(new("tuft", SmallProp, () => WorldKit.Tuft(look, 0, weed: false)));
         list.Add(new("brass-weed", SmallProp, () => WorldKit.Tuft(look, 0, weed: true)));

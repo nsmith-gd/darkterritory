@@ -1168,6 +1168,7 @@ CampaignState? Play(IPlaySession session, CampaignState? campaign)
         Band = session.World.BandTuning,
         // The whimsies (note 715): Gerald and the gnomes, the canary, the gramophone, as the host has them.
         WhimsyNow = () => session.World.Whimsy,
+        TelltaleNow = () => DarkTerritory.Sim.Train.Telltale.Lit(session.World.Train),
         // The engine's name on its plates (note 714), the host's campaign's.
         EngineName = (session as NetPlaySession)?.Setup.EngineName,
         Words = DataFile.Load<DarkTerritory.Game.DressWords>(Path.Combine(content, DarkTerritory.Game.DressWords.File)),
@@ -1218,7 +1219,8 @@ CampaignState? Play(IPlaySession session, CampaignState? campaign)
         return devUnlock.Row();
     };
 #endif
-    frontEnd.SmithyBuy = net is { Host: not null } && campaign is not null ? id =>
+    // The campaign's purchase at the forge, the host's own or a joiner's order (note 1054): from the crew's scrip, saved at once.
+    Func<string, Purchase>? forgeBuy = net is { Host: not null } && campaign is not null ? id =>
     {
         double scripBefore = campaign!.Scrip;
         var bought = Campaign.BuyUpgrade(campaignTuning, campaign!, id, frontEnd.Standing);
@@ -1230,12 +1232,21 @@ CampaignState? Play(IPlaySession session, CampaignState? campaign)
         {
             campaign = bought.State;
             saves.Save(campaign);
-            refitWanted = true;
             telemetry.Purchase($"upgrade:{id}", scripBefore - campaign.Scrip, campaign.Scrip);
         }
         return bought;
     }
     : null;
+    frontEnd.SmithyBuy = forgeBuy is { } hostBuys ? id =>
+    {
+        var bought = hostBuys(id);
+        refitWanted |= bought.Ok;
+        return bought;
+    }
+    : null;
+    // Note 1054: a joiner's choice at the forge is an order to the host, and the host's answer its words.
+    frontEnd.SmithyOrder = net is { Host: null } ? net.Order : null;
+    frontEnd.SmithyDone = net is { Host: null } ? net.OrderDone : null;
     // Note 1039: the blacksmith scrapes the train's growth off; the yard's hosted again, clean.
     frontEnd.SmithyScrape = net is { Host: not null } && campaign is not null ? () =>
     {
@@ -1555,7 +1566,8 @@ CampaignState? Play(IPlaySession session, CampaignState? campaign)
             } : null)) is { } stock)
         {
             townTalk.Close();
-            frontEnd.OpenSmithy(NightNow(), new SmithyShop(forgeTown.Plan.People[smithT.Index].Name, stock, frontEnd.SmithyBuy is not null, "the host"));
+            frontEnd.OpenSmithy(NightNow(), new SmithyShop(forgeTown.Plan.People[smithT.Index].Name, stock,
+                frontEnd.SmithyBuy is not null || frontEnd.SmithyOrder is not null, "the host"));
             window.MouseCaptured = false;
             window.CaptureOnClick = false;
             inMenu = true;
@@ -1577,6 +1589,18 @@ CampaignState? Play(IPlaySession session, CampaignState? campaign)
             useKept = true;
         if (!Held(Control.Use))
             useKept = false;
+        // Note 1054: the host buys its joiners' orders at the forge from the crew's scrip; a joiner done with the shop and
+        // bought something, the yard's hosted again with it fitted, as for the host's own (when the host's not in a menu: shut,
+        // its own refit takes it). A joiner hears back.
+        if (net is { Host: not null } && net.ServeOrders(campaignTuning, () => campaign, forgeBuy))
+            refitWanted = true;
+        if (refitWanted && !inMenu && net is { Host: not null })
+        {
+            refitting = true;
+            break;
+        }
+        while (net?.TakeOrderAnswer() is { } answered)
+            frontEnd.SmithyAnswered(answered);
         if (pendingSale is { } sale)
         {
             bool gone = !session.World.Bodies.All.Any(b => b.Id == sale.Find && b.HeldBy(session.PlayerId));
@@ -2076,6 +2100,9 @@ CampaignState? Play(IPlaySession session, CampaignState? campaign)
         // The dark answering a draw (note 287): eyes at the lamp's edge.
         scene.Answer = session.World.Answer;
         scene.AnswerShowSeconds = session.World.Director?.Tuning.Draw.ShowSeconds ?? 7;
+        // Note 1056: the nights' crew photos pinned on the big cab's photo rail.
+        scene.Rail = crewMemory.RailPhotos();
+        (scene.RailCells, scene.RailGlow) = (Hud.Remembering.Rail.Cells, Hud.Remembering.Rail.Glow);
         // Watched afoot (note 327): eyes toward what lives at the stop.
         scene.Watcher = session.World.Watcher;
         // The night's odd things at the stops (note 730): a new night's are its own.

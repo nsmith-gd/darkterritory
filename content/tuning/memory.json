@@ -68,5 +68,18 @@
     // The sheet kept in the night's folder, every print at full size (pixels): how many to a row, and the margin round each.
     "sheetColumns": 4,
     "sheetMargin": 16
+  },
+  // The big cab's photo rail (GDD §10 "The back wall"; note 1056): each delivered night's crew photo pinned in the next of
+  // its eight frames, from the crew's logbook as this machine kept it.
+  "rail": {
+    // When the frames run out: "latest" (the oldest photo taken down as each new one goes up; it's still in the logbook and
+    // the gallery) or "first" (the first eight nights stay up, later ones only in the book).
+    "keep": "latest",
+    // How many cells across a pinned print is drawn in (its colours as a matte mosaic, the rows its 16:9 makes): enough
+    // to make out the crew in a line from the gallery's back tread.
+    "cells": 40,
+    // How much a print glows of itself (0..1; the slate's chalk is 0.25), so it reads by the cab's dim lamps without a
+    // shine or glare on it.
+    "glow": 0.2
   }
 }

@@ -70,6 +70,9 @@ public static class LinesideFootprints
         new("wharf", v => $"wharf-{v}", 2, NovaKit.Wharf, Shape.Wharf, true),
         // A dory left on the Fundy mud at low tide (note 1031).
         new("doryAground", v => $"dory-aground-{v}", 3, MaritimeKit.Aground, Shape.Bounds, true),
+        // An aboiteau's gate on a dyke's seaward toe and its intake on the landward (note 1057).
+        new("aboiteauGate", v => $"aboiteau-gate-{v}", 2, MaritimeKit.AboiteauGate, Shape.Bounds, true),
+        new("aboiteauIntake", v => $"aboiteau-intake-{v}", 2, MaritimeKit.AboiteauIntake, Shape.Bounds, true),
         new("lighthouse", v => $"lighthouse-{v}", 2, NovaKit.Lighthouse, Shape.Bounds, true),
         new("rock", v => $"rock-{v}", 3, (l, v) => WorldKit.Rock(l, v, 1), Shape.Bounds, false),
         // A facility's buildings beyond its machinery (StructureKit.Facility; note 758), its two variants its kit on the left of

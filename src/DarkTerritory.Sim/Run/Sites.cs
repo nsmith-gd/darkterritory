@@ -221,6 +221,25 @@ public sealed record StopCrewTuning
     /// out past the points, and put away on a free road further up the yard. False: worked round, as before.
     /// </summary>
     public bool ClearSidings { get; init; } = true;
+    /// <summary>
+    /// Note 1058 (level-design I.4): once a bot crew has cleared a blocked siding (<see cref="ClearSidings"/>) and its gantry still
+    /// has castings stacked, the crew back down the main to it after the put-away and load them there, the pair at that
+    /// gantry. False: the cleared siding's left, as before.
+    /// </summary>
+    public bool LoadClearedSidings { get; init; } = true;
+    /// <summary>
+    /// Note 1058: every siding of a yard with a gantry over it and castings stacked (not only one the crew cleared) is a stop of
+    /// its own for a bot crew, as the night has time for it. False (the default): only the facility's own track's crane, and a
+    /// siding they cleared (<see cref="LoadClearedSidings"/>).
+    /// </summary>
+    public bool LoadCranedSidings { get; init; }
+    /// <summary>
+    /// Note 1058: a yard's siding under a gantry with castings stacked, to clear (or only to load) as <see cref="LoadClearedSidings"/>
+    /// or <see cref="LoadCranedSidings"/> have it, is worked before the facility's own track, the crew setting back to that
+    /// after. The cars that go in are the train's first either way: the own track first (false, the default), its loading
+    /// fills them and the gantry gets what room they've left; sidings first, the gantry's castings fill them.
+    /// </summary>
+    public bool SidingsFirst { get; init; }
     /// <summary>Note 326: the share of the crate hands that go to search the village's houses once the crates are in (0: none).</summary>
     public double VillageShare { get; init; }
     /// <summary>How far from the train a hiding spot may be for a hand to go to it (m).</summary>
@@ -786,6 +805,9 @@ public sealed class Site
     /// facility's own, each with a casting in every bay its runway reaches.
     /// </summary>
     public IReadOnlyList<Crane> YardCranes { get; internal set; } = [];
+
+    /// <summary>Which of the stop layout's tracks each of <see cref="YardCranes"/> stands over (its <c>YardTrack.Index</c>), in order.</summary>
+    public IReadOnlyList<int> YardCraneTracks { get; internal set; } = [];
 
     /// <summary>Every crane here: the facility's own first.</summary>
     public IReadOnlyList<Crane> Cranes => Crane is null ? YardCranes : [Crane, .. YardCranes];

@@ -1180,7 +1180,11 @@ public sealed class TrainOnLine
                 var pose = new CarPose(v.Id, Double3.Lerp(fb, rb, 0.5), forward, length, front);
                 poses[v.Id] = pose;
                 bool behind = i < vehicles.Count - 1;
-                frames[v.Id] = CarFrame.From(pose, rake.Velocity, Shape(g, v.Kind, behind, v.Id == _kitCar, behind ? v.Knot : 0));
+                // Note 1052: the roof gangplanks ride on the cars behind the first couplings back from the cab, coupled to a car.
+                // Up to the roof ahead in treads where it's taller (the engine's), in centimetres for the shapes' key.
+                int plank = i > 0 && v.Id >= 1 && v.Id <= Tuning.Composition.Gangplanks && v.Kind is not VehicleKind.Handcar
+                    ? Math.Max(0, (int)Math.Round((frames[vehicles[i - 1].Id].Shape.RoofHeight - (v.Kind == VehicleKind.Engine ? g.EngineHeight : g.CarHeight)) * 100)) : -1;
+                frames[v.Id] = CarFrame.From(pose, rake.Velocity, Shape(g, v.Kind, behind, v.Id == _kitCar, behind ? v.Knot : 0, plank));
                 front -= length + g.CouplingGap + (behind ? v.Knot : 0);
             }
         }
@@ -1204,14 +1208,15 @@ public sealed class TrainOnLine
         }
     }
 
-    readonly Dictionary<(VehicleKind, bool, bool, int, bool), CarShape> _shapes = new();
+    readonly Dictionary<(VehicleKind, bool, bool, int, bool, int), CarShape> _shapes = new();
     CarShape? _handcarShape;
     GeometryTuning? _shapeGeometry;
     int? _kitCar;
 
     /// <param name="lockers">The kit's car: it has the crew lockers (ARCHITECTURE §8 note 173).</param>
     /// <param name="knot">A Knotter's gap behind it (note 365): its body across the gap in place of the coupler plate.</param>
-    CarShape Shape(GeometryTuning g, VehicleKind kind, bool hasCarBehind, bool lockers, double knot = 0)
+    /// <param name="plank">A roof gangplank off its front (note 1052), rising this many centimetres to the roof ahead; −1 none.</param>
+    CarShape Shape(GeometryTuning g, VehicleKind kind, bool hasCarBehind, bool lockers, double knot = 0, int plank = -1)
     {
         if (!ReferenceEquals(g, _shapeGeometry))
         {
@@ -1232,7 +1237,7 @@ public sealed class TrainOnLine
         bool tub = kind == VehicleKind.Engine && Tuning.Composition.Dressed("hotTub");
         bool launcher = kind == VehicleKind.Guard && !hasCarBehind && Tuning.Composition.Dressed("tennisBalls");
         bool extras = bbq || gramophone || hammock || tub || launcher;
-        if (!_shapes.TryGetValue((kind, hasCarBehind, lockers, tenths, extras), out var shape))
+        if (!_shapes.TryGetValue((kind, hasCarBehind, lockers, tenths, extras, plank), out var shape))
         {
             shape = CarShape.Build(g, kind, hasCarBehind, lockers ? Tuning.Kit.Lockers : null, Tuning.Composition.Dining);
             if (tenths > 0)
@@ -1247,7 +1252,9 @@ public sealed class TrainOnLine
                 shape = CarShape.WithHotTub(shape);
             if (launcher)
                 shape = CarShape.WithLauncher(shape);
-            _shapes[(kind, hasCarBehind, lockers, tenths, extras)] = shape;
+            if (plank >= 0)
+                shape = CarShape.WithGangplank(shape, g, Tuning.Composition.Gangplank, plank / 100.0);
+            _shapes[(kind, hasCarBehind, lockers, tenths, extras, plank)] = shape;
         }
         return shape;
     }

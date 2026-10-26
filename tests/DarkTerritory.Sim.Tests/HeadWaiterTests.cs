@@ -143,6 +143,8 @@ public class HeadWaiterTests
         // then the director sends it, at the lounger, not the driver.
         var b = Tuning.Enemies.Director.Encounters.Target.Behaviours;
         var foils = new Dictionary<string, List<string>>(b.Foils) { ["lazing"] = ["gannet", "headWaiter"] };
+        // The kinds about are the night's roll alone (the want floor off, note 1048): the foil is pinned on one weighted pick,
+        // and three more kinds about move that pick's dice to the Knotter.
         var e = E with
         {
             Director = E.Director with
@@ -150,7 +152,8 @@ public class HeadWaiterTests
                 Encounters = E.Director.Encounters with
                 {
                     Target = E.Director.Encounters.Target with { Behaviours = b with { Foils = foils } }
-                }
+                },
+                WantHold = new(),
             }
         };
         var n = new Night(4, 15, enemies: e, trainTuning: Hammocked);

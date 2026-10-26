@@ -115,6 +115,29 @@ public sealed class CrewMemory(PlayerProfile profile, MemoryTuning tuning, strin
         return _endGallery.Shown;
     }
 
+    /// <summary>
+    /// The photos pinned on the big cab's photo rail (note 1056), in its frames' order: this crew's nights with a crew photo
+    /// as this machine kept them (read back, cached), tonight's as taken here, the frames' worth kept by
+    /// <see cref="RailTuning.Keep"/>. A photo gone from the disk leaves its frame to the next. Empty on a quick night.
+    /// </summary>
+    public IReadOnlyList<Still> RailPhotos()
+    {
+        var pages = Pages();
+        if (_rail.Pages == pages && _rail.Photo == Photo)
+            return _rail.Shown;
+        var kept = new Dictionary<int, Still>();
+        foreach (var page in pages.Where(p => p.Photo.Length > 0))
+            if (PhotoOf(page) is { } still)
+                kept[page.Night] = still;
+        if (Photo is not null && CrewKey.Length > 0)
+            kept[Night] = Photo;
+        var shown = PhotoRail.Pinned(kept.Keys, Art.TrainKit.PhotoFrames, Tuning.Rail.Keep).Select(n => kept[n]).ToList();
+        _rail = (pages, Photo, shown);
+        return shown;
+    }
+
+    (IReadOnlyList<LogPage>? Pages, Still? Photo, IReadOnlyList<Still> Shown) _rail = (null, null, []);
+
     /// <summary>The flash over the screen now: 1 as it goes off, fading to 0 over <see cref="PhotoTuning.FlashSeconds"/>.</summary>
     public float Flash(double now) =>
         FlashAt < 0 || now < FlashAt || Tuning.Photo.FlashSeconds <= 0 ? 0 : (float)Math.Clamp(1 - (now - FlashAt) / Tuning.Photo.FlashSeconds, 0, 1);

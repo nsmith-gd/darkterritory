@@ -8,6 +8,7 @@ using DarkTerritory.Sim.Train;
 namespace DarkTerritory.Game.Tests;
 
 /// <summary>The art pass (T39, GDD §25-28): weathered surfaces that ride with the train and don't bury the scene.</summary>
+[Collection(GpuCollection.Name)]
 public class LookTests
 {
     static readonly string Content = DataFile.FindContentRoot();

@@ -36,6 +36,8 @@ public enum BodyKind : byte
     FlarePistol = 24, Flare = 25,
     // A drink poured at the dining car's bar (note 959): drunk as a beer, and it blurs and leans the drinker's view (the art's).
     Drink = 26,
+    // A box of fusees from the stores, the fusees left in Charge, and a fusee struck and dropped, burning (note 1052).
+    Fusees = 27, Fusee = 28,
 }
 
 /// <summary>
@@ -1016,7 +1018,7 @@ public sealed class Bodies
         // A heavy crate with one on it is still free at its other end (T43).
         // What's in a locker is the locker's: taken from it with a tap there, not reached for (note 173).
         var free = _bodies.Where(b => !b.Stowed && b.TakenBy < 0 && (b.Carrier < 0 || b.Kind == BodyKind.Heavy && b.Second < 0 && b.Carrier != playerId)
-            && !(wearingRadio && b.Kind == BodyKind.Radio) && b.Kind is not (BodyKind.Caboose or BodyKind.Dog or BodyKind.Flare)
+            && !(wearingRadio && b.Kind == BodyKind.Radio) && b.Kind is not (BodyKind.Caboose or BodyKind.Dog or BodyKind.Flare or BodyKind.Fusee)
             // A lamp broken and burning (note 728) is a puddle of burning oil and glass, not a thing to pick up.
             && !(b.Kind == BodyKind.Lamp && b.Broken));
         if (hand is not null && PlayerMotor.HandWorld(s, train) is { } h)

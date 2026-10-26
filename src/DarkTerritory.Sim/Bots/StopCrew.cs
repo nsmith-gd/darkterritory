@@ -120,6 +120,13 @@ public sealed partial class CrewCalls
     public int? PutAwayOn { get; set; }
 
     /// <summary>
+    /// Note 1058: the stop (its <see cref="StopPlan.Key"/>) the driver's setting back down the main to (a siding the crew cleared
+    /// behind the free road, or the facility's own track after the sidings); null when it's not. A hand still on another stop,
+    /// with the train whole on the main, has done with it: no stop's over by the train going away up the main from it here.
+    /// </summary>
+    public int? SettingBackTo { get; set; }
+
+    /// <summary>
     /// Bots for a pair module (spec D.2: the capstan winch and the gantry crane "2 mandatory", the livestock ramp 2–3), at
     /// most two: the winch pair, then the shunter (spare once the train's in), then the driver.
     /// </summary>
@@ -653,9 +660,32 @@ public sealed record StopPlan(int Facility, Site Site, Branch Spur, double Hold,
     /// <summary>Note 1028: a clearance's free road (a branch), or −1.</summary>
     public int Road { get; init; } = -1;
 
-    /// <summary>What a crew member says it's done: the facility for its own stop, the siding for a pick-up or a put-away.</summary>
-    public int Key => PutAway ? PutAwayKeys + Spur.Index : PickUp ? PickUpKeys + Spur.Index : Facility;
-    const int PickUpKeys = 1 << 16, PutAwayKeys = 2 << 16;
+    /// <summary>
+    /// Note 1058 (level-design I.4): the gantry over <see cref="Spur"/> when it's another of the yard's tracks loaded at its own
+    /// crane (a siding the crew cleared, facilities.json <c>crew.loadClearedSidings</c>; or any craned siding,
+    /// <c>crew.loadCranedSidings</c>); null for the facility's own track. Its pair work that crane, and nothing else of the
+    /// site's: its modules are the facility's own track's (<see cref="Has"/>).
+    /// </summary>
+    public Crane? YardCrane { get; init; }
+
+    /// <summary>Note 1058: a siding loaded at its own gantry (<see cref="YardCrane"/>), not the facility's own track.</summary>
+    public bool Siding => YardCrane is not null;
+
+    /// <summary>The crane this stop's loading works: a siding's gantry (note 1058), or the facility's own crane.</summary>
+    public Crane? Crane => YardCrane ?? Site.Crane;
+
+    /// <summary>Whether this stop's loading has a module of the facility's (none at a siding's gantry, note 1058).</summary>
+    public bool Has(ModuleKind kind) => !Siding && Site.Has(kind);
+
+    /// <summary>What a crew member says it's done: the facility for its own stop, the siding for a pick-up, a put-away or a siding's gantry.</summary>
+    public int Key => PutAway ? PutAwayKeys + Spur.Index : PickUp ? PickUpKeys + Spur.Index : Siding ? SidingKeys + Spur.Index : Facility;
+    const int PickUpKeys = 1 << 16, PutAwayKeys = 2 << 16, SidingKeys = 3 << 16;
+
+    /// <summary>
+    /// Note 1058: how far back down the main from where it stands a crew will set back for a siding they've cleared: its points
+    /// are behind the free road's they put the derelicts away on (m; a yard's longest ladder, and a little).
+    /// </summary>
+    const double SidingBack = 300;
 
     /// <summary>The cars ahead of the engine in its rake that are derelicts (note 294), front first.</summary>
     public static IReadOnlyList<Vehicle> DerelictsAhead(TrainOnLine train)
@@ -715,11 +745,26 @@ public sealed record StopPlan(int Facility, Site Site, Branch Spur, double Hold,
         // Note 1028: derelicts the crew drew out of a blocked siding go to their free road before anything else.
         if (PutAwayAhead(world, from, calls) is { } putAway)
             return done.Contains(putAway.Key) ? null : putAway;
+        var best = Pick(world, from, done, calls, takes, -1);
+        // Note 1058, crew.sidingsFirst: a yard's siding under a gantry, castings stacked, to clear and load before its own track
+        // (its points are further on): the cars that go in go to one or the other, and this way to the gantry's.
+        if (run.FacilityTuning?.Crew.SidingsFirst == true && best is { PickUp: false, Siding: false } own
+            && Pick(world, from, done, calls, takes, own.Facility) is { } first && first.Facility == own.Facility
+            && (first.Siding || first.Clears && run.YardCraneOn(world.Train.Line, own.Facility, first.Spur.Index) is { Left: > 0 }))
+            return first;
+        return best;
+    }
+
+    /// <param name="skipOwn">A facility whose own track's left for now (note 1058's sidings first), or −1.</param>
+    static StopPlan? Pick(World world, double from, IReadOnlySet<int> done, CrewCalls calls, Func<StopPlan, bool>? takes, int skipOwn)
+    {
+        var run = world.Run!;
         var train = world.Train;
         double points = world.Switches?.Tuning.PointsLength ?? 12;
         var g = train.Dynamics.Tuning.Geometry;
         var vehicles = train.Dynamics.Consist.Vehicles;
-        bool clears = run.FacilityTuning?.Crew.ClearSidings == true;
+        var crew = run.FacilityTuning?.Crew;
+        bool clears = crew?.ClearSidings == true;
         // The engine's place in its rake: a switchyard's cars picked up go on ahead of it (note 187).
         int engine = vehicles.ToList().FindIndex(v => v.IsEngine);
         StopPlan? best = null;
@@ -736,14 +781,27 @@ public sealed record StopPlan(int Facility, Site Site, Branch Spur, double Hold,
                 // Note 1028: a siding the layout blocked, its derelicts still there, with a free road for them up the yard.
                 int derelicts = !own && laid.Any(l => l.Branch == track) ? Run.Run.DerelictsOn(train, track) : 0;
                 int road = derelicts > 0 && standing == 0 ? FreeRoad(world, site, spur, derelicts, done, laid) : -1;
-                // Its own track for its loading (and any cars standing there); any other only for the cars standing on it.
-                if (own ? done.Contains(site.Index) || !calls.CanWork(site) && standing == 0 : standing == 0 && road < 0 || done.Contains(PickUpKeys + track))
+                // Note 1058 (level-design I.4): a siding at its own gantry, castings still stacked under it: one the crew cleared
+                // (its clearance made, its derelicts gone), or with crew.loadCranedSidings any not blocked. Nothing standing on it,
+                // and the pair to work the crane.
+                bool cleared = !own && laid.Any(l => l.Branch == track) && done.Contains(PickUpKeys + track) && Run.Run.DerelictsOn(train, track) == 0;
+                var yard = !own && standing == 0 && road < 0 && !done.Contains(SidingKeys + track) && calls.PairWithPeople
+                    && (crew?.LoadClearedSidings == true && cleared || crew?.LoadCranedSidings == true && Run.Run.DerelictsOn(train, track) == 0)
+                    && run.YardCraneOn(train.Line, site.Index, track) is { Left: > 0 } c ? c : null;
+                // Its own track for its loading (and any cars standing there); any other only for the cars standing on it, its
+                // derelicts or its gantry.
+                if (own ? done.Contains(site.Index) || !calls.CanWork(site) && standing == 0 || site.Index == skipOwn
+                    : yard is null && (standing == 0 && road < 0 || done.Contains(PickUpKeys + track)))
                     continue;
                 double hold = spur.Toe - points - 2;
-                if (hold < from - 5 || best is not null && hold >= best.Hold)
+                // (A siding they cleared is behind the free road they put its derelicts away on: set back down the main to it. And
+                // with sidings first, the facility's own track after them, behind both.)
+                bool back = yard is not null && cleared
+                    || own && crew?.SidingsFirst == true && run.YardTracks(site.Index).Any(t => done.Contains(SidingKeys + t) || done.Contains(PickUpKeys + t));
+                if (hold < from - (back ? SidingBack : 5) || best is not null && hold >= best.Hold)
                     continue;
                 int fit = SpurDrill.Capacity(g, spur, points) - standing - (road >= 0 ? derelicts : 0);
-                if (own)
+                if (own || yard is not null)
                 {
                     // In front of the engine's own cars, what's ahead of it goes in too; and nothing to stop for if the cars that
                     // would go in have no room and there's nothing standing to fetch.
@@ -753,7 +811,7 @@ public sealed record StopPlan(int Facility, Site Site, Branch Spur, double Hold,
                     // (note 261): only a train that goes in whole.
                     if (!calls.Has(StopJob.Shunter) && vehicles.Count - 1 > fit)
                         continue;
-                    var plan = new StopPlan(site.Index, site, spur, hold, fit, vehicles.Count - 1 > fit ? vehicles[fit].Id : -1);
+                    var plan = new StopPlan(site.Index, site, spur, hold, fit, vehicles.Count - 1 > fit ? vehicles[fit].Id : -1) { YardCrane = yard };
                     if (takes is null || takes(plan))
                         best = plan;
                 }
@@ -796,7 +854,7 @@ public sealed record StopPlan(int Facility, Site Site, Branch Spur, double Hold,
     public (int Car, double Front)? SpoutTarget(World world)
     {
         var rake = world.Train.Dynamics;
-        if (PickUp || !Site.Has(ModuleKind.Spout) || Site.Bin <= 1e-6 || rake.Path != Spur.Index)
+        if (PickUp || !Has(ModuleKind.Spout) || Site.Bin <= 1e-6 || rake.Path != Spur.Index)
             return null;
         double spout = Spur.Toe + Site.SpoutAlong;
         (int Car, double Front)? best = null;
@@ -821,7 +879,7 @@ public sealed record StopPlan(int Facility, Site Site, Branch Spur, double Hold,
     public (int Car, double Front)? LiftTarget(World world)
     {
         var rake = world.Train.Dynamics;
-        if (PickUp || !Site.Has(ModuleKind.Lift) || Site.Ore <= 1e-6 || rake.Path != Spur.Index || world.Run?.FacilityTuning is not { } t)
+        if (PickUp || !Has(ModuleKind.Lift) || Site.Ore <= 1e-6 || rake.Path != Spur.Index || world.Run?.FacilityTuning is not { } t)
             return null;
         double chute = Spur.Toe + Site.LiftAlong;
         var consist = rake.Consist;
@@ -851,7 +909,7 @@ public sealed record StopPlan(int Facility, Site Site, Branch Spur, double Hold,
     public (int Car, double Front)? ConveyorTarget(World world)
     {
         var rake = world.Train.Dynamics;
-        if (PickUp || !Site.Has(ModuleKind.Conveyor) || Site.Grain <= 1e-6 || rake.Path != Spur.Index)
+        if (PickUp || !Has(ModuleKind.Conveyor) || Site.Grain <= 1e-6 || rake.Path != Spur.Index)
             return null;
         double head = Spur.Toe + Site.ConveyorAlong;
         (int Car, double Front)? best = null;
@@ -876,7 +934,7 @@ public sealed record StopPlan(int Facility, Site Site, Branch Spur, double Hold,
     public (int Car, double Front)? TippleTarget(World world)
     {
         var rake = world.Train.Dynamics;
-        if (PickUp || !Site.Has(ModuleKind.Tipple) || Site.TippleOre <= 1e-6 || rake.Path != Spur.Index)
+        if (PickUp || !Has(ModuleKind.Tipple) || Site.TippleOre <= 1e-6 || rake.Path != Spur.Index)
             return null;
         double cradle = Spur.Toe + Site.TippleAlong;
         (int Car, double Front)? best = null;
@@ -894,11 +952,11 @@ public sealed record StopPlan(int Facility, Site Site, Branch Spur, double Hold,
     }
 
     /// <summary>The herd still to go up the ramp, with a car at its top to take them, while the engine's at the end.</summary>
-    public bool HerdLeft(World world) => Site.Has(ModuleKind.Ramp) && Site.Head > 0 && AtTheEnd(world.Train)
+    public bool HerdLeft(World world) => Has(ModuleKind.Ramp) && Site.Head > 0 && AtTheEnd(world.Train)
         && world.Run?.CarAtRamp(world.Train, Site) is not null;
 
     /// <summary>The hose still to work: on a car (to mind, and take off once it's full), or a car with room by the stand to put it on.</summary>
-    public bool HoseLeft(World world) => Site.Has(ModuleKind.Hose) && AtTheEnd(world.Train)
+    public bool HoseLeft(World world) => Has(ModuleKind.Hose) && AtTheEnd(world.Train)
         && (Site.HoseCar >= 0 || world.Run?.CarAtHose(world.Train, Site) is not null);
 
     /// <summary>
@@ -908,14 +966,14 @@ public sealed record StopPlan(int Facility, Site Site, Branch Spur, double Hold,
     public bool PairWork(World world, StopJob part)
     {
         var train = world.Train;
-        return Site.Crane is { } crane && (StopHand.CraneTarget(crane, train) is not null || crane.Hooked is not null)
+        return Crane is { } crane && (StopHand.CraneTarget(crane, train) is not null || crane.Hooked is not null)
             || HerdLeft(world) || part == StopJob.Winch0 && HoseLeft(world)
-            || Site.Has(ModuleKind.Winch) && Site.SledsLeft > 0 && world.Run is { } r && r.SledHasRoom(train, Site);
+            || Has(ModuleKind.Winch) && Site.SledsLeft > 0 && world.Run is { } r && r.SledHasRoom(train, Site);
     }
 
     /// <summary>Crates (or salvage) still to carry, or a door they went in by still to shut (note 261).</summary>
     public bool CrateWork(World world, int heavyHands) =>
-        (Site.Has(ModuleKind.Crates) || Site.Has(ModuleKind.Wreck)) && (CratesToLoad(world, heavyHands) || OpenSideDoors(world.Train).Any());
+        (Has(ModuleKind.Crates) || Has(ModuleKind.Wreck)) && (CratesToLoad(world, heavyHands) || OpenSideDoors(world.Train).Any());
 
     /// <summary>
     /// How far the loading's got (note 261), for telling whether anyone's at it: what's in the cars, the winch's sled along
@@ -923,7 +981,7 @@ public sealed record StopPlan(int Facility, Site Site, Branch Spur, double Hold,
     /// </summary>
     public double Progress(World world) =>
         world.Train.Dynamics.Consist.Vehicles.Sum(v => v.Load) + Site.Progress + Site.SledsLeft * -1.0
-        + (Site.Crane?.Castings.Count(c => c.State == CastingState.Loaded) ?? 0);
+        + (Crane?.Castings.Count(c => c.State == CastingState.Loaded) ?? 0);
 
     /// <summary>Cargo cars in the engine's rake with room for more.</summary>
     public static IEnumerable<Vehicle> WithRoom(TrainOnLine train) =>
@@ -1002,9 +1060,9 @@ public sealed record StopPlan(int Facility, Site Site, Branch Spur, double Hold,
     public bool CratesToLoad(World world, int hands = 0)
     {
         // The wreck yard's salvage is carried out as crates are (note 187): what the lamps have found of it.
-        if (!Site.Has(ModuleKind.Crates) && !Site.Has(ModuleKind.Wreck))
+        if (!Has(ModuleKind.Crates) && !Has(ModuleKind.Wreck))
             return false;
-        if (Site.Has(ModuleKind.Crates) && !Site.Stocked)
+        if (Has(ModuleKind.Crates) && !Site.Stocked)
             return Site.CrateCount > 0;
         var train = world.Train;
         var room = WithRoom(train).Select(v => v.Id).ToHashSet();
@@ -1282,7 +1340,8 @@ public sealed class StopDriver(CrewCalls calls)
     /// for the mine head's), the spur's length and the cut's walk the most of it.
     /// </summary>
     static double ToTheLoading(StopPlan p) =>
-        p.Site.Has(ModuleKind.Tipple) ? 100
+        p.Siding ? 125
+        : p.Site.Has(ModuleKind.Tipple) ? 100
         : p.Site.Has(ModuleKind.Conveyor) || p.Site.Has(ModuleKind.Spout) ? 140
         : p.Site.Feature.Facility == FacilityKind.Switchyard ? 145
         : p.Site.Crane is not null ? 125
@@ -1622,6 +1681,7 @@ public sealed class StopDriver(CrewCalls calls)
                         _legs.Clear();
                         _stopStart = _ticks;
                         _sledsAtStart = theirs.Site.SledsLeft;
+                        calls.SettingBackTo = null;
                         Begin(Leg.Approach);
                         return Toward(world, theirs.Hold, +1, Eased(world, theirs.Hold), band: CruiseBand);
                     }
@@ -1687,6 +1747,7 @@ public sealed class StopDriver(CrewCalls calls)
                     _legs.Clear();
                     _stopStart = _ticks;
                     _sledsAtStart = plan.Site.SledsLeft;
+                    calls.SettingBackTo = plan.Hold < engine.Distance - HoldOver ? plan.Key : null;
                     Begin(Leg.Approach);
                     return Toward(world, plan.Hold, +1, Eased(world, plan.Hold), band: CruiseBand);
                 }
@@ -1779,8 +1840,11 @@ public sealed class StopDriver(CrewCalls calls)
                         Begin(Leg.Held);
                         return Hold(world);
                     }
-                    // Overran it: back up to it (the points won't go over with a wheel on them).
-                    return engine.Distance > p.Hold + HoldOver && (still || engine.Velocity < 0) ? Toward(world, p.Hold, -1, 1) : Toward(world, p.Hold, +1, Eased(world, p.Hold), band: CruiseBand);
+                    // Overran it: back up to it (the points won't go over with a wheel on them). A siding the crew cleared, its points
+                    // behind the free road's they put the derelicts away on (note 1058): set back down the main to it at a shunt's pace.
+                    return engine.Distance > p.Hold + HoldOver && (still || engine.Velocity < 0)
+                        ? Toward(world, p.Hold, -1, engine.Distance - p.Hold > SetBackFar ? SetBackTop : 1)
+                        : Toward(world, p.Hold, +1, Eased(world, p.Hold), band: CruiseBand);
                 }
             case Leg.Held:
                 {
@@ -2129,10 +2193,10 @@ public sealed class StopDriver(CrewCalls calls)
     void SpareWinch(World world, StopPlan p, bool late)
     {
         var train = world.Train;
-        bool sleds = p.Site.Has(ModuleKind.Winch) && p.Site.SledsLeft > 0 && world.Run is { } r && r.SledHasRoom(train, p.Site);
+        bool sleds = p.Has(ModuleKind.Winch) && p.Site.SledsLeft > 0 && world.Run is { } r && r.SledHasRoom(train, p.Site);
         bool crew = calls.Has(StopJob.Winch0) && calls.Has(StopJob.Winch1) && calls.Has(StopJob.Shunter) && calls.DriverHand;
         bool on = !p.PickUp && sleds && crew && !late && _loadedAt < 0 && Waited <= LoadingGiveUp && p.AtTheEnd(train) && calls.CanWorkPair
-            && p.Site.Crane is { } crane && (StopHand.CraneTarget(crane, train) is not null || crane.Hooked is not null);
+            && p.Crane is { } crane && (StopHand.CraneTarget(crane, train) is not null || crane.Hooked is not null);
         calls.SpareWinch(on);
     }
 
@@ -2148,9 +2212,9 @@ public sealed class StopDriver(CrewCalls calls)
     {
         var train = world.Train;
         bool pairs = calls.PairNow;
-        bool winched = !p.Site.Has(ModuleKind.Winch) || p.Site.SledsLeft == 0 || !pairs || world.Run is { } wr && !wr.SledHasRoom(train, p.Site);
+        bool winched = !p.Has(ModuleKind.Winch) || p.Site.SledsLeft == 0 || !pairs || world.Run is { } wr && !wr.SledHasRoom(train, p.Site);
         // (A crane pinged, note 739 part two, is waited on as the pair's would be: its two are sent whatever the pair.)
-        bool craned = p.Site.Crane is not { } crane || !pairs && !calls.CraneOrdered || StopHand.CraneTarget(crane, train) is null;
+        bool craned = p.Crane is not { } crane || !pairs && !calls.CraneOrdered || StopHand.CraneTarget(crane, train) is null;
         bool crated = calls.CrateHands == 0 && (calls.PeopleHands == 0 || calls.PeopleIdle)
             || !p.CratesToLoad(world, calls.HeavyHands) && !p.OpenSideDoors(train).Any();
         bool herded = !pairs || !p.HerdLeft(world);
@@ -2190,7 +2254,7 @@ public sealed class StopDriver(CrewCalls calls)
         // Note 617: and whether the pair are at their own work with the crates still to carry. Not at a crane's (the Foundry's):
         // there the shunter's on the winch with the driver while the pair are at the crane (note 609), and out at the crates
         // after it, it was 15–35 s further from the train when the loading was called done, and at its points later.
-        calls.PairWorking(!late && _loadedAt < 0 && !p.PickUp && p.Site.Crane is null && p.AtTheEnd(world.Train) && calls.Has(StopJob.Winch0) && calls.Has(StopJob.Winch1)
+        calls.PairWorking(!late && _loadedAt < 0 && !p.PickUp && p.Crane is null && p.AtTheEnd(world.Train) && calls.Has(StopJob.Winch0) && calls.Has(StopJob.Winch1)
             && calls.PairNow && p.PairWork(world, StopJob.Winch0) && p.CrateWork(world, calls.HeavyHands));
         double now = p.Progress(world);
         if (double.IsNaN(_progress) || Math.Abs(now - _progress) > 1e-6)
@@ -2263,10 +2327,10 @@ public sealed class StopDriver(CrewCalls calls)
             calls.PutAwayOn = p.Road;
         else if (p.PutAway)
             calls.PutAwayOn = null;
-        string kind = p.PutAway ? $"PutAway{p.Spur.Index}" : p.Clears ? $"Clear{p.Spur.Index}" : p.PickUp ? $"PickUp{p.Spur.Index}" : "";
+        string kind = p.PutAway ? $"PutAway{p.Spur.Index}" : p.Clears ? $"Clear{p.Spur.Index}" : p.PickUp ? $"PickUp{p.Spur.Index}" : p.Siding ? $"Siding{p.Spur.Index}" : "";
         _log.Add(new StopRecord(p.Facility, (p.Site.Feature.Facility?.ToString() ?? "") + kind, Math.Round(Seconds(_ticks - _stopStart), 1),
             _sledsAtStart - p.Site.SledsLeft, new Dictionary<string, double>(_legs),
-            Castings: p.Site.Crane?.Castings.Count(c => c.State == CastingState.Loaded) ?? 0));
+            Castings: p.Crane?.Castings.Count(c => c.State == CastingState.Loaded) ?? 0));
         Plan = null;
     }
 
@@ -2333,6 +2397,8 @@ public sealed class StopDriver(CrewCalls calls)
     /// their mark by <see cref="Toward"/>'s own curve, so the top is only the open stretch between.
     /// </summary>
     public const double SetBackTop = 6;
+    /// <summary>Note 1058: further past a stop's hold than this (m), the engine sets back to it at <see cref="SetBackTop"/>, not a crawl.</summary>
+    const double SetBackFar = 20;
     /// <summary>A cut left on the main line rolling away faster than this (m/s) is lost, not chased (note 261).</summary>
     const double RunawayAbove = SetBackTop;
     /// <summary>How far back past its points the engine goes after a cut that's still rolling away (m; note 261).</summary>
@@ -2631,8 +2697,10 @@ public sealed partial class StopHand(StopJob job, CrewCalls calls, int member)
         if (train.Dynamics.Path == p.Spur.Index && train.Dynamics.Distance > p.Spur.Toe)
             _wentIn = true;
         _reachedEnd |= p.AtTheEnd(train);
-        // The train's back together and away up the main line: that stop's over, done or not.
-        if (train.OnMain && p.NearRake(train) is null && train.Dynamics.Distance > p.Hold + 20 && !train.Diverging(p.Spur.Index))
+        // The train's back together and away up the main line: that stop's over, done or not. Or set back down it to another
+        // (note 1058: a siding cleared behind the free road the derelicts went on).
+        if (train.OnMain && p.NearRake(train) is null && !train.Diverging(p.Spur.Index)
+            && (train.Dynamics.Distance > p.Hold + 20 || calls.SettingBackTo is { } next && next != p.Key))
         {
             _done.Add(p.Key);
             _plan = null;
@@ -2677,7 +2745,7 @@ public sealed partial class StopHand(StopJob job, CrewCalls calls, int member)
         // Note 639: the yard's power down (level-design D.1: "the cranes wait on a walk to the powerhouse and a restart"), the
         // crane's operator walks to the powerhouse and holds the restart till it's live, before the crane: dead, it doesn't
         // move at all, and at low power at half speed. Nobody did, and a dead yard's crane never lifted a casting.
-        if (Pair == StopJob.Winch0 && !WinchOnly && !calls.Leaving && p.Site.Crane is { } powered && CraneTarget(powered, train) is not null
+        if (Pair == StopJob.Winch0 && !WinchOnly && !calls.Leaving && p.Crane is { } powered && CraneTarget(powered, train) is not null
             && PowerUp(self, world, p) is { } restart)
             return restart;
         // The crane pinged (note 739 part two; the director, 14 Oct: "If I point at the crane"): the two sent to it work it, the
@@ -2687,7 +2755,7 @@ public sealed partial class StopHand(StopJob job, CrewCalls calls, int member)
             return ordered == StopJob.Winch0 ? PowerUp(self, world, p) ?? Operate(self, world, p, sent) : RigCasting(self, world, p, sent);
         // The gantry crane (T54, spec D.2): the pair work it first, one at the controls and one rigging, while the cars under
         // the gantry still have room (the crates and the sleds would fill them); then the winch.
-        if (Pair is StopJob.Winch0 or StopJob.Winch1 && !WinchOnly && !calls.CranePartOrdered(Pair) && p.Site.Crane is { } crane
+        if (Pair is StopJob.Winch0 or StopJob.Winch1 && !WinchOnly && !calls.CranePartOrdered(Pair) && p.Crane is { } crane
             && (calls.PairNow || crane.Hooked is not null) && (CraneTarget(crane, train) is not null || crane.Hooked is not null))
             return Pair == StopJob.Winch0 ? Operate(self, world, p, crane) : RigCasting(self, world, p, crane);
         if (_atControls || self.Has(PlayerFlags.Operating))
@@ -2757,7 +2825,7 @@ public sealed partial class StopHand(StopJob job, CrewCalls calls, int member)
         var train = world.Train;
         if (self.Surface == Surface.Air)
             return new PlayerIntent();
-        if (Pair is StopJob.Winch0 or StopJob.Winch1 && !WinchOnly && !calls.CranePartOrdered(Pair) && plan.Site.Crane is { } crane
+        if (Pair is StopJob.Winch0 or StopJob.Winch1 && !WinchOnly && !calls.CranePartOrdered(Pair) && plan.Crane is { } crane
             && (CraneTarget(crane, train) is not null || crane.Hooked is not null))
             return Pair == StopJob.Winch0 ? Operate(self, world, plan, crane) : RigCasting(self, world, plan, crane);
         if (_atControls || self.Has(PlayerFlags.Operating))
@@ -3043,8 +3111,8 @@ public sealed partial class StopHand(StopJob job, CrewCalls calls, int member)
     /// carries them.
     /// </summary>
     StopJob Part(StopPlan p, World world) => Pair is StopJob.Winch0 or StopJob.Winch1
-        ? (!p.Site.Has(ModuleKind.Winch) || p.Site.SledsLeft == 0 || !calls.PairNow || world.Run is { } r && !r.SledHasRoom(world.Train, p.Site))
-            && (p.Site.Has(ModuleKind.Crates) || p.Site.Has(ModuleKind.Wreck)) ? StopJob.Crates : Pair
+        ? (!p.Has(ModuleKind.Winch) || p.Site.SledsLeft == 0 || !calls.PairNow || world.Run is { } r && !r.SledHasRoom(world.Train, p.Site))
+            && (p.Has(ModuleKind.Crates) || p.Has(ModuleKind.Wreck)) ? StopJob.Crates : Pair
         : _lent == StopJob.Crates ? StopJob.Crates : job;
 
     /// <summary>

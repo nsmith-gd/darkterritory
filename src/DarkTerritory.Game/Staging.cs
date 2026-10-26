@@ -151,6 +151,16 @@ public static partial class Staging
             return Ballast.Render.Camera.LookAt(front + town.Direction(fs, 0, -house.Side) * 18 + town.Direction(fs, 1, 0) * 10 + Double3.Up * 3,
                 front + Double3.Up * (where == "fires" ? 5 : 1.5), 62);
         }
+        // A house standing over the water on a stage (note 1057): "stilts", the nearest the square, from beside it low over the
+        // water, its stage and what it stands on.
+        if (where == "stilts" && Sim.Towns.TownGround.Of(plan) is { Flat: false } stand
+            && plan.Houses.Where(h => stand.Water(h.S, h.D) is not null).OrderBy(h => Math.Abs(h.S - mid) + Math.Abs(h.D)).FirstOrDefault() is { } stilted)
+        {
+            var (hs, hd) = stilted.Rail(0, stilted.Depth / 2);
+            var at = town.World(hs, hd);
+            return Ballast.Render.Camera.LookAt(at + town.Direction(hs, 1, 0) * 6 + town.Direction(hs, 0, stilted.Side) * (stilted.Depth / 2 + 9) + Double3.Up * 0.4,
+                at + Double3.Up * 1.0, 62);
+        }
         // "fixture:kind" (note 1031): the town's first fixture of a kind not in a house (a haystack, a dory, a crane), from a
         // dozen metres off across the line's way and a few up, the square side of it.
         if (where.StartsWith("fixture:", StringComparison.Ordinal) && plan.Fixtures.Where(f => f.House < 0 && f.Kind == where[8..])
@@ -773,6 +783,35 @@ public static partial class Staging
         var ground = eye + flat * 40;
         ground = ground with { Y = Sim.Player.PlayerMotor.GroundAt(ground, train.Line, ref hint) };
         Flare(ground, default, 0.5).Pbd.Sleep();
+        return bodies;
+    }
+
+    /// <summary>
+    /// Fusees (note 1052; <c>dt screenshot --fusees</c>): a trail of them struck and dropped on the ground off the train's right
+    /// side, out from car 2 and away from it, each a little further burnt down than the one after it (the first dropped
+    /// furthest out, on the way in), as a crewmate coming back from a village leaves them; and a box of them in the ballast.
+    /// </summary>
+    public static Sim.Physics.Bodies Fusees(TrainOnLine train)
+    {
+        var bodies = new Sim.Physics.Bodies();
+        var car = train.Frames[Math.Min(2, train.Frames.Count - 1)];
+        double hint = train.Dynamics.Distance;
+        Sim.Physics.Body Lay(Double3 local, Sim.Physics.BodyKind kind)
+        {
+            var at = car.ToWorld(local);
+            at = at with { Y = Sim.Player.PlayerMotor.GroundAt(at, train.Line, ref hint) };
+            var b = bodies.SpawnItem(at, hint, kind);
+            b.Pbd.Sleep();
+            return b;
+        }
+        double[] out_ = [6, 14, 23, 33];
+        for (int i = 0; i < out_.Length; i++)
+        {
+            var b = Lay(new Double3(car.Shape.HalfWidth + out_[i], 0, 1.5 * i - 2), Sim.Physics.BodyKind.Fusee);
+            b.Charge = 0.9 - 0.2 * i;
+            b.Burns = 180 * b.Charge;
+        }
+        Lay(new Double3(car.Shape.HalfWidth + 2.2, 0, 1.2), Sim.Physics.BodyKind.Fusees).Charge = 3;
         return bodies;
     }
 
