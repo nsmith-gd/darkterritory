@@ -1202,6 +1202,7 @@ written here instead is moved out by `tools/coord/notes.py split`; the Coordinat
 - [1041. Lit tells lit enough: a car fire seen from outside from its first cell alight, and the Fire Flies seen at 20 m (n1-E1, nathaniel1's Token…](notes/1041.md)
 - [1042. Dark creatures kept seeable on dark ground (n1-D1, nathaniel1's Token Budget Manager's worker; queue #740; note 1037 ranks 3-7;…](notes/1042.md)
 - [1043. The visual tell audit's staging gaps: `dt tells` stands every creature (n1-G1, nathaniel1's Token Budget Manager's worker; queue #742; note…](notes/1043.md)
+- [1047. Decoded texture pixels let go once they're on the GPU (Odile, nathaniel3's Token Budget Manager's worker; queue #747; note 1043's memory…](notes/1047.md)
 - [1044. A review rubric (`REVIEW.md`) and the cross-model review (n1-W2, nathaniel1's Token Budget Manager's worker; queue #259, carried on from…](notes/1044.md)
 - [1045. Tower Jaw's fall is a punish (Ines, the Token Budget Manager's worker, nathaniel3; queue #743; note 1036's finding; GDD App. A.1, A.9,…](notes/1045.md)
 - [1046. The three art tells under the floor: the Track Doll's glint, the Freight Beetle's paint, the Choir's dark cores (Bea, nathaniel3's Token…](notes/1046.md)
