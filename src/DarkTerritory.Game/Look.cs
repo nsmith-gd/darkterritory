@@ -354,6 +354,7 @@ public sealed record LookTuning
     public CargoOutsideTuning CargoOutside { get; init; } = new();
     public FireOutsideTuning FireOutside { get; init; } = new();
     public FireFliesLook FireFlies { get; init; } = new();
+    public DarkCreaturesTuning DarkCreatures { get; init; } = new();
     public TrainGrowthLook TrainGrowth { get; init; } = new();
 }
 
@@ -432,6 +433,21 @@ public sealed record FireFliesLook
     public float OutsideAbove { get; init; } = 1.5f;
 
     public System.Numerics.Vector3 EmberColour => Ember.Length >= 3 ? new(Ember[0], Ember[1], Ember[2]) : new(1.0f, 0.55f, 0.18f);
+}
+
+/// <summary>
+/// The dark creatures kept seeable on dark ground (systems-spec A.4a; note 1042). Mirror of look.json <c>darkCreatures</c>,
+/// where each field is documented.
+/// </summary>
+public sealed record DarkCreaturesTuning
+{
+    public Dictionary<string, float> Lift { get; init; } = new();
+    public Dictionary<string, float> EyeShine { get; init; } = new();
+    public float StokerBoardGlow { get; init; } = 1.6f;
+    public float StokerBoardReach { get; init; } = 2.2f;
+    public float StokerBoardLift { get; init; } = 0.4f;
+    public float StokerBoardHalo { get; init; }
+    public float StokerBoardHaloAlpha { get; init; } = 0.5f;
 }
 
 /// <summary>
