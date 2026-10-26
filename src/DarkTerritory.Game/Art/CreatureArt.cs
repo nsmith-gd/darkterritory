@@ -118,15 +118,6 @@ public sealed partial class CreatureArt
     /// <summary>How many levels the lit Track Doll's face glow comes in (see Draw's track_doll case: each level is an asset cooked once).</summary>
     const float DollGlowSteps = 8;
 
-    /// <summary>
-    /// The glint off the Track Doll's glaze in the lamp (note 1046): a hard point on her face and a faint bloom round it in the
-    /// haze, as wide as this much of the distance to her (so it's a few pixels across however far), at its full strength
-    /// from <see cref="DollGlintFull"/> m out and gone by <see cref="DollGlintFrom"/> m, where her lit face reads on its own.
-    /// </summary>
-    const float DollGlintBloom = 0.03f, DollGlintPoint = 0.004f, DollGlintFrom = 20, DollGlintFull = 70;
-    /// <summary>How bright the glint's point and bloom are (additive, of the lamp's warm white): a catch of light, not a lamp.</summary>
-    const float DollGlintPointAlpha = 0.9f, DollGlintBloomAlpha = 0.22f;
-
     /// <summary>On the rail it beckons the train in once it's this close (m, from the eye).</summary>
     const float DollBeckons = 40;
     /// <summary>Aboard, bent over the cargo, it looks round at you when you're this close (m).</summary>
@@ -2480,19 +2471,19 @@ public sealed partial class CreatureArt
                             - Vector3.Normalize(Vector3.TransformNormal(Vector3.UnitZ, at)) * 0.07f;
                         mesh.Instances.Add(new MeshInstance(toy, held));
                     }
-                    // The lamp catching her glaze far down the line (note 1046): her face alone is a few pixels at 60 m and goes
-                    // in the rain and fog, so a point of light off it, blooming a little in the haze. Only in the lamp: with it
-                    // out she isn't revealed till she's close (enemies.json trackDoll darkRevealDistance), and close in it's her
-                    // face's own sheen.
+                    // The lamp catching her glaze far down the line (note 1046; look.json trackDollGlint): her face alone is a few
+                    // pixels at 60 m and goes in the rain and fog, so a point of light off it, blooming a little in the haze. Only
+                    // in the lamp: with it out she isn't revealed till she's close (enemies.json trackDoll darkRevealDistance), and
+                    // close in it's her face's own sheen.
+                    var glint = Look.Tuning.TrackDollGlint;
                     if (drawn && phase == SpinePhase.Telegraph && !aboard && HeadlampLit
-                        && SmoothStep(DollGlintFrom, DollGlintFull, dist) is var catchOf and > 0)
+                        && SmoothStep(glint.From, glint.Full, dist) is var catchOf and > 0)
                     {
                         var face = BoneAt("track_doll", "head", at);
                         face -= Vector3.Normalize(face) * 0.12f;
-                        var lamp = new Vector3(1.0f, 0.95f, 0.85f);
                         float d = face.Length();
-                        mesh.Billboard(face, d * DollGlintBloom, 0, new Vector4(lamp, DollGlintBloomAlpha * catchOf), -1, FxBlend.Additive);
-                        mesh.Billboard(face, d * DollGlintPoint, 0, new Vector4(lamp, DollGlintPointAlpha * catchOf), -1, FxBlend.Additive);
+                        mesh.Billboard(face, d * glint.Bloom, 0, new Vector4(glint.Tint, glint.BloomAlpha * catchOf), -1, FxBlend.Additive);
+                        mesh.Billboard(face, d * glint.Point, 0, new Vector4(glint.Tint, glint.PointAlpha * catchOf), -1, FxBlend.Additive);
                     }
                     return drawn;
                 }

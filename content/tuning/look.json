@@ -381,6 +381,13 @@
     "stokerBoardHalo": 2.5,
     "stokerBoardHaloAlpha": 0.5
   },
+  // The Track Doll revealed on the rail in the headlamp (systems-spec A.4a; ARCHITECTURE §8 note 1046): the lamp catching
+  // her glaze, a point "point" x her distance across at "pointAlpha", in a bloom "bloom" x her distance across at
+  // "bloomAlpha" (additive, of "colour", the lamp's warm white), so it stays a few pixels wide however far off she is and
+  // fades in the haze more slowly than a lit surface. At its full from "full" m out, gone by "from" m, where her lit face
+  // reads on its own. Only while the headlamp's lit: with it out she isn't revealed till she's close (enemies.json
+  // trackDoll darkRevealDistance).
+  "trackDollGlint": { "from": 20, "full": 70, "point": 0.004, "pointAlpha": 0.9, "bloom": 0.03, "bloomAlpha": 0.22, "colour": [1.0, 0.95, 0.85] },
   "speedFeel": {
     // The view widens by up to "widen" degrees, at "fullAt" m/s, eased by (speed / fullAt) ^ "ease" (under 1: felt early).
     // Note 735 (the director, 14 Oct: "It still feels a bit slow"): 8 to 12. Note 842 (the director, 16 Oct: "the FOV is

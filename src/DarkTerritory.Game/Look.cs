@@ -355,6 +355,7 @@ public sealed record LookTuning
     public FireOutsideTuning FireOutside { get; init; } = new();
     public FireFliesLook FireFlies { get; init; } = new();
     public DarkCreaturesTuning DarkCreatures { get; init; } = new();
+    public TrackDollGlintLook TrackDollGlint { get; init; } = new();
     public TrainGrowthLook TrainGrowth { get; init; } = new();
 }
 
@@ -448,6 +449,23 @@ public sealed record DarkCreaturesTuning
     public float StokerBoardLift { get; init; } = 0.4f;
     public float StokerBoardHalo { get; init; }
     public float StokerBoardHaloAlpha { get; init; } = 0.5f;
+}
+
+/// <summary>
+/// The glint off a revealed Track Doll's glaze in the headlamp (systems-spec A.4a; note 1046). Mirror of look.json
+/// <c>trackDollGlint</c>, where each field is documented.
+/// </summary>
+public sealed record TrackDollGlintLook
+{
+    public float From { get; init; } = 20;
+    public float Full { get; init; } = 70;
+    public float Point { get; init; } = 0.004f;
+    public float PointAlpha { get; init; } = 0.9f;
+    public float Bloom { get; init; } = 0.03f;
+    public float BloomAlpha { get; init; } = 0.22f;
+    public float[] Colour { get; init; } = [1.0f, 0.95f, 0.85f];
+
+    public System.Numerics.Vector3 Tint => Colour.Length >= 3 ? new(Colour[0], Colour[1], Colour[2]) : new(1.0f, 0.95f, 0.85f);
 }
 
 /// <summary>
