@@ -37,6 +37,9 @@ public sealed class HazardConditions(RailLine line, ITrackConditions? inner, Haz
     public double Drag(int path, double distance, double speed) => Inner?.Drag(path, distance, speed) ?? 0;
     public double Wind(int path, double distance) => Math.Max(Inner?.Wind(path, distance) ?? 0, Set.Wind);
     public Double3 Confine(Double3 world, double radius) => Inner?.Confine(world, radius) ?? world;
+    public Double3 Bore(Double3 world, double radius) => Inner?.Bore(world, radius) ?? world;
+    public bool NearBore(Double3 world, double reach) => Inner?.NearBore(world, reach) ?? false;
+    public double? Terrain(Double3 world) => Inner?.Terrain(world);
     public double LateralRoom(int path, double distance) => Inner?.LateralRoom(path, distance) ?? double.PositiveInfinity;
     public double FormationM => Inner?.FormationM ?? double.PositiveInfinity;
 

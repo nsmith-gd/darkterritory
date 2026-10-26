@@ -41,6 +41,12 @@ public sealed class PlanConditions : ITrackConditions
 
     public Double3 Confine(Double3 world, double radius) => Terrain.Confine(world, radius);
 
+    public Double3 Bore(Double3 world, double radius) => Terrain.Bore(world, radius);
+
+    public bool NearBore(Double3 world, double reach) => Terrain.NearBore(world, reach);
+
+    double? ITrackConditions.Terrain(Double3 world) => Terrain.Height(world.X, world.Z);
+
     public double LateralRoom(int path, double distance)
     {
         var (edge, s) = Locate(path, distance);

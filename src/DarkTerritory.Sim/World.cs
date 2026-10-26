@@ -1507,7 +1507,7 @@ public sealed partial class World
             {
                 ulong seed = (ulong)Tick * 0x9E3779B97F4A7C15UL ^ (Route?.Seed ?? 0);
                 int first = Train.Dynamics.Consist.Vehicles[0].Id;
-                Train.Wreck = Wreck.Begin(WreckTuning, Train, Ground, seed, first, outward: OffTheBend(first));
+                Train.Wreck = Wreck.Begin(WreckTuning, Train, Ground, seed, first, outward: OffTheBend(first), world: FilmWorld());
                 // E.2 step 2: the crew as they were this tick, alive, and the wreck as it began, for the film. (Only what
                 // simulates the train derails it; a client's wreck is a puppet of the host's, and its film is sent.)
                 Film = WreckFilm.StartOf(Train.Wreck, FilmCrew(), Sim.Run.IncidentLog.CauseCard(this), DerailSpeed, Train.Dynamics.Distance,
@@ -1520,7 +1520,7 @@ public sealed partial class World
                 // App. E.2 step 1 (the director's decision of 5 Oct 2026): nobody dies on the derail tick. The film's own
                 // physics, recorded now, says when each of the crew takes the hit that kills them; they die then, as it lands
                 // in their own first person (FilmTuning.DeathDelay), and every client's first person ends on its own.
-                _recording = WreckFilm.Record(WreckTuning, Film, FilmGround(Film), FilmWater());
+                _recording = WreckFilm.Record(WreckTuning, Film, FilmGround(Film), FilmWater(), world: FilmWorld());
                 _filmRecorded = Film;
                 _derailTick = Tick;
                 _doomedAt.Clear();
@@ -1634,6 +1634,12 @@ public sealed partial class World
         return WreckFilm.Budget(all, [.. start.Players.Select(p => p.Position)], WreckTuning.Film);
     }
 
+    /// <summary>
+    /// What the wreck and its film meet past the ground and the train (GDD E.3; note 1055): the line's walls (the lineside's
+    /// trees, boulders and poles, the stops' and the forts' buildings) and a tunnel's rock, alike on every machine.
+    /// </summary>
+    public WreckWorld FilmWorld() => new(Train.Walls, Train.Line.Conditions);
+
     Func<double, double, double> FilmGround(FilmStart start) => (x, z) =>
     {
         double hint = start.Along;
@@ -1733,7 +1739,7 @@ public sealed partial class World
             return null;
         // The host recorded it on the derail tick (for the deaths); a client records the same from the start it's sent.
         var recorded = _recording;
-        return WreckFilm.Shoot(WreckTuning, start, FilmGround(start), ReferenceEquals(start, _filmRecorded) ? recorded : null, FilmWater());
+        return WreckFilm.Shoot(WreckTuning, start, FilmGround(start), ReferenceEquals(start, _filmRecorded) ? recorded : null, FilmWater(), FilmWorld());
     }
 
     /// <summary>

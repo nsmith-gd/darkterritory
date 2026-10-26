@@ -1212,6 +1212,7 @@ written here instead is moved out by `tools/coord/notes.py split`; the Coordinat
 - [1051. The social test's failures taken up (n1-S4, nathaniel1's Token Budget Manager's worker; queue #750; GDD §20; note 1050 rank 1 and its…](notes/1051.md)
 - [1052. The crew's tools I: the communication cord, the end-of-train telltale and fusees (nathaniel1 n1-T3, the Token Budget Manager's worker;…](notes/1052.md)
 - [1053. The houses' windows shut and can be escaped through, the Hollow House's too (B4, queue #751, picked up from nathaniel1; GDD F.5 Decided, 13…](notes/1053.md)
+- [1055. The derailment film's world: what it meets, what it fades, its camera's rules (Silas, the Token Budget Manager's worker, nathaniel3; queue…](notes/1055.md)
 - [1054. A joiner buys at the forge (n1-F1, nathaniel1's Token Budget Manager's worker; queue #752; GDD §3.1 "Not yet", §11; notes 697, 1027; note…](notes/1054.md)
 - [1056. The crew's photos on the big cab's photo rail (Vera, nathaniel3's Token Budget Manager's worker; queue #759; GDD §10 "The back wall"; note…](notes/1056.md)
 - [1057. The towns' and the dykes' leftovers (Uma, nathaniel3; queue #761; level-design T.4, L.3; maritime-rules §4; note 1031's "Not done"; note…](notes/1057.md)

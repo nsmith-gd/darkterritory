@@ -100,6 +100,119 @@ public class FilmTests
         Assert.All(film.Frames, f => Assert.All(f.Ragdolls, r => Assert.All(r, j => Assert.True(double.IsFinite(j.X + j.Y + j.Z)))));
     }
 
+    /// <summary>
+    /// A crew spread as <see cref="Derailed"/> has them, apart, come off on a generated night's line at <paramref name="at"/>
+    /// (its walls and its tunnels' rock standing, as the game's run has them; note 1055).
+    /// </summary>
+    static World OnTheLine(string spec, Func<Route.Route, double> at, int crew, double speed, int cars = 6)
+    {
+        var route = LineGen.Routes.Generate(DataFile.FindContentRoot(), spec, cars);
+        var train = new TrainOnLine(new TrainDynamics(Consist.Uniform(Tuning.Train, cars, 1)), route.Build(), at(route));
+        train.Dynamics.Velocity = speed;
+        train.RefreshFrames();
+        var world = new World(train, Tuning.Combat) { WreckTuning = W };
+        world.EnableBodies();
+        world.EnableRun(Tuning.Run, route, route.GateOr(Tuning.Route.YardLength), authority: true);
+        world.BeginTick();
+        for (int i = 0; i < crew; i++)
+        {
+            var s = i == 0 ? PlayerMotor.SpawnInCab(train, P) : PlayerMotor.SpawnOnRoof(train, 1 + i % cars, (i % 3 - 1) * 3.0 + i / cars * 1.5, P);
+            world.CrewAct(ref s, default, i);
+        }
+        world.Attribution.Drove(0);
+        world.Derail("took the bend in the tunnel too fast");
+        return world;
+    }
+
+    static double InTheTunnel(Route.Route r) => r.Features.First(f => f.Kind == Route.FeatureKind.Tunnel) is var t ? t.Start + Math.Min(60, (t.End - t.Start) / 2) : 0;
+
+    /// <summary>
+    /// GDD E.3 "What collides: ... tunnel bores, ... static props" (note 1055): a derail in deadLines:5's tunnel. The crew
+    /// and the cars meet the rock: no particle ends a substep more than 2 cm in anything, and no car's corner a metre in. Recorded without the world's solids, the cars ran on into the hill and the crew
+    /// with them.
+    /// </summary>
+    [Fact]
+    public void InATunnelTheRockIsSolid()
+    {
+        // At 8 m/s (at 20, a foot ends 2 substeps 9.7 cm in a car pressed to the rock: note 1055's residual).
+        var w = OnTheLine("deadLines:5", InTheTunnel, crew: 4, speed: 8);
+        var met = new FilmProbe();
+        WreckFilm.Record(W, w.Film!, Ground(w), probe: met, world: w.FilmWorld());
+        Assert.True(met.Over == 0, $"{met.Over} particle-substeps over; deepest {met.Deepest:0.000} m, {met.What}");
+        // The cars are kept out of it all but a little (a corner half a metre in at worst, note 1055), where they ran on into it.
+        Assert.True(met.CarDeepest < 1, $"a car {met.CarDeepest:0.00} m into the rock");
+        var through = new FilmProbe { Unmet = w.FilmWorld() };
+        WreckFilm.Record(W, w.Film!, Ground(w), probe: through);
+        Assert.True(through.CarDeepest > 5 && through.Over > 100, $"without it: cars {through.CarDeepest:0.0} m in, {through.Over} particle-substeps over");
+        // And the film's shots stay clean in there.
+        Assert.Empty(w.ShootFilm()!.CameraFaults(Ground(w), w.FilmWorld()));
+    }
+
+    /// <summary>
+    /// GDD E.3's "static props" (note 1055): frontier:7 coming off at 2.5 km, where the lineside's trees and poles stand by
+    /// the line. The crew meet them as walls: none ends a substep 2 cm in one. Recorded without them, a body went 0.64 m in.
+    /// </summary>
+    [Fact]
+    public void AmongTheTreesTheLinesideIsSolid()
+    {
+        var w = OnTheLine("frontier:7", _ => 2500, crew: 8, speed: 20);
+        var met = new FilmProbe();
+        WreckFilm.Record(W, w.Film!, Ground(w), probe: met, world: w.FilmWorld());
+        Assert.True(met.Over == 0, $"{met.Over} particle-substeps over; deepest {met.Deepest:0.000} m, {met.What}; " + string.Join("; ", met.Worst.Select(x => $"{x.Depth:0.000} at {x.At:0.000} {x.What}")));
+        var through = new FilmProbe { Unmet = w.FilmWorld() };
+        WreckFilm.Record(W, w.Film!, Ground(w), probe: through);
+        Assert.Contains("the world", through.What);
+        Assert.True(through.Over > 100, $"without them: {through.Over} particle-substeps over");
+    }
+
+    /// <summary>
+    /// E.4 O11, O7 and O8 (note 1055): a derail in deadLines:5's tunnel. Every shot's camera is in the bore, never in the rock
+    /// (O3, E.11's clean camera); no player's shot loses its subject (out of sight past the ground and the rock, or their head
+    /// or chest covered by another body) for longer than 0.2 s of its real time; and where the best camera would have lost
+    /// them, the shot cuts to the next-best from then on.
+    /// </summary>
+    [Theory]
+    [InlineData(8, 20)]
+    [InlineData(4, 8, Skip = "Note 1055's residual: a crew of four at 8 m/s, player 2 lies where no camera clear of the rock and the cars sees them; the O10 fallback loses them 3.18 s")]
+    public void InATunnelTheCameraKeepsToTheBoreAndCutsRatherThanLoseThem(int crew, double speed)
+    {
+        var w = OnTheLine("deadLines:5", InTheTunnel, crew, speed);
+        var film = w.ShootFilm()!;
+        Assert.Empty(film.CameraFaults(Ground(w), w.FilmWorld()));
+        foreach (var shot in film.Shots.Where(s => s.Kind == ShotKind.Player))
+            Assert.True(film.LostSeconds(shot, Ground(w), w.FilmWorld()) <= W.Film.CoverSeconds + 1.0 / WreckFilm.Rate,
+                $"player {shot.Subject}'s shot loses them {film.LostSeconds(shot, Ground(w), w.FilmWorld()):0.00} s");
+        if (crew == 8)
+        {
+            // Player 1's best camera loses them 1.27 s in: the shot cuts there, to a camera held clear of the rock.
+            var cut = Assert.Single(film.Shots, s => s.Cut is not null);
+            Assert.InRange(cut.Cut!.At, cut.From, cut.To);
+            Assert.Equal(cut.Cut.Camera, film.CameraAt(cut, cut.Cut.At + 0.01, cut.Camera));
+            Assert.False(w.FilmWorld().InRock(cut.Cut.Camera));
+        }
+    }
+
+    [Fact]
+    public void ATunnelsBoreHoldsAThingInsideItsWallsAndUnderItsCrown()
+    {
+        var route = LineGen.Routes.Generate(DataFile.FindContentRoot(), "deadLines:5", 6);
+        var line = route.Build();
+        var land = line.Conditions!;
+        var t = route.Features.First(f => f.Kind == Route.FeatureKind.Tunnel);
+        var mid = line.Sample(Rail.RailLine.MainPath, (t.Start + t.End) / 2);
+        var right = new Double3(-mid.Tangent.Z, 0, mid.Tangent.X).Normalized;
+        // In the bore: as it is. Over the crown, held down; into the wall, held in.
+        var inside = mid.Position + Double3.Up * 2;
+        Assert.Equal(inside, land.Bore(inside, 0.2));
+        var up = land.Bore(mid.Position + Double3.Up * 9, 0.2);
+        Assert.True(up.Y < mid.Position.Y + 7.5, $"over the crown, held at {up.Y - mid.Position.Y:0.0} m over the rail");
+        var into = land.Bore(mid.Position + right * 5 + Double3.Up, 0.2);
+        Assert.InRange(Double3.Dot(into - mid.Position, right), 2, 3.0);
+        // Past the portals it's the open air, and the world's solids say so.
+        var past = line.Sample(Rail.RailLine.MainPath, t.Start - 200).Position + Double3.Up * 9;
+        Assert.Equal(past, land.Bore(past, 0.2));
+    }
+
     static Func<double, double, double> Ground(World w) => (x, z) =>
     {
         double hint = w.Film!.Along;

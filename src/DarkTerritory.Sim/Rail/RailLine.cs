@@ -93,6 +93,15 @@ public interface ITrackConditions
     double Fog(int path, double distance) => 1;
     /// <summary>The world is solid (note 279): a point held inside what it's in (a tunnel's lining), for something of <paramref name="radius"/>.</summary>
     Double3 Confine(Double3 world, double radius) => world;
+    /// <summary>
+    /// The derailment film's tunnel (GDD E.3 "tunnel bores"; note 1055): a point in a tunnel's rock, its walls or over its
+    /// crown, held back into the bore for something of <paramref name="radius"/>; anywhere else, as it is.
+    /// </summary>
+    Double3 Bore(Double3 world, double radius) => world;
+    /// <summary>Whether a tunnel's bore is within <paramref name="reach"/> of a point (note 1055: the film asks once a body, not a joint).</summary>
+    bool NearBore(Double3 world, double reach) => false;
+    /// <summary>The land's own height under a point, without a bridge's deck or a tunnel's floor over it (note 1055: a film's camera under a bridge); null, the ground's.</summary>
+    double? Terrain(Double3 world) => null;
     /// <summary>Note 279: how far either side of the rail something beside the train can be there (a tunnel's bore, a bridge's deck).</summary>
     double LateralRoom(int path, double distance) => double.PositiveInfinity;
     /// <summary>Note 279: how far out from the rail the ground stays at rail height (the formation).</summary>

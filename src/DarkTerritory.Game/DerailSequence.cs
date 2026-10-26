@@ -418,13 +418,17 @@ public sealed class DerailSequence
         double u = shot.Real > 0 ? Math.Clamp(into / shot.Real, 0, 1) : 0;
         var look = Double3.Lerp(shot.Look, shot.LookTo, u);
         var eye = Double3.Lerp(shot.Camera, shot.CameraTo, u);
+        double fov = shot.Fov;
         if (shot.Kind == ShotKind.Player && film is not null && Doll(film, shot.Subject) is >= 0 and var doll)
         {
             look = film.Middle(doll, shot.At(into));
-            // Someone inside a car: the camera's rigged to it, so the car carrying them stays in the shot.
+            // Someone inside a car: the camera's rigged to it, so the car carrying them stays in the shot. Cut to its next-best
+            // camera (E.4 O8; note 1055) once this one would lose them.
             eye = film.CameraAt(shot, shot.At(into), eye);
+            if (shot.Cut is { } cut && shot.At(into) >= cut.At)
+                fov = cut.Fov;
         }
-        return Camera.LookAt(eye, look, (float)shot.Fov);
+        return Camera.LookAt(eye, look, (float)fov);
     }
 
     /// <summary>

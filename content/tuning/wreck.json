@@ -136,6 +136,16 @@
     // A body pinned between the ground and a car come down on it (E.3: "one that comes down on a body pins it, which crushes
     // it. Nothing is pushed out to somewhere safe") is crushed flat where it lies, each pinned joint no bigger than the gap,
     // so it's in neither (E.11; note 1035). false: as before note 1035, the joint fought between the two, up to 32 cm in.
-    "flatten": true
+    "flatten": true,
+    // The film's stage puts the cars where the wreck had them after each of its substeps (wreckSubsteps; note 1055), resolved
+    // against the world (a car kept out of a tree at every substep no longer passes through it on a line between a frame's
+    // ends), and takes out the half of a car's sink into the ground its contact leaves, after it's moved (unsink), so what's
+    // under a car is between it and the ground as they are.
+    "wreckSubsteps": true, "unsink": true,
+    // E.4 O7/O8 (note 1055): the subject lost from a camera (fewer than two of head, chest and pelvis seen past the ground and
+    // a tunnel's rock, or another body over their head or chest) for more than coverSeconds of the shot's real time, and the
+    // shot cuts to its next-best camera. O11: under a bridge's deck a camera's candidate may sit, underDeckM (m) below it
+    // or more, keeping O3's groundClearance over the land and the water down there.
+    "coverSeconds": 0.2, "underDeckM": 2.5
   }
 }

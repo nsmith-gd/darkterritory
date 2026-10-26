@@ -63,7 +63,9 @@ static class WreckCommands
     /// (note 1032), for each crew size at each speed: a crew spread down the train (the cab, then the roofs), derailed, the
     /// film recorded with every particle watched at the end of every substep ("no interpenetration": none more than
     /// restInside, 2 cm, inside a solid) and every finished shot's camera checked ("clean camera", E.4 O3 and O4). The
-    /// verdict's in "pass"; FilmTests holds a few of these.
+    /// verdict's in "pass"; FilmTests holds a few of these. --route tier:seed [--at tunnel|bridge|metres] (note 1055): on that
+    /// night's line instead, its walls (the lineside's trees, the stops') and its tunnels' rock standing, the engine come off
+    /// there: in its first tunnel, on its first bridge, or that far along.
     /// </summary>
     static object Film(string content, string[] args)
     {
@@ -73,18 +75,23 @@ static class WreckCommands
         int cars = (int)Opt(args, "--cars", 6);
         var crews = Str(args, "--crews", "1,2,4,6,8").Split(',').Select(int.Parse).ToList();
         var speeds = Str(args, "--speeds", "8,14,20,26,30").Split(',').Select(x => double.Parse(x, System.Globalization.CultureInfo.InvariantCulture)).ToList();
+        var route = Str(args, "--route", "") is { Length: > 0 } spec ? DarkTerritory.Sim.LineGen.Routes.Generate(content, spec, cars) : null;
+        var run = route is null ? null : DataFile.Load<DarkTerritory.Sim.Run.RunTuning>(Path.Combine(content, DarkTerritory.Sim.Run.RunTuning.File));
+        double front = route is null ? 2250 : At(route, Str(args, "--at", "tunnel"));
         var rows = new List<object>();
         bool pass = true;
         foreach (int crew in crews)
             foreach (double speed in speeds)
             {
-                var line = args.Contains("--straight") ? new RailLine(new LineDefinition("wreck", [new TrackSegment(5000)]))
-                    : new RailLine(new LineDefinition("wreck", [new TrackSegment(2000), new TrackSegment(600, 300), new TrackSegment(2000)]));
-                var train = new TrainOnLine(new TrainDynamics(Consist.Uniform(trainTuning, cars, 1)), line, 2250);
+                var line = route?.Build() ?? (args.Contains("--straight") ? new RailLine(new LineDefinition("wreck", [new TrackSegment(5000)]))
+                    : new RailLine(new LineDefinition("wreck", [new TrackSegment(2000), new TrackSegment(600, 300), new TrackSegment(2000)])));
+                var train = new TrainOnLine(new TrainDynamics(Consist.Uniform(trainTuning, cars, 1)), line, front);
                 train.Dynamics.Velocity = speed;
                 train.RefreshFrames();
                 var world = new World(train) { WreckTuning = tuning };
                 world.EnableBodies();
+                if (route is not null)
+                    world.EnableRun(run!, route, route.GateOr(DarkTerritory.Sim.Route.RouteTuning.Load(content).YardLength), authority: true);
                 world.BeginTick();
                 // As FilmTests' crew, apart: the cab, then a roof each down the train, 3 m back and forth, a round further back past it.
                 for (int i = 0; i < crew; i++)
@@ -100,17 +107,23 @@ static class WreckCommands
                     double hint = start.Along;
                     return DarkTerritory.Sim.Player.PlayerMotor.GroundAt(new Double3(x, 0, z), train.Line, ref hint);
                 }
-                var probe = new FilmProbe();
-                var recording = WreckFilm.Record(tuning, start, Ground, probe: probe);
-                var film = WreckFilm.Shoot(tuning, start, Ground, recording);
-                var faults = film.CameraFaults(Ground);
-                bool ok = probe.Over == 0 && faults.Count == 0;
+                // --no-world: the film as it was before note 1055, the world's solids only looked for.
+                var solids = route is null ? null : world.FilmWorld();
+                bool met = !args.Contains("--no-world");
+                var probe = new FilmProbe { Unmet = met ? null : solids };
+                var clock = System.Diagnostics.Stopwatch.StartNew();
+                var recording = WreckFilm.Record(tuning, start, Ground, probe: probe, world: met ? solids : null);
+                double recordMs = clock.Elapsed.TotalMilliseconds;
+                var film = WreckFilm.Shoot(tuning, start, Ground, recording, world: met ? solids : null);
+                var faults = film.CameraFaults(Ground, solids);
+                bool ok = probe.Over == 0 && probe.CarsInside == 0 && faults.Count == 0;
                 pass &= ok;
                 rows.Add(new
                 {
                     crew,
                     speed,
                     pass = ok,
+                    recordMs = Math.Round(recordMs),
                     interpenetration = new
                     {
                         over = probe.Over,
@@ -119,12 +132,29 @@ static class WreckCommands
                         deepest = Math.Round(probe.Deepest, 4),
                         at = Math.Round(probe.At, 3),
                         what = probe.What,
-                        worst = probe.Worst.Select(w => new { depth = Math.Round(w.Depth, 4), at = Math.Round(w.At, 3), w.What })
+                        worst = probe.Worst.Select(w => new { depth = Math.Round(w.Depth, 4), at = Math.Round(w.At, 3), w.What }),
+                        carsInside = probe.CarsInside,
+                        carDeepest = Math.Round(probe.CarDeepest, 3)
                     },
                     camera = faults,
+                    // E.4 O8 (note 1055): the shots that cut to their next-best camera, by subject and when.
+                    cuts = film.Shots.Where(x => x.Cut is not null).Select(x => new { subject = x.Subject, at = Math.Round(x.Cut!.At, 2) }),
                 });
             }
-        return new { restInside = tuning.Film.RestInside, lensClearance = tuning.Film.LensClearance, pass, rows };
+        return new { route = route?.Name, at = route is null ? (double?)null : Math.Round(front), restInside = tuning.Film.RestInside, lensClearance = tuning.Film.LensClearance, pass, rows };
+    }
+
+    /// <summary>
+    /// Where on a night's line the engine comes off (note 1055): 60 m into its first tunnel (or half way, a short one), the
+    /// middle of its first bridge, or a distance along.
+    /// </summary>
+    public static double At(DarkTerritory.Sim.Route.Route route, string at)
+    {
+        if (double.TryParse(at, System.Globalization.CultureInfo.InvariantCulture, out double m))
+            return m;
+        var kind = at == "bridge" ? DarkTerritory.Sim.Route.FeatureKind.Bridge : DarkTerritory.Sim.Route.FeatureKind.Tunnel;
+        var f = route.Features.FirstOrDefault(x => x.Kind == kind) ?? throw new ArgumentException($"{route.Name} has no {at}");
+        return kind == DarkTerritory.Sim.Route.FeatureKind.Bridge ? (f.Start + f.End) / 2 : f.Start + Math.Min(60, (f.End - f.Start) / 2);
     }
 
     static string Str(string[] args, string name, string fallback)

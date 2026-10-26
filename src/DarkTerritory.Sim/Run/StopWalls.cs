@@ -100,6 +100,20 @@ public sealed partial class StopWalls
 
     static (int, int) CellOf(double x, double z) => ((int)Math.Floor(x / Cell), (int)Math.Floor(z / Cell));
 
+    /// <summary>
+    /// The walls in every cell within <paramref name="reach"/> of a point (as <see cref="Near"/>, each cell once; a wall may
+    /// come more than once, from more than one cell). The derailment film's (note 1055).
+    /// </summary>
+    public IEnumerable<Wall> Within(Double3 p, double reach)
+    {
+        var (x0, z0) = CellOf(p.X - reach, p.Z - reach);
+        var (x1, z1) = CellOf(p.X + reach, p.Z + reach);
+        for (int x = x0; x <= x1; x++)
+            for (int z = z0; z <= z1; z++)
+                foreach (var w in Near(new Double3((x + 0.5) * Cell, p.Y, (z + 0.5) * Cell)))
+                    yield return w;
+    }
+
     /// <summary>Whether a stop's building stands shut (no way in: a find in it is put on its doorstep).</summary>
     public static bool Walled(StopLayout stop, int building) =>
         stop.Buildings[building].Kind is BuildingKind.House or BuildingKind.Barn or BuildingKind.Outbuilding
