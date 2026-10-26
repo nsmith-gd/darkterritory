@@ -282,7 +282,7 @@
   "fireOutside": {
     "column": 24, "columnPerHeat": 40, "columnRise": 1.4, "columnSeconds": 7, "columnSize": 1.6, "columnGrow": 4.5,
     "columnAlpha": 0.6, "columnAlphaPerHeat": 0.3, "columnGrey": [0.34, 0.32, 0.3], "columnLit": 2.5,
-    "seams": 0.5, "seamsPerHeat": 2.5, "underGlow": 1.5, "underGlowSize": 6,
+    "seams": 0.5, "seamsPerHeat": 2.5, "underGlow": 2, "underGlowSize": 6,
     "light": 0.6, "lightPerHeat": 2.4, "lightRange": 4, "lightRangePerHeat": 4,
     "windows": 1.5, "windowsPerHeat": 4
   },

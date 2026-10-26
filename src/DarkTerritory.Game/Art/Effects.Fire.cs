@@ -289,9 +289,10 @@ public sealed partial class Effects
         var colour = fire.Alight ? Palette.FurnaceOrange : Palette.FurnaceOrange * new Vector3(1, 0.5f, 0.35f);
         float glow = (fo.Seams + fo.SeamsPerHeat * hot) * flicker;
         // The fire's light on its own smoke, over the roof where it leaves the car: what's seen of it through the fog, far off.
-        // (By the root of the heat: there from the first, and not a fireball once it's well alight.)
+        // (By the root of the heat: there from the first, and not a fireball once it's well alight. The smoke spreads the
+        // flames' flicker out: it breathes a little, where the cracks flicker hard.)
         mesh.Billboard(L(0, roof + 0.6f + 0.6f * hot, 0), fo.UnderGlowSize * (0.7f + 0.4f * hot), 0,
-            new Vector4(colour * fo.UnderGlow * MathF.Sqrt(hot) * flicker, 1), -1, FxBlend.Additive, stretch: 0.6f);
+            new Vector4(colour * fo.UnderGlow * MathF.Sqrt(hot) * (0.9f + 0.1f * flicker), 1), -1, FxBlend.Additive, stretch: 0.6f);
         foreach (float sd in (ReadOnlySpan<float>)[-1, 1])
         {
             // The side door's crack, floor to lintel, and the eave's seam along the roof, a glow at a time down it.

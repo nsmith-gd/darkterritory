@@ -391,7 +391,7 @@ public sealed record FireOutsideTuning
     public float ColumnLit { get; init; } = 2.5f;
     public float Seams { get; init; } = 0.5f;
     public float SeamsPerHeat { get; init; } = 2.5f;
-    public float UnderGlow { get; init; } = 1.5f;
+    public float UnderGlow { get; init; } = 2;
     public float UnderGlowSize { get; init; } = 6;
     public float Light { get; init; } = 0.6f;
     public float LightPerHeat { get; init; } = 2.4f;
