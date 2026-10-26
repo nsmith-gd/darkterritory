@@ -1214,5 +1214,6 @@ written here instead is moved out by `tools/coord/notes.py split`; the Coordinat
 - [1053. The houses' windows shut and can be escaped through, the Hollow House's too (B4, queue #751, picked up from nathaniel1; GDD F.5 Decided, 13…](notes/1053.md)
 - [1054. A joiner buys at the forge (n1-F1, nathaniel1's Token Budget Manager's worker; queue #752; GDD §3.1 "Not yet", §11; notes 697, 1027; note…](notes/1054.md)
 - [1056. The crew's photos on the big cab's photo rail (Vera, nathaniel3's Token Budget Manager's worker; queue #759; GDD §10 "The back wall"; note…](notes/1056.md)
+- [1057. The towns' and the dykes' leftovers (Uma, nathaniel3; queue #761; level-design T.4, L.3; maritime-rules §4; note 1031's "Not done"; note…](notes/1057.md)
 - [1058. Bots load from a siding they've cleared (B4, queue #757, picked up from nathaniel1; level-design I.4; note 1050 rank 8)](notes/1058.md)
 <!-- end of the notes index -->

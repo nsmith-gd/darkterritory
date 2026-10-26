@@ -24,6 +24,10 @@ public sealed partial class WorldArt
     /// <summary>How far apart a deck's piles stand along its edges (m; note 692).</summary>
     const double PileEvery = 3.5;
 
+    /// <summary>How far apart a stage's stilts stand round it, and half a stilt's thickness (m; note 1057).</summary>
+    const double StiltEvery = 2.2;
+    const float StiltHalf = 0.18f;
+
     /// <summary>The grid a fen's reeds and dead trees are scattered on (m), each a hash of its cell (the same every frame).</summary>
     const double MarshCell = 5;
 
@@ -537,8 +541,52 @@ public sealed partial class WorldArt
         foreach (var w in plan.Ways.Where(w => w.Deck))
             foreach (int side in new[] { -1, 1 })
                 PileAlong(w.Points, side * (w.Width / 2 - 0.3), w.Level, false);
-        foreach (var d in plan.Districts.Where(x => x.Kind is DistrictKind.Deck or DistrictKind.Stage))
+        foreach (var d in plan.Districts.Where(x => x.Kind is DistrictKind.Deck))
             PileAlong(d.Outline, 0, d.Level, true);
+        // A stage's houses stand on stilts (note 1057; the director, 14 Oct, of the Fenfolk: "the houses in the town are all
+        // stilted"): round each stage, stout posts close together down into the mud, a girt along them a little over the
+        // water, and every other bay braced corner to corner.
+        foreach (var d in plan.Districts.Where(x => x.Kind is DistrictKind.Stage))
+        {
+            // Stepped evenly round the whole outline (a blob's is many short sides).
+            var posts = new List<(double S, double D)>();
+            double carry = 0;
+            for (int i = 0; i < d.Outline.Count; i++)
+            {
+                var (a, z) = (d.Outline[i], d.Outline[(i + 1) % d.Outline.Count]);
+                double es = z.S - a.S, ed = z.D - a.D, len = Math.Sqrt(es * es + ed * ed);
+                for (double x = carry; x < len; x += StiltEvery)
+                    posts.Add((a.S + es * x / len, a.D + ed * x / len));
+                carry = len < 1e-9 ? carry : (carry - len) % StiltEvery is var r && r < 0 ? r + StiltEvery : r;
+            }
+            // Only where the stage looks out over open water: where a walk or the next stage meets it, it's out of sight.
+            bool Open(int i)
+            {
+                var (ps, pd) = posts[i];
+                var (ns, nd) = posts[(i + 1) % posts.Count];
+                double es = ns - ps, ed = nd - pd, len = Math.Sqrt(es * es + ed * ed);
+                if (len < 1e-6 || g.Water(ps, pd) is null)
+                    return false;
+                double ms = (ps + ns) / 2, md = (pd + nd) / 2, ox = -ed / len * 1.2, oy = es / len * 1.2;
+                return !g.Deck(ms + ox, md + oy) || !g.Deck(ms - ox, md - oy);
+            }
+            for (int i = 0; i < posts.Count; i++)
+            {
+                if (!Open(i) && !Open((i - 1 + posts.Count) % posts.Count))
+                    continue;
+                var (ps, pd) = posts[i];
+                double wl = g.Water(ps, pd) ?? 0, bed = g.Bed(ps, pd), top = d.Level - 0.25;
+                k.Box(V(ps + StiltHalf, bed - 0.5, pd - StiltHalf), V(ps - StiltHalf, top, pd + StiltHalf), false, false);
+                if (!Open(i))
+                    continue;
+                // The girt and the brace: planks, seen from either side.
+                var (ns, nd) = posts[(i + 1) % posts.Count];
+                double girt = wl + 0.35, low = Math.Max(bed, wl - 0.4);
+                k.Quad(V(ps, girt - 0.1, pd), V(ns, girt - 0.1, nd), V(ns, girt + 0.1, nd), V(ps, girt + 0.1, pd), twoSided: true);
+                if (i % 2 == 0)
+                    k.Quad(V(ps, low, pd), V(ns, top - 0.2, nd), V(ns, top - 0.05, nd), V(ps, low + 0.15, pd), twoSided: true);
+            }
+        }
         // The rails along the deep water and the parapets along the terraces' edges: along the districts' own outlines, a
         // few long runs where the Sim's walls (TownGround.Edges) step with its raster, each piece where the ground either side
         // of it calls for one (a stride's step, or walkable ground on deep water).

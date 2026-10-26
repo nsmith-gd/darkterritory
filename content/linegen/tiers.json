@@ -245,7 +245,10 @@
     "roads": { "offsetM": [20, 38], "wanderM": [3, 9], "wanderWavelengthM": [300, 800], "crossEveryM": [400, 1000], "rampM": 70, "halfWidthM": 3,
       "bankSlope": 0.45, "minM": 300, "clearM": 80 },
     "dykes": { "fieldsBelowRailM": 1.5, "heightM": 2.2, "crestM": 3, "sideSlope": 0.55, "outM": [40, 90], "marshAboveWaterM": 2.8, "landwardM": 160,
-      "maxRailRangeM": 8 }
+      "maxRailRangeM": 8,
+      // onGrade (note 1057, maritime-rules §4): the share of dyke shores whose dyke is the railway grade itself, the salt
+      // marsh right under the line's bank on the water's side (the Tantramar's), no dyke of its own out past the fields.
+      "onGrade": 0.35 }
   },
 
   // Plan §14: terrain's local change to the night's weather. Fog denser in low ground, thinner on crests; wind worse

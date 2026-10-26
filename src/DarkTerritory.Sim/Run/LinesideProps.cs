@@ -285,7 +285,10 @@ public sealed partial class LinesideProps
     public IEnumerable<LinesideProp> Props(double from, double to, double reach = double.MaxValue) =>
         // The boards' sight lines are kept clear (note 560): what would stand in one isn't there. Nor does a tree grow up
         // through the railway's leavings (note 794), or through a building (note 800).
-        Dealt(from, to, reach).Where(p => !Hidden(p) && !InALeaving(p) && !InABuilding(p));
+        // An aboiteau's gate and its intake (note 1057) stand together or not at all: half a sluice is nothing.
+        Dealt(from, to, reach).Where(p => Kept(p) && (!Aboiteau(p) || Partner(p) is { } other && Kept(other)));
+
+    bool Kept(LinesideProp p) => !Hidden(p) && !InALeaving(p) && !InABuilding(p);
 
     IEnumerable<LinesideProp> Dealt(double from, double to, double reach)
     {
@@ -300,6 +303,8 @@ public sealed partial class LinesideProps
         foreach (var p in Shores(from, to, reach))
             yield return p;
         foreach (var p in Mudflats(from, to, reach))
+            yield return p;
+        foreach (var p in Aboiteaux(from, to, reach))
             yield return p;
         foreach (var p in Blocks(from, to, reach))
             yield return p;

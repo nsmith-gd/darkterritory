@@ -151,6 +151,16 @@ public static partial class Staging
             return Ballast.Render.Camera.LookAt(front + town.Direction(fs, 0, -house.Side) * 18 + town.Direction(fs, 1, 0) * 10 + Double3.Up * 3,
                 front + Double3.Up * (where == "fires" ? 5 : 1.5), 62);
         }
+        // A house standing over the water on a stage (note 1057): "stilts", the nearest the square, from beside it low over the
+        // water, its stage and what it stands on.
+        if (where == "stilts" && Sim.Towns.TownGround.Of(plan) is { Flat: false } stand
+            && plan.Houses.Where(h => stand.Water(h.S, h.D) is not null).OrderBy(h => Math.Abs(h.S - mid) + Math.Abs(h.D)).FirstOrDefault() is { } stilted)
+        {
+            var (hs, hd) = stilted.Rail(0, stilted.Depth / 2);
+            var at = town.World(hs, hd);
+            return Ballast.Render.Camera.LookAt(at + town.Direction(hs, 1, 0) * 6 + town.Direction(hs, 0, stilted.Side) * (stilted.Depth / 2 + 9) + Double3.Up * 0.4,
+                at + Double3.Up * 1.0, 62);
+        }
         // "fixture:kind" (note 1031): the town's first fixture of a kind not in a house (a haystack, a dory, a crane), from a
         // dozen metres off across the line's way and a few up, the square side of it.
         if (where.StartsWith("fixture:", StringComparison.Ordinal) && plan.Fixtures.Where(f => f.House < 0 && f.Kind == where[8..])

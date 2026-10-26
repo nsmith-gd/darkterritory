@@ -154,6 +154,11 @@ public static class ArtCatalog
             list.Add(new($"maple-{v}", SmallProp, () => NovaKit.RedMaple(look, variant)));
             list.Add(new($"dory-aground-{v}", SmallProp, () => MaritimeKit.Aground(look, variant)));
             list.Add(new($"haystack-{v}", SmallProp, () => MaritimeKit.Haystack(look, variant)));
+            if (v < 2)
+            {
+                list.Add(new($"aboiteau-gate-{v}", SmallProp, () => MaritimeKit.AboiteauGate(look, variant)));
+                list.Add(new($"aboiteau-intake-{v}", SmallProp, () => MaritimeKit.AboiteauIntake(look, variant)));
+            }
         }
         list.Add(new("tuft", SmallProp, () => WorldKit.Tuft(look, 0, weed: false)));
         list.Add(new("brass-weed", SmallProp, () => WorldKit.Tuft(look, 0, weed: true)));

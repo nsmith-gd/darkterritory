@@ -107,8 +107,14 @@ public class WatersideTests
                     Assert.True(terrain.WaterAt(t.Position.X + sea.X * out_, t.Position.Z + sea.Z * out_) is not null, $"{spec} {sh.Id} dry {out_:0} m out at {s:0}");
                 if (sh.Kind == ShoreKind.Dyke)
                 {
-                    // The fields, landward and between the line and the dyke: the low bank's depth under the rail.
-                    foreach (double l in new[] { -60.0, 25.0 })
+                    // The fields, landward and between the line and the dyke: the low bank's depth under the rail. Where the
+                    // grade is the dyke (note 1057), the water's side is the salt marsh, at its own level, right under the bank.
+                    if (sh.OnGrade)
+                    {
+                        double marsh = terrain.Height(t.Position.X + sea.X * 25, t.Position.Z + sea.Z * 25);
+                        Assert.InRange(marsh, sh.LevelM + rules.Dykes.MarshAboveWaterM - 0.2, sh.LevelM + rules.Dykes.MarshAboveWaterM + 0.2);
+                    }
+                    foreach (double l in sh.OnGrade ? new[] { -60.0 } : new[] { -60.0, 25.0 })
                     {
                         double h = terrain.Height(t.Position.X + sea.X * l, t.Position.Z + sea.Z * l) - t.Position.Y;
                         if (plan.Structures.Any(x => x.Edge == "main" && s > x.S0 - 150 && s < x.S1 + 150))
