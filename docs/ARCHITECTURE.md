@@ -1184,11 +1184,11 @@ written here instead is moved out by `tools/coord/notes.py split`; the Coordinat
 - [1024. A town's standing lowered by what's brought into it (n1-S1, nathaniel1; queue #652; GDD §3.1 "A town remembers" and v1.6's "Not yet"; the…](notes/1024.md)
 - [1025. A car's cargo read from outside it: placards and stencils, doors cracked on the load, the livestock at the crack, what's spoiled or lost…](notes/1025.md)
 - [1026. The GDD against the game again: what it still promises that isn't built (n1-A4, nathaniel1's Token Budget Manager's worker; queue #728; the…](notes/1026.md)
-- [1032. What the harness verifies: the checks the GDD promised that nothing ran (Silas, the Token Budget Manager's worker, nathaniel3; queue #735;…](notes/1032.md)
 - [1027. The buyer in the square: finds sold in the town itself (n1-S2, nathaniel1; queue #657; GDD §3.1 "Not yet": "turning loot into scrip in the…](notes/1027.md)
 - [1028. Bots clear a blocked siding: in for the derelicts, out past the points, and put away on a free road up the yard (Pine, nathaniel2; queue…](notes/1028.md)
 - [1029. Tower Jaw's gantry comes down; a structure's fall reaches a joiner (Ash, nathaniel2's Token Budget Manager's worker; queue #732; note…](notes/1029.md)
 - [1030. The yard photographer's gallery on the end card (Vera, nathaniel3's Token Budget Manager's worker; queue #733; docs/design/upgrades.md §4…](notes/1030.md)
 - [1031. The towns' and the shore's leftovers (Uma, nathaniel3; queue #734; level-design T.4, maritime-rules §4; note 1026's rank 10)](notes/1031.md)
+- [1032. What the harness verifies: the checks the GDD promised that nothing ran (Silas, the Token Budget Manager's worker, nathaniel3; queue #735;…](notes/1032.md)
 - [1034. Moments and the reel: commendation clips instead of stills (n1-H2, nathaniel1's Token Budget Manager's worker; queue #256, carried on from…](notes/1034.md)
 <!-- end of the notes index -->
