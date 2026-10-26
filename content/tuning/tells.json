@@ -88,7 +88,8 @@
     "waker":         { "warnM": 200, "from": ["roof"], "aim": 20, "what": "the hills getting up behind the train", "hidden": "lies as a hill until the stir; the sky's bruise behind the train is its warning (look.json dawn.stir)" }
   },
   // The test's few (DarkTerritory.Dev.Tests TellAuditTests): one of each way a tell is seen (a body coming at you on the
-  // ground, a pack low in the grass, overhead, a mass at the train's end), and the dark ones made seeable on dark ground
-  // (note 1042; look.json darkCreatures): the Soot Child, the Pickers, the Climbers.
-  "fast": ["moose", "ribbit", "gannet", "carHugger", "sootChildren", "pickers", "climber"]
+  // ground, a pack low in the grass, overhead, a mass at the train's end, a fire's smoke and glow far off, lit things in the
+  // dark (note 1041's), and the dark ones made seeable on dark ground (note 1042; look.json darkCreatures): the Soot Child,
+  // the Pickers, the Climbers.
+  "fast": ["moose", "ribbit", "gannet", "carHugger", "carFire", "fireFlies", "sootChildren", "pickers", "climber"]
 }
