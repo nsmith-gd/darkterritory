@@ -102,6 +102,8 @@ public sealed partial class StopWalls
         var boxes = Furniture(b, kept).Select(f => (f.X, f.Y, f.HalfX, f.HalfY)).ToList();
         if (Storeyed(b))
             boxes.AddRange(KeepClear(b));
+        if (PartFloored(b))
+            boxes.AddRange(PartKeepClear(b));
         var pieces = new List<Clutter>();
 
         // A box (axis-aligned in the house's frame) clear of the walls' insides, the furniture, the other pieces and the clear spots.

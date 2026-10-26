@@ -194,6 +194,7 @@ public static partial class StopGenerator
         if (v.Forms is { } forms)
             BuildForms(g, F, forms, houses);
 
+        var PF = new Dice(StopSeed.Of(F.Seed, StopSeed.PartFinds));
         // P12 + P14: containers only, in a share of the houses that falls with tier; the economy fills them later.
         int before = g.Containers.Count;
         foreach (int hi in houses)
@@ -215,11 +216,31 @@ public static partial class StopGenerator
             // one up the stairs, besides whatever else the house keeps.
             if (v.Forms is { } f)
             {
-                if (h.Basement && F.Chance(f.BasementFind))
+                // (A house of parts' on its own stream, note 1022: every other house's finds are as they were.)
+                var d = h.Parts.Count > 1 ? PF : F;
+                if (h.Basement && d.Chance(f.BasementFind))
                     g.Contain(ContainerKind.Cellar, StopZone.Village, h.Centre, Band(h.D), 0, hi, outlier: h.Outlier, level: -1);
-                if (h.Upstairs && F.Chance(f.UpstairsFind))
+                if (h.Upstairs && d.Chance(f.UpstairsFind))
                     g.Contain(ContainerKind.Cabinet, StopZone.Village, h.Centre, Band(h.D), 0, hi, outlier: h.Outlier, level: 1);
             }
+        }
+        // Note 1022: a house of parts whose ground floor keeps something where its flight or its hatch would be keeps one floor
+        // (what was to be kept down there or up there is kept on the ground floor, as in any).
+        foreach (int hi in houses.Where(i => Run.StopWalls.PartFloored(g.Buildings[i])))
+        {
+            var b = g.Buildings[hi];
+            var clear = Run.StopWalls.PartKeepClear(b).ToList();
+            // (With room for whoever searches it to stand and come and go round the hatch: a bot's way keeps well off one.)
+            bool On(double x, double y) => clear.Any(q => Math.Abs(q.X - x) < q.HalfX + 1.0 && Math.Abs(q.Y - y) < q.HalfY + 1.0);
+            bool blocked = g.Containers.Any(c => c.Building == hi && c.Level == 0
+                && (Run.StopWalls.Kept(b, c.Kind, c.Index) is var (kx, ky, nx, ny) && On(kx, ky)
+                    || Run.StopWalls.InsideLocal(b, c.Kind, c.Index) is var (fx, fy) && (On(fx, fy) || On(fx + nx * 0.45, fy + ny * 0.45))));
+            if (!blocked)
+                continue;
+            g.Buildings[hi] = b with { Form = HouseForm.Plain };
+            for (int k = before; k < g.Containers.Count; k++)
+                if (g.Containers[k].Building == hi)
+                    g.Containers[k] = g.Containers[k] with { Level = 0 };
         }
         // Note 1005: in a house of floors, each find's place among its kind's on its floor.
         for (int k = before; k < g.Containers.Count; k++)
@@ -258,6 +279,20 @@ public static partial class StopGenerator
         int missing = t.LeastBasements - plain.Count(i => g.Buildings[i].Basement);
         foreach (int i in plain.Where(i => !g.Buildings[i].Basement).OrderByDescending(i => Math.Abs(g.Buildings[i].D)).ThenBy(i => i).Take(Math.Max(0, missing)))
             g.Buildings[i] = g.Buildings[i] with { Form = g.Buildings[i].Upstairs ? HouseForm.UpstairsBasement : HouseForm.Basement };
+        // Note 1022: the open L, cross and pair houses' floors, on a stream of their own (so the plain houses' are as they were):
+        // a draw each, then only what fits (a flight needs a long enough part with a wall clear of doors; a hatch a clear corner).
+        if (t.Parts.Count == 0)
+            return;
+        var P = new Dice(StopSeed.Of(R.Seed, StopSeed.Parts));
+        foreach (int i in houses.Where(i => g.Buildings[i] is { Kind: BuildingKind.House, Open: true, Parts.Count: > 1 }))
+        {
+            var b = g.Buildings[i] with { Form = P.Pick<HouseForm>(t.Parts) };
+            if (b.Upstairs && !Run.StopWalls.PartUp(b))
+                b = b with { Form = b.Basement ? HouseForm.Basement : HouseForm.Plain };
+            if (b.Basement && !Run.StopWalls.PartDown(b))
+                b = b with { Form = b.Upstairs ? HouseForm.Upstairs : HouseForm.Plain };
+            g.Buildings[i] = b;
+        }
     }
 
     /// <summary>Whether a house may be built with more than one floor (note 1005): an open plain one, a rectangle or a square.</summary>

@@ -162,6 +162,8 @@ public sealed record VillageTuning
 public sealed record HouseFormsTuning
 {
     public required IReadOnlyList<Choice> Choices { get; init; }
+    /// <summary>Note 1022: a house of parts' (an L, a cross, a pair) floors; none, they stay one floor.</summary>
+    public IReadOnlyList<Choice> Parts { get; init; } = [];
     public int LeastBasements { get; init; }
     public double BasementFind { get; init; }
     public double UpstairsFind { get; init; }

@@ -65,8 +65,8 @@ public class StoreyedHouseTests
             var stop = f.Stop!;
             var plain = stop.Buildings.Where(StopGenerator.Storeyed).ToList();
             foreach (var b in stop.Buildings)
-                // Only an open plain house has floors.
-                Assert.True(b.Form == HouseForm.Plain || StopGenerator.Storeyed(b), $"a {b.Kind} ({b.Shape}) built with floors");
+                // Only an open house has floors (a house of parts' are its own, note 1022: PartFloorsTests).
+                Assert.True(b.Form == HouseForm.Plain || StopGenerator.Storeyed(b) || StopWalls.PartFloored(b), $"a {b.Kind} ({b.Shape}) built with floors");
             storeyed += plain.Count(b => b.Form != HouseForm.Plain);
             upstairs += plain.Count(b => b.Upstairs);
             basements += plain.Count(b => b.Basement);
@@ -78,7 +78,7 @@ public class StoreyedHouseTests
             {
                 var b = stop.Buildings[c.Building];
                 Assert.True(c.Level < 0 ? b.Basement : b.Upstairs, $"a find on floor {c.Level} of a {b.Form} house");
-                Assert.Equal(StopWalls.FloorAt(b, c.Level), StopWalls.FindUp(stop, c));
+                Assert.Equal(StopWalls.LevelAt(b, c.Level), StopWalls.FindUp(stop, c));
             }
         }
         Assert.True(storeyed > 0 && upstairs > 0 && basements > 0, $"{spec}: {storeyed} storeyed, {upstairs} upstairs, {basements} basements");
@@ -99,7 +99,7 @@ public class StoreyedHouseTests
     public void UpTheStairsAndBackDown()
     {
         var (route, train) = Night("frontier:7");
-        var (f, stop, i, b) = Houses(route, b => b.Upstairs).First();
+        var (f, stop, i, b) = Houses(route, b => b.Upstairs && StopWalls.Storeyed(b)).First();
         var (x0, dir, y0, y1) = StopWalls.Stair(b);
         double ym = (y0 + y1) / 2, f0 = StopWalls.FloorAt(b, 0), f1 = StopWalls.FloorAt(b, 1);
         // At the flight's foot on the ground floor, facing up it: walk on, and you're upstairs, past its top.
@@ -118,7 +118,7 @@ public class StoreyedHouseTests
     public void DownTheHatchAndOutACellarWindow()
     {
         var (route, train) = Night("frontier:7");
-        var (f, stop, i, b) = Houses(route, b => b.Basement).First();
+        var (f, stop, i, b) = Houses(route, b => b.Basement && StopWalls.Storeyed(b)).First();
         double ground = Run.Run.StopWorld(train.Line, f, b.Centre).Y, f0 = StopWalls.FloorAt(b, 0), fb = StopWalls.FloorAt(b, -1);
         var (hx, hy, inX, inY) = StopWalls.Hatch(b);
         // On the boards beside the hatch: the ladder key takes hold of its ladder; down it and off its foot, on the basement's floor.
@@ -150,7 +150,7 @@ public class StoreyedHouseTests
     public void ALootDroppedInTheBasementRestsOnItsFloor()
     {
         var (route, train) = Night("frontier:7");
-        var (f, stop, i, b) = Houses(route, b => b.Basement).First();
+        var (f, stop, i, b) = Houses(route, b => b.Basement && StopWalls.Storeyed(b)).First();
         double ground = Run.Run.StopWorld(train.Line, f, b.Centre).Y;
         var at = At(train, f, b, 0, 0, StopWalls.FloorAt(b, -1) + 0.5);
         Assert.Equal(ground + StopWalls.FloorAt(b, -1), train.Walls!.Under(at, ground), 6);

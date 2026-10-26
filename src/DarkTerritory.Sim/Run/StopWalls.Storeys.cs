@@ -6,8 +6,8 @@ using DarkTerritory.Sim.Train;
 
 namespace DarkTerritory.Sim.Run;
 
-/// <summary>What a piece of a storeyed house's shell is (note 1005): the art's material for it.</summary>
-public enum ShellPart : byte { Wall, Lintel, Plinth, Step, Floor, Cellar, Tread, Upper, Rail }
+/// <summary>What a piece of a storeyed house's shell is (note 1005): the art's material for it (<see cref="Roof"/>: a town house's porch roof; <see cref="Cheek"/>: a stoop's side, note 1022).</summary>
+public enum ShellPart : byte { Wall, Lintel, Plinth, Step, Floor, Cellar, Tread, Upper, Rail, Roof, Cheek }
 
 /// <summary>A piece of a storeyed house's shell, in its own frame: its middle and half sizes, its bottom and top over its ground.</summary>
 public readonly record struct ShellBox(ShellPart Part, double X, double Y, double HalfX, double HalfY, double Bottom, double Top);
@@ -66,6 +66,9 @@ public sealed partial class StopWalls
     /// <inheritdoc cref="DoorSteps"/>
     public const double DoorStepTread = 0.32;
 
+    /// <summary>Half a stoop's stone cheek's thickness (m; note 1022).</summary>
+    public const double CheekHalf = 0.08;
+
     /// <summary>A rail's height over the floor (m) and half its thickness.</summary>
     public const double RailHeight = 1.0, RailHalf = 0.04;
 
@@ -80,11 +83,12 @@ public sealed partial class StopWalls
 
     /// <summary>
     /// How high over its house's ground a stop's container's find lies (note 1005): on its floor's boards in a storeyed house
-    /// (down in the basement, up the stairs, or on a raised ground floor), else on the ground (0).
+    /// (down in the basement, up the stairs, or on a raised ground floor), or a house of parts' (note 1022), else on the ground (0).
     /// </summary>
     public static double FindUp(StopLayout stop, StopContainer c) =>
-        c.Building >= 0 && c.Building < stop.Buildings.Count && stop.Buildings[c.Building] is { Open: true } b && Storeyed(b) && Walled(stop, c.Building)
-            ? FloorAt(b, c.Level) : 0;
+        c.Building >= 0 && c.Building < stop.Buildings.Count && stop.Buildings[c.Building] is { Open: true } b && Floored(b) && Walled(stop, c.Building)
+            ? LevelAt(b, c.Level) : 0;
+
 
     /// <summary>The way along a storeyed house's axis to its back end (±1): the back door's in it.</summary>
     public static int BackEnd(StopBuilding b)
@@ -189,6 +193,18 @@ public sealed partial class StopWalls
                     bool acrossX = Math.Abs(nx) > 0.5;
                     yield return new(ShellPart.Step, ox + nx * out_, oy + ny * out_, acrossX ? DoorStepTread / 2 : door + 0.2, acrossX ? door + 0.2 : DoorStepTread / 2, -1, f0 * i / DoorSteps);
                 }
+            // Each flight of steps between stone cheeks (note 1022): it's gone up from its foot, never stepped onto from its side
+            // (a bot's way, which takes the steps as no obstacle, cut in from beside them and stood against the top one).
+            foreach (var (ox, oy, nx, ny) in new[] { (dx + fx * th / 2, dy + fy * th / 2, fx, fy), (e * hx, 0.0, (double)e, 0.0) })
+            {
+                double run = DoorSteps * DoorStepTread, side = door + 0.2 + CheekHalf;
+                bool acrossX = Math.Abs(nx) > 0.5;
+                foreach (int s in new[] { -1, 1 })
+                {
+                    double cx = ox + nx * run / 2 + (acrossX ? 0 : s * side), cy = oy + ny * run / 2 + (acrossX ? s * side : 0);
+                    yield return new(ShellPart.Cheek, cx, cy, acrossX ? run / 2 : CheekHalf, acrossX ? CheekHalf : run / 2, -1, f0 + 0.05);
+                }
+            }
             // The ground floor's boards, the hatch left open; and the basement's floor.
             var (hxc, hyc, _, _) = Hatch(b);
             foreach (var (x, y, wx, wy) in Less(-ix, -iy, ix, iy, hxc - HatchSize / 2, hyc - HatchSize / 2, hxc + HatchSize / 2, hyc + HatchSize / 2))
@@ -227,7 +243,7 @@ public sealed partial class StopWalls
         var b = stop.Buildings[building];
         double f0 = FloorAt(b, 0);
         foreach (var w in Shell(b, b.Basement ? FloorAt(b, -1) - 0.6 : -3, t.TopM))
-            yield return (w.X, w.Y, w.HalfX, w.HalfY, w.Bottom, w.Top, w.Part is not (ShellPart.Wall or ShellPart.Tread));
+            yield return (w.X, w.Y, w.HalfX, w.HalfY, w.Bottom, w.Top, w.Part is not (ShellPart.Wall or ShellPart.Tread or ShellPart.Cheek));
         // What the finds are kept in, on their floors: under the ceiling over them.
         foreach (var c in stop.Containers.Where(c => c.Building == building))
             foreach (var p in Furniture(b, [c]))
@@ -307,6 +323,18 @@ public sealed partial class StopWalls
                 return Math.Min(ground, floor);
         }
         return ground;
+    }
+
+    /// <summary>
+    /// A town's houses with floors (note 1022): their cellars' footprints (the earth isn't stood on in one under its top:
+    /// its floor is), their ladders and hatches, standing beside the stops' houses' (they're the town's walls, so no owner).
+    /// </summary>
+    public void AddFloors(IEnumerable<(Wall Footprint, double Floor)> cellars, IEnumerable<WorldLadder> ladders, IEnumerable<Wall> hatches)
+    {
+        foreach (var (foot, floor) in cellars)
+            AddBasement(0, foot, floor);
+        _ladders.AddRange(ladders.Select(l => (0, l)));
+        _hatches.AddRange(hatches.Select(h => (0, h)));
     }
 
     /// <summary>A copy's basements and ladders (<see cref="Clear"/>): those of the buildings it still has.</summary>

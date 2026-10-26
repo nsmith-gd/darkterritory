@@ -290,10 +290,13 @@ public class WalledTownTests
         }
         var walls = town.Walls;
         foreach (var h in turned)
-            foreach (var (u, v) in new[] { (-h.Width / 2 + 0.25, 0.25), (h.Width / 2 - 0.25, 0.25), (-h.Width / 2 + 0.25, h.Depth - 0.25), (h.Width / 2 - 0.25, h.Depth - 0.25) })
+        {
+            // (A burnt house over its cellar stands as its knee-high walls round its boards, note 1022: in them.)
+            double i = TownFloors.Floored(h) ? HouseLayout.Wall / 2 : 0.25, up = TownFloors.Floored(h) ? 0.5 : 1.0;
+            foreach (var (u, v) in new[] { (-h.Width / 2 + i, i), (h.Width / 2 - i, i), (-h.Width / 2 + i, h.Depth - i), (h.Width / 2 - i, h.Depth - i) })
             {
                 var (s, d) = h.Body(u, v);
-                var p = town.World(s, d, 1.0);
+                var p = town.World(s, d, up);
                 // Walled, and only by its own walls (nobody else's house or yard stands where it's turned to).
                 var mine = town.World(h.S, h.D);
                 var holding = walls.Where(w => Inside(w, p)).ToList();
@@ -303,6 +306,7 @@ public class WalledTownTests
                 // Off every street.
                 Assert.DoesNotContain(b.Streets, st => s > st.S0 && s < st.S1 && Math.Abs(d - st.At(s)) < st.Width / 2);
             }
+        }
         // Its yard square to its lot, and clear of its turned body.
         foreach (var h in turned.Where(h => h.Yard.Count > 0))
         {

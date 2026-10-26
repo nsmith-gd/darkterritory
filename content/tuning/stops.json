@@ -57,10 +57,14 @@
     // climb out of), an upstairs (a flight up), both, or one floor as before. Every house built so has a back door. At least
     // `leastBasements` a village have a basement (the plain houses furthest out first); a house with a basement keeps a find
     // down there at `basementFind` besides its others, one with an upstairs one up there at `upstairsFind`; and those finds
-    // are drawn worthier (loot.json `levelDraws`). L, cross and paired houses stay one floor (note 1005's not-yet).
+    // are drawn worthier (loot.json `levelDraws`). An open L, cross or pair of cottages (note 1022) is built as one of
+    // `forms.parts`, its floors in its biggest part (each cottage of a pair), standing on the ground (no plinth: its cellar's
+    // way out is its hatch), and only what fits: a flight up needs a part long enough with an outside wall clear of doors
+    // (a cross's bars never are), a hatch a clear corner. The same finds down there and up there.
     "keep": 0.6, "keepFirst": 5,
     "forms": {
       "choices": [["upstairsBasement", 0.4], ["basement", 0.3], ["upstairs", 0.15], ["plain", 0.15]],
+      "parts": [["upstairsBasement", 0.35], ["basement", 0.25], ["upstairs", 0.15], ["plain", 0.25]],
       "leastBasements": 1, "basementFind": 0.6, "upstairsFind": 0.35
     },
     "yawJitter": 0.44,

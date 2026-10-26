@@ -701,14 +701,34 @@ public static partial class TownKit
             k.Use("wood_grey", Palette.DeepBrown, 0.9f, 0, tile: 1);
             // The frame stands 0.15 m under the ground (WorldArt.Building), so the boards are just over it. An L's or a cross's
             // floor is its outline's cells, which don't overlap.
+            // (A house of parts with floors, note 1022: its floored parts' boards are its shell's, the hatch let in; its walls
+            // round a part with an upstairs go up to its eaves.)
+            var floored = Sim.Run.StopWalls.PartFloored(b) ? Sim.Run.StopWalls.FlooredParts(b).Select(i => b.Parts[i]).ToList() : [];
+            bool cellars = Sim.Run.StopWalls.PartDown(b), up = Sim.Run.StopWalls.PartUp(b);
+            var upParts = up ? Sim.Run.StopWalls.FlooredParts(b).Where(i => Sim.Run.StopWalls.PartStair(b, i) is not null).Select(i => b.Parts[i]).ToList() : [];
+            static bool InPart(Sim.Stops.FootprintPart p, double x, double y, double pad = 0) =>
+                Math.Abs(x - p.X) <= p.Length / 2 + pad && Math.Abs(y - p.Y) <= p.Width / 2 + pad;
             if (outline is null)
                 Box(0, 0, hx - t, hy - t, -0.4f, Floor);
             else
                 foreach (var (x0, y0, x1, y1) in outline.Cells)
-                    Box((x0 + x1) / 2, (y0 + y1) / 2, (x1 - x0) / 2, (y1 - y0) / 2, -0.4f, Floor);
+                    if (!cellars || !floored.Any(p => InPart(p, (x0 + x1) / 2, (y0 + y1) / 2)))
+                        Box((x0 + x1) / 2, (y0 + y1) / 2, (x1 - x0) / 2, (y1 - y0) / 2, -0.4f, Floor);
             k.Use("plaster_ruin", Palette.BlueGrey, 0.9f, 0.05f, tile: 2);
             foreach (var (x, y, wx, wy) in Sim.Run.StopWalls.OpenWalls(b))
+            {
                 Box(x, y, wx, wy, -0.4f, H);
+                // Over a part with an upstairs, on up to its eaves: as much of the wall as is that part's.
+                foreach (var p in upParts)
+                {
+                    double ax = Math.Max(x - wx, p.X - p.Length / 2 - t), zx = Math.Min(x + wx, p.X + p.Length / 2 + t);
+                    double ay = Math.Max(y - wy, p.Y - p.Width / 2 - t), zy = Math.Min(y + wy, p.Y + p.Width / 2 + t);
+                    if (zx - ax > 0.02 && zy - ay > 0.02)
+                        Box((ax + zx) / 2, (ay + zy) / 2, (zx - ax) / 2, (zy - ay) / 2, H, PartEaves);
+                }
+            }
+            if (floored.Count > 0)
+                PartShell(k, b, Box);
             // Over the doorway (each unit's).
             double door = Sim.Run.StopWalls.DoorWidth / 2;
             if (outline is not null)
@@ -751,7 +771,8 @@ public static partial class TownKit
                 Gabled(k, 0, 0, (float)b.Width, (float)b.Length, true, H);
             else
                 foreach (var part in b.Parts)
-                    Gabled(k, (float)part.Y, (float)-part.X, (float)Math.Min(part.Length, part.Width), (float)Math.Max(part.Length, part.Width), part.Length >= part.Width, H);
+                    Gabled(k, (float)part.Y, (float)-part.X, (float)Math.Min(part.Length, part.Width), (float)Math.Max(part.Length, part.Width), part.Length >= part.Width,
+                        upParts.Contains(part) ? PartEaves : H);
         }
 
         // What a ransack left (the director, 8 Oct): each piece where the sim has it, turned its way (its x along the house's

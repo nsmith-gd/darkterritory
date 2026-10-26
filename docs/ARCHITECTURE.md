@@ -1180,6 +1180,7 @@ written here instead is moved out by `tools/coord/notes.py split`; the Coordinat
 - [1019. A crewmate on speakers no longer sends the crew their own voices back: echo cancellation and an echo gate on the capture path (Wren,…](notes/1019.md)
 - [1020. A crew of two balanced like a crew of three, the Frontier night's end eased, fewer repeats: measured, then proposed on the Creature Tweaker…](notes/1020.md)
 - [1021. A grabbed crewmate rescued, and the ping's "I'll fetch it" kept (Pia, nathaniel3; queue #724; the director's playtest of 23 Oct,…](notes/1021.md)
+- [1022. The towns' houses with floors, cellars and upstairs windows; the villages' L, cross and pair houses with floors (n1-T2, nathaniel1's Token…](notes/1022.md)
 - [1023. Creatures, followers and bots on the houses' floors (n1-H2, nathaniel1's Token Budget Manager's worker; queue #726; #710's PR…](notes/1023.md)
 - [1024. A town's standing lowered by what's brought into it (n1-S1, nathaniel1; queue #652; GDD §3.1 "A town remembers" and v1.6's "Not yet"; the…](notes/1024.md)
 - [1025. A car's cargo read from outside it: placards and stencils, doors cracked on the load, the livestock at the crack, what's spoiled or lost…](notes/1025.md)

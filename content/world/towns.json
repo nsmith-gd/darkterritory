@@ -954,7 +954,11 @@
     "boarded": ["Nailed shut from the outside. A name and a date in whitewash on the door.", "The windows are boarded from inside. Somebody was still in there when they did it.",
       "Boarded up, a cross painted on the boards. Under the cross, smaller: SORRY.", "Shut and boarded. On the step, a child's shoe, left out as if for somebody to come back for it."],
     "burnt": ["Burnt to the sills. The chimney's standing, and somebody's hung a wreath on it.", "Burnt out. The stove's still there in the ashes, its door open. Inside the stove, a doll's head."],
-    "open": ["Empty. The door's open. Inside, the table's laid for five.", "Empty, the door off its hinges. On every wall, the same word, small, in pencil: HERE."]
+    "open": ["Empty. The door's open. Inside, the table's laid for five.", "Empty, the door off its hinges. On every wall, the same word, small, in pencil: HERE."],
+    // A boarded house left as it was inside (note 1022, towns.json floors.boarded): its door's boards prised off.
+    "prised": ["Boarded up, but the boards over the door have been prised off and leant against the wall, the nails still in them. Inside it's dark, and the table's laid.",
+      "Boarded shut once. Somebody's had the door's boards off since, from the inside: the nails are bent outward.",
+      "The boards hang off the door by a nail each. On the step, a lamp, cold, left for whoever goes in next."]
   },
 
   // Threads that run through the whole world, a scrap or two in each town (App. F.1: "some interactions give a scrap of
@@ -1026,8 +1030,12 @@
       "Locked. Through the window, a whole shelf of engineering kits, every one labelled with a crew's name."]
   },
 
-  // Inside an open house: what else there is to look at, and the stair door (the upstairs isn't for the crew).
+  // Inside an open house: what else there is to look at, and the stair door (a house of one storey and a half: its upstairs
+  // is in the roof, and isn't for the crew), or the stairs up to the bedrooms (note 1022, a house of two storeys).
   "rooms": {
+    "flight": ["The stairs up. A lamp's lit at the top, and the boards up there creak when nobody's on them.",
+      "The stairs. Halfway up, a child's drawing pinned to the wall: the house, and under it, drawn just as carefully, another house, upside down.",
+      "The stairs up to the bedrooms. Every bed up there is made. On one, somebody's slept on top of the covers in their boots."],
     "stairs": ["The stair door's shut. Upstairs, someone walks to the end of the room, stops, and walks back.",
       "The stair door's bolted on this side. Something on the other side has been trying it for a long time.",
       "The stair door won't open. From up the stairs, a child's voice: not yet."],
