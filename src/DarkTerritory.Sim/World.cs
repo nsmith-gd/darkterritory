@@ -2729,6 +2729,9 @@ public sealed partial class World
             // Nor a crew all dead (note 1059): the train stood on the line till dawn with nobody to be quiet for.
             && (_context is not { } paced || paced.Crew.Count == 0 || paced.Crew.Any(c => c.Player.State.Alive));
         bool active = _enemies.Any(e => !e.Gone && e.Phase is SpinePhase.Telegraph or SpinePhase.Commit or SpinePhase.Punish)
+            // Nor while one works a harm on the train (note 881's Working: a Brakeman at the brakes, a Hotbox in its truck):
+            // the train's stood or burning, not quiet (note 1059: a Brakeman held a night at a stop 17 minutes, "quiet").
+            || _enemies.Any(e => !e.Gone && e.Working(this))
             // The line at its hardest (linegen plan §15.4): the director sends nothing of its own there because the terrain's
             // the problem, and a crew working a train over it isn't sitting through a quiet (T76).
             || Route?.Plan?.Director is { } context && context.PressureAt(front) >= context.PressureCeiling;
