@@ -211,7 +211,8 @@ public sealed class TowerJaw(int id) : Enemy(id)
                 SetMode(TowerJawMode.Threat);
                 Enter(ctx, SpinePhase.Telegraph);
             }
-            if (d <= t.LungeWithin && PhaseSeconds >= t.ThreatSeconds && Phase == SpinePhase.Telegraph && Enter(ctx, SpinePhase.Commit))
+            // Its threat's own window, from the rear (note 1045: reared during the groan, the telegraph's already running).
+            if (d <= t.LungeWithin && _modeSeconds >= t.ThreatSeconds && Phase == SpinePhase.Telegraph && Enter(ctx, SpinePhase.Commit))
             {
                 ctx.Bite(near.Player.Id, t.Bite, DeathCause.TowerJaw);
                 SetMode(TowerJawMode.Lunge);
@@ -247,7 +248,15 @@ public sealed class TowerJaw(int id) : Enemy(id)
         if (Phase == SpinePhase.Dormant)
             Enter(ctx, SpinePhase.Alert);
         Extra = Math.Min(1, Gnawed + Rate(t, world) * dt);
-        if (Gnawed >= 1)
+        // Note 1045 (tower-jaw.md §5: the gnaw's TELEGRAPH is "the creak and the lean, the groan (the last 5 s)"): its last
+        // groanSeconds of gnawing are its telegraph, and the fall is its commit and punish (App. A.1: no punish but out of a
+        // commit, no commit but out of a telegraph its reaction window long). Collapse asked for Punish straight from Alert, which
+        // the spine refused: the structure fell with no punish event, bookmark, attribution record or "the tower's down" line.
+        // Gnawed through with the groan cut short (it reared at someone, or listened to a knock), it holds at the last splinter
+        // till the groan's had its window.
+        if (Phase == SpinePhase.Alert && Gnawed >= 1 - t.GroanSeconds * Rate(t, world))
+            Enter(ctx, SpinePhase.Telegraph);
+        if (Gnawed >= 1 && Enter(ctx, SpinePhase.Commit))
             Collapse(ctx, t);
     }
 
