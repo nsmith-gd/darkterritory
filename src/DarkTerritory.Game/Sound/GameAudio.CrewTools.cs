@@ -32,7 +32,7 @@ public sealed partial class GameAudio
         // A new pull: the car's number of strokes, from now. One rung already (joined after it) isn't rung again.
         if (world.Cord is { Any: true } cord && cord.Tick != _cordRung)
         {
-            bool fresh = _cordRung != 0 || (world.Tick - cord.Tick) * SimConstants.TickSeconds < kit.CordBell.ShowSeconds;
+            bool fresh = _cordRung != 0 || world.Tick <= cord.Tick || (world.Tick - cord.Tick) * SimConstants.TickSeconds < kit.CordBell.ShowSeconds;
             _cordRung = cord.Tick;
             if (fresh)
             {
