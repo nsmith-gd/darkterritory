@@ -2,6 +2,9 @@
   <PropertyGroup>
     <IsPackable>false</IsPackable>
     <OutputType>Exe</OutputType>
+    <!-- CI runs this assembly on its own (TestsApart, .github/workflows/ci.yml): its visual tell audit beside Game.Tests' Vulkan
+         classes passed a 16 GB runner's memory. -->
+    <IsTestingPlatformApplication Condition="'$(TestsApart)' == 'true'">false</IsTestingPlatformApplication>
   </PropertyGroup>
   <ItemGroup>
     <PackageReference Include="xunit.v3" Version="4.0.1" />

@@ -11,6 +11,7 @@ namespace DarkTerritory.Game.Tests;
 /// cells past it are cooked off the frame and drawn as they come, the same as cooked in it; the far land is cooked once;
 /// a walled town's frame stays inside tuning/perf.json's counts.
 /// </summary>
+[Collection(GpuCollection.Name)]
 public class FogLoadingTests
 {
     static readonly string Content = DataFile.FindContentRoot();

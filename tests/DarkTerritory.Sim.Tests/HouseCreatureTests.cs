@@ -204,7 +204,8 @@ public class HouseCreatureTests
         Assert.Equal(HollowMode.Rumble, hollow.Mode);
         Run(n, t.RumbleSeconds + 0.5);
         Assert.True(Walls(n).Shut(DoorOf(n, house).Key));
-        Run(n, t.SinkSeconds + 1.5);
+        // (Its windows slam after its door, one every shutEvery: note 1053.)
+        Run(n, t.SinkSeconds + 1.5 + Walls(n).HouseWindows.Count(w => w.House == house.Index) * t.ShutEvery);
         Assert.False(n.Crew[1].Alive);
         // Named for what did it (note 682; the director, 13 Oct: "householder grabbed me and it said seized by the choir").
         Assert.Equal(DeathCause.HollowHouse, n.Crew[1].Death);

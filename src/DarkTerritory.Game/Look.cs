@@ -449,6 +449,7 @@ public sealed record DarkCreaturesTuning
     public float StokerBoardLift { get; init; } = 0.4f;
     public float StokerBoardHalo { get; init; }
     public float StokerBoardHaloAlpha { get; init; } = 0.5f;
+    public bool StokerGreenFireOutside { get; init; }
 }
 
 /// <summary>
@@ -658,70 +659,98 @@ public sealed class Look
     /// <summary>The kit's pieces as the scene places them (cooked on first use, kept).</summary>
     public Art.SceneArt Art => _art ??= new Art.SceneArt(this);
 
-    /// <summary>Loads the look's textures, backdrop, grade and post settings into a renderer.</summary>
-    public void Dress(GreyboxRenderer renderer) => renderer.Load(Sky is { } sky ? (_assets ??= Assets()) with { Backdrop = sky } : _assets ??= Assets());
+    /// <summary>
+    /// Loads the look's textures, backdrop, grade and post settings into a renderer. What the look keeps of them is their
+    /// outline (names and sizes, note 1047): the pixels are read for the upload and let go once they're on the GPU, and read
+    /// from disk again only when a renderer can't share an upload already there (another device, or every renderer that
+    /// held it gone).
+    /// </summary>
+    public void Dress(GreyboxRenderer renderer)
+    {
+        RenderAssets? read = null;
+        if (_assets is null)
+        {
+            // The first dressing reads the pixels once: the renderer's upload rereads them from the decode cache, which holds
+            // them only while this does.
+            read = Assets();
+            _assets = read.Outlined(Layers);
+        }
+        renderer.Load(_assets with { Backdrop = Sky ?? Backdrop() });
+        GC.KeepAlive(read);
+    }
 
     /// <summary>
     /// Only <see cref="Sky"/> taken up, on a renderer this look has already dressed (note 517: a batch of screenshots over
     /// many nights): the far horizon replaced, the material layers left as they are.
     /// </summary>
-    public void DressSky(GreyboxRenderer renderer) => renderer.LoadBackdrop(Sky ?? (_assets ??= Assets()).Backdrop);
+    public void DressSky(GreyboxRenderer renderer) => renderer.LoadBackdrop(Sky ?? Backdrop());
 
     /// <summary>A night's own far horizon in place of the look's band (a generated line's, <see cref="Art.PlanSky"/>); null for the look's.</summary>
     public Image? Sky { get; set; }
 
     // Every look loaded in a process shares the textures it decodes (about a gigabyte and a quarter of them, note 367): the
-    // tests load a look a class, and each one's own copy, kept for the run, took the Linux CI runner past its memory. A
+    // tests load a look a class, and each one's own copy took the Linux CI runner past its memory. Held weakly (note 1047):
+    // shared while something's using them (an upload, two looks dressing at once), let go once they're all on the GPU. A
     // file that changes on disk (a hot reload, a rebuilt atlas) is read again; nothing writes into a decoded image.
-    static readonly System.Collections.Concurrent.ConcurrentDictionary<string, (DateTime At, long Length, Image Image)> DecodedFiles = new();
+    static readonly System.Collections.Concurrent.ConcurrentDictionary<string, (DateTime At, long Length, WeakReference<Image> Image)> DecodedFiles = new();
 
     static Image Decoded(string path)
     {
         var file = new FileInfo(path);
-        if (DecodedFiles.TryGetValue(path, out var had) && had.At == file.LastWriteTimeUtc && had.Length == file.Length)
-            return had.Image;
+        if (DecodedFiles.TryGetValue(path, out var had) && had.At == file.LastWriteTimeUtc && had.Length == file.Length && had.Image.TryGetTarget(out var kept))
+            return kept;
         var image = ImageFile.Load(path);
-        DecodedFiles[path] = (file.LastWriteTimeUtc, file.Length, image);
+        DecodedFiles[path] = (file.LastWriteTimeUtc, file.Length, new WeakReference<Image>(image));
         return image;
+    }
+
+    /// <summary>
+    /// The look's own far horizon (its sky texture), read when a renderer's dressed: it's on the GPU after, so nothing keeps
+    /// it (note 1047). Null with no sky texture.
+    /// </summary>
+    Image? Backdrop() =>
+        TextureRoot is { } root && Textures.FirstOrDefault(t => t.Family == "sky") is { } sky ? Read(Path.Combine(root, sky.Diffuse), Image.Solid(4, 80, 80, 80)) : null;
+
+    // A texture that won't read (half-written, corrupt) becomes flat grey, keeping every layer where the materials expect
+    // it, rather than stopping the game.
+    static Image Read(string path, Image fallback)
+    {
+        try { return Decoded(path); }
+        catch (Exception e) when (e is InvalidOperationException or IOException)
+        {
+            Console.Error.WriteLine($"look: {Path.GetFileName(path)} unreadable ({e.Message}); drawing it flat");
+            return fallback;
+        }
+    }
+
+    /// <summary>The material layers, decoded (from the decode cache while it still has them), in the look's order.</summary>
+    IReadOnlyList<MaterialLayer> Layers()
+    {
+        if (TextureRoot is null)
+            return [];
+        // Each texture's maps decoded side by side, one texture to a core (note 517), then laid out in the look's order.
+        var textures = Textures.ToList();
+        var read = new MaterialLayer[textures.Count];
+        string root = TextureRoot;
+        Parallel.For(0, textures.Count, i =>
+        {
+            var t = textures[i];
+            var diffuse = Read(Path.Combine(root, t.Diffuse), Image.Solid(4, 80, 80, 80));
+            var spec = t.Spec is { } s && System.IO.File.Exists(Path.Combine(root, s)) ? Read(Path.Combine(root, s), Image.Solid(4, 20, 60, 0)) : Image.Solid(4, 20, 60, 0);
+            var normal = t.Normal is { } n && System.IO.File.Exists(Path.Combine(root, n)) ? Read(Path.Combine(root, n), Image.Solid(4, 128, 128, 255)) : null;
+            read[i] = new MaterialLayer(t.Name, diffuse, spec, t.AlphaTest, normal);
+        });
+        return read;
     }
 
     /// <summary>Everything the renderer needs: the material maps, the backdrop, the grade and the post settings.</summary>
     public RenderAssets Assets()
     {
-        var layers = new List<MaterialLayer>();
+        var layers = Layers();
         Image? backdrop = null;
-        if (TextureRoot is not null)
-        {
-            // A texture that won't read (half-written, corrupt) becomes flat grey, keeping every layer where the
-            // materials expect it, rather than stopping the game.
-            static Image Read(string path, Image fallback)
-            {
-                try { return Decoded(path); }
-                catch (Exception e) when (e is InvalidOperationException or IOException)
-                {
-                    Console.Error.WriteLine($"look: {Path.GetFileName(path)} unreadable ({e.Message}); drawing it flat");
-                    return fallback;
-                }
-            }
-            // Each texture's maps decoded side by side, one texture to a core (note 517), then laid out in the look's order.
-            var textures = Textures.ToList();
-            var read = new MaterialLayer[textures.Count];
-            string root = TextureRoot;
-            Parallel.For(0, textures.Count, i =>
-            {
-                var t = textures[i];
-                var diffuse = Read(Path.Combine(root, t.Diffuse), Image.Solid(4, 80, 80, 80));
-                var spec = t.Spec is { } s && System.IO.File.Exists(Path.Combine(root, s)) ? Read(Path.Combine(root, s), Image.Solid(4, 20, 60, 0)) : Image.Solid(4, 20, 60, 0);
-                var normal = t.Normal is { } n && System.IO.File.Exists(Path.Combine(root, n)) ? Read(Path.Combine(root, n), Image.Solid(4, 128, 128, 255)) : null;
-                read[i] = new MaterialLayer(t.Name, diffuse, spec, t.AlphaTest, normal);
-            });
-            for (int i = 0; i < textures.Count; i++)
-            {
-                layers.Add(read[i]);
-                if (textures[i].Family == "sky")
-                    backdrop = read[i].Diffuse;
-            }
-        }
+        for (int i = 0; i < layers.Count; i++)
+            if (Textures[i].Family == "sky")
+                backdrop = layers[i].Diffuse;
         return new RenderAssets { LayerSize = Tuning.LayerSize, HeroSize = Tuning.HeroLayerSize, BigHeroSize = Tuning.BigHeroLayerSize, Layers = layers, Backdrop = backdrop, Lut = Tuning.Grade.Bake(), Post = Tuning.Post };
     }
 

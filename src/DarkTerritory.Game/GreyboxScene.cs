@@ -241,9 +241,12 @@ public sealed partial class GreyboxScene
 
     /// <summary>
     /// The firebox's light: the fire's orange, or with a Stoker in it (T53) "wrong-coloured firebox glow" (App. A.5), a sick
-    /// green that burns brighter, not dimmer, as the pressure climbs.
+    /// green that burns brighter, not dimmer, as the pressure climbs. Only once it's in (A.5's FEED): out on the tender and the
+    /// footplate (Extra2), boarding or leaving, its tell is its own sick glow there, and the cab's fire is still orange (note
+    /// 1049; look.json darkCreatures stokerGreenFireOutside).
     /// </summary>
-    Vector3 FireColour(float scale) => Enemies?.Any(e => e.Kind == EnemyKind.Stoker && !e.Gone) == true
+    Vector3 FireColour(float scale) => Enemies?.Any(e => e.Kind == EnemyKind.Stoker && !e.Gone
+            && (e.Extra2 <= 0.5 || Look?.Tuning.DarkCreatures.StokerGreenFireOutside == true)) == true
         ? Palette.SignalGreen * (0.5f + 0.8f * scale) : Palette.FurnaceOrange * scale;
     /// <summary>Tonight's run, for facility machinery (the coaling chute pouring).</summary>
     public Sim.Run.Run? Run { get; set; }
@@ -639,6 +642,9 @@ public sealed partial class GreyboxScene
             // The houses' doors (note 401): hanging open into the room, or shut in the doorway.
             if (Walls is { HouseDoors.Count: > 0 } doored)
                 HouseDoors(mesh, line, Route, doored, eye);
+            // And their windows' shutters (note 1053): swung back against the wall outside, or shut over the opening.
+            if (Walls is { HouseWindows.Count: > 0 } windowed)
+                HouseWindows(mesh, line, Route, windowed, eye);
             // Each Holdout's way in, shut or broken open (App. D.7): its door, lock or barricade by its state.
             if (Holdouts is not null && Look is not null)
                 Look.Art.World.Entrances(mesh, line, Route, Holdouts, eye, (float)ValleyDepth, Time);

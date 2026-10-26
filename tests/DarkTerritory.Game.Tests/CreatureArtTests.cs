@@ -14,6 +14,7 @@ namespace DarkTerritory.Game.Tests;
 /// without a pop, and skins the same way every time. The turntables render each clip at 480×270, lantern-lit in the
 /// night's fog, into out/shots/creatures/ for a person to look at (CLAUDE.md: "look at your visual changes").
 /// </summary>
+[Collection(GpuCollection.Name)]
 public class CreatureArtTests(CreatureArtTests.TurntableRig rig) : IClassFixture<CreatureArtTests.TurntableRig>
 {
     static readonly string Repo = Path.GetDirectoryName(DataFile.FindContentRoot())!;

@@ -2894,7 +2894,8 @@ static object Screenshot(TrainTuning t, string content, string[] args)
     // --house n the nth such): the hanger view's Hanger hidden in its roof space over its strands, hangergrab's hauling crewmate
     // 4 up on one (--hanger mode: hidden, grab, haul, hold, hit, retreat); the hollowhouse view's Hollow House sinking,
     // hollowcollapse's come down (--hollow mode: still, rumble, shut, sink, collapse, settled); householderhouse, the
-    // Householder's house kept, its table set (--householder mode). Each lit by a hand lamp at the eye.
+    // Householder's house kept, its table set (--householder mode); window and windowin, its windows (note 1053). Each lit by a
+    // hand lamp at the eye.
     if (Staging.IsHouseView(view) && generated is not null && scene.Walls is { } houseWalls)
     {
         string houseMode = Str(args, view.StartsWith("hanger", StringComparison.Ordinal) ? "--hanger" : view.StartsWith("hollow", StringComparison.Ordinal) ? "--hollow" : "--householder", "");
@@ -2908,10 +2909,15 @@ static object Screenshot(TrainTuning t, string content, string[] args)
             scene.Seat(Staging.HouseholderHouseId, chairAt, chairYaw);
         if (caught is { } hung)
             scene.Crew = [.. (scene.Crew ?? []).Where(c => c.Id != hung.Id), hung];
-        // (The hollowhouse views' shut doors: the Sim shuts them at its Shut.)
+        // (The hollowhouse views' shut doors and windows: the Sim shuts them at its Shut, note 1053.)
         if (view is "hollowhouse" or "hollowcollapse")
-            foreach (int key in houseWalls.OpenHouses.First(h => h.Index == (int)houseThreats[^1].Extra2).Doors)
+        {
+            int hollowHouse = (int)houseThreats[^1].Extra2;
+            foreach (int key in houseWalls.OpenHouses.First(h => h.Index == hollowHouse).Doors)
                 houseWalls.SetShut(key, true);
+            foreach (var w in houseWalls.HouseWindows.Where(w => w.House == hollowHouse))
+                houseWalls.SetShut(w.Key, true);
+        }
     }
     scene.Wreck = train.Wreck;
     // --impact ground|water|structure|train|creature|doll [--impact-at ahead,lateral] [--impact-age s] (T121): a cannonball
