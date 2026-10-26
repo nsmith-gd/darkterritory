@@ -144,9 +144,10 @@ public sealed partial class StopWalls
 
     /// <summary>
     /// A storeyed house's shell, in its own frame (middles and half sizes) with their bottoms and tops over its ground, each
-    /// tagged with what it is: its outside walls from <paramref name="low"/> to <paramref name="top"/> (its door, the back door
-    /// and its cellar windows cut out of them), the lintels and the plinth under each door, the steps up, the floors, the
-    /// flight and the rails. The sim stands it (<see cref="StoreyedSolids"/>), the art draws it.
+    /// tagged with what it is: its outside walls from <paramref name="low"/> to <paramref name="top"/> (its door, the back door,
+    /// its cellar windows and its ground floor's windows cut out of them, note 1053), the lintels and the plinth under each
+    /// door, the steps up, the floors, the flight and the rails. The sim stands it (<see cref="StoreyedSolids"/>), the art
+    /// draws it.
     /// </summary>
     public static IEnumerable<ShellBox> Shell(StopBuilding b, double low, double top)
     {
@@ -154,31 +155,18 @@ public sealed partial class StopWalls
         double hx = b.Length / 2, hy = b.Width / 2, ix = hx - th, iy = hy - th, door = DoorWidth / 2;
         var (fx, fy) = Front(b);
         int e = BackEnd(b);
-        // The openings in the outside walls: (along x?, at, from, to along it, bottom, top).
-        var holes = new List<(bool AlongX, double At, double A, double B, double Lo, double Hi)>
+        // The openings in the outside walls: the back door, its cellar windows, and its ground floor's windows (note 1053).
+        var holes = new List<Opening>
         {
             // The back door, in the back end's wall.
-            (false, e * (hx - th / 2), -door, door, f0, f0 + Lintel),
+            new(false, e * (hx - th / 2), -door, door, f0, f0 + Lintel, ShellPart.Plinth),
         };
         foreach (var (x, y, _, _) in CellarWindows(b))
-            holes.Add((true, Math.Sign(y) * (hy - th / 2), x - CellarWindow / 2, x + CellarWindow / 2, WindowSill, WindowHead));
-        foreach (var (x, y, wx, wy) in OpenWalls(b))
-        {
-            bool alongX = wx > wy;
-            double at = alongX ? y : x, mid = alongX ? x : y, half = alongX ? wx : wy, across = alongX ? wy : wx;
-            var cuts = holes.Where(h => h.AlongX == alongX && Math.Abs(h.At - at) < 1e-6 && h.B > mid - half && h.A < mid + half).OrderBy(h => h.A).ToList();
-            double from = mid - half;
-            foreach (var h in cuts)
-            {
-                if (h.A - from > 0.01)
-                    yield return Tag(ShellPart.Wall, Along(alongX, at, from, h.A, across, low, top));
-                yield return Tag(h.Lo > f0 - 0.01 ? ShellPart.Plinth : ShellPart.Wall, Along(alongX, at, h.A, h.B, across, low, h.Lo));
-                yield return Tag(ShellPart.Lintel, Along(alongX, at, h.A, h.B, across, h.Hi, top));
-                from = h.B;
-            }
-            if (mid + half - from > 0.01)
-                yield return Tag(ShellPart.Wall, Along(alongX, at, from, mid + half, across, low, top));
-        }
+            holes.Add(new(true, Math.Sign(y) * (hy - th / 2), x - CellarWindow / 2, x + CellarWindow / 2, WindowSill, WindowHead));
+        holes.AddRange(WindowOpenings(b));
+        foreach (var w in OpenWalls(b))
+            foreach (var p in Cut(w, holes, low, top))
+                yield return p;
         // The front doorway: the lintel over it, and (raised) the plinth under its threshold.
         var (dx, dy, dwx, dwy) = fx != 0 ? (fx * (hx - th / 2), 0.0, th / 2, door) : (0.0, fy * (hy - th / 2), door, th / 2);
         yield return new(ShellPart.Lintel, dx, dy, dwx, dwy, f0 + Lintel, top);
@@ -304,8 +292,16 @@ public sealed partial class StopWalls
     /// <summary>The basements' hatches (note 1005), as their holes in the boards: what a bot's path keeps off (<see cref="Bots.FootPath"/>).</summary>
     public IEnumerable<Wall> Hatches => _hatches.Select(h => h.Hole);
 
-    /// <summary>The ladders standing in the stops' houses (note 1005): a basement's hatch's, its cellar windows' crates.</summary>
-    public IEnumerable<WorldLadder> Ladders => _ladders.Select(l => l.Ladder);
+    /// <summary>The ladders standing in the stops' houses (note 1005): a basement's hatch's, its cellar windows' crates; and up to each open window's sill, inside and out (note 1053).</summary>
+    public IEnumerable<WorldLadder> Ladders => _ladders.Select(l => l.Ladder).Concat(WindowLadders);
+
+    /// <summary>
+    /// The ladders a body at <paramref name="p"/> might be on or reach for (<see cref="Ladders"/>): the windows' only from its
+    /// cell (each is listed in every cell within a few metres of it), as there are hundreds of them down a line.
+    /// </summary>
+    public IEnumerable<WorldLadder> LaddersNear(Double3 p) =>
+        _ladders.Select(l => l.Ladder).Concat(_windowLadderCells.TryGetValue(CellOf(p.X, p.Z), out var near)
+            ? near.Where(i => !_shut.Contains(_windowLadders[i].Key)).Select(i => _windowLadders[i].Ladder) : []);
 
     /// <summary>
     /// The ground under a point (world) as a body stands on it (note 1005): in a basement's footprint, its floor, not the earth
@@ -344,6 +340,9 @@ public sealed partial class StopWalls
             if (!gone.Contains(owner))
                 AddBasement(owner, foot, floor);
         _ladders = [.. from._ladders.Where(l => !gone.Contains(l.Owner))];
+        foreach (var (owner, key, ladder) in from._windowLadders)
+            if (!gone.Contains(owner))
+                AddWindowLadder(owner, key, ladder);
         _hatches = [.. from._hatches.Where(h => !gone.Contains(h.Owner))];
     }
 
