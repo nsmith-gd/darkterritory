@@ -506,6 +506,9 @@ public sealed class Director
     /// <summary>Why the last decision sent nothing (for the harness's pacing report); null after one that sent something.</summary>
     public string? HeldBecause { get; private set; }
 
+    /// <summary>This second's spend is the pace's (note 1059): quiet out on the line past <c>pressure.pressQuietSeconds</c>.</summary>
+    bool _paceKept;
+
     SpawnAttempt? Held(string why)
     {
         HeldBecause = why;
@@ -728,12 +731,15 @@ public sealed class Director
         if (Steering)
             _pressure = Math.Min(_t.Pressure.Max, _pressure + _t.Orchestrator.SlackPerSecond * Posts.Entries.Count(c => c.Slack >= _t.Orchestrator.SlackPress));
         // The pace kept (note 1059): out on the line pressQuietSeconds with nothing happening (the world's quiet, the pace
-        // judge's own measure, from the grace's end), the night is pressed: the cooldown and the first threat's listening give
-        // way. Not the holds the game means (the bans, a fort, the aftermath, a stop's lull, the caps): they hold on above and
-        // below, and what's due comes after them. Without it nothing read the pace: a night's opening sat through the
-        // pressure's build from its start and the listening after (two to three minutes for a quiet crew).
-        if (_t.Pressure.PressQuietSeconds > 0 && world.QuietSeconds >= _t.Pressure.PressQuietSeconds)
-            _pressure = Math.Max(_pressure, _t.Pressure.PressAt);
+        // judge's own measure, from the grace's end), the pressure is brought to its threshold and that spend is pressed for:
+        // the cooldown and the first threat's listening give way. Not the holds the game means (the bans, a fort, the
+        // aftermath, a stop's lull, the caps): they hold on above and below, and what's due comes after them. Only to the
+        // threshold, so the spend's relief leaves the usual trough (pressing to pressAt left it high, and the night packed).
+        // Without it nothing read the pace: a night's opening sat through the pressure's build from its start and the
+        // listening after (two to three minutes for a quiet crew).
+        _paceKept = _t.Pressure.PressQuietSeconds > 0 && world.QuietSeconds >= _t.Pressure.PressQuietSeconds;
+        if (_paceKept)
+            _pressure = Math.Max(_pressure, _t.Pressure.Threshold);
         // GDD App. B.1 "Aftermath" (note 751): a crisis just ended, nothing of the director's own for a few seconds, however
         // pressed; the pressure goes on building (the dawn clock doesn't wait either), so whatever's due comes after it. Not
         // pressed through: at twelve seconds it's short enough not to need to be.
@@ -787,13 +793,13 @@ public sealed class Director
                 _pressure = Math.Max(_pressure, _t.Pressure.Threshold);
                 answering = true;
             }
-            else if (draw.HoldFirst && _pressure >= _t.Pressure.Threshold && _pressure < draw.HoldUntil)
+            else if (draw.HoldFirst && !_paceKept && _pressure >= _t.Pressure.Threshold && _pressure < draw.HoldUntil)
                 return Held("listening");
         }
         // Past the threshold the director spends; well past it (pressed: a long quiet, or a night the budget's curve can't keep
         // up with) the cooldown gives way, and the curve may be overdrawn by up to pacedCost. The caps and each kind's gates
         // still hold. An answered draw is pressed for: the dark said it was coming.
-        bool due = _pressure >= _t.Pressure.PressAt || answering;
+        bool due = _pressure >= _t.Pressure.PressAt || answering || _paceKept;
         if (_pressure < _t.Pressure.Threshold)
             return Held("building");
         // One pacing model (note 908): the encounter clock says how many, the pressure when and what. Its spends wait for the

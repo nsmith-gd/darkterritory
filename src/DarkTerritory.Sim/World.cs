@@ -2725,7 +2725,9 @@ public sealed partial class World
         bool out_ = (Run is null || Run.Phase is DarkTerritory.Sim.Run.RunPhase.Underway or DarkTerritory.Sim.Run.RunPhase.AtFacility) && !home
             // Nor the director's grace (note 1059): the night's quiet spell of 20–90 s by design (note 266), a quiet the game
             // means as the debt reads it; the pace is judged from its end, so a night with a long grace isn't over by rights.
-            && !(Director is { } director && DirectorSeconds < director.Grace);
+            && !(Director is { } director && DirectorSeconds < director.Grace)
+            // Nor a crew all dead (note 1059): the train stood on the line till dawn with nobody to be quiet for.
+            && (_context is not { } paced || paced.Crew.Count == 0 || paced.Crew.Any(c => c.Player.State.Alive));
         bool active = _enemies.Any(e => !e.Gone && e.Phase is SpinePhase.Telegraph or SpinePhase.Commit or SpinePhase.Punish)
             // The line at its hardest (linegen plan §15.4): the director sends nothing of its own there because the terrain's
             // the problem, and a crew working a train over it isn't sitting through a quiet (T76).
