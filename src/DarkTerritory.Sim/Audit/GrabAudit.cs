@@ -57,14 +57,19 @@ public static class GrabAudit
 
     /// <summary>One creature's grab at one crew size.</summary>
     /// <param name="friendsHelp">False: the friends stand there and watch (the audit's control: then nothing should free them).</param>
-    public static GrabCheck Check(AuditContent c, EnemyKind kind, int crew, bool friendsHelp = true)
+    /// <param name="voice">
+    /// Each crewmate's voice level from the night's seconds, on every intent (note 1051: `dt social` stages the crew singing at
+    /// the Choir, note 720); null for none (silent).
+    /// </param>
+    public static GrabCheck Check(AuditContent c, EnemyKind kind, int crew, bool friendsHelp = true, Func<int, double, byte>? voice = null)
     {
         var t = c.Balance.Grabs;
         var rig = Rig(c, kind, crew);
         var n = rig.Night;
         // Friends keep from standing idle (Tippy Toesie's mark) until someone's held; then they go to them.
         var stir = new PlayerIntent { MoveX = 0.01f };
-        PlayerIntent Act(int id, PlayerState s) =>
+        PlayerIntent Act(int id, PlayerState s) => voice is null ? Acts(id, s) : Acts(id, s) with { Voice = voice(id, n.World.ElapsedSeconds) };
+        PlayerIntent Acts(int id, PlayerState s) =>
             id == rig.Victim ? rig.VictimIntent(n, s)
             : !friendsHelp ? stir
             : (Holder() is not null ? rig.Friend?.Invoke(id, s) : null) ?? Heed.Rescue(stir, s, n.World, id, [.. n.Crew.Select(x => (x.Key, x.Value))]);
