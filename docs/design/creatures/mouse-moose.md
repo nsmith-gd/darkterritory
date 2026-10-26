@@ -52,6 +52,8 @@ director's "management task of trying to keep awareness of all of the loot aroun
 
 ## 4. Open
 
+*All three are in since (note 1050): the model (`content/art/models/mouse_moose.glb`, `tools/blender/mouse_moose.py`, note 796), its sounds (`tell-mouse-moose.*`, `cs-mouse-moose.*`, note 809), and the bots guarding a casting (`Heed.MouseMoose`, enemies.json `crewBots.mouseMooseWithin`, note 790).*
+
 - **Its model:** it's drawn from boxes for now (`CreatureArt.MouseMoose.cs`), and a modelled and rigged one is wanted
   (C1/E1).
 - **Its sounds:** none yet (AU1). The squeak as it comes, the scrape of the casting dragged, the squeal as it bolts.

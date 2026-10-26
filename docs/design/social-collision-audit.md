@@ -4,7 +4,7 @@
 [#999](https://github.com/nsmith-gd/darkterritory/pull/999) (K1: horseplay, voices, prizes, cuts) and
 [#1001](https://github.com/nsmith-gd/darkterritory/pull/1001) (A1: the lone struggle). Nothing in the game was changed
 for it. The GDD stays the source of truth: §11 lists the amendments this proposes. None of them has been applied. No
-queue or note number has been claimed yet; that waits on the director's go-ahead (COORDINATION rule 1).*
+queue or note number has been claimed yet; that waits on the director's go-ahead (COORDINATION rule 1).* *Since (note 1050): the director answered on 14 Oct, the amendments were queued as #478–#486 (notes 748–756), and most are in gdd.md (C.8's `radioBreakOnGrab`, the pair rate, the lone struggle, "An emergency is shown" in Part Eleven q2, the aftermath).*
 
 **The question.** Do the mechanics we have make overlapping responsibilities, tempting bad decisions, disasters you can
 come back from, rescues, and stories? Or are they mostly independent systems running side by side?
@@ -591,7 +591,7 @@ These agents work alongside others. Claim queue and note numbers per COORDINATIO
 
 ---
 
-## 11. Proposed GDD amendments (none applied)
+## 11. Proposed GDD amendments (none applied then; since applied, see the note at the top)
 
 1. **App. C.8, "Radio broadcast of a GRAB":** add "A grab never breaks the victim's set (`radioBreakOnGrab` 0): the broadcast is the point."
 2. **Open question 2 / D.6 ("roll call is verbal")**, add: "Roll call stays verbal: nothing shows who is aboard. **An emergency is shown, not a roster.** A crewmate held, or killed, out of voice reach is a line for the living: who and where, never what (R1)." This sits alongside App. F.6's aboard lamps (#459) and A1's #474.
