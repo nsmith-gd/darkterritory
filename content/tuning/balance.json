@@ -10,7 +10,9 @@
   "nonTrivialPunishes": 5,
   // The pace: no night quiet out on the line longer than this, and quiet stretches no longer than meanQuietSeconds on
   // average. The 100-night playtest's "a reward or a problem every 30 s at most, ideally 20" gave way to the director's
-  // decision of 6 Oct 2026 (note 266): a quiet spell is 20–90 s (enemies.json director.graceMaxSeconds).
+  // decision of 6 Oct 2026 (note 266): a quiet spell is 20–90 s (enemies.json director.graceMaxSeconds). Quiet as the world
+  // counts it (World.QuietSeconds, note 1059): from the grace's end (the grace is that spell itself), and not while
+  // something works a harm on the train or once the crew's all dead.
   "maxQuietSeconds": 90,
   "meanQuietSeconds": 20,
 

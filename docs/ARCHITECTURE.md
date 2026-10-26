@@ -1212,4 +1212,5 @@ written here instead is moved out by `tools/coord/notes.py split`; the Coordinat
 - [1051. The social test's failures taken up (n1-S4, nathaniel1's Token Budget Manager's worker; queue #750; GDD §20; note 1050 rank 1 and its…](notes/1051.md)
 - [1053. The houses' windows shut and can be escaped through, the Hollow House's too (B4, queue #751, picked up from nathaniel1; GDD F.5 Decided, 13…](notes/1053.md)
 - [1058. Bots load from a siding they've cleared (B4, queue #757, picked up from nathaniel1; level-design I.4; note 1050 rank 8)](notes/1058.md)
+- [1059. The pace checks fail on main: the judge counted the grace, a dead crew and a creature working the train as quiet, and nothing in the director…](notes/1059.md)
 <!-- end of the notes index -->

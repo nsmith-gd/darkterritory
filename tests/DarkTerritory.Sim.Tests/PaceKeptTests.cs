@@ -28,8 +28,9 @@ public class PaceKeptTests
     [Fact]
     public void AQuietPastItsLimitPressesTheNight()
     {
-        Assert.True(D.Pressure.PressQuietSeconds > 0);
-        double press = D.Pressure.PressQuietSeconds;
+        // Off as shipped (the director's call, note 1059); measured, and proposed, at 50.
+        Assert.Equal(0, D.Pressure.PressQuietSeconds);
+        const double press = 50;
         var on = new Night(6, speed: 14, enemies: PressingAt(press));
         var off = new Night(6, speed: 14, enemies: PressingAt(0));
         // Both nights draw the same grace (the seed's); a crew that draws nothing is listened for, the pressure building.

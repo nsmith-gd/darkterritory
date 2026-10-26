@@ -1259,8 +1259,10 @@
       // The pace kept (note 1059): out on the line this long with nothing happening (the world's quiet: no beat, nothing
       // telegraphing, committing or punishing; counted from the grace's end, as `dt balance` judges it against balance.json
       // maxQuietSeconds), the pressure is pressed (to pressAt): the cooldown and the first threat's listening give way; the
-      // bans, the forts, the aftermath, a stop's lull and the caps still hold. 0: off.
-      "pressQuietSeconds": 50,
+      // bans, the forts, the aftermath, a stop's lull and the caps still hold. 0: off (as shipped). Measured at 50 (note
+      // 1059): the longest quiet 190.6 → 105.6 s and the mean 33.5 → 19.0 s, but the director spends a quarter more and two
+      // nights in 16 missed dawn: the director's call on the Creature Tweaker, proposed there.
+      "pressQuietSeconds": 0,
       // The crew's loudness (App. C.7, the Choir meter): + loudPerSecond × (meter / the Choir's threshold, to at most loudCap).
       "loudPerSecond": 0.1, "loudCap": 1.5,
       // Cargo aboard (App. B.9): + cargoPerLoad per car-load (load × cargo integrity × cargoValue, 1 for what isn't listed).

@@ -2682,8 +2682,10 @@ public sealed partial class World
     /// </summary>
     public List<string> Beats { get; } = new();
     /// <summary>
-    /// Seconds out on the line with nothing happening: no beat, and nothing out there telegraphing, committing or punishing.
-    /// Counted from the gate (not in the yard, nor once the night's over). The director won't let it pass its pace.
+    /// Seconds out on the line with nothing happening: no beat, nothing out there telegraphing, committing or punishing, and
+    /// nothing working a harm on the train. Counted from the director's grace's end (not in the yard or the grace, not with
+    /// the crew all dead, nor once the night's over; note 1059). The director reads it with enemies.json
+    /// <c>pressure.pressQuietSeconds</c> set.
     /// </summary>
     public double QuietSeconds { get; private set; }
     /// <summary>
