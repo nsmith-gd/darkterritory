@@ -74,4 +74,33 @@ public class TownRoundsGroundTests
         Assert.True(ways > 50, $"only {ways} ways walked");
         Assert.True(over.Count == 0, $"{over.Count} of {ways} ways step a wall: {string.Join("; ", over.Take(5))}");
     }
+
+    /// <summary>
+    /// Street folk in front of a turned house (note 1057; note 692's handoff: "the street folk stand in front of their house
+    /// (FrontD), not yet in front of a turned one"): a lamp-carrier out in front of their house, where it stands turned on
+    /// a ring, stands before its turned front, looking out from it.
+    /// </summary>
+    [Theory]
+    [InlineData("harbour", "frontier:7")]
+    [InlineData("crag", "local:5")]
+    public void TheStreetFolkFaceOutFromATurnedHousesFront(string form, string spec)
+    {
+        var town = Night(form, spec);
+        int seen = 0;
+        foreach (var p in town.Plan.People.Where(x => x.House < 0 && x.Pose == "lantern"))
+        {
+            // Their house: the one whose turned front they stand before.
+            var h = town.Plan.Houses.Where(h => h.Turn != 0).OrderBy(h =>
+            {
+                var (fs, fd) = h.Body(0, -2.6);
+                return Math.Abs(fs - p.S) + Math.Abs(fd - p.D);
+            }).FirstOrDefault();
+            if (h is null || h.Body(0, -2.6) is var (bs, bd) && Math.Abs(bs - p.S) + Math.Abs(bd - p.D) > 1.5)
+                continue;
+            seen++;
+            var (os, od) = h.BodyFacing(0, -1);
+            Assert.True(os * p.FaceS + od * p.FaceD > 0.99, $"{p.Role} {p.Id} faces {p.FaceS:0.00},{p.FaceD:0.00}, its house's front {os:0.00},{od:0.00}");
+        }
+        Assert.True(seen > 0, $"nobody out in front of a turned house in a {form} town");
+    }
 }
