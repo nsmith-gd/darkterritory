@@ -103,6 +103,8 @@ public sealed class WorldShot : IDisposable
         s.Signs = world.Lineside?.Signs;
         s.SignRange = world.Lineside?.Tuning.LampSignRange ?? 350;
         s.Enemies = drawn is null ? world.ActiveEnemies : [.. world.ActiveEnemies.Where(drawn)];
+        if (drawn is not null)
+            s.ForgetFires();
         s.Hits = world.Hits;
         s.Impacts = world.Impacts;
         s.Run = world.Run;

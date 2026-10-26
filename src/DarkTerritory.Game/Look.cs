@@ -352,6 +352,69 @@ public sealed record LookTuning
     public SpeedFeelTuning SpeedFeel { get; init; } = new();
     public TipsyTuning Tipsy { get; init; } = new();
     public CargoOutsideTuning CargoOutside { get; init; } = new();
+    public FireOutsideTuning FireOutside { get; init; } = new();
+    public FireFliesLook FireFlies { get; init; } = new();
+}
+
+/// <summary>
+/// A car fire seen from outside it, from its first cell alight (note 1041; systems-spec A.4a's car fire, 60 m). Mirror of
+/// look.json <c>fireOutside</c>, where each field is documented.
+/// </summary>
+public sealed record FireOutsideTuning
+{
+    public float Column { get; init; } = 24;
+    public float ColumnPerHeat { get; init; } = 40;
+    public float ColumnRise { get; init; } = 1.4f;
+    public float ColumnSeconds { get; init; } = 7;
+    public float ColumnSize { get; init; } = 1.6f;
+    public float ColumnGrow { get; init; } = 4.5f;
+    public float ColumnAlpha { get; init; } = 0.6f;
+    public float ColumnAlphaPerHeat { get; init; } = 0.3f;
+    public float[] ColumnGrey { get; init; } = [0.34f, 0.32f, 0.3f];
+    public float ColumnLit { get; init; } = 2.5f;
+    public float Seams { get; init; } = 0.5f;
+    public float SeamsPerHeat { get; init; } = 2.5f;
+    public float UnderGlow { get; init; } = 1.5f;
+    public float UnderGlowSize { get; init; } = 6;
+    public float Light { get; init; } = 0.6f;
+    public float LightPerHeat { get; init; } = 2.4f;
+    public float LightRange { get; init; } = 4;
+    public float LightRangePerHeat { get; init; } = 4;
+    public float Windows { get; init; } = 1.5f;
+    public float WindowsPerHeat { get; init; } = 4;
+
+    /// <summary>The smoke's colour where it's cooled, off the roof.</summary>
+    public System.Numerics.Vector3 Grey => ColumnGrey.Length >= 3 ? new(ColumnGrey[0], ColumnGrey[1], ColumnGrey[2]) : new(0.3f);
+}
+
+/// <summary>
+/// The Fire Flies at a lit car's lamp as they're drawn (note 1041; systems-spec A.4a's Fire Flies, 20 m): the swarm's size, its
+/// light, and the share of it outside the car. Mirror of look.json <c>fireFlies</c>, where each field is documented.
+/// </summary>
+public sealed record FireFliesLook
+{
+    public int Fewest { get; init; } = 5;
+    public int Most { get; init; } = 30;
+    public int Sparks { get; init; } = 3;
+    public float[] Ember { get; init; } = [1.0f, 0.55f, 0.18f];
+    public float Body { get; init; } = 0.6f;
+    public float Halo { get; init; } = 0.35f;
+    public float HaloGlow { get; init; } = 0.6f;
+    public float HaloFull { get; init; } = 12;
+    public float Glass { get; init; } = 0.1f;
+    public float GlassPerFill { get; init; } = 0.9f;
+    public float GlassSize { get; init; } = 0.3f;
+    public float Light { get; init; } = 0.4f;
+    public float LightPerFill { get; init; } = 1.4f;
+    public float LightRange { get; init; } = 3;
+    public float LightRangePerFill { get; init; } = 3;
+    public int Outside { get; init; } = 6;
+    public int OutsidePerFill { get; init; } = 24;
+    public float OutsideFrom { get; init; } = 0.4f;
+    public float OutsideReach { get; init; } = 2.5f;
+    public float OutsideAbove { get; init; } = 1.5f;
+
+    public System.Numerics.Vector3 EmberColour => Ember.Length >= 3 ? new(Ember[0], Ember[1], Ember[2]) : new(1.0f, 0.55f, 0.18f);
 }
 
 /// <summary>

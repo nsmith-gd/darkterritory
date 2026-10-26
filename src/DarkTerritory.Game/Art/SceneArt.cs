@@ -1615,10 +1615,12 @@ public sealed partial class SceneArt(Look look)
     /// <param name="ruptured">The engine's boiler has burst (spec B.6): its hood's plate open round the tear (note 1014).</param>
     public bool Car(MeshBuilder mesh, in CarFrame frame, Double3 eye, Vehicle? vehicle, bool emergency, long tick = -1, int cutEnds = 0,
         float charred = 0, bool utility = false, uint openLockers = 0, bool handrails = false, bool dark = false, uint taggedLockers = 0, int paint = 0,
-        FailStage failing = FailStage.Holding, bool ruptured = false)
+        FailStage failing = FailStage.Holding, bool ruptured = false, float fire = 0)
     {
         // Its lamps out: its lit windows (the guard van's) go dark with them, as under emergency lighting.
         float lamps = emergency || dark ? 0.06f : 1;
+        // On fire (note 1041): its windows lit by the fire behind them, lamps or none, brighter as it takes hold.
+        float windows = fire > 0 ? MathF.Max(lamps, Look.Tuning.FireOutside.Windows + Look.Tuning.FireOutside.WindowsPerHeat * fire) : lamps;
         var shape = frame.Shape;
         var m = FrameMatrix(frame, eye);
         bool engine = shape.Cab is not null;
@@ -1674,7 +1676,7 @@ public sealed partial class SceneArt(Look look)
         var (cut, floor) = bite.Any ? (bite.Shader, bite.Floor) : (Vector4.Zero, 0f);
         var soot = charred > 0 ? Vector3.Lerp(Vector3.One, CharTint, charred) : default;
         // Under emergency lighting the headlamp and tail lamp have no power.
-        mesh.Instances.Add(new MeshInstance(body, m, lamps, Tint: soot, Scar: scar, Bite: cut, BiteFloor: floor));
+        mesh.Instances.Add(new MeshInstance(body, m, windows, Tint: soot, Scar: scar, Bite: cut, BiteFloor: floor));
         // The engine's dressing (note 338: its plough, housings, pipes and grilles), over it and casting no shadow.
         if (engine)
         {
@@ -1743,12 +1745,12 @@ public sealed partial class SceneArt(Look look)
         // A utility car (GDD §10): fitted out for the crew where a load would go (TrainKit.UtilityFit).
         if (utility && !engine)
             mesh.Instances.Add(new MeshInstance(Piece($"utility:{ShapeKey(shape)}", () => TrainKit.UtilityFit(Look, shape)), m,
-                emergency ? 0.06f : 1, Scar: scar, Bite: cut, BiteFloor: floor));
+                emergency ? 0.06f : MathF.Max(1, windows), Scar: scar, Bite: cut, BiteFloor: floor));
         // The dining car (note 959): its table laid and its bar, where a load would go; its chandelier's light, lamps lit.
         else if (shape.Dining is not null && !engine)
         {
             mesh.Instances.Add(new MeshInstance(Piece($"dining:{ShapeKey(shape)}", () => TrainKit.DiningFit(Look, shape)), m,
-                emergency ? 0.06f : 1, Scar: scar, Bite: cut, BiteFloor: floor));
+                emergency ? 0.06f : MathF.Max(1, windows), Scar: scar, Bite: cut, BiteFloor: floor));
             if (!emergency && !dark && (frame.Origin - eye).Length < 120)
             {
                 mesh.PointLights.Add(new PointLight(Vector3.Transform(TrainKit.ChandelierAt(shape) + new Vector3(0, 0.1f, 0), m), Palette.LampAmber * 1.4f, 6));

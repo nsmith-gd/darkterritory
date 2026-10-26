@@ -77,6 +77,7 @@
     "waker":         { "warnM": 200, "from": ["roof"], "aim": 20, "what": "the hills getting up behind the train", "hidden": "lies as a hill until the stir; the sky's bruise behind the train is its warning (look.json dawn.stir)" }
   },
   // The test's few (DarkTerritory.Dev.Tests TellAuditTests): one of each way a tell is seen (a body coming at you on the
-  // ground, a pack low in the grass, overhead, a mass at the train's end).
-  "fast": ["moose", "ribbit", "gannet", "carHugger"]
+  // ground, a pack low in the grass, overhead, a mass at the train's end, a fire's smoke and glow far off, lit things in the
+  // dark; the last two note 1041's).
+  "fast": ["moose", "ribbit", "gannet", "carHugger", "carFire", "fireFlies"]
 }
