@@ -67,6 +67,23 @@ public sealed record TownTuning
     public RoundTuning Rounds { get; init; } = new();
     /// <summary>The town types (note 692): see <see cref="FormTuning"/>.</summary>
     public FormTuning Forms { get; init; } = new();
+    /// <summary>Note 1022: the houses with floors (towns.json <c>floors</c>): see <see cref="FloorsTuning"/>.</summary>
+    public FloorsTuning Floors { get; init; } = new();
+}
+
+/// <summary>
+/// The towns' houses with floors (towns.json <c>floors</c>; queue #725, note 1022): the share of the open houses of two
+/// storeys with an upstairs, of the open houses with a cellar, of the burnt with theirs, and of the boarded left as they
+/// were inside (and at most how many a town), their floors at the same shares. Field docs live in towns.json.
+/// </summary>
+public sealed record FloorsTuning
+{
+    public bool Enabled { get; init; }
+    public double Upstairs { get; init; }
+    public double Cellar { get; init; }
+    public double BurntCellar { get; init; }
+    public double Boarded { get; init; }
+    public int BoardedMost { get; init; }
 }
 
 /// <summary>

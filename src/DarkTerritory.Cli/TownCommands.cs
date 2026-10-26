@@ -63,6 +63,14 @@ static class TownCommands
             plan.Former,
             plan.Character,
             houses = plan.Houses.GroupBy(h => h.Kind).ToDictionary(g => g.Key.ToString(), g => g.Count()),
+            // Its houses with floors (note 1022): which go up, which have a cellar, a burnt one's, and the boarded left open.
+            floors = new
+            {
+                upstairs = plan.Houses.Where(h => h.Upstairs).Select(h => h.Id).ToList(),
+                cellars = plan.Houses.Where(h => h.Cellar && h.Kind != HouseKind.Burnt).Select(h => h.Id).ToList(),
+                burnt = plan.Houses.Where(h => h.Cellar && h.Kind == HouseKind.Burnt).Select(h => h.Id).ToList(),
+                left = plan.Houses.Where(h => h.Left is not null).Select(h => h.Id).ToList(),
+            },
             // What stands between the houses (note 989), by kind.
             between = plan.Between.GroupBy(p => p.Kind).OrderBy(g => g.Key).ToDictionary(g => g.Key.ToString(), g => g.Count()),
             // Nothing ruled straight (note 490): how many stand off true and how far, and the row across the green's far

@@ -215,7 +215,7 @@ public static partial class StopGenerator
 
         // The Gaunt: asleep in the building furthest from the train, on foot (a village house before a yard shed).
         // (Not in a house of floors, note 1005: its nest is a ground floor's, and the Gaunt's not been taught the stairs.)
-        var roosts = houses.Any(x => !Run.StopWalls.Storeyed(x.b)) ? houses.Where(x => !Run.StopWalls.Storeyed(x.b)).ToList()
+        var roosts = houses.Any(x => !Run.StopWalls.Floored(x.b)) ? houses.Where(x => !Run.StopWalls.Floored(x.b)).ToList()
             : g.Buildings.Select((b, i) => (b, i)).Where(x => x.b.Kind is BuildingKind.Shed or BuildingKind.Hero).ToList();
         var roost = roosts.Select(x => (x.b, x.i, m: walk.To(DoorOf(x.b, stopPoint)))).Where(x => x.m is not null).OrderByDescending(x => x.m).FirstOrDefault();
         if (roost.b is not null)

@@ -1,0 +1,39 @@
+// GDD §20 "The social test", measured (`dt social`, queue #255, ARCHITECTURE §8 note 1038): criteria 2, 3 and 5 made
+// into numbers from bot runs, per creature. A developer's yardstick, like balance.json: nothing in the game reads it.
+// Bots are not people (they keep to a plan and come when called), so a fail is a creature for its owner to look at, not
+// a verdict on its own.
+{
+  // The creatures measured (EnemyKind names). Empty: every one the director sends (GDD §21's roster) and every one that grabs.
+  "creatures": [],
+
+  // The bot nights: each creature insisted on (only it, sent again insistEvery s after one's gone, note 186), seeds nights
+  // at every crew size in crews, seconds s each, on route with a train of cars, staged as `dt balance --pairs --at-stops`
+  // stages it (the creatures that come at a stop start short of one).
+  "route": "frontier:7",
+  "cars": 6,
+  "seconds": 120,
+  "seeds": 2,
+  "crews": [1, 2],
+  "insistEvery": 10,
+
+  // §20 criterion 2, "answered better by two than by one: two players make it safer, faster or possible at all".
+  // The staged grab (`dt audit grabs`' rig) with the victim alone (crew 1) against one friend near (crew 2): it passes if
+  // two free a grab one can't, or two are held no longer than twoHeldShare of one's time. A creature with no grab is
+  // judged by its bot nights: fewer failures a night with two than with one.
+  "twoHeldShare": 0.75,
+
+  // §20 criterion 3, "the kill takes long enough for a friend to act (8-20s)": the grab's window (from grab to kill), staged,
+  // or with no staged grab the bot nights' grabs that killed. A friend has acted once they're within reachM of the held.
+  "actMinSeconds": 8,
+  "actMaxSeconds": 20,
+  "reachM": 2.5,
+
+  // §20 criterion 5, "someone gets blamed: the failure traces back to a person's choice": at least blamedShare of the
+  // failures on its nights (a death, a punish that held nobody, the doll struck, a car lost or set alight, a nest, a
+  // runaway, a creature aboard) have the incident report name a crewmate's contributing action (App. C.9).
+  "blamedShare": 0.5,
+
+  // The crew's own numbers: a living crewmate is split up when no other living one is within splitM (voice's reach,
+  // balance.json shared.nearMetres).
+  "splitM": 26
+}

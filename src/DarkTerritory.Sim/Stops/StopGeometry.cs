@@ -30,7 +30,9 @@ public static class StopSeed
         // Note 719: a stop's jackpot house, its better draws and extra finds, and its two-person jackpots.
         Locked = 0x4c4f434b, Better = 0x42455454, Extra = 0x45585452, Jackpot = 0x4a41434b,
         // Note 1005: a basement's and an upstairs' finds' better draws; a village's houses kept, their floors and the finds on them.
-        Deeper = 0x44454550, Forms = 0x464f524d;
+        Deeper = 0x44454550, Forms = 0x464f524d,
+        // Note 1022: the floors of a village's houses of parts (L, cross, pair), and the finds on them.
+        Parts = 0x50415254, PartFinds = 0x50464e44;
 }
 
 /// <summary>A seeded generator for one sub-system of a stop (PCG32, so the same on every machine).</summary>

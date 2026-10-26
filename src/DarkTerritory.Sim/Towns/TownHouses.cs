@@ -26,7 +26,7 @@ public sealed record TownHouse(int Id, double S, double D, int Side, double Widt
     {
         var d = Design;
         bool burnt = Kind == HouseKind.Burnt;
-        if (Layout is null && d.Hull && !burnt)
+        if (Layout is null && Left is null && d.Hull && !burnt)
         {
             // A houseboat (notes 822, 841): solid out to its hull, which stands past its walls and its ends (else at a corner
             // the eye went into the hull's hollow and saw the nothing inside), as high as its deck, whose top is stood on
@@ -35,7 +35,7 @@ public sealed record TownHouse(int Id, double S, double D, int Side, double Widt
                 Depth + HouseDesign.HullEnds, HouseDesign.HullLift);
             yield return (-Width / 2, Width / 2, 0, Depth, 9 + HouseDesign.HullLift);
         }
-        else if (Layout is null)
+        else if (Layout is null && Left is null)
             yield return (-Width / 2, Width / 2, 0, Depth, burnt ? 1.0 : 9);
         if (burnt)
             yield break;
@@ -56,6 +56,21 @@ public sealed record TownHouse(int Id, double S, double D, int Side, double Widt
     public IReadOnlyList<YardThing> Yard { get; init; } = [];
     /// <summary>Nicki's party is on in it (note 571): its people keep their places, dancing, and it's lit up.</summary>
     public bool Party { get; init; }
+
+    /// <summary>
+    /// Note 1022: its floors (towns.json <c>floors</c>, <see cref="TownFloors"/>): an upstairs up a flight (an open house of two
+    /// storeys), and a cellar under a hatch (an open house's, or a burnt one's floor burnt through).
+    /// </summary>
+    public bool Upstairs { get; init; }
+
+    /// <inheritdoc cref="Upstairs"/>
+    public bool Cellar { get; init; }
+
+    /// <summary>
+    /// Note 1022: a boarded house's rooms, left as they were when its family went (towns.json <c>floors.boarded</c>): its
+    /// door's boards prised off, nobody home, dark. Its <see cref="Layout"/> stays null (that's a household's).
+    /// </summary>
+    public HouseLayout? Left { get; init; }
 
     /// <summary>The ground it stands on, in metres over the yard's level (note 692): a terrace's, a quarry bench's, a drowned
     /// ward's bed.</summary>
@@ -178,6 +193,26 @@ public sealed record HouseLayout(int Kitchen, double DoorU, double PassV, IReadO
             new("door", k * (width / 4 + 0.9), 1.2, 0, -1, "idle"),
         };
         return new HouseLayout(kitchen, k * width / 4, depth * 0.35, things, spots);
+    }
+
+    /// <summary>
+    /// This ground floor in a house with floors (note 1022): with an upstairs, the boxed stair is the open flight up
+    /// (<see cref="TownFloors.Stair(double, int)"/>; not solid: its treads are), and whoever kept by the stair door keeps at its
+    /// foot; with a cellar and no upstairs, by the stair door's front end, clear of the hatch behind the armchair.
+    /// </summary>
+    public HouseLayout Floored(double width, double depth, bool upstairs, bool cellar)
+    {
+        if (!upstairs && !cellar)
+            return this;
+        int s = -Kitchen;
+        double w = width / 2;
+        var (u0, u1, v0, v1) = TownFloors.Stair(width, s);
+        var things = Things.Select(x => x.Kind != "stairs" || !upstairs ? x
+            : new HouseThing("stairs", (u0 + u1) / 2, (v0 + v1) / 2, Math.Abs(u0 - u1) / 2, (v1 - v0) / 2, TownFloors.Storey, false)).ToList();
+        var spots = Spots.Select(x => x.Name != "stairs" ? x
+            : upstairs ? new HouseSpot("stairs", (u0 + u1) / 2, HouseLayout.Wall + 0.35, 0, 1, x.Pose)
+            : new HouseSpot("stairs", s * (w - 1.3), depth - 2.4, s, 0, x.Pose)).ToList();
+        return this with { Things = things, Spots = spots };
     }
 
     /// <summary>

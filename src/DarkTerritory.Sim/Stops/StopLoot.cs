@@ -340,7 +340,7 @@ public static class StopLoot
         {
             var b = stop.Buildings[i];
             // (Not a house of floors, note 1005: its back door stands open.)
-            if (b.Kind != BuildingKind.House || !b.Open || b.Zone != StopZone.Village || b.Shape == HouseShape.Pair || !Run.StopWalls.Walled(stop, i) || Run.StopWalls.Storeyed(b)
+            if (b.Kind != BuildingKind.House || !b.Open || b.Zone != StopZone.Village || b.Shape == HouseShape.Pair || !Run.StopWalls.Walled(stop, i) || Run.StopWalls.Floored(b)
                 || Run.StopWalls.Doorways(b).Count() != 1 || stop.Lairs.Any(l => l.Kind == LairKind.GauntRoost && l.Building == i))
                 continue;
             double area = b.Parts.Count > 0 ? b.Parts.Sum(p => p.Length * p.Width) : b.Length * b.Width;

@@ -1,0 +1,82 @@
+// The visual tell audit (systems-spec A.4a; GDD Part Eleven q6; ARCHITECTURE §8 note 1037): the twin of A.3's audio audit.
+// `dt tells` stands each creature where the creature gym calls it, puts a crewmate's eye at its warning distance from it,
+// and draws the frame twice under each night's weather: with the creature, and without. What differs between the two is
+// what the creature puts on the screen; how much it differs (CIE lightness, L*, 0..100) is its contrast against what was
+// behind it. A tell under these numbers can't be seen, and that's a bug (A.4a), as a drowned tell is under A.3.
+// Developer builds only: nothing on a real night reads this file.
+{
+  // The frame it's measured in (the audit's own size; the numbers below are per a 1280x720 frame, scaled to it), and the
+  // eye's vertical field of view (degrees; the app's own, Views' 65).
+  "width": 640,
+  "height": 360,
+  "fov": 65,
+  // Seconds stepped after the call before the shot (it has arrived and settled into its pose).
+  "settle": 1.0,
+  // A pixel shows the creature when its lightness differs by at least `jnd` L* (a just-noticeable step for a dark-adapted
+  // eye on a dim screen is 2-3; 3 keeps the dither and grain out). A tell passes when at least `minPixels` (at 720p) show
+  // it and the brightest tenth of them differ by at least `minContrast` L*: about a fist at arm's length's worth of a
+  // dark shape against a darker one is 60 px; 6 L* is twice the step, what an eye picks out without hunting for it.
+  "jnd": 3,
+  "minPixels": 60,
+  "minContrast": 6,
+  // Where a crewmate's eye is: on the ground, standing in a coupling gap, at the cab's side window, up on a car's roof
+  // (metres over the ground under the camera).
+  "viewpoints": { "foot": 1.65, "gap": 2.9, "cab": 3.1, "roof": 5.6 },
+  // The nights it's drawn in. clear: the gym's night (frontier:7's fog) with every lamp lit. dark: the same with the
+  // headlamp out and every car's lamp out (the moon's all there is). rain: wet (its sheen on what faces the sky) and the
+  // haze of a Dead Lines night's thickest fog (75 m: tiers.json deadLines fog, 1.6 / 75); no drops are drawn yet. fog: Deep
+  // Territory's thickest (60 m: deepMax's, 1.6 / 60). fogDensity 0 keeps the route's own.
+  "conditions": {
+    "clear": { "fogDensity": 0, "lampsOut": false, "wet": false },
+    "dark":  { "fogDensity": 0, "lampsOut": true,  "wet": false },
+    "rain":  { "fogDensity": 0.0213, "lampsOut": false, "wet": true },
+    "fog":   { "fogDensity": 0.0267, "lampsOut": false, "wet": false }
+  },
+  // Each tell: how far off a crewmate has to see it to answer it (m), where they'd be looking from, how high on the
+  // creature to aim (m over where it stands), and what the tell is. Distances cite the creature's own number where it has
+  // one (enemies.json); the rest are the distance its answer needs (the gym's notes: brake, run, call it out). "settle":
+  // its own seconds before the shot (a fire taking hold; the hotbox glows only after enemies.json hotbox knockSeconds).
+  // "hidden": why it's out of sight on purpose until it acts: drawn and measured, never counted a failure.
+  "tells": {
+    "cinderHound":   { "warnM": 40, "from": ["roof", "foot"], "aim": 0.6, "what": "the pack running up behind, eyes and embers" },
+    "sootChildren":  { "warnM": 20, "from": ["foot"], "aim": 1.0, "what": "a child in the dark beyond the stop; the eyes are the tell" },
+    "dragger":       { "warnM": 12, "from": ["roof"], "aim": 0.0, "what": "a limb at the roof's edge lip", "hidden": "under the roof's edge until the limb comes up; its scrape is the tell (A.4)" },
+    "stoker":        { "warnM": 15, "from": ["cab", "roof"], "aim": 0.8, "what": "a sooted shape coming over the tender" },
+    "climber":       { "warnM": 15, "from": ["gap", "roof"], "aim": 0.8, "what": "pale things pacing a coupling gap" },
+    "gaunt":         { "warnM": 30, "from": ["foot"], "aim": 1.8, "what": "the tall thin figure, standing where it wasn't", "hidden": "asleep in its roost; its house kept dark is the tell (look.json interiors)" },
+    "carFire":       { "warnM": 60, "from": ["roof", "foot"], "aim": 2.0, "what": "a car alight", "settle": 15 },
+    "passenger":     { "warnM": 10, "from": ["roof"], "aim": 1.0, "what": "someone aboard who isn't crew", "hidden": "inside its car, among the crew: seen only from in there" },
+    "follower":      { "warnM": 8,  "from": ["foot"], "aim": 1.4, "what": "a lump on a friend's back, seen by the others" },
+    "trackDoll":     { "warnM": 60, "from": ["cab"], "aim": 0.4, "what": "a doll on the rail in the headlamp" },
+    "carHugger":     { "warnM": 30, "from": ["roof", "foot"], "aim": 1.0, "what": "a mass under the line clamping the last car" },
+    "whistler":      { "warnM": 12, "from": ["gap"], "aim": 1.2, "what": "a shape waiting in a coupling gap" },
+    "tippyToesie":   { "warnM": 6,  "from": ["foot"], "aim": 1.0, "what": "something right behind you when you turn" },
+    "fireFlies":     { "warnM": 20, "from": ["roof", "foot"], "aim": 0.0, "what": "a swarm round a lit car's lamp", "settle": 4 },
+    "ribbit":        { "warnM": 25, "from": ["foot"], "aim": 0.4, "what": "a pack coming out of the warren, throats swelling" },
+    "grumbler":      { "warnM": 20, "from": ["foot"], "aim": 0.6, "what": "a hunched gnawer at the castings" },
+    "choir":         { "warnM": 40, "from": ["roof"], "aim": 3.0, "what": "pale ghosts gathering over the train" },
+    // enemies.json moose.warnAt (50 m): the cough and clack begin there, and so must the shape.
+    "moose":         { "warnM": 50, "from": ["foot", "cab"], "aim": 1.4, "what": "antlers and a dark bulk squaring up" },
+    "gannet":        { "warnM": 60, "from": ["roof"], "aim": 0.0, "what": "a great white bird wheeling, its eyes swelling as it folds" },
+    "mourners":      { "warnM": 30, "from": ["foot"], "aim": 1.2, "what": "a procession of veiled figures by the line" },
+    // enemies.json towerJaw.notice (10 m) is when it turns; the tower leaning is seen far further.
+    "towerJaw":      { "warnM": 25, "from": ["foot", "cab"], "aim": 3.0, "what": "a jaw gnawing the coaling tower's legs" },
+    "brakeman":      { "warnM": 20, "from": ["roof"], "aim": 1.2, "what": "a figure on the roofs, turning a brake wheel" },
+    "knotter":       { "warnM": 15, "from": ["foot", "roof"], "aim": 0.8, "what": "rope coiled at the couplings" },
+    // enemies.json freightBeetle.notice (25 m).
+    "freightBeetle": { "warnM": 25, "from": ["foot"], "aim": 0.8, "what": "a shell pushing a car down the yard" },
+    "hotbox":        { "warnM": 20, "from": ["roof", "foot"], "aim": 0.5, "what": "a truck's axlebox glowing and smoking", "settle": 120 },
+    "pickers":       { "warnM": 30, "from": ["foot"], "aim": 1.0, "what": "thin figures carrying things off" },
+    "mouseMoose":    { "warnM": 20, "from": ["foot"], "aim": 0.6, "what": "a small antlered thing at the yard's edge" },
+    "bruin":         { "warnM": 25, "from": ["foot"], "aim": 1.0, "what": "a bear's bulk turning to face you" },
+    "tapper":        { "warnM": 15, "from": ["foot"], "aim": 1.0, "what": "a figure tapping at the wheels" },
+    "lodger":        { "warnM": 8,  "from": ["foot"], "aim": 1.0, "what": "something hidden in a house's room", "hidden": "hidden in a room until it shrieks; the shriek is the tell" },
+    "householder":   { "warnM": 10, "from": ["foot"], "aim": 1.2, "what": "the figure at the table who doesn't belong" },
+    "hollowHouse":   { "warnM": 30, "from": ["foot"], "aim": 3.0, "what": "a house sinking, its windows dark" },
+    "hanger":        { "warnM": 8,  "from": ["foot"], "aim": 2.2, "what": "something hanging from a ceiling" },
+    "waker":         { "warnM": 200, "from": ["roof"], "aim": 20, "what": "the hills getting up behind the train", "hidden": "lies as a hill until the stir; the sky's bruise behind the train is its warning (look.json dawn.stir)" }
+  },
+  // The test's few (DarkTerritory.Dev.Tests TellAuditTests): one of each way a tell is seen (a body coming at you on the
+  // ground, a pack low in the grass, overhead, a mass at the train's end).
+  "fast": ["moose", "ribbit", "gannet", "carHugger"]
+}

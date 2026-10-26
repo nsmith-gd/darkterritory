@@ -3,6 +3,7 @@ using Ballast.Render;
 using DarkTerritory.Game;
 using DarkTerritory.Game.Art;
 using DarkTerritory.Sim;
+using DarkTerritory.Sim.Enemies;
 using DarkTerritory.Sim.Net;
 using DarkTerritory.Sim.Player;
 using DarkTerritory.Sim.Train;
@@ -79,8 +80,11 @@ public sealed class WorldShot : IDisposable
     /// <summary>
     /// The world as the scene draws it from <paramref name="camera"/>: RGBA, <see cref="Width"/> by <see cref="Height"/>.
     /// <paramref name="hide"/>: the crewmate whose eyes these are, left out (the app never draws your own body in your view).
+    /// <paramref name="drawn"/>: only the creatures it passes are drawn (the visual tell audit's frame without its tell, note
+    /// 1037); <paramref name="grade"/>: a lighting over <see cref="Grade"/>'s for this frame alone (the audit's weather).
     /// </summary>
-    public byte[] Render(World world, IReadOnlyList<PlayerSnapshot> crew, Camera camera, byte? hide = null)
+    public byte[] Render(World world, IReadOnlyList<PlayerSnapshot> crew, Camera camera, byte? hide = null, Func<Enemy, bool>? drawn = null,
+        Func<FrameLighting, FrameLighting>? grade = null)
     {
         var train = world.Train;
         double seconds = world.Tick * SimConstants.TickSeconds;
@@ -91,12 +95,14 @@ public sealed class WorldShot : IDisposable
             lighting.Frost = _look.Tuning.Atmosphere.Cold.Frost(route.Weather.Cold);
         }
         lighting = _look.Chill(lighting, GreyboxScene.ChoirCold(world.Choir.Present ? 1 : (float)world.Choir.Build));
-        if (Grade is { } grade)
+        if (Grade is { } own)
+            lighting = own(lighting);
+        if (grade is not null)
             lighting = grade(lighting);
         var s = _scene;
         s.Signs = world.Lineside?.Signs;
         s.SignRange = world.Lineside?.Tuning.LampSignRange ?? 350;
-        s.Enemies = world.ActiveEnemies;
+        s.Enemies = drawn is null ? world.ActiveEnemies : [.. world.ActiveEnemies.Where(drawn)];
         s.Hits = world.Hits;
         s.Impacts = world.Impacts;
         s.Run = world.Run;

@@ -44,8 +44,8 @@ public sealed partial class StopWalls
         public bool Holds(Double3 p)
         {
             var d = p - Origin;
-            // (A storeyed house from its basement's floor to over its upstairs' boards, note 1005.)
-            if (Storeyed(B) ? d.Y < FloorAt(B, B.Basement ? -1 : 0) - 0.5 || d.Y >= FloorAt(B, B.Upstairs ? 1 : 0) + 3 : Math.Abs(d.Y) >= 3)
+            // (A house with floors from its basement's floor to over its upstairs' boards, notes 1005, 1022.)
+            if (Floored(B) ? d.Y < LevelAt(B, B.Basement ? -1 : 0) - 0.5 || d.Y >= LevelAt(B, B.Upstairs ? 1 : 0) + 3 : Math.Abs(d.Y) >= 3)
                 return false;
             double x = d.X * Ex.X + d.Z * Ex.Z, y = d.X * Ey.X + d.Z * Ey.Z;
             return Part < 0 ? InParts(B, x, y) : B.Parts[Part] is var q && Math.Abs(x - q.X) <= q.Length / 2 + 1e-9 && Math.Abs(y - q.Y) <= q.Width / 2 + 1e-9;

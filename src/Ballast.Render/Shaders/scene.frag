@@ -329,6 +329,23 @@ float indoors(vec3 p, out float dark) {
     return best;
 }
 
+// Whether the ground's surface at p is over a dark room (a house's cellar, notes 1005, 1022): the earth there is the
+// cellar's, under the house's boards, and isn't drawn, so the hatch looks down into the cellar, not onto the ground. The
+// room's box taken up to a little over its own top (the boards are just over the ground).
+bool overCellar(vec3 p) {
+    for (int i = 0; i < int(frame.counts.x); i++) {
+        vec4 c = frame.rooms[i * 3], r = frame.rooms[i * 3 + 1], b = frame.rooms[i * 3 + 2];
+        if (c.w >= 0.0)
+            continue;
+        vec3 u = cross(b.xyz, r.xyz);
+        vec3 d = p - c.xyz;
+        float up = dot(d, u);
+        if (abs(dot(d, r.xyz)) < -c.w && abs(dot(d, b.xyz)) < b.w && up > -r.w && up < r.w + 1.2)
+            return true;
+    }
+    return false;
+}
+
 void main() {
     // Eaten away (bite.glsl): gone behind the frontier, and gnawed along it.
     float bitten = vBite.y > 0.0 ? biteInto(vObj, vBite, vBiteFloor, vScar.y) : -1e3;
@@ -351,6 +368,8 @@ void main() {
     bool ps2 = frame.params.y > 0.5;
     bool terrain = textured && vLayer2 >= 0.0 && vLayer2 < frame.params.w;
     bool water = textured && !terrain && abs(layerMotion(vLayer) - 2.0) < 0.5;
+    if (terrain && frame.counts.x > 0.0 && overCellar(vPos))
+        discard;
     float waterCrest = 0.0;
 
     vec4 tex = vec4(1.0);
