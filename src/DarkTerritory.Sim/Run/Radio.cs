@@ -76,6 +76,9 @@ public static class Radio
             lines.Add($"Salvage: {report.Scavenged:0}.");
         if (owned is not null)
             lines.AddRange(owned.Select(line => Fill(line, report.Counts)));
+        // Note 1052: the stores' fusees, read only on a night some were struck (they're the night's issue, not a fitting).
+        if (report.Counts.GetValueOrDefault("fusees") is > 0 and var fusees)
+            lines.Add($"Fusees: struck, {fusees}.");
         // Note 718 (the director, 14 Oct 2026: "as they play the game more often, they learn what those objects are"): the
         // night's best finds by name with what each paid, as flat as the coal, and who brought the most aboard.
         lines.AddRange(Prizes(report));

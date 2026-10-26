@@ -241,6 +241,10 @@ public sealed partial class World
         counts["canaryDead"] = Whimsy.Canary == CanaryMood.Dead ? 1 : 0;
         counts["volunteers"] = Volunteers;
         counts["ballsThrown"] = BallsThrown;
+        // The crew's tools (note 1052).
+        counts["cordPulls"] = CordPulls;
+        counts["telltaleOut"] = TelltaleOuts;
+        counts["fusees"] = FuseesStruck;
         return counts;
     }
     /// <summary>The fires each Cinder Hound pack has lit tonight, by its pack (note 915: a feeding pack sated).</summary>
@@ -728,6 +732,9 @@ public sealed partial class World
         // Note 871: the flare pistols, loaded (their flares left in Charge), beside the extinguishers.
         for (int i = 0; i < kit.FlarePistols; i++)
             Bodies.SpawnCrate(Train, guard.Id, new Ballast.Double3(0.2, floor, room.Min.Z + 1.2 + 0.4 * i), Physics.BodyKind.FlarePistol).Charge = kit.FlareShots;
+        // Note 1052: the boxes of fusees, beyond them.
+        for (int i = 0; i < kit.Fusees; i++)
+            Bodies.SpawnCrate(Train, guard.Id, new Ballast.Double3(0.2, floor, room.Min.Z + 2.2 + 0.4 * i), Physics.BodyKind.Fusees).Charge = kit.FuseesEach;
         // Hand-carried loot (GDD v1.1 App. C.4): toys, for the Track Doll to steal.
         for (int i = 0; i < kit.Toys; i++)
             Bodies.SpawnCrate(Train, guard.Id, new Ballast.Double3(0.6, floor, room.Max.Z - 1.2 - 0.5 * i), Physics.BodyKind.Toy).Noise =
@@ -1844,6 +1851,8 @@ public sealed partial class World
         Launch(s, intent, playerId);
         // The flare pistol (note 871): Fire with it in hand.
         FireFlare(s, intent, playerId);
+        // A fusee (note 1052): Fire with the box in hand.
+        StrikeFusee(s, intent, playerId);
         if (handsTookIt && Bodies.CarriedBy(playerId) is { Kind: Physics.BodyKind.Ragdoll } lifted)
             Physics.Bodies.TakeTools(ref s, lifted);
         // Searching an open house's hiding spot (note 326), empty-handed, with a Use the hands didn't take.
@@ -2001,6 +2010,8 @@ public sealed partial class World
         // shorts and longs come out as blown.
         if ((intent.Has(PlayerActions.Whistle) || OnTheCord(s, intent)) && Net.CabControls.CanDrive(s, Train))
             Whistled(Math.Max(SimConstants.TickSeconds, Train.Dynamics.Tuning.Whistle.TailSeconds) + SimConstants.TickSeconds, playerId);
+        // The communication cord (note 1052): the same key in any car behind the engine, when it's fitted.
+        PullCord(s, intent, playerId);
         // The lamp in the car you're in (GDD v1.1 App. A.5): on the press, the host's to set.
         if (Authority && intent.Has(PlayerActions.CarLamp) && !_lampWas.Contains(playerId) && s.Parent > 0 && s.Parent < Train.Frames.Count
             && PlayerMotor.Indoors(s, Train))

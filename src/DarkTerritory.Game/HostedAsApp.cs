@@ -35,6 +35,7 @@ public static class HostedAsApp
             SpareLamps = s.Stores.Lamps,
             SpareExtinguishers = s.Stores.Extinguishers,
             Flares = s.Stores.Flares,
+            Fusees = s.Stores.Fusees,
             LastTown = s.LastTown,
             Burnt = s.Burnt.Count > 0 ? s.Burnt : null,
             // Note 1024: and how cold each is to the crew.

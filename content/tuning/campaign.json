@@ -29,7 +29,12 @@
     // Note 871 (docs/design/upgrades.md §4, the director: "fantastic"): a flare pistol loaded with `each` flares, stocked from
     // the Frontier tier as a tool is (fromTier). Priced between a spare lamp and an extinguisher: a flare pistol is three
     // nights' answer to the Fire Flies at one stop each.
-    "flares": { "cost": 80, "most": 2, "each": 3, "fromTier": "frontier" }
+    "flares": { "cost": 80, "most": 2, "each": 3, "fromTier": "frontier" },
+    // Note 1052 (upgrades.md §7.3, stores: "red flares dropped on the line: the way back to the train glows for a few
+    // minutes"; the director, 14 Oct: "all of §7.3's"): a box of `each` fusees in the guard van, struck and dropped where a
+    // crewmate walking a village wants the way back marked (train.json kit.fusee). From Local: a village to get lost in is
+    // there from the first night. Priced under a spare lamp: they burn out.
+    "fusees": { "cost": 40, "most": 2, "each": 4 }
   },
   // GDD §9 "add or remove railcars": a car taken off the consist brings back this share of what that car cost (spec F.2),
   // and a consist keeps the starting three at least. A shorter train works a lower tier when it drops below one (F.4).
@@ -163,6 +168,19 @@
     { "id": "rearSearchlight", "name": "Rear searchlight", "size": "small", "costShare": 0.15, "fromTier": "frontier", "effect": { "dress:rearSearchlight": 1 },
       "line": "A searchlight on the guard van's roof, pointed back down the line. Whatever's following you, you'll see it following you.",
       "tally": "Caboose: lamp parts, bolted on. Still up." },
+    // The communication cord (note 1052; upgrades.md §7.3, the director, 14 Oct: "all of §7.3's"; GDD §15 "half the crew can't
+    // hear the other half"): a cord the length of the train, pulled from any car with [H], and the cab's bell strikes the car's
+    // number (train.json kit.cord, cordBell). It says which car wants the driver, not why; the cars cut off the train have no
+    // cord to the cab. From Frontier: the longer trains are where the cab can't hear the van.
+    { "id": "commCord", "name": "Communication cord", "size": "small", "costShare": 0.15, "fromTier": "frontier", "effect": { "cord": 1, "dress:commCord": 1 },
+      "line": "A cord the length of the train. Pulled in any car, the cab's bell strikes that car's number. It says where, not why.",
+      "tally": "{cordPulls?Cord: pulled, #.|Cord: not pulled.}" },
+    // The end-of-train telltale (note 1052; upgrades.md §7.3: the Passenger, the Knotter, a coupling let go): a lamp on the
+    // cab's backhead, lit while the train's last car is coupled to the engine, out the moment it isn't (train.json
+    // kit.telltale). It says the train's parted, not where, and stops nothing. From Local: the Passenger is the first night's.
+    { "id": "trainTelltale", "name": "End-of-train telltale", "size": "small", "costShare": 0.15, "effect": { "telltale": 1, "dress:trainTelltale": 1 },
+      "line": "A lamp in the cab, wired to the last car. It goes out the moment the train parts behind you. It doesn't say where.",
+      "tally": "{telltaleOut?Telltale: out, #.|Telltale: lit all night.}" },
     // The speaking tubes (note 978; upgrades.md §6, the director: "funny"): a brass horn in every car with a room, joined to the
     // next car's either way along the train as well as the cab's pipe to the guard van (note 720). Said into one, heard out of
     // the neighbours' horns, tinny (player.json voices.tube).

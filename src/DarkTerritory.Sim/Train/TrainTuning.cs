@@ -330,9 +330,30 @@ public sealed record KitTuning
     /// </summary>
     public int FlarePistols { get; init; }
     public int FlareShots { get; init; } = 3;
+    /// <summary>
+    /// The communication cord (note 1052; upgrades.md §7.3): pulled anywhere along the engine's rake, the cab's bell rings with
+    /// the car's number (<see cref="World.Cord"/>). The campaign sets it (effect <c>cord</c>).
+    /// </summary>
+    public bool Cord { get; init; }
+    public CordBellTuning CordBell { get; init; } = new();
+    /// <summary>The end-of-train telltale (note 1052; upgrades.md §7.3): a cab lamp lit while the train's tail is coupled (<see cref="Telltale"/>). Effect <c>telltale</c>.</summary>
+    public bool Telltale { get; init; }
+    /// <summary>
+    /// Boxes of fusees bought at the fortress for the night (note 1052; campaign.json <c>stores.fusees</c>): in the guard van,
+    /// each holding <see cref="FuseesEach"/>. The campaign sets them (<c>SessionSetup</c>).
+    /// </summary>
+    public int Fusees { get; init; }
+    public int FuseesEach { get; init; } = 4;
+    public FuseeTuning Fusee { get; init; } = new();
     /// <summary>The crew lockers in the kit's car (ARCHITECTURE §8 note 173). Unset, the car has none.</summary>
     public LockerTuning? Lockers { get; init; }
 }
+
+/// <summary>The communication cord's bell (train.json <c>kit.cordBell</c>, note 1052). Field docs live in that file.</summary>
+public sealed record CordBellTuning(double Every = 3, int Strokes = 9, double StrokeSeconds = 0.55, double ShowSeconds = 8);
+
+/// <summary>A fusee struck and dropped (train.json <c>kit.fusee</c>, note 1052). Field docs live in that file.</summary>
+public sealed record FuseeTuning(double BurnSeconds = 180, double Every = 1);
 
 /// <summary>The crew lockers (train.json <c>kit.lockers</c>). Field docs live in that file.</summary>
 public sealed record LockerTuning

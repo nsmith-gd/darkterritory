@@ -98,7 +98,7 @@ public class RejoinTests
         r = new NetReader(w.Written);
         r.U8();
         Assert.Null(Messages.ReadCarryOn(ref r).Key);
-        Assert.Equal(93, Protocol.Version);
+        Assert.Equal(94, Protocol.Version);
     }
 
     [Fact]
