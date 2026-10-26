@@ -1105,6 +1105,11 @@ public sealed record PressureTuning
     /// </summary>
     public double QuietRampMetres { get; init; }
     public double QuietBackstopSeconds { get; init; } = 120;
+    /// <summary>
+    /// Note 1059: quiet out on the line this long (<see cref="World.QuietSeconds"/>, from the grace's end), the pressure is
+    /// pressed (raised to <see cref="PressAt"/>). 0: off, the pace not read (before note 1059).
+    /// </summary>
+    public double PressQuietSeconds { get; init; }
     public double LoudPerSecond { get; init; } = 0.1;
     public double LoudCap { get; init; } = 1.5;
     public double CargoPerLoad { get; init; } = 0.01;

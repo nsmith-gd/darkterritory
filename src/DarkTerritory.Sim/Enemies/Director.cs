@@ -727,6 +727,13 @@ public sealed class Director
         // adds slackPerSecond, on top of the pressure's own terms, so a crew with several people idle fills faster.
         if (Steering)
             _pressure = Math.Min(_t.Pressure.Max, _pressure + _t.Orchestrator.SlackPerSecond * Posts.Entries.Count(c => c.Slack >= _t.Orchestrator.SlackPress));
+        // The pace kept (note 1059): out on the line pressQuietSeconds with nothing happening (the world's quiet, the pace
+        // judge's own measure, from the grace's end), the night is pressed: the cooldown and the first threat's listening give
+        // way. Not the holds the game means (the bans, a fort, the aftermath, a stop's lull, the caps): they hold on above and
+        // below, and what's due comes after them. Without it nothing read the pace: a night's opening sat through the
+        // pressure's build from its start and the listening after (two to three minutes for a quiet crew).
+        if (_t.Pressure.PressQuietSeconds > 0 && world.QuietSeconds >= _t.Pressure.PressQuietSeconds)
+            _pressure = Math.Max(_pressure, _t.Pressure.PressAt);
         // GDD App. B.1 "Aftermath" (note 751): a crisis just ended, nothing of the director's own for a few seconds, however
         // pressed; the pressure goes on building (the dawn clock doesn't wait either), so whatever's due comes after it. Not
         // pressed through: at twelve seconds it's short enough not to need to be.
