@@ -80,6 +80,13 @@ public sealed partial class World
     public CombatTuning? Combat { get; set; }
     /// <summary>Host: what the crew have said lately (T40), fed by the session as voice arrives. The Soot Children listen here.</summary>
     public Net.VoiceMemory Voices { get; } = new();
+    /// <summary>
+    /// Host: what each crewmate has said on the radio lately (note 1040), a minute of talk each, fed by the session as it forwards
+    /// a radio frame. A corrupted human on the radio says some of it back (<see cref="DarkTerritory.Sim.Enemies.RadioVoice"/>).
+    /// </summary>
+    public Net.VoiceMemory RadioVoices { get; } = new(DarkTerritory.Sim.Enemies.RadioVoice.FramesKept);
+    /// <summary>Host: the night's corrupted human on the radio, once it's spoken (note 1040: at most once a night).</summary>
+    public DarkTerritory.Sim.Enemies.RadioVoicePlay? RadioVoiceSaid { get; set; }
     /// <summary>The crew as they acted this tick (host, with enemies on), for spawns that go after someone in particular.</summary>
     public IReadOnlyList<(int Id, PlayerState State)> CrewThisTick =>
         _context is { } c ? [.. c.Crew.Select(x => ((int)x.Player.Id, x.Player.State))] : [];

@@ -13,9 +13,10 @@ namespace DarkTerritory.Sim.Run;
 /// brought it (<see cref="Drawn"/>): "Cinder Hounds came first at km 2. Drawn by the whistle: Dave." Note 717: a crewmate
 /// bonked by their friends' tools often enough to be told (<see cref="Bonked"/>): "Bonked 14 times, mostly by Priya." Note 720: a
 /// creature the crew sang off (<see cref="Sang"/>: "Sang the Gaunt off at km 12. Singing: Dave, Dunmore."), and the train stood by a
-/// lamp signal (<see cref="Signalled"/>: "Stopped by a lamp signal at km 9. Signalled by Priya.").
+/// lamp signal (<see cref="Signalled"/>: "Stopped by a lamp signal at km 9. Signalled by Priya."). Note 1040: a corrupted human
+/// heard on the crew's radio in a crewmate's voice (<see cref="Heard"/>: "The Brakeman on the radio, in Priya's voice.").
 /// </remarks>
-public enum IncidentKind : byte { Grab, Death, Rescue, Rupture, CarLost, Derailed, Stranded, Voted, Struck, Fire, Nest, Aboard, Runaway, Points, Punished, Drawn, Slain, BroughtIn, Bonked, Sang, Signalled, Marked, Letter, Whimsy }
+public enum IncidentKind : byte { Grab, Death, Rescue, Rupture, CarLost, Derailed, Stranded, Voted, Struck, Fire, Nest, Aboard, Runaway, Points, Punished, Drawn, Slain, BroughtIn, Bonked, Sang, Signalled, Marked, Letter, Whimsy, Heard }
 
 /// <summary>
 /// One fact for the incident report (C.9, D.12): what happened, to whom and where, and the <b>contributing action</b>: the

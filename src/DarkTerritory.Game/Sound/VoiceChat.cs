@@ -19,6 +19,11 @@ namespace DarkTerritory.Game.Sound;
 /// loudness however far (voice-mimic.json): the tell.
 /// </para>
 /// <para>
+/// A corrupted human on the radio (note 1040; GDD Part Eleven q4) comes the same way, keyed by the thing, but with the radio's
+/// path too: it's played as the walkie-talkie plays a crewmate (voice-radio, the set's click and static), from nowhere, and
+/// nothing about it says it isn't them.
+/// </para>
+/// <para>
 /// The speaking tube (note 720; App. C.8): what's said into one mouthpiece comes on the speaker's tube stream, from the far
 /// end's horn (the host says which end), tinny and close (voice-tube.json), beside their voice in the air.
 /// </para>
@@ -37,7 +42,7 @@ public sealed class VoiceChat
     readonly float[] _silence = new float[VoiceFormat.FrameSamples];
     readonly byte[] _packet = new byte[VoiceFormat.MaxPacket];
     readonly Dictionary<byte, Speaker> _speakers = new();
-    readonly Dictionary<int, Speaker> _mimics = new();
+    readonly Dictionary<int, Speaker> _mimics = new(), _radioMimics = new();
     int _filled;
     ushort _sequence;
     double _clock;
@@ -226,9 +231,11 @@ public sealed class VoiceChat
             }
             if (f.Path.HasFlag(VoicePath.Mimic))
             {
-                if (!_mimics.TryGetValue(f.Source, out var m))
-                    _mimics[f.Source] = m = new Speaker(f.Speaker);
+                var mimics = f.Path.HasFlag(VoicePath.Radio) ? _radioMimics : _mimics;
+                if (!mimics.TryGetValue(f.Source, out var m))
+                    mimics[f.Source] = m = new Speaker(f.Speaker);
                 m.Order.Push(f.Sequence, f, _clock);
+                m.LastHeard = _clock;
                 continue;
             }
             if (!_speakers.TryGetValue(f.Speaker, out var s))
@@ -281,6 +288,20 @@ public sealed class VoiceChat
             {
                 m.MimicVoice?.Stop();
                 _mimics.Remove(source);
+            }
+        }
+        // Note 1040: a corrupted human on the radio, flat through the set like anyone on it; done when it's said.
+        foreach (var (source, m) in _radioMimics.ToList())
+        {
+            m.Order.Drain(_clock, (_, f) => Decode(m, f));
+            m.RadioVoice ??= Stream("voice-radio", m.Radio);
+            m.RadioKeyed = Math.Max(0, m.RadioKeyed - dt);
+            m.RadioVoice?.Params.Set("keyed", m.RadioKeyed > 0 || m.Radio.Playing ? 1 : 0);
+            RadioSet(m);
+            if (!m.Keyed && m.Radio.Buffered == 0 && _clock - m.LastHeard > 1)
+            {
+                m.RadioVoice?.Stop();
+                _radioMimics.Remove(source);
             }
         }
         var tubeEnds = Sim.Train.SpeakingTube.Ends(client.Train);
@@ -412,7 +433,7 @@ public sealed class VoiceChat
         {
             if (f.Path.HasFlag(VoicePath.Mimic))
             {
-                s.Mimic.Write(pcm);
+                (f.Path.HasFlag(VoicePath.Radio) ? s.Radio : s.Mimic).Write(pcm);
                 return;
             }
             if (f.Path.HasFlag(VoicePath.Proximity))
