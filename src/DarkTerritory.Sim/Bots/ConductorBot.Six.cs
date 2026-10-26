@@ -102,6 +102,13 @@ public sealed partial class ConductorBot
             bool hotbox = box is not null;
             // Its axle left seized once it's out: stood for the wrench, a while.
             bool seized = _stoodForSix && !givenUp && d.Consist.Vehicles.Any(v => v.Seized);
+            // Note 1036: never stood on a bridge or in a tunnel for one of them: on till the whole train's off it, where the crew
+            // can get down beside it. Stood on frontier:7's bridge for a Knotter, the gunner went down off the deck to the river.
+            if ((knot is not null || hotbox) && OnABridgeOrInATunnel(world))
+            {
+                SixStep = "off the bridge first";
+                return null;
+            }
             if (knot is not null || hotbox || seized)
             {
                 _stoodForSix = true;
@@ -166,6 +173,16 @@ public sealed partial class ConductorBot
         _standingForSix = 0;
         (_knotRear, _knotId, _knotSlack) = (-1, -1, false);
         return null;
+    }
+
+    /// <summary>Some of the train's on a bridge or in a tunnel (the route's), on the main line: no place to stand for the crew to get down.</summary>
+    static bool OnABridgeOrInATunnel(World world)
+    {
+        var d = world.Train.Dynamics;
+        if (world.Route is not { } route || d.Path != Rail.RailLine.MainPath)
+            return false;
+        double front = d.Distance, rear = d.RearDistance;
+        return route.Features.Any(f => f.Kind is Route.FeatureKind.Bridge or Route.FeatureKind.Tunnel && f.Start <= front && f.End >= rear);
     }
 
     /// <summary>

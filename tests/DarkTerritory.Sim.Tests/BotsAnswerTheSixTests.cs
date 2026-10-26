@@ -432,6 +432,32 @@ public class BotsAnswerTheSixTests
         n.AssertFair();
     }
 
+    [Fact]
+    public void TheDriverNeverStandsForTheKnotterOnABridge()
+    {
+        // Note 1036: stood on frontier:7's bridge for a Knotter, a crew of two's gunner went down off the deck for it and fell
+        // to the river. The driver runs on till the whole train's off the bridge, and stands there.
+        var bridge = new Route.RouteFeature(FeatureKind.Bridge, 900, 1300);
+        var route = new Route.Route("test", RouteTier.Frontier, 1, new Rail.LineDefinition("test", [new Rail.TrackSegment(5000)]), [bridge],
+            new RouteWeather(0.01, false, 0, 0), 3600);
+        var n = new Night(6, speed: 10, route: route, enemies: Quiet, front: 950);
+        var k = n.World.AddEnemy(id => Knotter.Into(id, n.Train, 3, E.Knotter));
+        n.Run(E.Knotter.CreepSeconds + E.Knotter.ForceSeconds + 0.5);
+        Assert.Equal(KnotterMode.Taut, k.Mode);
+        Assert.True(n.Train.Dynamics.RearDistance < bridge.End, "the test wants the train on the bridge when the knot's forced");
+        var driver = new ConductorBot(null, 0);
+        n.Crew[1] = PlayerMotor.SpawnInCab(n.Train, P);
+        bool offFirst = false;
+        Drive(n, driver, _ => default, 120, until: () =>
+        {
+            offFirst |= driver.SixStep == "off the bridge first";
+            return driver.SixStep == "for the Knotter" && n.Train.Dynamics.Speed < 0.05;
+        });
+        Assert.True(offFirst, "it never ran on for the bridge");
+        Assert.Equal("for the Knotter", driver.SixStep);
+        Assert.True(n.Train.Dynamics.RearDistance > bridge.End, $"stood with its rear at {n.Train.Dynamics.RearDistance:0} m, the bridge to {bridge.End:0} m");
+    }
+
     /// <summary>
     /// Note 630 (frontier:6, 4 bots, seed 16): killed on a grade their handbrakes didn't hold, the Knotter left seven cars
     /// that crept back from under its gap while the crew climbed aboard. Once they passed a walking pace's tenth the driver

@@ -32,6 +32,9 @@ public sealed class LookErrand(IReadOnlyList<EnemyKind> insisted, LookTuning t)
     readonly HashSet<int> _looked = [];
     readonly bool _ground = insisted.Any(k => k is EnemyKind.Gaunt or EnemyKind.Ribbit or EnemyKind.Moose or EnemyKind.TowerJaw or EnemyKind.FreightBeetle);
     readonly bool _roof = insisted.Contains(EnemyKind.Dragger);
+    readonly bool _gannet = insisted.Contains(EnemyKind.Gannet);
+    /// <summary>Which end of its car's roof it's walking to under the Gannet (note 1036): −1 the front, +1 the back.</summary>
+    int _pace = -1;
     bool _metDragger;
 
     /// <summary>What it's doing (the harness's trace), or null.</summary>
@@ -51,9 +54,10 @@ public sealed class LookErrand(IReadOnlyList<EnemyKind> insisted, LookTuning t)
             // Tower Jaw at its post and the Freight Beetle by its freight too (note 367): what comes to the train, or only after
             // a death (the Mourners, the Brakeman, the Knotter, Hotbox), needs nobody to go and look.
             if (e.Gone || !insisted.Contains(e.Kind) || e.Kind is not (EnemyKind.Gaunt or EnemyKind.Ribbit or EnemyKind.Dragger or EnemyKind.Moose
-                    or EnemyKind.TowerJaw or EnemyKind.FreightBeetle))
+                    or EnemyKind.TowerJaw or EnemyKind.FreightBeetle or EnemyKind.Gannet))
                 continue;
-            if (!Lying(e))
+            // The Gannet circling (note 1036) is met once it's picked someone to hang over (Alert), whoever that was.
+            if (e.Kind == EnemyKind.Gannet ? e.Phase != SpinePhase.Dormant : !Lying(e))
             {
                 _looked.Add(e.Id);
                 _metDragger |= e.Kind == EnemyKind.Dragger;
@@ -105,6 +109,18 @@ public sealed class LookErrand(IReadOnlyList<EnemyKind> insisted, LookTuning t)
                 return new PlayerIntent();
             }
             return null;
+        }
+        // Note 1036: the Gannet circling over the train and nobody walking the roofs (a crew of two: the driver in the cab, the
+        // gunner seated), it never picks anyone. Up on a roof, the look-out walks it end to end, as anyone crossing the train
+        // does, till it hangs over someone; then the crew's answer (Heed.Gannet: stand still under it) is the bot's.
+        if (_gannet && waiting.Any(e => e.Kind == EnemyKind.Gannet) && self.Surface == Surface.Roof && self.Parent > 0 && self.Parent < train.Frames.Count
+            && self.Grounded)
+        {
+            Doing = "look:Gannet";
+            double end = train.Frames[self.Parent].Shape.HalfLength - 1.5;
+            if (_pace * self.Position.Z >= end - 0.2)
+                _pace = -_pace;
+            return WarmUp.Steer(self, new Double3(0, 0, _pace * end), _pace < 0 ? 0 : Math.PI).Step;
         }
         if (_roof && self.Surface == Surface.Roof && self.Parent > 0 && self.Parent < train.Frames.Count && self.Grounded)
         {

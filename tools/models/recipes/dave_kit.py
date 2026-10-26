@@ -33,6 +33,7 @@ from mathutils import Matrix, Vector  # noqa: E402
 from mathutils.bvhtree import BVHTree  # noqa: E402
 
 import cook  # noqa: E402
+import faces  # noqa: E402
 import crewfigure  # noqa: E402
 import make  # noqa: E402
 
@@ -62,6 +63,13 @@ def _head():
     cook.reset()
     head = cook.load("threejs-leeperrysmith", "examples/models/gltf/LeePerrySmith/LeePerrySmith.glb")
     crewfigure.place_scan(head, HEAD_C)
+    # His face as dave.py models it (crewfigure's `face`, tools/models/faces.py; note 1033): the hats go round the
+    # head he's baked with, its brow ridge out under their brims.
+    for d in head[0].data.uv_layers.active.data:
+        d.uv = (d.uv[0], 1.0 - d.uv[1])
+    lm = faces.landmarks(head)
+    faces.symmetric(head)
+    faces.model(head, lm)
     co = np.concatenate([np.array([v.co for v in o.data.vertices], np.float32) for o in head])
     cook.delete(head)
     # Where his hair grows (above the hairline, about the middle dave.py lays it out from: behind and above the nose's

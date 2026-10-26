@@ -109,7 +109,7 @@ public static class SocialTest
         var combos = c.Balance.Combinations;
         var stageLine = route.Build();
         var stages = kinds.ToDictionary(k => k, k => Combinations.Stage(route, stageLine, [k], c.Enemies, yard, combos.LeadM, combos.ApproachM,
-            f => facilities.ModulesOf(f).Contains(ModuleKind.Crane), atStops: true));
+            facilities.ModulesOf, atStops: true));
         var plan = (from k in kinds from crew in t.Crews from seed in Enumerable.Range(1, t.Seeds) select (Kind: k, Crew: crew, Seed: seed)).ToList();
         var nights = new SocialNight[plan.Count];
         int done = 0;
