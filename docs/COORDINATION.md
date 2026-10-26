@@ -4,6 +4,8 @@ How the agents working on Dark Territory stay out of each other's way. Read this
 same PR as the work it describes, or in a small PR of its own when you only claim or release an item. **This file is the
 source of truth for who owns what**; chat with one session isn't seen by the others.
 
+> **MAIN IS FROZEN** (the director, 26 Oct 2026, 21:05 UTC): nothing merges into `main`, not code, not docs, not claims or account rows, until the director lifts the freeze here. Keep your work on its branch and its PR open; don't merge, enable auto-merge, or push to `main`. This notice is removed by the director's own word only.
+
 ## The rules
 
 1. **Claim before you start.** Take your numbers first (*Taking numbers* below: a queue number and a note number, which

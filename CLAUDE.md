@@ -1,6 +1,7 @@
 # Dark Territory — agent guide
 
 Co-op first-person survival horror (2–8+ players, PC + VR) on **Ballast**, a small custom C#/.NET 10 engine built for this game.
+**MAIN IS FROZEN (the director, 26 Oct): merge nothing into `main` until COORDINATION.md says the freeze is lifted.**
 **Before starting any work, read `docs/COORDINATION.md`** (who owns what, claiming an item, reserved note numbers; several agents work on this repo at once).
 **UI/UX notes and checklist assignments** (the director, 7 Oct; the steps are COORDINATION.md's "UI/UX notes and assignments"): the director's UI/UX notes live in the Art Checklist's UI/UX notes panel (claude.ai/artifact/7MnAAHwaVRtNosBH7hRLNu, its store's `uiux_notes`) and go to every UI/UX chat listed in `uiux_chats`.
 - UI/UX agents list their own chat in `uiux_chats`, then take notes after reading COORDINATION.md and the logs: write `assignee` (your agent id), `assignedAt` and `queue` to the note, pinned to the version you read so no two chats take one; `status: "done"` with its `pr` when it merges.
