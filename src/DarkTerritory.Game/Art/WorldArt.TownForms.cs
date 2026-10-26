@@ -231,6 +231,8 @@ public sealed partial class WorldArt
                 "stack" when ((int)Math.Abs(f.S * 3 + f.D * 5) % 2) is var v => (Piece($"chimney-{v}", () => SettingKit.Chimney(_look, v)), 1f),
                 "logs" when ((int)Math.Abs(f.S * 3 + f.D * 5) % 2) is var v => (Piece($"logstack-{v}", () => StructureKit.LogStack(_look, v)), 1f),
                 "timbertower" => (Piece("timbertower-1", () => StructureKit.TimberTower(_look, 1)), 1f),
+                // A dykeland's salt hay on its staddle (note 1031).
+                "haystack" when ((int)Math.Abs(f.S * 7 + f.D * 13) % 3) is var v => (Piece($"haystack-{v}", () => MaritimeKit.Haystack(_look, v)), 1f),
                 _ => (Piece($"works-{(f.Kind == "seedhouse" ? "glasshouse" : f.Kind)}", () => WorksKit.Piece(_look, f.Kind == "seedhouse" ? "glasshouse" : f.Kind)), 1f),
             };
             mesh.Instances.Add(new MeshInstance(piece, Matrix4x4.CreateScale(scale) * m));
@@ -251,6 +253,15 @@ public sealed partial class WorldArt
         double x = a.S + es * k - s, y = a.D + ed * k - d;
         return Math.Sqrt(x * x + y * y);
     }
+
+    /// <summary>A bed's crop (note 1031): its ridge's height, its crop's over it (m), and the crop's colour.</summary>
+    static readonly (double Ridge, double Top, Vector3 Tint)[] BedCrop =
+    [
+        (0.22, 0.42, new Vector3(0.2f, 0.36f, 0.3f)),
+        (0.34, 0.16, new Vector3(0.2f, 0.32f, 0.12f)),
+        (0.22, 0.24, new Vector3(0.42f, 0.2f, 0.18f)),
+        (0.12, 0.05, new Vector3(0.55f, 0.47f, 0.28f)),
+    ];
 
     /// <summary>A drawn stair's rise a step (m).</summary>
     const double StepRise = 0.3;
@@ -344,7 +355,7 @@ public sealed partial class WorldArt
 
     /// <summary>The landmarks a town type stands (TownForms' kinds) that the square and the works don't draw.</summary>
     static bool Landmark(string kind) => kind is "lighthouse" or "beacon" or "chapel" or "watchtower" or "lift" or "crane" or "boatshed" or "seedhouse" or "glasshouse" or "greathouse" or "dory"
-        or "stack" or "foundry" or "sawmill" or "logs" or "timbertower" or "windpump" or "shed" or "keep" or "barge";
+        or "stack" or "foundry" or "sawmill" or "logs" or "timbertower" or "windpump" or "shed" or "keep" or "barge" or "haystack";
 
     /// <summary>
     /// A town type's ground as one piece, in its frame from the line's start (−Z along the line, +X across to its right):
@@ -413,7 +424,7 @@ public sealed partial class WorldArt
                 default:
                     // Land: its top, a hand thick, on a body whose sides are the face of the step down from it.
                     var sides = Exposed(s0, s1, d0, d1, level);
-                    k.Use(level == 0 ? "ground_mud" : land, Palette.DeepBrown, 0.9f, 0.04f, tile: 3);
+                    k.Use(level == 0 ? FormBaseTexture(plan.Form) : land, Palette.DeepBrown, 0.9f, 0.04f, tile: 3);
                     k.Box(V(s1, level - 0.3, d0), V(s0, level, d1), Kit.Faces.PosY | sides);
                     if (level - 0.3 > floor && sides != Kit.Faces.None)
                     {
@@ -426,16 +437,53 @@ public sealed partial class WorldArt
                     break;
             }
         }
-        // The beds (a glasshouse town's plots): ridges of earth along each, a crop on them under the grow lamps' rota.
+        // The quarters paved (note 1031): a skin over each quarter's dry, level ground under its ways, the cells it holds a
+        // metre at a time along the line, the same runs across merged into one quad.
+        k.Use(FormPavingTexture(plan.Form), Palette.DeepBrown, 0.9f, 0.04f, tile: 2.5f);
+        foreach (var q in plan.Districts.Where(Paved))
+        {
+            double qs0 = Math.Floor(q.Outline.Min(p => p.S)), qs1 = Math.Ceiling(q.Outline.Max(p => p.S));
+            double qd0 = Math.Floor(q.Outline.Min(p => p.D)), qd1 = Math.Ceiling(q.Outline.Max(p => p.D));
+            var open = new List<(double D0, double D1, double Level, double S0)>();
+            for (double s = qs0; s <= qs1; s += Sim.Towns.TownGround.Cell)
+            {
+                // This row's runs: cells the quarter holds, inside the wall, dry, off a deck, at one level.
+                var runs = new List<(double D0, double D1, double Level)>();
+                for (double d = qd0; s < qs1 && d < qd1; d += Sim.Towns.TownGround.Cell)
+                {
+                    double cs = s + 0.5, cd = d + 0.5;
+                    if (!q.Holds(cs, cd) || !g.Inside(cs, cd) || g.Deck(cs, cd) || g.Water(cs, cd) is not null)
+                        continue;
+                    double lv = g.Level(cs, cd);
+                    if (runs.Count > 0 && runs[^1].D1 == d && runs[^1].Level == lv)
+                        runs[^1] = (runs[^1].D0, d + Sim.Towns.TownGround.Cell, lv);
+                    else
+                        runs.Add((d, d + Sim.Towns.TownGround.Cell, lv));
+                }
+                // A run that goes on as it was carries on; the rest end here and are drawn.
+                foreach (var o in open.ToList())
+                    if (!runs.Remove((o.D0, o.D1, o.Level)))
+                    {
+                        open.Remove(o);
+                        var (pa, pb, pc, pd) = (V(o.S0, o.Level + 0.025, o.D0), V(s, o.Level + 0.025, o.D0), V(s, o.Level + 0.025, o.D1), V(o.S0, o.Level + 0.025, o.D1));
+                        k.Quad(pa, pb, pc, pd, new(pa.X, pa.Z), new(pb.X, pb.Z), new(pc.X, pc.Z), new(pd.X, pd.Z));
+                    }
+                open.AddRange(runs.Select(r => (r.D0, r.D1, r.Level, s)));
+            }
+        }
+        // The beds (a glasshouse town's plots): ridges of earth along each, a crop on them under the grow lamps' rota, each
+        // bed its own (note 1031): kale tall and blue-green, potatoes low and dark on high hills, beet red-stemmed, or a bed
+        // lifted and gone over to stubble.
         foreach (var d in plan.Districts.Where(x => x.Kind == DistrictKind.Plots))
         {
             double ps0 = d.Outline.Min(p => p.S), ps1 = d.Outline.Max(p => p.S), pd0 = d.Outline.Min(p => p.D), pd1 = d.Outline.Max(p => p.D);
+            var (ridge, top, tint) = BedCrop[(int)Math.Abs(Math.Round(ps0 * 3 + pd0 * 7)) % BedCrop.Length];
             for (double s = ps0 + 0.8; s < ps1 - 0.4; s += 1.3)
             {
                 k.Use("ground_mud", Palette.DeepBrown, 0.95f, 0.05f, tile: 2);
-                k.Box(V(s + 0.35, -0.1, pd0 + 0.6), V(s - 0.35, 0.22, pd1 - 0.6), Kit.Faces.PosY | Kit.Faces.Sides);
-                k.Use("bog_sphagnum", new Vector3(0.25f, 0.4f, 0.15f), 0.6f, 0.05f, tile: 1.5f);
-                k.Box(V(s + 0.2, 0.22, pd0 + 0.8), V(s - 0.2, 0.5, pd1 - 0.8), Kit.Faces.PosY | Kit.Faces.Sides);
+                k.Box(V(s + 0.35, -0.1, pd0 + 0.6), V(s - 0.35, ridge, pd1 - 0.6), Kit.Faces.PosY | Kit.Faces.Sides);
+                k.Use("bog_sphagnum", tint, 0.6f, 0.05f, tile: 1.5f);
+                k.Box(V(s + 0.2, ridge, pd0 + 0.8), V(s - 0.2, ridge + top, pd1 - 0.8), Kit.Faces.PosY | Kit.Faces.Sides);
             }
         }
         // A ramp's sides drawn along it (the Sim's walls step with its raster; the eye sees the ramp's own line): a wall each

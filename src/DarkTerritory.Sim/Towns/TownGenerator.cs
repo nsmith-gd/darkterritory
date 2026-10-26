@@ -1042,6 +1042,8 @@ public static class TownFixtures
         "crane" => (2.0, 2.0, 14),
         // A dory tied at a jetty's foot (note 692): its beam across, its length along its bow's way.
         "dory" => (0.8, 2.6, 0.9),
+        // A stack of salt hay on its staddle out in a dykeland's marsh (note 1031): its ring of posts, its stack and its pole.
+        "haystack" => (2.1, 2.1, 5.2),
         "seedhouse" => (6.0, 4.0, 6.0),
         // A glasshouse town's great glasshouses (note 692): the works' glasshouse at 2.6 times its size, end on to the line.
         "greathouse" => (9.4, 20.8, 10.1),

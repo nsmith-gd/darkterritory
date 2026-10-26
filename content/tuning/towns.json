@@ -177,7 +177,10 @@
     },
     "shedTraps": 0.6, "rocks": 0.5, "open": 0.35, "hung": 0.5,
     "fences": 0.5, "fenceGap": 0.4, "fenceRun": [4, 12], "broken": 0.3,
-    "step": 4.5, "line": 12, "street": 1.5, "front": 6, "things": 1.0, "places": 3, "wall": 4, "people": 2 },
+    "step": 4.5, "line": 12, "street": 1.5, "front": 6, "things": 1.0, "places": 3, "wall": 4, "people": 2,
+    // Lobster traps along a wharf's or a quay's edge over the water (maritime-rules §4, note 1031): a stack every so many m
+    // along it, share of them kept, in m back from the edge; clear m from what stands and the ways, piers m from a pier's foot.
+    "wharf": { "every": [1.5, 4.5], "share": 0.6, "in": 0.8, "clear": 0.3, "piers": 2.5, "look": 2.5 } },
 
   // Households that argue (note 971; docs/design/townsfolk.md, "Not yet": "a lapsed lodger in a zealous house could say so"):
   // a house whose two most at odds on one of lines' traits are gap or more apart (traits run -1..1) has that trait's quarrel,

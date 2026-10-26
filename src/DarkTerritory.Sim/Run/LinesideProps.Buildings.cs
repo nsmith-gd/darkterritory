@@ -21,7 +21,7 @@ public sealed partial class LinesideProps
         LazyInitializer.EnsureInitialized(ref _kitBuildings, () =>
         {
             double end = _line.Length + BlockM;
-            var dealt = Roads(0, end, double.MaxValue).Concat(Shores(0, end, double.MaxValue)).Concat(Blocks(0, end, double.MaxValue))
+            var dealt = Roads(0, end, double.MaxValue).Concat(Shores(0, end, double.MaxValue)).Concat(Mudflats(0, end, double.MaxValue)).Concat(Blocks(0, end, double.MaxValue))
                 .Where(p => p.Kind == LinesideKind.Piece && !Hidden(p) && !InALeaving(p))
                 .Select(p => (Piece: p, Walls: WallsOf(p).ToArray())).Where(b => b.Walls.Length > 0);
             // Each in the order it's dealt (the road's homesteads, then the shore's, then the biomes' by the block), standing

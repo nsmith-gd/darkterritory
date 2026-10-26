@@ -265,6 +265,50 @@ public static class NovaKit
         return k.Build($"birch-{variant}");
     }
 
+    /// <summary>
+    /// A red maple in the fall (maritime-rules §4, note 1031: the swamp maple of every Maritime woodlot, hedgerow and bog's
+    /// edge): a short grey trunk forking into three limbs, its bare crown in crossed cards gone the dull red of its twigs, and
+    /// the last of its leaves hung off the limbs in clumps, the deep red the tamarack's gold is to the bog.
+    /// </summary>
+    public static MeshAsset RedMaple(Look? look, int variant)
+    {
+        var k = new Kit(look, 2250 + variant);
+        var rng = new Random(2250 + variant);
+        float height = 10 + variant * 1.2f, fork = height * (0.3f + variant * 0.04f);
+        k.Use("wood_grey", Palette.BlueGrey, 0.9f, 0.05f, tile: 1);
+        k.Tint = new Vector3(0.62f, 0.6f, 0.6f);
+        k.Cylinder(Vector3.Zero, new Vector3(0, fork, 0), 0.2f, 6, caps: false, radiusB: 0.15f);
+        var tips = new List<Vector3>();
+        for (int i = 0; i < 3; i++)
+        {
+            float a = variant * 1.3f + i * MathF.Tau / 3 + (float)rng.NextDouble() * 0.5f, out_ = height * (0.16f + 0.06f * (float)rng.NextDouble());
+            var tip = new Vector3(MathF.Sin(a) * out_, height * (0.68f + 0.12f * (float)rng.NextDouble()), MathF.Cos(a) * out_);
+            k.Cylinder(new Vector3(0, fork, 0), tip, 0.12f, 5, caps: false, radiusB: 0.04f);
+            tips.Add(tip);
+        }
+        // The bare crown: the twigs' fine work in crossed cards, red-brown as a red maple's are.
+        k.Use("dead_tree_card", Palette.SootBlack, 0.3f, 0, tile: 1);
+        k.Baked = 0;
+        k.Tint = new Vector3(1.35f, 0.75f, 0.7f);
+        for (int i = 0; i < 3; i++)
+        {
+            float a = variant * 0.7f + i * MathF.PI / 3;
+            k.Panel(new Vector3(0, height * 0.6f, 0), new Vector3(MathF.Sin(a), 0, MathF.Cos(a)), Vector3.UnitY, height * 0.62f, height * 0.72f,
+                Vector2.Zero, new Vector2(1, 0.72f), twoSided: true);
+        }
+        // The leaves still on it: clumps hung off each limb and in round the crown, the red of a maple gone over in the cold.
+        k.Use("leaf_card", Palette.DeepBrown, 0.6f, 0.05f, tile: 1);
+        for (int i = 0; i < 14; i++)
+        {
+            var limb = tips[i % tips.Count];
+            float t = 0.45f + 0.55f * (float)rng.NextDouble(), a = (float)(rng.NextDouble() * MathF.Tau), size = 0.9f + 0.7f * (float)rng.NextDouble();
+            var at = Vector3.Lerp(new Vector3(0, fork, 0), limb, t) + new Vector3(MathF.Sin(a), 0, MathF.Cos(a)) * (0.4f + (float)rng.NextDouble() * 1.4f);
+            k.Tint = new Vector3(1.9f, 0.42f, 0.3f) * (0.7f + 0.4f * (float)rng.NextDouble());
+            k.Panel(at - new Vector3(0, size, 0), new Vector3(MathF.Sin(a), 0, MathF.Cos(a)), Vector3.UnitY, size, size * 2, twoSided: true);
+        }
+        return k.Build($"maple-{variant}");
+    }
+
     /// <summary>A ghost spruce: killed standing where the water came up, grey and bare, its stub branches broken short.</summary>
     public static MeshAsset GhostSpruce(Look? look, int variant)
     {

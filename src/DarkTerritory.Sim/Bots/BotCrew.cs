@@ -147,6 +147,10 @@ public sealed class BotCrew(CrewCalls? calls) : IDisposable
         }
         var intent = bot is IWorldBot wb ? wb.Decide(session.Predicted, session.World, t, out _) : bot.Decide(session.Predicted, session.Train, t);
         int me = session.PlayerId ?? 0;
+        // Note 1031: off duty in a town (delivered; or at the gate while someone playing is out in it), out in its streets.
+        if (((bot as RoofWalkerBot)?.Job ?? (bot as GunnerBot)?.Job) is { } strolling
+            && strolling.Town(session.Predicted, session.World, OffDuty(session.World, (bot as RoofWalkerBot)?.Crew ?? (bot as GunnerBot)?.Crew ?? [], calls)) is { } stroll)
+            return Vote(stroll, session, me);
         // Note 551: too hurt for a hound pack that's about, it's in cover (the cab, or a car shut up): no errands out of it, to a
         // Holdout's door, a creature to club or a crewmate held. On frontier:7 seed 3 two hands on 4 and 11 in the cab were taken
         // down out of it at a stand by a stop's errand, and up car 1's ladder into the pack on its roof.
@@ -234,6 +238,16 @@ public sealed class BotCrew(CrewCalls? calls) : IDisposable
         }
         return Vote(intent, session, me);
     }
+
+    /// <summary>
+    /// Note 1031: whether the crew's hands are off duty in a town: the night delivered to one, or at the gate (where the
+    /// night's clock hasn't started) while someone playing is down off the train, out in it, and nobody's called the crew
+    /// aboard with the horn.
+    /// </summary>
+    public static bool OffDuty(World world, IReadOnlyList<(int Id, PlayerState State)> crew, CrewCalls? calls) =>
+        world.Run is { Phase: Run.RunPhase.Arrived, End: Run.RunEnd.Delivered } && world.Arrival is not null
+        || world.Run is { Phase: Run.RunPhase.Yard } && world.Town is not null && calls is { CalledAboard: false }
+            && crew.Any(c => !calls.IsBot(c.Id) && c.State.Alive && c.State.Parent == PlayerState.World);
 
     /// <summary>
     /// GDD v1.4 App. D.11 (note 202): a dead bot is a crewmate like any other, so it has the vote. A while after the host

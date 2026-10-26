@@ -13,8 +13,8 @@ namespace DarkTerritory.Dev.Trends;
 /// <item><c>balance.*</c>: how the night went (the run's km, deaths, cars, cargo, money; the threats' grabs and fairness).</item>
 /// <item><c>pacing.*</c>: how often something happened (<see cref="Sim.Net.PacingReport"/>).</item>
 /// <item><c>net.*</c>: what the link carried and how far a client was corrected.</item>
-/// <item><c>moments.*</c>: the clip-worthy moments of queue #256 (note 519), every number in the report's <c>moments</c> once it
-/// has one. Not yet: the slot is here so they're trended the day they come.</item>
+/// <item><c>moments.*</c>: the clip-worthy moments of queue #256 (note 1034), every number in the report's <c>moments</c>: how
+/// many, a minute, the best's worth and each kind's count (<see cref="Moments.MomentScorer"/>, added by <c>dt trends measure</c>).</item>
 /// <item><c>perf.*</c>: a frame's counts and CPU phases (<c>dt perf</c>), flat (<c>pc</c>) and in a headset (<c>vr</c>).</item>
 /// <item><c>sim.*</c>: what the nights cost the CPU, measured by <c>dt trends measure</c> itself.</item>
 /// </list>

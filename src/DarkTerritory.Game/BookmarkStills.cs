@@ -6,11 +6,29 @@ using DarkTerritory.Sim.Train;
 
 namespace DarkTerritory.Game;
 
-/// <summary>A bookmark's still (GDD v1.4 App. D.12): RGBA8 display values, <see cref="Width"/> × <see cref="Height"/>.</summary>
-public sealed record Still(int Width, int Height, byte[] Rgba);
+/// <summary>
+/// A bookmark's still (GDD v1.4 App. D.12): RGBA8 display values, <see cref="Width"/> × <see cref="Height"/>; and, a clip
+/// (note 1034), its frames after it at <see cref="Fps"/>, the last held <see cref="Hold"/> s before it goes round.
+/// </summary>
+public sealed record Still(int Width, int Height, byte[] Rgba, IReadOnlyList<Still>? Clip = null, double Fps = 0, double Hold = 0)
+{
+    /// <summary>What's shown at <paramref name="seconds"/> (any clock): a still itself; a clip, the frame it's at as it goes round.</summary>
+    public Still At(double seconds)
+    {
+        if (Clip is not { Count: > 0 } clip || Fps <= 0)
+            return this;
+        int count = clip.Count + 1;
+        double round = count / Fps + Hold, into = seconds - Math.Floor(seconds / round) * round;
+        int i = Math.Min(count - 1, (int)(into * Fps));
+        return i == 0 ? this : clip[i - 1];
+    }
+}
 
-/// <summary>A still due this frame: the bookmark, the camera, and for a derailment's, the film's peak to draw (E.5).</summary>
-public sealed record DueStill(Bookmark Mark, Camera Camera, FilmPeak? Peak);
+/// <summary>
+/// A still due this frame: the bookmark, the camera, and for a derailment's, the film's peak to draw (E.5); or a clip's next
+/// frame (<paramref name="Frame"/>, note 1034).
+/// </summary>
+public sealed record DueStill(Bookmark Mark, Camera Camera, FilmPeak? Peak, bool Frame = false);
 
 /// <summary>
 /// The stills of the night's bookmarks (GDD v1.4 App. D.12), taken on this machine. The host sends where each is to be
@@ -26,6 +44,8 @@ public sealed class BookmarkStills
     readonly Dictionary<int, Still> _stills = [];
     readonly Dictionary<int, double> _seen = [];
     readonly HashSet<int> _peaks = [];
+    // Note 1034: the clips under way (their frames so far, when the next is due by this machine's clock, and how many it takes).
+    readonly Dictionary<int, (List<Still> Frames, double Next, int Of)> _clips = [];
 
     public IReadOnlyDictionary<int, Still> Stills => _stills;
 
@@ -35,6 +55,7 @@ public sealed class BookmarkStills
         _stills.Clear();
         _seen.Clear();
         _peaks.Clear();
+        _clips.Clear();
     }
 
     /// <summary>
@@ -62,7 +83,12 @@ public sealed class BookmarkStills
                 continue;
             }
             if (_stills.ContainsKey(b.Id))
+            {
+                // A clip's next frame (note 1034), from the still's eye turned on whom it's of.
+                if (_clips.TryGetValue(b.Id, out var clip) && clip.Frames.Count < clip.Of && now >= clip.Next)
+                    due.Add(new DueStill(b, Toward(Of(b, frames), b.Victim, s, frames), null, Frame: true));
                 continue;
+            }
             if (!_seen.TryGetValue(b.Id, out double seen))
                 _seen[b.Id] = seen = now;
             Camera? camera = b.Kind switch
@@ -76,6 +102,15 @@ public sealed class BookmarkStills
                 due.Add(new DueStill(b, c, null));
         }
         return due;
+    }
+
+    /// <summary>A camera held where it is and turned on <paramref name="victim"/>'s chest while they're about; else as it was.</summary>
+    static Camera Toward(Camera from, int victim, IPlaySession s, IReadOnlyList<CarFrame> frames)
+    {
+        if (victim < 0 || Figures(s, frames, 0, -1).Where(c => c.Id == victim).Select(c => (Double3?)c.Feet).FirstOrDefault() is not { } feet)
+            return from;
+        var chest = feet + Double3.Up * s.World.Bookmarks.Tuning.ChestHeight;
+        return (chest - from.Position).Length < 0.3 ? from : Camera.LookAt(from.Position, chest, from.FovYDegrees);
     }
 
     /// <summary>Whether a bookmark's still is its crew member's peak in the film (E.5), not the first-person stand-in.</summary>
@@ -106,9 +141,25 @@ public sealed class BookmarkStills
     /// Keeps a frame drawn from a bookmark's camera as its still: cropped to 16:9 about its middle, averaged down.
     /// <paramref name="peak"/>: it's the film's peak (E.5), final.
     /// </summary>
-    public Still Keep(Bookmark b, byte[] rgba, int width, int height, bool peak = false)
+    /// <remarks>
+    /// Note 1034 (run.json <c>bookmarks.clip</c>): a GRAB's, a PUNISH's or a dead player's first frame starts a clip (while
+    /// the night's had fewer than <c>most</c>), and the frames after it are added to it as they're taken, each smaller.
+    /// </remarks>
+    /// <param name="now">This machine's seconds, for when a clip's next frame is due.</param>
+    public Still Keep(Bookmark b, byte[] rgba, int width, int height, bool peak = false, double now = 0, BookmarkClipTuning? clip = null)
     {
+        if (!peak && _stills.TryGetValue(b.Id, out var first) && _clips.TryGetValue(b.Id, out var going))
+        {
+            going.Frames.Add(Shrink(rgba, width, height, clip?.Width ?? Width, clip?.Height ?? Height));
+            _clips[b.Id] = going with { Next = now + 1 / Math.Max(0.1, clip?.Fps ?? 5) };
+            return _stills[b.Id] = first with { Clip = [.. going.Frames] };
+        }
         var still = Shrink(rgba, width, height, Width, Height);
+        if (!peak && clip is { On: true, Frames: > 1 } c && b.Kind is BookmarkKind.Grab or BookmarkKind.Punish or BookmarkKind.Manual && _clips.Count < c.Most)
+        {
+            _clips[b.Id] = ([], now + 1 / Math.Max(0.1, c.Fps), c.Frames - 1);
+            still = still with { Fps = c.Fps, Hold = c.Hold, Clip = [] };
+        }
         _stills[b.Id] = still;
         if (peak)
             _peaks.Add(b.Id);
