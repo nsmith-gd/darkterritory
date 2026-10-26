@@ -464,4 +464,62 @@ public sealed partial class GreyboxScene
         float open = (1 - k * k) + (age > 0.18 && age < 0.38 ? 0.06f * (float)Math.Sin((age - 0.18) / 0.2 * Math.PI) : 0);
         return (open, double.IsInfinity(was.Since) ? -1 : age);
     }
+
+    /// <summary>
+    /// Each open house's working window's shutter (note 1053), by the sim's state so a client sees what the host has: hung on
+    /// one side of the opening at the wall's outside face, swung back flat against the wall beside it as the ransack left it,
+    /// or shut over the opening, the boarded window the houses always had. Shut, it slams as a door does (DoorSwing): the
+    /// Hollow House's go after its doors.
+    /// </summary>
+    void HouseWindows(MeshBuilder mesh, RailLine line, Sim.Route.Route route, Sim.Run.StopWalls walls, Double3 eye)
+    {
+        var up = Vector3.UnitY;
+        const float Half = (float)Sim.Run.StopWalls.WindowHalf, Thick = Art.TownKit.ShutterThick;
+        float height = (float)(Sim.Run.StopWalls.HouseWindowHead - Sim.Run.StopWalls.HouseWindowSill) - 0.02f, width = Half * 2 - 0.02f;
+        double t = Sim.Run.StopWalls.WallThickness;
+        foreach (var w in walls.HouseWindows)
+        {
+            if ((w.At - eye).Length > 60)
+                continue;
+            var (feature, building, index) = Sim.Run.StopWalls.WindowOf(w.Key);
+            if (feature >= route.Features.Count || route.Features[feature] is not { Stop: { } stop } f || building >= stop.Buildings.Count)
+                continue;
+            var moved = _movedHouses.TryGetValue((feature, building), out var how) ? how : (Moved: Matrix4x4.Identity, Down: false, Kept: false);
+            if (moved.Down)
+                continue;
+            // Its sill as the art has it (TownKit.BoardedWindows): over the ground at the house's middle, by its floor's boards.
+            var b = stop.Buildings[building];
+            float sill = (float)(Sim.Run.Run.StopWorld(line, f, b.Centre, Art.WorldArt.Ground(route, f.Start + b.S, (float)b.D, (float)ValleyDepth)).Y
+                + Sim.Run.StopWalls.LevelAt(b, 0) + Sim.Run.StopWalls.HouseWindowSill) + 0.01f;
+            var outward = new Vector3((float)w.Out.X, 0, (float)w.Out.Z);
+            var side = Vector3.Cross(up, outward);
+            // Hung on one side or the other, by the window; just in from the wall's outside face. Shut, it runs across the
+            // opening; open, it's swung out about its hinge and back against the wall beside it.
+            float hand = (index + b.Variant) % 2 == 0 ? 1 : -1;
+            var hingeAt = new Double3(w.At.X, sill, w.At.Z) + ToD(side * hand * (Half - 0.01f) + outward * (float)(t / 2 - Thick - 0.01));
+            int start = mesh.Count;
+            var (open, _) = DoorSwing(w.Key, walls.Shut(w.Key));
+            float swing = open * 165 * MathF.PI / 180;
+            var along = Vector3.Normalize(-side * hand * MathF.Cos(swing) + outward * MathF.Sin(swing));
+            var face = Vector3.Cross(up, along);
+            // Its outside turns with it: out of the house, shut (turned about, it's built the other way across, as a door is).
+            var outside = face * hand;
+            bool mirror = Vector3.Dot(Vector3.Cross(along, up), outside) < 0;
+            Vector3 On(float a) => V(hingeAt + ToD(along * a), eye);
+            int seed = -w.Key % 7;
+            var piece = Look?.Art is { } art
+                ? art.Piece($"house-shutter-{width:0.00}x{height:0.00}-{seed}{(mirror ? "-m" : "")}", () => Art.TownKit.Shutter(Look, width, height, mirror, seed))
+                : null;
+            if (piece is not null)
+            {
+                var x = mirror ? -along : along;
+                var o = mirror ? On(width) : On(0);
+                mesh.Append(piece, new Matrix4x4(x.X, x.Y, x.Z, 0, up.X, up.Y, up.Z, 0, outside.X, outside.Y, outside.Z, 0, o.X, o.Y, o.Z, 1));
+            }
+            else
+                mesh.Box(On(width / 2) + up * (height / 2), face, up, along, new Vector3(Thick, height / 2, width / 2), new Vector3(0.16f, 0.13f, 0.1f));
+            if (moved.Moved != Matrix4x4.Identity)
+                mesh.Move(start, moved.Moved);
+        }
+    }
 }

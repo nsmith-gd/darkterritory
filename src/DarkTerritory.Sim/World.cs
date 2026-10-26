@@ -1244,14 +1244,17 @@ public sealed partial class World
 
     /// <summary>
     /// The door an open house's doorway has that a crewmate could work (note 401): on foot, alive, within run.json
-    /// <c>walls.houseDoorReachM</c> of its doorway, with no hiding spot in reach (that's the search's). Alike on host and client,
-    /// for the HUD.
+    /// <c>walls.houseDoorReachM</c> of its doorway, with no hiding spot in reach (that's the search's). With no door in reach, a
+    /// window within as much of it (note 1053; its key's negative, <see cref="Sim.Run.StopWalls.IsWindow"/>). Alike on host and
+    /// client, for the HUD.
     /// </summary>
     public Sim.Run.HouseDoor? DoorInReach(in PlayerState s)
     {
         if (!s.Alive || s.Parent != PlayerState.World || Train.Walls is not { HouseDoors.Count: > 0 } walls || Run?.SpotInReach(s, Train) is not null)
             return null;
-        return walls.DoorInReach(PlayerMotor.WorldPosition(s, Train), (_walls ?? new Sim.Run.WallTuning()).HouseDoorReachM);
+        var at = PlayerMotor.WorldPosition(s, Train);
+        double reach = (_walls ?? new Sim.Run.WallTuning()).HouseDoorReachM;
+        return walls.DoorInReach(at, reach) ?? walls.WindowInReach(at, reach);
     }
 
     /// <summary>
@@ -1369,6 +1372,7 @@ public sealed partial class World
         }
         else if (!done && held >= (_walls ?? new Sim.Run.WallTuning()).HouseDoorSeconds - 1e-9)
         {
+            // (A barred window, note 1053, doesn't open: SetShut leaves it.)
             walls!.SetShut(key, !walls.Shut(key));
             done = true;
         }
