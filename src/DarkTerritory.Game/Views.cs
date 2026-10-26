@@ -378,6 +378,12 @@ public static class Views
                 target.ToWorld(new Double3(target.Shape.HalfWidth, roof - 0.6, -target.Shape.HalfLength - 0.8)), 60),
             "fusees" => Camera.LookAt(target.ToWorld(new Double3(target.Shape.HalfWidth + 0.8, 1.7, -3.5)),
                 target.ToWorld(new Double3(target.Shape.HalfWidth + 18, 0.2, 1)), 65),
+            // The stretcher on the guard van's wall (`--upgrades stretcher`), from across the van; the roof gangplanks
+            // (`--upgrades roofGangplanks`) from car 2's roof, forward over its plate and car 1's to the engine's treads.
+            "stretcher" => Camera.LookAt(train.Frames[^1].ToWorld(new Double3(0.9, 1.7, train.Frames[^1].Shape.HalfLength - 4.2)),
+                train.Frames[^1].ToWorld(new Double3(-1.4, 1.4, train.Frames[^1].Shape.HalfLength - 1.8)), 70),
+            "gangplank" => Camera.LookAt(train.Frames[2].ToWorld(new Double3(0.9, train.Frames[2].Shape.RoofHeight + 1.7, -train.Frames[2].Shape.HalfLength + 3)),
+                train.Frames[1].ToWorld(new Double3(0, train.Frames[1].Shape.RoofHeight, -train.Frames[1].Shape.HalfLength - 1)), 70),
             "searchlightside" => Camera.LookAt(train.Frames[^1].ToWorld(new Double3(-14, 6, train.Frames[^1].Shape.HalfLength + 22)),
                 train.Frames[^1].ToWorld(new Double3(0, 1.5, train.Frames[^1].Shape.HalfLength + 8)), 60),
             "launcher" => Camera.LookAt(train.Frames[^1].ToWorld(new Double3(3.2, 2.4, train.Frames[^1].Shape.HalfLength + 4.5)),

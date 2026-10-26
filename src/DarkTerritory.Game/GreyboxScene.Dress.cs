@@ -227,6 +227,18 @@ public sealed partial class GreyboxScene
             }
             return;
         }
+        // The roof gangplanks (note 1052): drawn over the sim's own plates and treads, wherever the car has them.
+        foreach (var solid in shape.Solids)
+            if (solid.Part == Sim.Train.PartKind.Gangplank)
+            {
+                var size = ToF(solid.Box.Max - solid.Box.Min);
+                mesh.Append(art.Piece($"gangplank-{size.X:0.00}-{size.Y:0.00}-{size.Z:0.00}", () => Art.TrainKit.GangplankPlate(Look, size)),
+                    Matrix4x4.CreateTranslation(ToF(solid.Box.Centre)) * m);
+            }
+        // The stretcher (note 1052), stowed upright on the last guard van's left wall at its back end.
+        if (Dressed("stretcher") && shape.Platform is not null && shape.Interior is { } van)
+            mesh.Append(art.Piece("stretcher", () => Art.TrainKit.Stretcher(Look)),
+                Matrix4x4.CreateTranslation((float)van.Min.X + 0.02f, (float)van.Min.Y + 1.25f, (float)van.Max.Z - 1.0f) * m);
         if (!Dressed("commCord") || frame.Index >= _frames.Count || shape.Cab is not null || IsHandcar(frame.Index))
             return;
         var (carFront, carBack) = Art.TrainKit.CordRun(shape);

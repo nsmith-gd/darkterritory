@@ -75,6 +75,9 @@ public static class ArtCatalog
         list.Add(new("cord-line", SmallProp, () => TrainKit.CordLine(look, (float)(2 * cargo.HalfLength - 0.5))));
         list.Add(new("cord-gong", SmallProp, () => TrainKit.CordGong(look)));
         list.Add(new("telltale-lamp", SmallProp, () => TrainKit.TelltaleLamp(look)));
+        // The stretcher stowed on the van's wall, and a roof gangplank's plate (note 1052).
+        list.Add(new("stretcher", SmallProp, () => TrainKit.Stretcher(look)));
+        list.Add(new("gangplank", SmallProp, () => TrainKit.GangplankPlate(look, new System.Numerics.Vector3(0.8f, 0.06f, 2.1f))));
         // The voice's fittings (note 720): the speaking tube's horn and its pipe down to the floor, and the whistle codes' card.
         list.Add(new("speaking-tube", SmallProp, () => VoiceKit.TubeEnd(look, (float)SpeakingTube.MouthHeight + 0.1f)));
         list.Add(new("whistle-card", MediumProp, () => VoiceKit.WhistleCard(look, "WHISTLE CODES",

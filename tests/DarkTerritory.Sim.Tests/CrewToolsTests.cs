@@ -232,4 +232,122 @@ public class CrewToolsTests
         Assert.DoesNotContain(n.World.Bodies.All, b => b.Kind == BodyKind.Fusee);
         Assert.DoesNotContain("Flames", string.Join("\n", Radio.Tally(new RunReport(RunEnd.Delivered, 100, 10, 3, 0, 1, 900, 10, 0, 0, 890, 3, 0) { Counts = n.World.UpgradeCounts() }, [])));
     }
+
+    /// <summary>
+    /// A standing train with the given upgrades: crewmate 0 on the ground at car 3's first ladder's foot carrying a body, and
+    /// crewmate 1 alive in the cab (so 0 isn't the last one standing, App. D.9).
+    /// </summary>
+    static (World World, List<(int Id, PlayerState State)> Crew, Body Body) CarryingABody(params string[] upgrades)
+    {
+        var train = new TrainOnLine(new TrainDynamics(Consist.Uniform(With(upgrades), 5, 0)),
+            new Rail.RailLine(new Rail.LineDefinition("t", [new Rail.TrackSegment(6_000)])), 3_000, Tuning.Boiler);
+        var world = new World(train, Tuning.Combat);
+        world.EnableBodies();
+        var frame = train.Frames[3];
+        var ladder = frame.Shape.Ladders[0];
+        var foot = frame.ToWorld(ladder.Foot) - frame.DirToWorld(ladder.Inward) * 0.35;
+        var crew = new List<(int, PlayerState)>
+        {
+            (0, PlayerMotor.SpawnOnGround(foot, train.Line, train.Cars[3].FrontDistance, P)),
+            (1, PlayerMotor.SpawnInCab(train, P)),
+        };
+        var body = world.Bodies.SpawnRagdoll(train, 9, new PlayerState { Parent = PlayerState.World, Position = foot + Double3.Up * 0.3, LineHint = train.Cars[3].FrontDistance });
+        body.Carrier = 0;
+        return (world, crew, body);
+    }
+
+    static void Step(World world, List<(int Id, PlayerState State)> crew, double seconds, PlayerIntent intent = default)
+    {
+        for (int t = 0; t < seconds * SimConstants.TickRate; t++)
+        {
+            world.BeginTick();
+            for (int i = 0; i < crew.Count; i++)
+            {
+                var s = crew[i].State;
+                world.CrewAct(ref s, i == 0 ? intent : default, i);
+                PlayerMotor.Step(ref s, i == 0 ? intent : default, world.Train, P, world.Train.Dynamics.Tuning, SimConstants.TickSeconds);
+                crew[i] = (i, s);
+            }
+            world.Step(new TrainControls { Reverser = 1 });
+            world.StepBodies(crew);
+        }
+    }
+
+    [Fact]
+    public void TheStretcherTakesABodyUpALadderForAnyoneNotOnlyTheLastOneStanding()
+    {
+        var stretcher = Assert.Single(C.Upgrades, u => u.Id == "stretcher");
+        Assert.Equal(UpgradeKind.Tool, stretcher.Kind);
+        Assert.InRange(stretcher.CostShare, 0.15, 0.25);
+        Assert.False(Tuning.Train.Kit.Stretcher);
+        Assert.True(With("stretcher").Kit.Stretcher);
+        // Without it: two-handed, off the ladders (C.4), a friend alive in the cab.
+        var (bare, bareCrew, _) = CarryingABody();
+        Step(bare, bareCrew, 0.1);
+        Assert.True(bareCrew[0].State.Has(PlayerFlags.Heavy));
+        Assert.False(bareCrew[0].State.Has(PlayerFlags.SoloCarry));
+        Assert.False(PlayerMotor.LadderInReach(bareCrew[0].State, bare.Train, P));
+        Assert.Equal("Slung: zero.", Radio.Fill(Assert.Single(Campaign.Campaign.TallyLines(C, ["stretcher"])), bare.UpgradeCounts()));
+        // With it: the same, but the ladder's taken and climbed with the body, at kit.stretcherCarry.climb, slower than free.
+        var (world, crew, body) = CarryingABody("stretcher");
+        Step(world, crew, 0.1);
+        Assert.True(crew[0].State.Has(PlayerFlags.Heavy));
+        Assert.True(crew[0].State.Has(PlayerFlags.SoloCarry));
+        Assert.True(PlayerMotor.LadderInReach(crew[0].State, world.Train, P));
+        // The ladder key, pressed: hold of the ladder, the body with it.
+        Step(world, crew, SimConstants.TickSeconds, new PlayerIntent { Actions = PlayerActions.Ladder });
+        Assert.Equal(Surface.Ladder, crew[0].State.Surface);
+        double from = crew[0].State.Position.Y;
+        Step(world, crew, 1, new PlayerIntent { MoveZ = 1 });
+        double climbed = crew[0].State.Position.Y - from;
+        var pace = world.Train.Dynamics.Tuning.Kit.StretcherCarry.Climb;
+        Assert.InRange(climbed, pace * 0.8, pace * 1.1);
+        Assert.True(pace > P.SoloBodyClimb && pace < P.LadderClimb);
+        Assert.Equal(0, body.Carrier);
+        Assert.Equal("Slung: 1.", Radio.Fill(Assert.Single(Campaign.Campaign.TallyLines(C, ["stretcher"])), world.UpgradeCounts()));
+    }
+
+    [Fact]
+    public void TheFirstTwoGapsBackFromTheCabAreWalkedTheRestJumped()
+    {
+        var planks = Assert.Single(C.Upgrades, u => u.Id == "roofGangplanks");
+        Assert.Equal(UpgradeKind.Tool, planks.Kind);
+        Assert.Equal(RouteTier.Frontier, planks.FromTier);
+        Assert.Equal(0, Tuning.Train.Composition.Gangplanks);
+        Assert.Equal(2, With("roofGangplanks").Composition.Gangplanks);
+        // Walking (not running, no jump) forward along the roofs from car 2, on the roof's middle line: every surface it's on.
+        PlayerState Walk(TrainTuning t, int from, double seconds, out TrainOnLine train, out HashSet<Surface> on, out double lowest)
+        {
+            train = new TrainOnLine(new TrainDynamics(Consist.Uniform(t, 5, 0)),
+                new Rail.RailLine(new Rail.LineDefinition("t", [new Rail.TrackSegment(6_000)])), 3_000);
+            var s = PlayerMotor.SpawnOnRoof(train, from, -2, P);
+            on = [];
+            lowest = double.MaxValue;
+            for (int i = 0; i < seconds * SimConstants.TickRate; i++)
+            {
+                train.Step(SimConstants.TickSeconds, default);
+                PlayerMotor.Step(ref s, new PlayerIntent { MoveZ = 1 }, train, P, t, SimConstants.TickSeconds);
+                on.Add(s.Surface);
+                lowest = Math.Min(lowest, PlayerMotor.WorldPosition(s, train).Y - train.Line.Sample(train.Dynamics.Distance).Position.Y);
+            }
+            return s;
+        }
+        // Car 2 forward: over two plates (car 2's to car 1, car 1's up its treads to the engine), on the roofs all the way.
+        var walked = Walk(With("roofGangplanks"), 2, 16, out var planked, out var planksOn, out double low);
+        Assert.True(walked.Parent == 0 && walked.Surface == Surface.Roof, $"car {walked.Parent} {walked.Surface} {walked.Position}");
+        // (Stepping from one car's footing to the next is a tick or two in the air, a step's height at most.)
+        Assert.DoesNotContain(planksOn, x => x is Surface.Coupler or Surface.Ladder or Surface.Ground);
+        Assert.True(low > Tuning.Train.Geometry.CarHeight - 0.2, $"down to {low:0.00} m");
+        Assert.True(walked.Alive);
+        // Without them the same walk goes off car 2's front into the gap: down onto the coupler plate, and up the end ladder
+        // (or stopped at the lip), never along the roofs.
+        Walk(Tuning.Train, 2, 16, out _, out var bareOn, out double bareLow);
+        Assert.Contains(bareOn, x => x is Surface.Coupler or Surface.Ladder);
+        Assert.True(bareLow < Tuning.Train.Geometry.CarHeight - 1, $"down to {bareLow:0.00} m");
+        // Car 3's gap, the third back, has none: the plates are on cars 1 and 2 only, over their front couplings.
+        Assert.Contains(planked.Frames[1].Shape.Solids, x => x.Part == PartKind.Gangplank);
+        Assert.Contains(planked.Frames[2].Shape.Solids, x => x.Part == PartKind.Gangplank);
+        Assert.DoesNotContain(planked.Frames[3].Shape.Solids, x => x.Part == PartKind.Gangplank);
+        Assert.DoesNotContain(planked.Frames[0].Shape.Solids, x => x.Part == PartKind.Gangplank);
+    }
 }

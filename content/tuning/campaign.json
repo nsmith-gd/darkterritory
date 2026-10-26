@@ -185,6 +185,20 @@
       // In the clerk's bank's words until the audio chat rebuilds it (note 1052). The line meant:
       // "{telltaleOut?Telltale: out, #.|Telltale: lit all night.}"; the bank needs: telltale, out, lit, all, night.
       "tally": "{telltaleOut?Lamp parts: #.|Lamp parts: still up.}" },
+    // The stretcher (note 1052; upgrades.md §7.3; bodies home pay 75%, App. D): anyone carrying a body climbs a ladder with it
+    // (train.json kit.stretcher), not only the last one alive. From Local: a body to bring home is any night's.
+    { "id": "stretcher", "name": "Stretcher", "size": "small", "costShare": 0.15, "effect": { "stretcher": 1, "dress:stretcher": 1 },
+      "line": "A canvas stretcher on the guard van's wall. Whoever carries a body can take it up a ladder, slowly. The dead still don't walk.",
+      // In the clerk's bank's words until the audio chat rebuilds it (tools/audio/clerk.py; note 1052). The line meant:
+      // "{stretchered?Stretcher: carried up, #.|Stretcher: unused.}"; the bank needs: stretcher, carried, up, unused.
+      "tally": "{stretchered?Slung: #.|Slung: zero.}" },
+    // The roof gangplanks (note 1052; upgrades.md §7.3; the gaps, GDD §13): iron plates over the first two couplings back from
+    // the cab (train.json composition.gangplanks): walked, not jumped. The rest of the train's gaps are jumped as ever. From
+    // Frontier: the longer trains' roofs are where the crew run.
+    { "id": "roofGangplanks", "name": "Roof gangplanks", "size": "small", "costShare": 0.15, "fromTier": "frontier", "effect": { "gangplanks": 2, "dress:roofGangplanks": 1 },
+      "line": "Iron plates over the first two gaps back from the cab. Walked, not jumped. The rest of the train is still jumped.",
+      // In the bank's words until it's rebuilt (note 1052). Meant: "Gangplanks: two, bolted."; the bank needs: gangplanks.
+      "tally": "Two, bolted on." },
     // The speaking tubes (note 978; upgrades.md §6, the director: "funny"): a brass horn in every car with a room, joined to the
     // next car's either way along the train as well as the cab's pipe to the guard van (note 720). Said into one, heard out of
     // the neighbours' horns, tinny (player.json voices.tube).

@@ -118,6 +118,49 @@ public static partial class TrainKit
         return k.Build("telltale-lamp");
     }
 
+    /// <summary>
+    /// A roof gangplank's plate or tread (note 1052), over its solid <paramref name="size"/> (m) centred on (0, 0, 0): chequer
+    /// plate on an angle-iron edge each side, a worn bright nosing at its far end.
+    /// </summary>
+    public static MeshAsset GangplankPlate(Look? look, Vector3 size)
+    {
+        var k = new Kit(look, 1058);
+        var h = size / 2;
+        k.Use("iron_plate", Palette.IronGrey * 0.8f, 0.9f, 0.45f, tile: 0.25f);
+        k.Box(-h, h);
+        k.Use("rust_heavy", BracketIron, 0.6f, 0.4f);
+        foreach (float x in new[] { -h.X, h.X })
+            k.Box(new Vector3(x - 0.02f, -h.Y - 0.05f, -h.Z), new Vector3(x + 0.02f, h.Y + 0.02f, h.Z));
+        k.Use("dress_brass", new Vector3(0.72f, 0.7f, 0.66f), 0.2f, 0.9f);
+        k.Box(new Vector3(-h.X, h.Y, -h.Z), new Vector3(h.X, h.Y + 0.004f, -h.Z + 0.04f));
+        return k.Build($"gangplank-{size.X:0.00}-{size.Y:0.00}-{size.Z:0.00}");
+    }
+
+    /// <summary>
+    /// The stretcher (note 1052) as it hangs stowed on the guard van's wall: two ash poles 2.2 m long along Y, the canvas between
+    /// them, its spreader bars and webbing straps, centred on (0, 0, 0), its back to the wall at −X.
+    /// </summary>
+    public static MeshAsset Stretcher(Look? look)
+    {
+        var k = new Kit(look, 1059);
+        k.Use("dress_paint", new Vector3(0.55f, 0.42f, 0.26f), 0.7f, 0.05f);
+        foreach (float z in new[] { -0.28f, 0.28f })
+            k.Cylinder(new Vector3(0.03f, -1.1f, z), new Vector3(0.03f, 1.1f, z), 0.02f, 6);
+        k.Use("sac", new Vector3(0.74f, 0.7f, 0.54f), 0.9f, 0, tile: 1);
+        k.Box(new Vector3(0.02f, -0.85f, -0.27f), new Vector3(0.035f, 0.85f, 0.27f));
+        k.Use("rust_heavy", BracketIron, 0.6f, 0.4f);
+        foreach (float y in new[] { -0.9f, 0.9f })
+            k.Rod(new Vector3(0.05f, y, -0.3f), new Vector3(0.05f, y, 0.3f), 0.008f);
+        k.Use("leather", new Vector3(0.2f, 0.16f, 0.12f), 0.7f, 0, tile: 1);
+        foreach (float y in new[] { -0.3f, 0.3f })
+            k.Box(new Vector3(0.035f, y - 0.025f, -0.3f), new Vector3(0.05f, y + 0.025f, 0.3f));
+        // Its two hooks on the wall.
+        k.Use("rust_heavy", BracketIron, 0.6f, 0.4f);
+        foreach (float z in new[] { -0.28f, 0.28f })
+            k.Rod(new Vector3(-0.01f, 1.0f, z), new Vector3(0.06f, 1.05f, z), 0.008f);
+        return k.Build("stretcher");
+    }
+
     /// <summary>Where the telltale's glass is over its lamp's centre (the bezel's face).</summary>
     public static readonly Vector3 TelltaleGlass = new(0, 0.02f, 0.032f);
 }

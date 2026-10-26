@@ -859,7 +859,8 @@ public static partial class Hud
         // A two-person jackpot (note 719), by what it is: "AN END OF THE SAFE".
         BodyKind.Heavy when world.Run?.FindName(b) is { } jackpot => $"AN END OF THE {jackpot.ToUpperInvariant()}",
         BodyKind.Heavy => "AN END OF THE HEAVY CRATE",
-        BodyKind.Ragdoll => "A BODY",
+        // On the stretcher (note 1052): it goes up a ladder with you.
+        BodyKind.Ragdoll => world.Train.Dynamics.Tuning.Kit.Stretcher ? "A BODY, ON THE STRETCHER" : "A BODY",
         BodyKind.Child => "THE CHILD",
         // The BBQ deck's (note 698).
         BodyKind.Beer => "A BEER",

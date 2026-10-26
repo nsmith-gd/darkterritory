@@ -59,7 +59,9 @@ public enum PartKind : byte
     /// <summary>A piece of furniture the art draws as itself (the gramophone's table, note 715): solid, never drawn as a box.</summary>
     Furniture,
     /// <summary>A tread of the ramp up the engine's coupler plate from car 1's floor to its deck (note 905), drawn as one slope.</summary>
-    Ramp
+    Ramp,
+    /// <summary>A roof gangplank (note 1052): an iron plate off a car's front end over the coupling gap to the roof ahead.</summary>
+    Gangplank
 }
 
 /// <summary>Where a gun is bolted on, and which way it faces in the car's frame (−Z forward, +Z back).</summary>
@@ -514,6 +516,30 @@ public sealed record CarShape(Box Bounds, IReadOnlyList<Solid> Solids, IReadOnly
     /// The engine with the hot tub (note 744; "a tub fed off the boiler ... on the roof at line speed, in the open"): a tub on
     /// the hood's roof behind the cab, <see cref="TubHalf"/> across, two seats in it facing each other across the train.
     /// </summary>
+    /// <summary>
+    /// A car with a roof gangplank (note 1052; upgrades.md §7.3: "plates over the first two couplings back from the cab: walked,
+    /// not jumped"): a plate <see cref="GangplankTuning.Width"/> wide along the roof's middle, from the car's front end forward
+    /// over the coupling gap and <see cref="GangplankTuning.Overlap"/> under the roof ahead, its top the roof's. Walked off the
+    /// front, there's footing all the way to the car ahead (a step down off the engine's taller roof). It lies beyond the car's
+    /// bounds, as the guard van's platform does: the train's length is the train's.
+    /// </summary>
+    /// <param name="rise">How much higher the roof ahead is (m; the engine's over car 1's): treads up to it at the plate's far
+    /// end, none higher than <see cref="GangplankTuning.Tread"/> over the last, so each is a step.</param>
+    public static CarShape WithGangplank(CarShape shape, GeometryTuning g, GangplankTuning t, double rise = 0)
+    {
+        double roof = shape.RoofHeight, half = shape.HalfLength, w = t.Width / 2, far = -half - g.CouplingGap - t.Overlap;
+        var solids = shape.Solids.ToList();
+        solids.Add(new(new Box(new Double3(-w, roof - t.Thickness, far), new Double3(w, roof, -half + 0.05)), SurfaceKind.Roof, PartKind.Gangplank));
+        int treads = rise > 1e-6 ? (int)Math.Ceiling(rise / t.Tread) : 0;
+        for (int k = 1; k <= treads; k++)
+        {
+            // Tread k of n reaches back from the far end (n − k + 1) treads' depth: the highest is the shortest, under the roof ahead.
+            double top = roof + rise * k / treads, back = -half - g.CouplingGap + t.TreadDepth * (treads - k + 1);
+            solids.Add(new(new Box(new Double3(-w, top - t.Thickness, far), new Double3(w, top, back)), SurfaceKind.Roof, PartKind.Gangplank));
+        }
+        return shape with { Solids = solids };
+    }
+
     public static CarShape WithHotTub(CarShape shape)
     {
         double roof = shape.RoofHeight, z = TubZ;
