@@ -1200,4 +1200,5 @@ written here instead is moved out by `tools/coord/notes.py split`; the Coordinat
 - [1039. Corruption seen growing on the train: black, wet and veined at the couplings, under the cars and in the tender, where boarders came on, a…](notes/1039.md)
 - [1040. A corrupted human's voice on the crew's radio (n1-R2, nathaniel1's Token Budget Manager's worker; queue #729; GDD Part Eleven q4; note 1026…](notes/1040.md)
 - [1043. The visual tell audit's staging gaps: `dt tells` stands every creature (n1-G1, nathaniel1's Token Budget Manager's worker; queue #742; note…](notes/1043.md)
+- [1045. Tower Jaw's fall is a punish (Ines, the Token Budget Manager's worker, nathaniel3; queue #743; note 1036's finding; GDD App. A.1, A.9,…](notes/1045.md)
 <!-- end of the notes index -->

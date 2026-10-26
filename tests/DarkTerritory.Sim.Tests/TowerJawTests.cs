@@ -102,6 +102,58 @@ public class TowerJawTests
     }
 
     [Fact]
+    public void ItsFallIsAPunishOutOfTheGroanAndItsRecordFollows()
+    {
+        // Note 1045 (note 1036's finding): it gnaws in Alert, and its fall asked for Punish from there, which the spine refuses
+        // (App. A.1): the tower came down with no punish event, no bookmark, no attribution record. Its telegraph is the groan
+        // (tower-jaw.md §5: the last groanSeconds of gnawing), then the fall is its commit and punish.
+        var (s, jaw) = AtTheTower();
+        double through = J.GnawFor(RouteTier.Frontier);
+        // Someone watching it from out past its notice and the fall's reach, for the bookmark's picture.
+        s.Crew[1] = s.Ground(jaw.Local + (jaw.Local - jaw.FallsAt).Normalized * 25, jaw.Local);
+        var groanAt = new List<(TowerJawMode Mode, double Gnawed)>();
+        for (int i = 0; i < (through + 2) * SimConstants.TickRate && jaw.Mode != TowerJawMode.Wreck; i++)
+        {
+            int before = s.Events.Count;
+            s.Run(SimConstants.TickSeconds);
+            if (s.Events.Skip(before).Any(e => e.To == SpinePhase.Telegraph))
+                groanAt.Add((jaw.Mode, jaw.Gnawed));
+        }
+        Assert.Equal(TowerJawMode.Wreck, jaw.Mode);
+        var mine = s.Events.Where(e => e.EnemyId == jaw.Id).ToList();
+        // Its telegraph, still at its gnawing, the groan's length before it's through.
+        var (mode, gnawed) = Assert.Single(groanAt);
+        Assert.Equal(TowerJawMode.Gnaw, mode);
+        Assert.InRange(gnawed, 1 - (J.GroanSeconds + 0.1) / through, 1 - (J.GroanSeconds - 0.1) / through);
+        var commit = Assert.Single(mine, e => e.To == SpinePhase.Commit);
+        Assert.Equal(SpinePhase.Telegraph, commit.From);
+        Assert.True(commit.SecondsInFrom >= Tuning.Enemies.MinReactionSeconds, $"committed {commit.SecondsInFrom:0.00} s into the groan");
+        var punish = Assert.Single(mine, e => e.To == SpinePhase.Punish);
+        Assert.Equal(SpinePhase.Commit, punish.From);
+        Assert.Equal(SpinePhase.Punish, jaw.Phase);
+        // The night's record: an attribution line and an auto-bookmark (App. A.9, D.12).
+        Assert.Contains(s.World.Attribution.Of(IncidentKind.Punished), i => i.What.Contains("tower jaw", StringComparison.OrdinalIgnoreCase));
+        Assert.NotEmpty(s.World.Bookmarks.All);
+    }
+
+    [Fact]
+    public void RearedAtSomeoneDuringTheGroanItStillLungesOnlyAfterItsThreat()
+    {
+        // Note 1045: come near in the groan, its rear joins the telegraph already running; the lunge still waits its own threatSeconds.
+        var (s, jaw) = AtTheTower(gnawed: 0.95); // as far as it's put (TowerJaw.Make), the groan about a second off
+        s.Run(1.5);
+        Assert.Equal(SpinePhase.Telegraph, jaw.Phase);
+        s.Crew[1] = s.Ground(jaw.Local + new Double3(J.LungeWithin - 0.5, 0, 0), jaw.Local);
+        int before = s.Events.Count;
+        s.Run(J.ThreatSeconds - 0.1);
+        Assert.DoesNotContain(s.Events.Skip(before), e => e.EnemyId == jaw.Id && e.To == SpinePhase.Commit);
+        s.Run(0.3);
+        Assert.Contains(s.Events.Skip(before), e => e.EnemyId == jaw.Id && e.To == SpinePhase.Commit);
+        Assert.True(s.Crew[1].Alive);
+        Assert.Equal(0, s.World.TowersDown); // rearing, it isn't gnawing
+    }
+
+    [Fact]
     public void ATrainRunIntoTheWreckIsStoppedThereAndHurtByItsSpeed()
     {
         var (s, jaw) = AtTheTower(gnawed: 0.95, back: 400);
