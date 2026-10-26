@@ -68,6 +68,8 @@ public static class LinesideFootprints
         new("car", v => $"car-{v}", 4, NovaKit.Car, Shape.Bounds, true),
         new("pole", v => $"pole-{v}", 3, WorldKit.Pole, Shape.Post, true),
         new("wharf", v => $"wharf-{v}", 2, NovaKit.Wharf, Shape.Wharf, true),
+        // A dory left on the Fundy mud at low tide (note 1031).
+        new("doryAground", v => $"dory-aground-{v}", 3, MaritimeKit.Aground, Shape.Bounds, true),
         new("lighthouse", v => $"lighthouse-{v}", 2, NovaKit.Lighthouse, Shape.Bounds, true),
         new("rock", v => $"rock-{v}", 3, (l, v) => WorldKit.Rock(l, v, 1), Shape.Bounds, false),
         // A facility's buildings beyond its machinery (StructureKit.Facility; note 758), its two variants its kit on the left of

@@ -48,13 +48,16 @@ return args switch
     ["build", ..] => BuildCommands.Run(args),
     // dt replay <file> [--to t] [--shot f --view v] | record | list: a recorded night played again, checked tick by tick (note 515).
     ["replay", ..] => ReplayCommands.Run(content, args),
+    // dt moments [--replay night.dtrec | --route r --bots n --seconds s] [--top 6] [--reel]: a night's clip-worthy moments scored, and a
+    // short reel of the best (queue #256, note 1034).
+    ["moments", ..] => MomentsCommands.Run(content, args),
     // dt feedback pull | list | show <id> | make: the director's notes from inside the game, and their moments (note 516).
     ["feedback", ..] => FeedbackCommands.Run(content, args),
     // dt review diff <before> <after>: a pull request's review packet, its shots and numbers against main's (note 517).
     ["review", ..] => ReviewCommands.Run(args),
     // dt trends measure | show <file.jsonl> | judge | value: main's numbers per commit (dt harness nights, dt perf), the falls
     // among them, and the bisect's call on a commit (note 523).
-    ["trends", ..] => TrendsCommands.Run(args, a => RunHarness(a), a => PerfCommands.Run(train, content, a)),
+    ["trends", ..] => TrendsCommands.Run(args, a => HarnessWithMoments(a), a => PerfCommands.Run(train, content, a)),
     // dt director sweep [--quick] [--routes r,...] [--crews ..] [--cars ..] [--cells 1x3,..] [--seeds 1-4] [--compare f.json]: the
     // spawn director overhaul's matrix of nights (the director's brief §8, note 888), encounters measured from the spines.
     ["director", "sweep", ..] => DirectorCommands.Sweep(args, (a, w) => RunHarness(a, (_, _, world) => w(world))),
@@ -202,6 +205,31 @@ static object TrainTable(TrainTuning t, PlayerTuning p) => t.Performance.Select(
         maxGradePct = Math.Round(dyn.MaxClimbableGradePercent(), 2),
     };
 }).ToList();
+
+// A trends night (note 523) with its clip-worthy moments scored as it's played (queue #256, note 1034): the harness's report
+// with a `moments` of its own (how many, a minute, by kind, the best's worth), which the trends read as moments.*.
+object HarnessWithMoments(string[] args)
+{
+    var scorer = new DarkTerritory.Dev.Moments.MomentScorer(DarkTerritory.Dev.Moments.MomentScores.Load(DarkTerritory.Dev.Moments.MomentScores.File));
+    double seconds = 0;
+    var report = RunHarness(args, (tick, crew, world) =>
+    {
+        scorer.Step(world, crew.Select((c, i) => (i + 1, c.State)));
+        seconds = tick * SimConstants.TickSeconds;
+    });
+    if (JsonSerializer.SerializeToNode(report, DataFile.Options) is not System.Text.Json.Nodes.JsonObject json)
+        return report;
+    var moments = new System.Text.Json.Nodes.JsonObject
+    {
+        ["count"] = scorer.All.Count,
+        ["perMinute"] = seconds <= 0 ? 0 : Math.Round(scorer.All.Count / (seconds / 60), 3),
+        ["best"] = scorer.All.Count == 0 ? 0 : scorer.All.Max(m => m.Score),
+    };
+    foreach (var g in scorer.All.GroupBy(m => m.Kind).OrderBy(g => g.Key, StringComparer.Ordinal))
+        moments[g.Key] = g.Count();
+    json["moments"] = moments;
+    return json;
+}
 
 object RunHarness(string[] args, Action<uint, IReadOnlyList<(DarkTerritory.Sim.Bots.IBot Bot, PlayerState State)>, World>? also = null)
 {
@@ -1110,6 +1138,20 @@ static int ScreenshotBatch(TrainTuning t, string content, string file, bool chec
     return differ.Count == 0 ? 0 : 1;
 }
 
+// The cargo<kind> views (note 1025): the cargo they load, its integrity, and the night's cold; ("", 1, 0) for any other view.
+static (string Cargo, double Spoil, double Cold) CargoView(string view) => view switch
+{
+    "cargolivestock" => ("livestock", 1, 1),
+    "cargopowder" => ("ammunition", 1, 0),
+    "cargochemicals" => ("chemicals", 1, 0),
+    "cargomedicine" => ("medicine", 1, 0),
+    "cargocomet" => ("comet", 1, 0),
+    "cargogoods" => ("goods", 1, 0),
+    "cargospoiled" => ("chemicals", 0.3, 0),
+    "cargolost" => ("livestock", 0, 0),
+    _ => ("", 1, 0),
+};
+
 static object Screenshot(TrainTuning t, string content, string[] args)
 {
     // --form: every town the one type (towns.json forms.force; note 692), "street" the street town of note 335.
@@ -1122,6 +1164,17 @@ static object Screenshot(TrainTuning t, string content, string[] args)
         args = [.. args, "--arrival", "photo"];
     if (view == "lostcrews" && !args.Contains("--town"))
         args = [.. args, "--town", "lostcrews"];
+    // Note 1025: a cargo car read from outside, a view per kind (Views' cargo<kind>), loaded as that kind unless --cargo says;
+    // cargospoiled and cargolost with their cargo's integrity down (--spoil), cargolivestock on a cold night (its breath).
+    if (CargoView(view) is var (cargoKind, spoil, cold) && cargoKind.Length > 0)
+    {
+        if (!args.Contains("--cargo"))
+            args = [.. args, "--cargo", cargoKind];
+        if (spoil < 1 && !args.Contains("--spoil"))
+            args = [.. args, "--spoil", spoil.ToString(System.Globalization.CultureInfo.InvariantCulture)];
+        if (cold > 0 && !args.Contains("--cold"))
+            args = [.. args, "--cold", cold.ToString(System.Globalization.CultureInfo.InvariantCulture)];
+    }
     string lineName = Str(args, "--line", "test-loop");
     int cars = (int)Opt(args, "--cars", 6);
     int width = (int)Opt(args, "--width", 1280), height = (int)Opt(args, "--height", 720), scale = (int)Opt(args, "--scale", 1);
@@ -1263,6 +1316,16 @@ static object Screenshot(TrainTuning t, string content, string[] args)
                     Carrying = x == site && x.Has(DarkTerritory.Sim.Run.ModuleKind.Conveyor) && args.Contains("--conveying") && !args.Contains("--jam"),
                     Jam = x == site && x.Has(DarkTerritory.Sim.Run.ModuleKind.Conveyor) ? Opt(args, "--jam", -1) : -1,
                 })]);
+            // --gantry down|cleared with --crane (note 1029): its gantry brought down by Tower Jaw across its loading track, or
+            // that wreck cleared off it; the train stood back short of where it lies.
+            if (Str(args, "--gantry", "") is "down" or "cleared" && site.Crane is { } fallen)
+            {
+                run.GantryDown(site.Index);
+                if (Str(args, "--gantry", "") == "cleared")
+                    run.WreckCleared(site.Index, gantry: true);
+                double toe = site.Spur >= 0 ? line.Branches[site.Spur].Toe : 0;
+                at = toe + site.Mid + fallen.MiddleAlong - fallen.Length * 0.5 - 6;
+            }
         }
     }
     if (towerJawMode.Length > 0)
@@ -1884,6 +1947,15 @@ static object Screenshot(TrainTuning t, string content, string[] args)
         int k = 0;
         foreach (var v in train.Vehicles.Where(v => v.Kind == VehicleKind.Cargo))
             v.Cargo = each[Math.Min(k++, each.Length - 1)];
+    }
+    // --spoil a[,b,...]: each cargo car's cargo integrity, front to back, the last repeating (spec F.1; note 1025: what's spoiled
+    // or lost shows outside it).
+    if (Str(args, "--spoil", "") is { Length: > 0 } spoils)
+    {
+        var each = spoils.Split(',').Select(x => double.Parse(x, System.Globalization.CultureInfo.InvariantCulture)).ToArray();
+        int k = 0;
+        foreach (var v in train.Vehicles.Where(v => v.Kind == VehicleKind.Cargo))
+            v.CargoIntegrity = Math.Clamp(each[Math.Min(k++, each.Length - 1)], 0, 1);
     }
     // --fill a[,b,...]: each cargo car's poured load, front to back, the last repeating (note 659: its heap, Solid.BoxIn).
     if (Str(args, "--fill", "") is { Length: > 0 } fills)
@@ -3781,6 +3853,14 @@ static object PlaytestBake(string into, string cohort)
     return new { written = Path.GetFullPath(path), build.Channel, build.Cohort };
 }
 
+/// <summary>
+/// <c>--gallery a.png,b.png,...</c> (note 1030): a crew's logbook with the yard photographer's prints in it, the nth file
+/// night n's (`dt screenshot --upgrades yardPhotographer --view yardphoto --route ...` makes one); none without it.
+/// </summary>
+static IReadOnlyList<DarkTerritory.Sim.Campaign.LogPage> GalleryPages(string[] args) =>
+    [.. Str(args, "--gallery", "").Split(',', StringSplitOptions.RemoveEmptyEntries | StringSplitOptions.TrimEntries)
+        .Select((file, i) => new DarkTerritory.Sim.Campaign.LogPage(i + 1, "Frontier 7", "", DarkTerritory.Sim.Run.RunEnd.Delivered, 0) { Yard = Path.GetFullPath(file) })];
+
 /// <summary>The front end on <c>--menu</c>'s screen, with a demo campaign slot unless <c>--saves</c> names real ones.</summary>
 static (DarkTerritory.Game.FrontEnd Menu, DarkTerritory.Game.Screen Screen) DemoMenu(string content, string[] args)
 {
@@ -3799,6 +3879,16 @@ static (DarkTerritory.Game.FrontEnd Menu, DarkTerritory.Game.Screen Screen) Demo
             History = [new DarkTerritory.Sim.Campaign.RunLog(6, "frontier:3", DarkTerritory.Sim.Run.RunEnd.Delivered, 812, 0, 2350)],
             Upgrades = ["lampBrightness"],
         };
+        // --ended (note 632): the campaign over, its train taken at dawn on its seventh night; --gallery a.png,b.png,... (note
+        // 1030): the yard photographer's prints in its logbook, a night each, which its end shows.
+        if (args.Contains("--ended"))
+            demo = demo with
+            {
+                Over = true,
+                Runs = 7,
+                History = [.. demo.History, new DarkTerritory.Sim.Campaign.RunLog(7, "deadLines:2", DarkTerritory.Sim.Run.RunEnd.DawnMissed, -900, 0, 1450)],
+            };
+        demo = demo with { Logbook = GalleryPages(args) };
         saves.Save(demo);
         saves.Delete(2);
         saves.Delete(3);
@@ -4494,8 +4584,22 @@ static object HudShot(string content, string[] args)
             // And yours on a spur's lever, answered (note 936): "DUNMORE: ON THE SPUR".
             pinged.Pings.Add(new PingEvent(9005, (uint)session.HostTick + 1, session.PlayerId, PingKind.Points, -1, f[0].ToWorld(new Double3(4, 0.9, -40)), Taker: 91));
         }
+        // --gallery a.png,b.png,... (note 1030): the yard photographer's prints of the campaign so far, the last tonight's, as
+        // the end card shows them (memory.json's gallery).
+        (IReadOnlyList<GalleryPrint>, int)? gallery = null;
+        if (args.Contains("--gallery"))
+        {
+            Hud.Remembering = DataFile.Load<MemoryTuning>(Path.Combine(content, MemoryTuning.File));
+            var g = Hud.Remembering.Gallery;
+            var yard = new YardGallery();
+            var prints = yard.Prints(GalleryPages(args));
+            gallery = prints.Count == 0 ? null : (yard.Thumbs(prints, g.CardWidth * 2, g.CardHeight * 2, g.CardMost), prints.Count);
+            // --stills dir: and the sheet kept in the night's folder, as the app keeps it as she leaves the yard.
+            if (Str(args, "--stills", "") is { Length: > 0 } sheetDir)
+                (kept ??= []).AddRange(YardGallery.Save(new BookmarkAlbum(sheetDir, DateTime.Now, session.Route?.Name ?? "night").Night, prints, "The Night Mail", g) is { } sheet ? [sheet] : []);
+        }
         // --photo f.png (note 721): the crew photo at the gate (`dt screenshot --view crewphoto`'s) as tonight's, the end card's print.
-        Hud.Build(hud, width, height, session, pixels: scale, firstNight: args.Contains("--first-night"), captions: captioned, photo: photoStill, commendations: args.Contains("--commend")
+        Hud.Build(hud, width, height, session, pixels: scale, firstNight: args.Contains("--first-night"), captions: captioned, photo: photoStill, gallery: gallery, commendations: args.Contains("--commend")
             ? [("Dave", UiStyle.Commendation.CameBackForMe, "Okafor"), ("Priya", UiStyle.Commendation.KeptTheFire, "Dave"),
                 ("Okafor", UiStyle.Commendation.HeldTheSwitch, "Priya"), ("Dunmore", UiStyle.Commendation.LastOneStanding, "Dave")]
             : null, stills: stills.Stills, talk: talk, now: talkNow);
@@ -4654,7 +4758,7 @@ static object FilmStill(string content, string[] args)
     {
         var stills = new BookmarkStills();
         var live = session.InterpolatedFrames(1);
-        foreach (var (mark, from, peak) in stills.Due(session, live, 0, film))
+        foreach (var (mark, from, peak, _) in stills.Due(session, live, 0, film))
         {
             if (peak is null)
                 continue;
@@ -4976,6 +5080,7 @@ static int Usage()
           credits [--notices | --write]            everyone whose work is in the game (note 390); --write rewrites the notices
           build check <folder> [--dev]             a built game has none of the developer tools in it (note 514); --dev: it has them
           replay <file> [--to t] [--shot f --view v]   a recorded night played again, checked tick by tick (note 515); record, list
+          moments [--replay f.dtrec] [--top n] [--reel]   a night's clip-worthy moments scored (a bot night recorded first without a replay), and a reel of the best (note 1034)
           feedback pull | list | show <id> | make  the director's notes from inside the game (F8, F9) and their moments replayed (note 516)
           review diff <before> <after> [--out d]   what a change did to the shots and numbers, as strips and a summary (note 517)
           trends measure [--seeds 1-8] [--perf] | show <file.jsonl> [--markdown]   main's numbers per commit and their falls (note 523); judge, value, nights

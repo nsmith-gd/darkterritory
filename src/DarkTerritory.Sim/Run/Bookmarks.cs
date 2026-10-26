@@ -73,6 +73,29 @@ public sealed record BookmarkTuning
     /// <summary>Manual bookmarks: per dead player per run, and on the report in all.</summary>
     public int ManualPerPlayer { get; init; } = 3;
     public int ManualPerRun { get; init; } = 8;
+    /// <summary>Note 1034 (GDD D.15 question 5): a GRAB's, a PUNISH's and a dead player's bookmark a short clip, not a still.</summary>
+    public BookmarkClipTuning Clip { get; init; } = new();
+}
+
+/// <summary>
+/// Run.json <c>bookmarks.clip</c> (queue #256, ARCHITECTURE §8 note 1034; GDD D.15 question 5: "If they turn out to be the best
+/// part of the run-end screen, short clips may be worth the tech later"). On, each machine takes <see cref="Frames"/> frames
+/// of a GRAB's, a PUNISH's or a dead player's bookmark, <see cref="Fps"/> a second from its first, the camera held where the
+/// still's eye was and turned on whom it's of; the run-end screen plays them round. Not the derailment's (the film is its
+/// clip) or the Stranded outro's. Off, a still as before.
+/// </summary>
+public sealed record BookmarkClipTuning
+{
+    public bool On { get; init; } = true;
+    public int Frames { get; init; } = 10;
+    public double Fps { get; init; } = 5;
+    /// <summary>Each frame's size after the first (the still's own, kept for the album): small, as a thumbnail shows it.</summary>
+    public int Width { get; init; } = 192;
+    public int Height { get; init; } = 108;
+    /// <summary>Clips a night on this machine; the rest stay stills (each is a render a frame, and memory).</summary>
+    public int Most { get; init; } = 16;
+    /// <summary>The run-end screen holds the last frame this long (s) before the clip goes round again.</summary>
+    public double Hold { get; init; } = 0.8;
 }
 
 /// <summary>

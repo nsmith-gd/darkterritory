@@ -87,6 +87,10 @@ public static class ArtCatalog
         list.Add(new("underfloor-open", SmallProp, () => TownKit.UnderFloorOpen(look)));
         list.Add(new("hatch-lid", SmallProp, () => TrainKit.HatchLid(look, new System.Numerics.Vector3(1.4f, 0.15f, 2.4f))));
         list.Add(new("utility-fit", MediumProp, () => TrainKit.UtilityFit(look, cargo)));
+        // A car's cargo read from outside it (note 1025): each placarded cargo's boards, both sides; and what's spoiled stained down them.
+        foreach (var kind in Enum.GetValues<CargoKind>().Where(CargoKit.Placarded))
+            list.Add(new($"cargo-placard-{Cargoes.Key(kind).ToLowerInvariant()}", MediumProp, () => CargoKit.Placards(look, cargo, kind)));
+        list.Add(new("cargo-stain", SmallProp, () => CargoKit.Stain(look, cargo, CargoKind.Livestock, 1)));
         list.Add(new("damage-1", MediumProp, () => DamageKit.Car(look, cargo, 1, 3)));
         list.Add(new("damage-2", MediumProp, () => DamageKit.Car(look, cargo, 2, 3)));
         list.Add(new("car-wrecked", Car, () =>
@@ -133,6 +137,14 @@ public static class ArtCatalog
                 list.Add(new($"floor-{fk.ToString().ToLowerInvariant()}-{fv}", SmallProp, () => NovaKit.Floor(look, fk, fv)));
             }
         list.Add(new("dead-tree", SmallProp, () => WorldKit.DeadTree(look, 0, 10)));
+        // Red maple in its fall red, a dory left on the mud by the tide and a dykeland's salt hay on its staddle (note 1031).
+        for (int v = 0; v < 3; v++)
+        {
+            int variant = v;
+            list.Add(new($"maple-{v}", SmallProp, () => NovaKit.RedMaple(look, variant)));
+            list.Add(new($"dory-aground-{v}", SmallProp, () => MaritimeKit.Aground(look, variant)));
+            list.Add(new($"haystack-{v}", SmallProp, () => MaritimeKit.Haystack(look, variant)));
+        }
         list.Add(new("tuft", SmallProp, () => WorldKit.Tuft(look, 0, weed: false)));
         list.Add(new("brass-weed", SmallProp, () => WorldKit.Tuft(look, 0, weed: true)));
         list.Add(new("rock", SmallProp, () => WorldKit.Rock(look, 0, 1)));
@@ -167,6 +179,8 @@ public static class ArtCatalog
             int variant = v;
             list.Add(new($"square-marketstall-{v}", MediumProp, () => SquareKit.Fixture(look, "marketstall", variant)));
         }
+        // The buyer's stall (note 1027), beside the forge.
+        list.Add(new("square-buyerstall", MediumProp, () => SquareKit.Fixture(look, "buyerstall")));
         list.Add(new("works-slag", LargeProp, () => WorksKit.Piece(look, "slag")));
         list.Add(new("works-coal", LargeProp, () => WorksKit.Piece(look, "coal")));
         // A fortress town begun and stamped flat by a Waker (note 824), out beside the line: a large prop's budget each.

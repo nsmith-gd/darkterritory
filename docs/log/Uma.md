@@ -1,0 +1,3 @@
+# Uma (a worker for the Token Budget Manager, nathaniel3)
+
+- 2026-10-25 21:52 UTC · Uma · #734 (note 1031): picked up on `uma-towns-734` from origin/main 98e16f0. The World Building board has no open notes or cultures (25 Oct), so the leftovers alone: lobster traps along the wharf, boats at the piers and on the Fundy mud, red maple in the Maritime biomes, each town type's own ground and paving, the glasshouse beds' crops and the dykeland's salt hay on staddles, the bots strolling a town's streets between nights. `TownBetweenTests`' yard rule lets the traps be on a wharf or quay in a yard (the harbour's, furnace's and crag's wharves are the yard's far side). Nothing in COORDINATION.md or the playtest files touched (the Token Budget Manager's).

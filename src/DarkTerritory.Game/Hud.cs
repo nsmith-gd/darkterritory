@@ -55,17 +55,21 @@ public static partial class Hud
     /// <param name="captions">CAPTIONS (note 349): what's heard now and where, <see cref="Captions.Lines"/>; null with it off.</param>
     /// <param name="photo">The crew photo at the gate taken on this machine tonight (note 721): a delivered night's end card
     /// shows it as a print.</param>
+    /// <param name="gallery">The yard photographer's prints of the campaign so far, tonight's among them (note 1030), as
+    /// thumbnails (<see cref="YardGallery.Thumbs"/>), and how many there are in all: the end card's gallery.</param>
     /// <param name="firstNight">One of this player's first nights with FIRST NIGHTS on (note 350, <see cref="Onboarding.FirstNight"/>):
     /// the yard shows the core controls.</param>
     public static void Build(Overlay o, int width, int height, IPlaySession s, bool crosshair = true,
         IReadOnlyList<(string To, UiStyle.Commendation What, string From)>? commendations = null, IReadOnlyDictionary<int, Still>? stills = null,
         float pixels = 4, TownTalk? talk = null, double now = 0, bool firstNight = false, IReadOnlyList<string>? captions = null,
-        FigureTalk? figures = null, Still? photo = null)
+        FigureTalk? figures = null, Still? photo = null, (IReadOnlyList<GalleryPrint> Prints, int Total)? gallery = null)
     {
         _promptScale = PromptScaleAt(pixels);
         _commendations = commendations;
         _stills = stills;
+        _clock = now;
         _photo = photo;
+        _gallery = gallery;
         o.Clear();
         // TEXT BACKING (note 404): a band behind the print in play, for this build only (the menus over it are on their plate).
         o.Backing = Keys.TextBacking ? new Vector4(0, 0, 0, (float)Math.Clamp(Tuning.TextBacking, 0, 1)) : default;
@@ -1170,6 +1174,8 @@ public static partial class Hud
                 if (r.End == RunEnd.DawnMissed && world.DawnEndsCampaign)
                     Small(CampaignOver, Red, fine: false);
             }
+            // Note 1030: the yard photographer's prints of the campaign so far, at the top right.
+            EndGallery(o, width, height, s, r);
             // GDD v1.4 App. D.12: the incident report, every line in the clerk's voice, under the result; the night's
             // commendations under it.
             // The night's own (D.12), as the host has them, unless a still frame passed some in.
@@ -1616,6 +1622,8 @@ public static partial class Hud
 
     [ThreadStatic] static IReadOnlyList<(string To, UiStyle.Commendation What, string From)>? _commendations;
     [ThreadStatic] static IReadOnlyDictionary<int, Still>? _stills;
+    /// <summary>This machine's seconds as the HUD's drawn (Build's <c>now</c>): what a bookmark's clip is at (note 1034).</summary>
+    [ThreadStatic] static double _clock;
 
     /// <summary>
     /// The night's commendations (App. D.12) on a plate above the foot of the run-end screen, two to a row: each a badge,
@@ -1706,8 +1714,11 @@ public static partial class Hud
         return kept;
     }
 
-    public static void IncidentReport(Overlay o, int width, int height, float top, RunReport r, int line, IReadOnlyDictionary<int, Still>? stills = null)
+    /// <param name="now">This machine's seconds, what a clip's at (note 1034); the HUD's own, drawn from <see cref="Build"/>.</param>
+    public static void IncidentReport(Overlay o, int width, int height, float top, RunReport r, int line, IReadOnlyDictionary<int, Still>? stills = null, double? now = null)
     {
+        if (now is { } clock)
+            _clock = clock;
         using var plate = UiStyle.OnPlate(o);
         float w = Math.Min(width - 40, 980), x = MathF.Round((width - w) / 2);
         float glyph = Math.Max(1, o.Font.Measure("M") + 1);
@@ -1865,6 +1876,8 @@ public static partial class Hud
             o.Rect(x + w / 2f - 4, y + h / 2f, 8, 1, Dim);
             return;
         }
+        // A clip (note 1034): the frame it's at, as it goes round.
+        still = still.At(_clock);
         // Half-pixel cells on the UI's canvas: it's drawn scaled up, so the still keeps more than the canvas's own pixels.
         o.Image(x, y, w, h, still.Rgba, still.Width, still.Height, w * 2, h * 2, levels: 16);
     }
@@ -2035,7 +2048,7 @@ public static partial class Hud
     /// </summary>
     public static TownTarget? TownTarget(IPlaySession s) =>
         s.World.TownOf(s.Player) is { } town && town.Target(s.Player, s.Train.Dynamics.Tuning.Pick.EyeHeight) is { } t
-        && Prompt(s) == TownTalk.Prompt(town, t, s.World.WineInReach(s.Player, s.PlayerId), TownTalk.Selling(s)) ? t : null;
+        && Prompt(s) == TownTalk.Prompt(town, t, s.World.WineInReach(s.Player, s.PlayerId), TownTalk.Selling(s), s.World.BuyerOffer(s.Player, s.PlayerId) is not null) ? t : null;
 
     /// <summary>
     /// A town card (note 281): a person's line on a plate over the prompt, their name and work above it; a paper as a
@@ -2654,6 +2667,10 @@ public static partial class Hud
         // Note 730: a find or a toy in hand at a village's well goes down it.
         if (WellPrompt(s) is { } well)
             return well;
+        // Note 1027: a find in hand at the town's buyer is sold to them, with the press that would put it down.
+        if (world.BuyerOffer(p, s.PlayerId) is not null && world.TownOf(p) is { } market
+            && market.Target(p, train.Dynamics.Tuning.Pick.EyeHeight) is { Kind: TownTargetKind.Person } seller && TownTalk.IsBuyer(market.Plan.People[seller.Index]))
+            return TownTalk.Prompt(market, seller, sell: true);
         if (world.Bodies.CarriedBy(s.PlayerId) is { } inHands)
             return PowderPrompt(s, inHands) ?? SwitchPrompt(world, p, train, world.Hand) ?? BandagePrompt(s, inHands) ?? HealPrompt(s, inHands) ?? PartyPrompt(inHands)
                 ?? AnglerPrompt(s, inHands) ?? BandPrompt(s, inHands);
@@ -2816,7 +2833,7 @@ public static partial class Hud
         // A fortress town (note 281): somebody to talk to, a paper to read, a thing to look at. Before what's lying in reach,
         // so a lamp at somebody's feet doesn't take the press meant for them.
         if (world.TownOf(p) is { } town && town.Target(p, train.Dynamics.Tuning.Pick.EyeHeight) is { } there)
-            return TownTalk.Prompt(town, there, world.WineInReach(p, s.PlayerId), TownTalk.Selling(s));
+            return TownTalk.Prompt(town, there, world.WineInReach(p, s.PlayerId), TownTalk.Selling(s), world.BuyerOffer(p, s.PlayerId) is not null);
         // The powder locker (note 374): a charge for a gun's rack, while there's any.
         if (world.Combat is { } powder && Guns.AtLocker(p, train, powder.Guns) is not null)
             return Guns.Stowed(train, powder.Guns) > 0 ? $"TAKE A CHARGE : [E]   {Guns.Stowed(train, powder.Guns)} ROUNDS" : "THE POWDER LOCKER'S EMPTY";

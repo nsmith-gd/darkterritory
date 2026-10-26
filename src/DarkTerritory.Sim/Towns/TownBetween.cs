@@ -60,6 +60,8 @@ public sealed record BetweenTuning
     public double Places { get; init; } = 3;
     public double Wall { get; init; } = 4;
     public double People { get; init; } = 2;
+    /// <summary>The traps along a wharf's edge (note 1031); null, none.</summary>
+    public BetweenWharf? Wharf { get; init; }
 
     public double Weight(BetweenKind kind, string form)
     {
@@ -69,6 +71,14 @@ public sealed record BetweenTuning
 
     public double PerHouseFor(string form) => ByForm.TryGetValue(form, out var f) && f.PerHouse is { } p ? p : PerHouse;
 }
+
+/// <summary>
+/// The lobster traps along a wharf (towns.json <c>between.wharf</c>; maritime-rules §4, note 1031): a stack every
+/// <see cref="Every"/> metres along its edge over the water, kept at <see cref="Share"/> of them, <see cref="In"/> back from
+/// the edge; <see cref="Clear"/> from anything standing and from the ways, <see cref="Piers"/> from a pier's foot;
+/// <see cref="Look"/> out past the edge for the water.
+/// </summary>
+public sealed record BetweenWharf(double[] Every, double Share, double In, double Clear, double Piers, double Look);
 
 /// <summary>A town type's own count of pieces a house and their mix (towns.json <c>between.byForm</c>).</summary>
 public sealed record BetweenForm(double? PerHouse = null, Dictionary<string, double>? Mix = null);
@@ -195,7 +205,68 @@ public static class TownBetween
         double rockShare = t.Weight(BetweenKind.Granite, plan.Form) / Math.Max(1e-9, kinds.Sum(k => t.Weight(k, plan.Form)));
         Scatter(byHouses, kinds, near: true);
         Scatter((int)Math.Round(inOpen * rockShare), [BetweenKind.Granite], near: false);
+        Wharves();
         return pieces;
+
+        // Last, the wharves (maritime-rules §4, note 1031: "lobster traps along the wharf"): stacks of traps in a broken row
+        // along a wharf's or a quay's edge where it runs along the line over the water, back from the edge, clear of a pier's
+        // foot and the way along it. Drawn after the rest, so nothing laid before moves.
+        void Wharves()
+        {
+            if (t.Wharf is not { } wh)
+                return;
+            foreach (var q in plan.Districts.Where(x => x.Kind == DistrictKind.Quarter && !x.Outside && x.Id is "wharf" or "quay"))
+                for (int i = 0; i < q.Outline.Count; i++)
+                {
+                    var (a, b) = (q.Outline[i], q.Outline[(i + 1) % q.Outline.Count]);
+                    double len = Math.Abs(b.S - a.S);
+                    if (len < 4 || Math.Abs(b.D - a.D) > 0.5)
+                        continue;
+                    // Which way the water is: out past the edge's middle, either side.
+                    double mid = (a.S + b.S) / 2, edgeD = (a.D + b.D) / 2;
+                    int out_ = ground.Water(mid, edgeD + wh.Look) is not null ? 1 : ground.Water(mid, edgeD - wh.Look) is not null ? -1 : 0;
+                    if (out_ == 0)
+                        continue;
+                    double s0 = Math.Min(a.S, b.S), s1 = Math.Max(a.S, b.S);
+                    for (double s = s0 + 1; s < s1 - 1; s += rng.Range(wh.Every[0], wh.Every[1]))
+                    {
+                        // (Every stop draws the same, kept or not.)
+                        bool keep = rng.Chance(wh.Share);
+                        var traps = Draw(BetweenKind.Traps, 0, 0, out_, t, ref rng);
+                        double ts = s + traps.HalfS, td = edgeD - out_ * (wh.In + traps.HalfD);
+                        var box = Box.Of(ts, td, traps.HalfS, traps.HalfD);
+                        if (!keep || ts + traps.HalfS > s1 - 0.5 || !WharfOpen(box, wh))
+                            continue;
+                        pieces.Add(traps with { S = Round(ts), D = Round(td) });
+                        taken.Add(box);
+                        s = ts + traps.HalfS;
+                    }
+                }
+        }
+
+        bool WharfOpen(Box b, BetweenWharf wh)
+        {
+            if (taken.Hits(b.Pad(wh.Clear)))
+                return false;
+            foreach (var (s, d) in Corners(b))
+                if (!bounds.Holds(s, d))
+                    return false;
+            foreach (var way in plan.Ways)
+                if (!way.Deck)
+                    for (int i = 0; i + 1 < way.Points.Count; i++)
+                        if (Near(b.Pad(wh.Clear), way.Points[i], way.Points[i + 1], way.Width / 2))
+                            return false;
+            // Dry and level under it, and a pier's foot left clear to walk out onto.
+            double level = ground.Level((b.S0 + b.S1) / 2, (b.D0 + b.D1) / 2);
+            foreach (var (s, d) in Corners(b))
+                if (ground.Water(s, d) is not null || Math.Abs(ground.Level(s, d) - level) > 0.05)
+                    return false;
+            var foot = b.Pad(wh.Piers);
+            foreach (var (s, d) in Corners(foot).Append(((foot.S0 + foot.S1) / 2, foot.D0)).Append(((foot.S0 + foot.S1) / 2, foot.D1)))
+                if (ground.Deck(s, d))
+                    return false;
+            return true;
+        }
 
         void Scatter(int want, BetweenKind[] from, bool near)
         {

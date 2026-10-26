@@ -45,26 +45,32 @@ public sealed class Lodger(int id) : Enemy(id)
 
     /// <summary>
     /// Folded in <paramref name="house"/>'s darkest corner: the floor furthest from its doors, <c>hideInset</c> off the walls
-    /// (searched on a 0.25 m grid over its plan, the first furthest on a tie), facing into the room.
+    /// (searched on a 0.25 m grid over its plan, the first furthest on a tie), facing into the room. In a house with floors
+    /// (note 1023), on its lowest: the basement's floor furthest from the hatch (the deep end, by the chest), or where there's
+    /// no basement the upper floor's furthest from the flight's top, clear of the stairwell.
     /// </summary>
     public static Lodger In(int id, StopWalls.OpenHouse house, StopWalls walls, LodgerTuning t)
     {
-        var doors = walls.HouseDoors.Where(d => d.House == house.Index).Select(d => d.At).ToList();
+        bool floors = StopWalls.Storeyed(house);
+        int level = !floors ? 0 : house.B.Basement ? -1 : house.B.Upstairs ? 1 : 0;
+        double floor = floors ? StopWalls.FloorY(house, level) : house.Middle.Y;
+        List<Double3> doors = level < 0 ? [StopWalls.Hatchway(house)!.Value.Foot] : level > 0 ? [StopWalls.Flight(house)!.Value.Top]
+            : walls.HouseDoors.Where(d => d.House == house.Index).Select(d => d.At).ToList();
         var plan = house.Plan;
         double hx = Math.Max(0, plan.HalfX - t.HideInset), hy = Math.Max(0, plan.HalfY - t.HideInset);
-        var best = house.Middle;
+        var best = house.Middle with { Y = floor };
         double far = -1;
         for (double x = -hx; x <= hx + 1e-9; x += 0.25)
             for (double y = -hy; y <= hy + 1e-9; y += 0.25)
             {
-                var p = house.World(plan.X + x, plan.Y + y);
-                if (!walls.InHouse(house.Index, p + Double3.Up * 0.5))
+                var p = house.World(plan.X + x, plan.Y + y) with { Y = floor };
+                if (!walls.InHouse(house.Index, p + Double3.Up * 0.5) || level > 0 && OverTheWell(house.B, plan.X + x, plan.Y + y))
                     continue;
                 double d = doors.Count == 0 ? 0 : doors.Min(a => HouseWays.Flat(a - p));
                 if (d > far + 1e-9)
                     (far, best) = (d, p);
             }
-        var middle = house.Middle;
+        var middle = house.Middle with { Y = floor };
         return new Lodger(id)
         {
             Attached = Loose,
@@ -76,6 +82,14 @@ public sealed class Lodger(int id) : Enemy(id)
             Extra2 = house.Index,
             Health = t.Health,
         };
+    }
+
+    /// <summary>Whether a point of a house's plan is over its stairwell (or within a body's width of it): no floor upstairs there.</summary>
+    static bool OverTheWell(Stops.StopBuilding b, double x, double y)
+    {
+        var (x0, dir, y0, y1) = StopWalls.Stair(b);
+        double along = (x - x0) * dir;
+        return along > -0.6 && along < (StopWalls.Rises - 1) * StopWalls.Tread + 0.3 && y > Math.Min(y0, y1) - 0.5 && y < Math.Max(y0, y1) + 0.5;
     }
 
     void SetMode(LodgerMode mode)
@@ -106,8 +120,9 @@ public sealed class Lodger(int id) : Enemy(id)
         {
             case LodgerMode.Hidden:
                 {
-                    // Someone in its house a while, or right by it: it wakes on the nearest of them.
-                    var inside = living.Where(c => walls.InHouse(House, c.World + Double3.Up * 0.5)).ToList();
+                    // Someone in its house a while, or right by it: it wakes on the nearest of them. In a house with floors,
+                    // on its own floor (note 1023: the basement's the risk, not the house).
+                    var inside = living.Where(c => walls.InHouse(House, c.World + Double3.Up * 0.5) && !(t.OwnFloor && walls.FloorsApart(me, c.World))).ToList();
                     _noticed = inside.Count > 0 ? _noticed + dt : Math.Max(0, _noticed - dt);
                     var close = living.Where(c => HouseWays.Flat(c.World - me) <= t.ShriekWithin && !HouseWays.Blocked(walls, me, c.World)).ToList();
                     if (_rest > 0 || (close.Count == 0 && (_noticed < t.NoticeSeconds || inside.Count == 0)))
@@ -124,7 +139,14 @@ public sealed class Lodger(int id) : Enemy(id)
                         return;
                     }
                     Lateral = HouseWays.Yaw(tg.World - me);
-                    // The shriek's the telegraph: at its end it commits, and lunges at where they are.
+                    // The shriek's the telegraph: at its end it commits, and lunges at where they are; on another floor
+                    // (note 1023: they've gone up or down out of its reach), it comes after them by the flight or the hatch.
+                    if (_modeSeconds >= t.ShriekSeconds && walls.FloorsApart(me, tg.World) && Enter(ctx, SpinePhase.Commit))
+                    {
+                        Enter(ctx, SpinePhase.Alert);
+                        SetMode(LodgerMode.Chase);
+                        return;
+                    }
                     if (_modeSeconds >= t.ShriekSeconds && Enter(ctx, SpinePhase.Commit))
                     {
                         var way = (tg.World - me) with { Y = 0 };
@@ -139,7 +161,8 @@ public sealed class Lodger(int id) : Enemy(id)
                     double step = t.LungeSpeed * dt;
                     var next = me + _lungeWay * step;
                     double hint = LineDistance;
-                    Local = next with { Y = PlayerMotor.GroundAt(next, ctx.Train.Line, ref hint) };
+                    // (Along the floor it's on, note 1023.)
+                    Local = next with { Y = HouseWays.Afoot(ctx, next, me.Y, ref hint) };
                     LineDistance = hint;
                     _lunged += step;
                     if (target is { } tg && HouseWays.Flat(tg.World - Local) <= t.KillWithin && !HouseWays.Blocked(walls, Local, tg.World)
@@ -195,7 +218,7 @@ public sealed class Lodger(int id) : Enemy(id)
                     double hint = LineDistance;
                     HouseWays.Step(this, ctx, HouseWays.Toward(walls, me, _hide), t.Walk, ref hint);
                     LineDistance = hint;
-                    if (HouseWays.Flat(_hide - Local) < 0.05)
+                    if (HouseWays.Flat(_hide - Local) < 0.05 && Math.Abs(_hide.Y - Local.Y) < 0.5)
                     {
                         Lateral = HouseWays.Yaw(_home - _hide);
                         _noticed = 0;

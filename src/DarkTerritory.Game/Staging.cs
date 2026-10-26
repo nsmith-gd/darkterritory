@@ -151,6 +151,41 @@ public static partial class Staging
             return Ballast.Render.Camera.LookAt(front + town.Direction(fs, 0, -house.Side) * 18 + town.Direction(fs, 1, 0) * 10 + Double3.Up * 3,
                 front + Double3.Up * (where == "fires" ? 5 : 1.5), 62);
         }
+        // "fixture:kind" (note 1031): the town's first fixture of a kind not in a house (a haystack, a dory, a crane), from a
+        // dozen metres off across the line's way and a few up, the square side of it.
+        if (where.StartsWith("fixture:", StringComparison.Ordinal) && plan.Fixtures.Where(f => f.House < 0 && f.Kind == where[8..])
+            .OrderBy(f => Math.Abs(f.S - mid) + Math.Abs(f.D)).FirstOrDefault() is { } fixture)
+        {
+            var at = town.World(fixture.S, fixture.D);
+            int toward = fixture.D > 0 ? -1 : 1;
+            return Ballast.Render.Camera.LookAt(at + town.Direction(fixture.S, 0, toward) * 11 + town.Direction(fixture.S, 1, 0) * 6 + Double3.Up * 4,
+                at + Double3.Up * 1.8, 60);
+        }
+        // A glasshouse town's beds (note 1031): "beds" from over the corner of the nearest few to the square, their crops.
+        if (where == "beds" && plan.Districts.Where(x => x.Kind == Sim.Towns.DistrictKind.Plots)
+            .OrderBy(x => Math.Abs(x.Outline.Average(p => p.S) - mid) + Math.Abs(x.Outline.Average(p => p.D))).FirstOrDefault() is { } bed)
+        {
+            double bs = bed.Outline.Average(p => p.S), bd = bed.Outline.Average(p => p.D);
+            return Ballast.Render.Camera.LookAt(town.World(bs + 22, bd - Math.Sign(bd) * 14, 9), town.World(bs - 6, bd, 0), 62);
+        }
+        // A harbour's wharf (note 1031): "wharf" stood on it at one end, looking along its edge over the water, its traps
+        // and the piers' boats; "wharfover" from over the water off it, higher, the length of it.
+        if (where is "wharf" or "wharfover" && plan.Districts.FirstOrDefault(x => x.Kind == Sim.Towns.DistrictKind.Quarter && x.Id is "wharf" or "quay") is { } wharf)
+        {
+            double w0 = wharf.Outline.Min(p => p.S), w1 = wharf.Outline.Max(p => p.S), wd0 = wharf.Outline.Min(p => p.D), wd1 = wharf.Outline.Max(p => p.D);
+            var ground = Sim.Towns.TownGround.Of(plan);
+            double wm = (w0 + w1) / 2, edge = ground.Water(wm, wd1 + 2.5) is not null ? wd1 : wd0;
+            int sea = edge == wd1 ? 1 : -1;
+            // (Its end over the water: a harbour's wharf runs on past the basin's corner.)
+            while (w1 > w0 + 40 && ground.Water(w1 - 4, edge + sea * 2.5) is null)
+                w1 -= 2;
+            if (where == "wharf")
+                return Ballast.Render.Camera.LookAt(town.World(w1 - 4, edge - sea * 4, 2.4), town.World(w1 - 34, edge - sea * 0.5, 0.8), 64);
+            // Over the boat tied at a pier nearest the wharf's far end, from up the wharf and over the water.
+            var tied = plan.Fixtures.Where(f => f.Kind == "dory" && Math.Abs(f.D - edge) < 60 && f.S > w0 && f.S < w1).OrderByDescending(f => f.S).FirstOrDefault();
+            var (bs, bd) = tied is null ? (w1 - 40, edge + sea * 10) : (tied.S, tied.D);
+            return Ballast.Render.Camera.LookAt(town.World(bs + 13, bd - sea * 3, 9), town.World(bs, bd, -1), 60);
+        }
         // What stands between the houses (note 989): "between" a fish shed (the nearest the square's middle that has a stack
         // of traps by it, else any), from a few steps out in front of it and to one side; "betweenover" from higher and further
         // back over it, its neighbours round it.
@@ -408,6 +443,11 @@ public static partial class Staging
                 Ballast.Render.Camera.LookAt(town.World(smith.S + 7, side * 2.6, 1.7), town.World(smith.S - 0.5, smith.D + side * 1.6, 1.9), 66),
             "smithyfront" when plan.People.FirstOrDefault(p => p.Role == "blacksmith") is { } atForge =>
                 Ballast.Render.Camera.LookAt(town.World(atForge.S + 1.2, side * 3.2, 1.7), town.World(atForge.S - 0.4, atForge.D + side * 2.2, 1.7), 72),
+            // Note 1027: the buyer at their stall beside the forge, from the line, and close to, as the crew comes up with a find.
+            "buyer" when plan.People.FirstOrDefault(p => p.Role == "buyer") is { } buyer =>
+                Ballast.Render.Camera.LookAt(town.World(buyer.S + 7, side * 2.6, 1.7), town.World(buyer.S - 0.5, buyer.D + side * 1.6, 1.9), 66),
+            "buyerfront" when plan.People.FirstOrDefault(p => p.Role == "buyer") is { } atStall =>
+                Ballast.Render.Camera.LookAt(town.World(atStall.S + 1.2, side * 3.2, 1.7), town.World(atStall.S - 0.4, atStall.D + side * 2.2, 1.7), 72),
             "gate" => Ballast.Render.Camera.LookAt(town.World(plan.People[0].S + 2.5, plan.People[0].D + 1.6, 1.7), town.World(plan.People[0].S - 30, side * 8, 1.5), 65),
             "centre" => Ballast.Render.Camera.LookAt(town.World(centre.S + 5, centre.D - side * 5, 1.8), town.World(centre.S, centre.D, 1.2), 60),
             "street" => Ballast.Render.Camera.LookAt(town.World(mid + 18, -side * 6, 2.2), town.World(mid - 10, side * 18, 2.0), 70),

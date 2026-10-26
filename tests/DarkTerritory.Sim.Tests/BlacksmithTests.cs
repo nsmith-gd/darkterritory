@@ -88,8 +88,10 @@ public class BlacksmithTests
     public void EverybodyElseIsWhoTheyWereBeforeTheBlacksmithCame()
     {
         // The blacksmith and the forge come last (note 697), so nobody else's name, place or number changed with them.
-        var withSmith = TownGenerator.Generate(Towns, Site(7));
-        var without = TownGenerator.Generate(Towns with { Tuning = Towns.Tuning with { Smithy = null } }, Site(7));
+        // (Without the buyer, note 1027, who comes after them.)
+        var noBuyer = Towns with { Tuning = Towns.Tuning with { Buyer = null } };
+        var withSmith = TownGenerator.Generate(noBuyer, Site(7));
+        var without = TownGenerator.Generate(noBuyer with { Tuning = noBuyer.Tuning with { Smithy = null } }, Site(7));
         Assert.Equal(without.People.Count + 1, withSmith.People.Count);
         Assert.Equal(without.People.Select(p => (p.Id, p.Name, p.S, p.D)), withSmith.People.Take(without.People.Count).Select(p => (p.Id, p.Name, p.S, p.D)));
         Assert.Equal(without.Fixtures.Select(f => (f.Id, f.Kind)), withSmith.Fixtures.Take(without.Fixtures.Count).Select(f => (f.Id, f.Kind)));

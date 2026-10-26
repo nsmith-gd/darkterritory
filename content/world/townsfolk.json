@@ -81,6 +81,7 @@
     "storekeeper": ["{first} the Store", "{first} Scales"],
     "fitter": ["{first} Spanner"],
     "blacksmith": ["{first} Anvil", "{first} the Smith", "{first} Bellows"],
+    "buyer": ["{first} the Scales", "Penny {first}", "{first} Pockets"],
     "lampman": ["Lamp {first}", "{first} the Wick"],
     "porter": ["{first} the Bag"],
     "stallholder": ["{first} the Stall", "{first} Penny"],

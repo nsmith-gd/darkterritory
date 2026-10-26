@@ -112,13 +112,15 @@ public partial class StopCrewTests
         /// <param name="dawn">The night's dawn (s on the run's clock), if not the route's.</param>
         public Night(int cars, int walkers = 1, bool winchPair = true, bool crateHands = false, bool coaling = false, bool deadLine = false,
             bool ids = false, int hands = 3, FacilityTuning? facilities = null, bool loot = false, bool express = false, int lost = 0,
-            double from = 600, bool creatures = false, double? dawn = null, bool pair = false, params ModuleKind[] modules)
+            double from = 600, bool creatures = false, double? dawn = null, bool pair = false, bool basement = false, params ModuleKind[] modules)
         {
             // A crew that searches the village (note 326) needs a stop with one: open houses with something kept in them (and,
             // asked, a pair of cottages among them: note 1005's fewer houses leave some villages without one).
             Func<RouteFeature, bool>? village = loot
                 ? f => f.Stop is { } st && st.Containers.Any(c => c.Zone == Stops.StopZone.Village && c.Building >= 0 && st.Buildings[c.Building].Open)
                     && (!pair || st.Buildings.Any(b => b is { Shape: Stops.HouseShape.Pair, Open: true }))
+                    // (And, asked, a find down in a basement, note 1023.)
+                    && (!basement || st.Containers.Any(c => c.Level < 0 && c.Zone == Stops.StopZone.Village))
                 : null;
             var (route, facility, toe) = deadLine ? DeadLine() : coaling ? CoalingTower() : StopWith(village, modules.Length > 0 ? modules : [ModuleKind.Winch]);
             if (dawn is { } d)
@@ -1187,6 +1189,44 @@ public partial class StopCrewTests
         Assert.All(night.Crew, c => Assert.True(c.Alive, $"died of {c.Death}; crew {where}"));
         Assert.All(night.Crew, c => Assert.NotEqual(Surface.Ground, c.Surface));
         Assert.Equal(1, train.TrainRakes);
+    }
+
+    [Fact]
+    public void AHandGoesDownABasementsHatchAndBringsItsFindUpAndAboard()
+    {
+        // Note 1023 (queue #726; #710's houses with floors, note 1005; the director, 23 Oct: a basement is "high risk, high
+        // reward"): the crates in, the hands search the village's houses up and down: down a basement's hatch by its ladder,
+        // the chest at its deep end searched, and the find carried back up the ladder, out of the house and into a car.
+        var night = new Night(cars: 8, walkers: 3, crateHands: true, ids: true, loot: true, basement: true, modules: ModuleKind.Crates);
+        var train = night.Train;
+        var run = night.World.Run!;
+        var walls = train.Walls!;
+        int k = run.Stops.ToList().IndexOf(night.Site.Feature);
+        var cellars = run.HidingSpots.Where(h => h.Stop == k && h.Container.Level < 0).ToList();
+        Assert.NotEmpty(cellars);
+        var hands = night.Bots.OfType<RoofWalkerBot>().Select(b => b.Job).OfType<StopHand>().Where(h => h.Job == StopJob.Crates).ToList();
+        var doing = new List<string>();
+        bool down = false;
+        night.Until(() => run.Departures > 0, 2400, () =>
+        {
+            foreach (var h in hands)
+                if (h.Doing.Length > 0 && !doing.Contains(h.Doing))
+                    doing.Add(h.Doing);
+            // Someone stood on a basement's floor.
+            foreach (var c in night.Crew.Where(c => c.Parent == PlayerState.World && c.Surface == Surface.Ground))
+                if (walls.StoreyedAt(c.Position) is var at and >= 0 && StopWalls.LevelOf(walls.OpenHouseAt(at), c.Position.Y) < 0)
+                    down = true;
+        });
+        string trace = $"cellars {cellars.Count}, searched {cellars.Count(h => run.Searched(k, h.Container.Index))}, stowed {run.Stowed.Count}; the hands were {string.Join(", ", doing)}";
+        string where = string.Join(", ", night.Crew.Select((c, i) => $"{i}: {c.Surface} on {c.Parent}"));
+        Assert.True(run.Departures > 0, $"never left: driver {night.Driver.Stops!.Doing}; hands {string.Join(", ", hands.Select(h => h.Doing))}; crew {where}; {trace}");
+        Assert.True(down, $"nobody went down a basement; {trace}");
+        // A basement's chest searched, and what it kept stowed aboard.
+        Assert.Contains(cellars, h => run.Searched(k, h.Container.Index));
+        Assert.True(run.Stowed.Any(f => cellars.Any(h => h.Container.Index == f.Container)), trace);
+        // Nobody left behind (down a basement or anywhere), nobody dead.
+        Assert.All(night.Crew, c => Assert.True(c.Alive, $"died of {c.Death}; crew {where}"));
+        Assert.All(night.Crew, c => Assert.NotEqual(Surface.Ground, c.Surface));
     }
 
     [Fact]

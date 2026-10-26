@@ -351,6 +351,26 @@ public sealed record LookTuning
     public WorkLightTuning WorkLight { get; init; } = new();
     public SpeedFeelTuning SpeedFeel { get; init; } = new();
     public TipsyTuning Tipsy { get; init; } = new();
+    public CargoOutsideTuning CargoOutside { get; init; } = new();
+}
+
+/// <summary>
+/// A car's cargo read from outside it (GDD Part Eleven question 7; note 1025). Mirror of look.json <c>cargoOutside</c>,
+/// where each field is documented.
+/// </summary>
+public sealed record CargoOutsideTuning
+{
+    public bool Enabled { get; init; } = true;
+    public double Crack { get; init; } = 0.14;
+    public double PlacardWithin { get; init; } = 160;
+    public double BreathWithin { get; init; } = 45;
+    public double SpoiledBelow { get; init; } = 0.5;
+    public double LostBelow { get; init; } = 0.08;
+
+    /// <summary>A car that shows its cargo: a cargo car with something in it.</summary>
+    public bool Shows(Vehicle? v) => Enabled && v is { Kind: VehicleKind.Cargo, Load: > 0.01, Taken: false };
+    public bool Spoiled(Vehicle v) => v.CargoIntegrity < SpoiledBelow;
+    public bool Lost(Vehicle v) => v.CargoIntegrity < LostBelow;
 }
 
 /// <summary>The dining car's drinks on the drinker's view (upgrades.md §8.5, note 959). Mirror of look.json <c>tipsy</c>, where each field is documented.</summary>

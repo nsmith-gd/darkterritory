@@ -113,7 +113,13 @@
     "recordLimit": 48,
     // Not in the GDD: manual bookmarks per dead player per run, and on the report in all.
     "manualPerPlayer": 3,
-    "manualPerRun": 8
+    "manualPerRun": 8,
+    // Note 1034 (queue #256; GDD D.15 question 5: "short clips may be worth the tech later"): with "on", a GRAB's, a PUNISH's
+    // and a dead player's bookmark is a short clip, not a still: each machine takes `frames` frames, `fps` a second from the
+    // still on, from the still's eye turned on whom it's of (width x height, small; the still itself stays the album's), for
+    // at most `most` bookmarks a night; the run-end screen plays them round, holding the last frame `hold` s. Off: stills,
+    // as before.
+    "clip": { "on": true, "frames": 10, "fps": 5, "width": 192, "height": 108, "most": 16, "hold": 0.8 }
   },
 
   // Coaling tower (GDD §18, spec D.2 gravity chute): someone on the ground pulls the lever; it pours

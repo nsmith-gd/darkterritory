@@ -34,6 +34,13 @@ public sealed class CrewMemory(PlayerProfile profile, MemoryTuning tuning, strin
     public double FlashAt { get; private set; } = -1;
     /// <summary>Tonight's page, once the report's in.</summary>
     public LogPage? Page => _page;
+    /// <summary>The yard photographer's print of tonight's leaving (note 714), once taken on this machine.</summary>
+    public Still? Yard { get; private set; }
+    /// <summary>Where it's kept ("" until then, or when the disk wouldn't have it): tonight's page carries it (note 1030).</summary>
+    public string YardFile { get; private set; } = "";
+    /// <summary>The yard photographer's gallery (note 1030): the prints read back, their thumbnails.</summary>
+    public YardGallery Gallery { get; } = new();
+    (IReadOnlyList<LogPage>? Pages, Still? Yard, (IReadOnlyList<GalleryPrint>, int)? Shown) _endGallery;
 
     /// <summary>The setup's campaign, or a quick night's nothing.</summary>
     public static CrewMemory For(PlayerProfile profile, MemoryTuning tuning, SessionSetup? setup) =>
@@ -83,6 +90,31 @@ public sealed class CrewMemory(PlayerProfile profile, MemoryTuning tuning, strin
             Remember(s, date);
     }
 
+    /// <summary>
+    /// The yard photographer's print of tonight's leaving (note 714), taken and kept at <paramref name="file"/> (or not kept:
+    /// ""): tonight's page carries it, and the gallery has it (note 1030).
+    /// </summary>
+    public void Snapped(Still print, string? file) => (Yard, YardFile) = (print, file ?? "");
+
+    /// <summary>The gallery (note 1030): this crew's prints as this machine kept them, night by night, tonight's last.</summary>
+    public IReadOnlyList<GalleryPrint> YardPrints() => Gallery.Prints(Pages(), Night, Yard);
+
+    /// <summary>
+    /// The gallery for the night's end card (note 1030): the latest <see cref="GalleryTuning.CardMost"/> as thumbnails cut
+    /// at twice the card's size (as the crew photo's print is drawn), and how many there are in all; null with none.
+    /// </summary>
+    public (IReadOnlyList<GalleryPrint> Prints, int Total)? EndGallery()
+    {
+        var pages = Pages();
+        if (_endGallery.Pages != pages || _endGallery.Yard != Yard)
+        {
+            var prints = YardPrints();
+            var t = Tuning.Gallery;
+            _endGallery = (pages, Yard, prints.Count == 0 ? null : (Gallery.Thumbs(prints, t.CardWidth * 2, t.CardHeight * 2, t.CardMost), prints.Count));
+        }
+        return _endGallery.Shown;
+    }
+
     /// <summary>The flash over the screen now: 1 as it goes off, fading to 0 over <see cref="PhotoTuning.FlashSeconds"/>.</summary>
     public float Flash(double now) =>
         FlashAt < 0 || now < FlashAt || Tuning.Photo.FlashSeconds <= 0 ? 0 : (float)Math.Clamp(1 - (now - FlashAt) / Tuning.Photo.FlashSeconds, 0, 1);
@@ -101,7 +133,7 @@ public sealed class CrewMemory(PlayerProfile profile, MemoryTuning tuning, strin
         var commended = world.Commendations.Where(c => c.Which < Commendations.StarterSet.Length)
             .Select(c => (IncidentLog.NameOf(world, c.To), Commendations.StarterSet[c.Which], IncidentLog.NameOf(world, c.From)));
         bool wakers = world.Enemies?.Wakers.Enabled ?? true;
-        _page = Logbook.Page(report, Night, RouteTitle(s), Date(date), commended, wakers, PhotoFile);
+        _page = Logbook.Page(report, Night, RouteTitle(s), Date(date), commended, wakers, PhotoFile, YardFile);
         bool over = report.End == RunEnd.DawnMissed && world.DawnEndsCampaign;
         _pages = LogbookReader.Of(profile.Log(CrewKey, Crew, _page, over), CrewKey)?.Pages ?? [];
         return _page;

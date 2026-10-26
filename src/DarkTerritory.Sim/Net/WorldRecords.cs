@@ -232,7 +232,9 @@ public static class WorldRecords
                 f[Head + 1 + i * Each] = (site?.Stocked == true ? 1 : 0) | (site?.Turning == true ? 2 : 0) | (site?.OutOfRhythm == true ? 4 : 0)
                     | (site?.Pouring == true ? 8 : 0) | (site?.Herding == true ? 16 : 0) | (site?.Winding == true ? 32 : 0)
                     | (site?.Running == true ? 64 : 0) | (site?.Carrying == true ? 128 : 0)
-                    | (site?.GoodClamp == true ? 256 : 0) | (site?.RollingBack == true ? 512 : 0) | (site?.LeverHeld == true ? 1024 : 0);
+                    | (site?.GoodClamp == true ? 256 : 0) | (site?.RollingBack == true ? 512 : 0) | (site?.LeverHeld == true ? 1024 : 0)
+                    // Its coaling tower and its gantry, down or cleared tonight (note 1029: a client joining late sees them so).
+                    | (int)run.Tower(i) << 11 | (int)run.Gantry(i) << 13;
                 f[Head + 2 + i * Each] = Q(site?.Progress ?? 0, Fine);
                 f[Head + 3 + i * Each] = site?.SledsLeft ?? 0;
                 f[Head + 4 + i * Each] = Q(site?.Crank ?? 0, Ang);
@@ -617,7 +619,8 @@ public static class WorldRecords
                             GoodClamp = (f[Head + 1 + i * Each] & 256) != 0, RollingBack = (f[Head + 1 + i * Each] & 512) != 0,
                             LeverHeld = (f[Head + 1 + i * Each] & 1024) != 0,
                             Roll = D(f[Head + 22 + i * Each], Fine), Clamp = D(f[Head + 23 + i * Each], Fine), Rerail = D(f[Head + 24 + i * Each], Fine),
-                        })], D(f[5], Fine), new Run.KitWhere((Run.KitPlace)f[6], -1, (int)f[7], (Run.KitLoss)f[8]));
+                        })], D(f[5], Fine), new Run.KitWhere((Run.KitPlace)f[6], -1, (int)f[7], (Run.KitLoss)f[8]),
+                        [.. Enumerable.Range(0, facilities).Select(i => ((Run.StructureDown)(f[Head + 1 + i * Each] >> 11 & 3), (Run.StructureDown)(f[Head + 1 + i * Each] >> 13 & 3)))]);
                     break;
             }
         }
