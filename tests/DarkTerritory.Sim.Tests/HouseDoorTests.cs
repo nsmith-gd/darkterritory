@@ -58,8 +58,9 @@ public class HouseDoorTests
         }
     }
 
+    // (At a crewmate's middle over the ground: a house with floors' lintel over its door and its floors aren't in the doorway, note 1022.)
     static bool InAWall(StopWalls walls, Double3 p) =>
-        walls.Near(p).Any(w => Math.Abs(w.ToLocal(p).X) <= w.HalfLength && Math.Abs(w.ToLocal(p).Z) <= w.HalfWidth);
+        walls.Near(p).Any(w => Math.Abs(w.ToLocal(p).X) <= w.HalfLength && Math.Abs(w.ToLocal(p).Z) <= w.HalfWidth && p.Y + 1 >= w.Bottom && p.Y + 1 <= w.Top);
 
     [Fact]
     public void AHeldUseShutsAHouseDoorAndItStandsInTheDoorwayTillItsOpenedAgain()

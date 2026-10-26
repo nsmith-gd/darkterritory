@@ -209,11 +209,12 @@ public sealed partial class StopWalls
                 foreach (var (x, y, wx, wy) in Less(x0, y0, x1, y1, hcx - HatchSize / 2, hcy - HatchSize / 2, hcx + HatchSize / 2, hcy + HatchSize / 2))
                     yield return new(ShellPart.Floor, x, y, wx, wy, -Slab, 0);
                 yield return new(ShellPart.Cellar, mx, my, hx, hy, -Cellar - 0.3, -Cellar);
-                // Its walls under the boards, all round (the outside walls go down only so far, and a seam has none).
-                yield return new(ShellPart.Wall, mx, y0 - t / 2, hx + t, t / 2, -Cellar - 0.3, -Slab);
-                yield return new(ShellPart.Wall, mx, y1 + t / 2, hx + t, t / 2, -Cellar - 0.3, -Slab);
-                yield return new(ShellPart.Wall, x0 - t / 2, my, t / 2, hy, -Cellar - 0.3, -Slab);
-                yield return new(ShellPart.Wall, x1 + t / 2, my, t / 2, hy, -Cellar - 0.3, -Slab);
+                // Its walls under the boards, all round (the outside walls go down only so far, and a seam has none): a plinth's,
+                // underground, so never in a bot's way across the ground floor (FootPath), a doorway's threshold over one.
+                yield return new(ShellPart.Plinth, mx, y0 - t / 2, hx + t, t / 2, -Cellar - 0.3, -Slab);
+                yield return new(ShellPart.Plinth, mx, y1 + t / 2, hx + t, t / 2, -Cellar - 0.3, -Slab);
+                yield return new(ShellPart.Plinth, x0 - t / 2, my, t / 2, hy, -Cellar - 0.3, -Slab);
+                yield return new(ShellPart.Plinth, x1 + t / 2, my, t / 2, hy, -Cellar - 0.3, -Slab);
             }
             if (b.Upstairs && PartStair(b, part) is { } f)
             {
@@ -239,8 +240,9 @@ public sealed partial class StopWalls
                 foreach (var (alongX, at, a, z, o) in new[] { (true, y0 - t / 2, x0 - t, x1 + t, -1), (true, y1 + t / 2, x0 - t, x1 + t, 1),
                     (false, x0 - t / 2, y0 - t, y1 + t, -1), (false, x1 + t / 2, y0 - t, y1 + t, 1) })
                     if (Seam(b, alongX, at + o * t / 2, a + t, z - t, o))
-                        yield return alongX ? new(ShellPart.Wall, (a + z) / 2, at, (z - a) / 2, t / 2, f1 - Slab, top)
-                            : new(ShellPart.Wall, at, (a + z) / 2, t / 2, (z - a) / 2, f1 - Slab, top);
+                        // (A lintel's tag: upstairs, it's never in a bot's way across the ground floor, FootPath.)
+                        yield return alongX ? new(ShellPart.Lintel, (a + z) / 2, at, (z - a) / 2, t / 2, f1 - Slab, top)
+                            : new(ShellPart.Lintel, at, (a + z) / 2, t / 2, (z - a) / 2, f1 - Slab, top);
             }
         }
         // A lintel over every doorway (each unit's door, the way through to the back room): upstairs is over them.

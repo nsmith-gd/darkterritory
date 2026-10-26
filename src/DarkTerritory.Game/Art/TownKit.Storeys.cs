@@ -181,7 +181,7 @@ public static partial class TownKit
         {
             switch (p.Part)
             {
-                case ShellPart.Wall:
+                case ShellPart.Wall or ShellPart.Plinth:
                     if (p.Top < 0)
                     {
                         k.Use("stone_block", Palette.BlueGrey * 0.7f, 0.95f, 0.02f, tile: 1.5f);
