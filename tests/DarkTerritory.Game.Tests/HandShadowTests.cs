@@ -9,6 +9,7 @@ namespace DarkTerritory.Game.Tests;
 /// floor, posts round it and a plate under it, seen from above. What's behind a post or under the plate is dark with the
 /// lamp shadowed and lit with it plain; the open floor is lit alike either way (no acne: the cube's faces meet cleanly).
 /// </summary>
+[Collection(GpuCollection.Name)]
 public class HandShadowTests
 {
     const int W = 256, H = 256;

@@ -10,6 +10,7 @@ namespace DarkTerritory.Game.Tests;
 /// Renders real frames through Vulkan. Skips (rather than fails) on machines with no Vulkan at all;
 /// CI and cloud sessions install Mesa lavapipe so these run everywhere that matters.
 /// </summary>
+[Collection(GpuCollection.Name)]
 public class ScreenshotTests
 {
     static readonly string Content = DataFile.FindContentRoot();
