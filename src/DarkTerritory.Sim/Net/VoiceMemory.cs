@@ -48,6 +48,37 @@ public sealed class VoiceMemory(int framesKept = 250)
         return run;
     }
 
+    /// <summary>
+    /// Everything someone's said that's still kept, as utterances: runs of frames with no pause longer than
+    /// <paramref name="gapTicks"/> between them, oldest first, each with the ticks it began and ended (note 1040).
+    /// </summary>
+    public IReadOnlyList<Utterance> Utterances(int player, uint gapTicks = 8)
+    {
+        var all = new List<Utterance>();
+        if (!_heard.TryGetValue(player, out var frames))
+            return all;
+        List<byte[]>? run = null;
+        uint start = 0, last = 0;
+        foreach (var (tick, opus) in frames)
+        {
+            if (run is not null && tick - last > gapTicks)
+            {
+                all.Add(new Utterance(start, last, run));
+                run = null;
+            }
+            if (run is null)
+            {
+                run = [];
+                start = tick;
+            }
+            run.Add(opus);
+            last = tick;
+        }
+        if (run is not null)
+            all.Add(new Utterance(start, last, run));
+        return all;
+    }
+
     /// <summary>Forgets someone (they left).</summary>
     public void Forget(int player)
     {
@@ -55,3 +86,6 @@ public sealed class VoiceMemory(int framesKept = 250)
         _lastSpoke.Remove(player);
     }
 }
+
+/// <summary>One run of someone's talk, as kept: the ticks it began and ended, and its Opus frames in order (note 1040).</summary>
+public sealed record Utterance(uint Start, uint End, IReadOnlyList<byte[]> Frames);
