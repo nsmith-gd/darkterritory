@@ -316,6 +316,9 @@ public sealed partial class CreatureArt
 
     // The Stoker's own fire, in its mouth and its splits: the sick green of a fire with it in (GreyboxScene.FireColour).
     static readonly Vector3 StokerFire = new(0.35f, 0.6f, 0.22f);
+    int? _sparkLayer;
+    // The effects' spark (fx_spark), for the Stoker's haze while it boards.
+    int SparkLayer => _sparkLayer ??= Look.Layer("fx_spark");
     // A Cinder Hound's own light (note 337): its cracks' ember, redder than a firebox, and how far it reaches.
     static readonly Vector3 HoundEmber = new Vector3(1.0f, 0.38f, 0.12f) * 2.4f;
     const float HoundLightRange = 4.2f;
@@ -363,9 +366,10 @@ public sealed partial class CreatureArt
     }
 
     // Fire Flies round a car's lantern (tools/blender/fire_fly.py; the lantern's tools/models hand_lantern, its flame at the
-    // model's origin): at most this many of them, the swarm filling as they linger (all of it by FireFlySwarmFills
-    // seconds: the sim's ignite time, enemies.json fireFlies, as the GDD's ~20 s); the settled ones on the glass, a
-    // cylinder this wide (m, to their bodies) and this far below and above the flame; the flying ones this far out.
+    // model's origin): the swarm filling as they linger (all of it by FireFlySwarmFills seconds: the sim's ignite time,
+    // enemies.json fireFlies, as the GDD's ~20 s; how many, and their light, look.json fireFlies, note 1041); the settled
+    // ones on the glass, a cylinder this wide (m, to their bodies) and this far below and above the flame; the flying ones
+    // this far out.
     // The Passenger's walk and drag clips cover the ground at these paces (m/s: tools/blender/passenger.py's, the crew's
     // walk); dragging, it's this far ahead of the one it drags (m: they're at its feet in the sim).
     const float PassengerWalkPace = 1.4f, PassengerDragPace = 1.3f, PassengerStride = 0.8f;
@@ -374,19 +378,22 @@ public sealed partial class CreatureArt
     // front of their feet (m).
     const float SootPinSeconds = 0.6f, SootCling = 0.3f;
 
-    const int FireFlyMost = 22;
     // T131 (the director, build 1121: "what were the bubbles?"): the wings' smouldering rims, lit all round against the
     // lamp, drew each moth as a hollow orange ring: a bubble. The rims go to the charred paper (unlit), and the burning tail
-    // carries the light instead, shedding FireFlySparks sparks of FireFlyEmber behind each on the wing.
-    const int FireFlySparks = 3;
-    static readonly Vector3 FireFlyEmber = new(1.0f, 0.55f, 0.18f);
-
-    static MaterialLook FireFlyLook(ModelMaterial m, MaterialLook l) => m.Name switch
+    // carries the light instead, shedding look.json fireFlies sparks of its ember behind each on the wing. Note 1041: the
+    // bodies lit too (look.json fireFlies body), smouldering, so the moths are what's seen and not only the lamp.
+    MaterialLook FireFlyLook(ModelMaterial m, MaterialLook l) => m.Name switch
     {
         _ when m.Name.Contains("firefly_rim") => l with { Emissive = 0, Colour = new Vector3(0.13f, 0.11f, 0.1f) },
         _ when m.Name.StartsWith("ember_core") => l with { Emissive = Math.Max(l.Emissive, 1) * 1.6f },
-        _ => l,
+        _ => l with { Emissive = Math.Max(l.Emissive, Look.Tuning.FireFlies.Body) },
     };
+
+    /// <summary>
+    /// The room of the car whose lamp the Fire Flies are drawn round this frame (note 1041), in its frame: past its walls and over
+    /// its roof is the swarm outside, come in out of the dark to the lit car. Set by the scene before it draws them.
+    /// </summary>
+    public Sim.Train.Box? FireFlyRoom { get; set; }
     const float FireFlySwarmFills = 20, FireFlyGlass = 0.085f, FireFlyGlassBelow = 0.07f, FireFlyGlassAbove = 0.08f, FireFlyOrbit = 0.45f;
 
     /// <summary>
@@ -482,10 +489,12 @@ public sealed partial class CreatureArt
         ["passenger"] = 0.35f,
     };
 
-    sealed class Entry(Model model, MaterialLook[] looks)
+    sealed class Entry(Model model, MaterialLook[] looks, MaterialLook[]? lifted = null)
     {
         public Model Model { get; } = model;
         public MaterialLook[] Looks { get; } = looks;
+        /// <summary>Its looks lightened for the dark (<see cref="Lifted"/>; note 1042), drawn unless it's a watcher's dark shape.</summary>
+        public MaterialLook[] Lit { get; } = lifted ?? looks;
         public MaterialLook[] Scratch { get; } = new MaterialLook[looks.Length];
         public Pose Pose { get; } = new(model.Skeleton.Count);
         /// <summary>The distance copy (&lt;name&gt;.lod1.glb), its joints renumbered to this model's: posed by this one's palette.</summary>
@@ -527,9 +536,11 @@ public sealed partial class CreatureArt
             var (model, authored, far) = figure;
             float wear = WearOf.GetValueOrDefault(name, 0.5f);
             bool person = Person(name);
-            _models[name] = new Entry(model, [.. model.Materials.Select(m => Resolve(m, wear, person))])
+            _models[name] = new Entry(model, [.. model.Materials.Select(m => Resolve(m, wear, person))],
+                [.. model.Materials.Select(m => Lifted(name, m, Resolve(m, wear, person)))])
             {
-                Lod = far is null ? null : new Entry(far, [.. far.Materials.Select(m => Resolve(m, wear, person))]),
+                Lod = far is null ? null : new Entry(far, [.. far.Materials.Select(m => Resolve(m, wear, person))],
+                    [.. far.Materials.Select(m => Lifted(name, m, Resolve(m, wear, person)))]),
                 // (The Waker's drawn thirty times his size: his distance copy from thirty times as far, note 679.)
                 LodFrom = (authored ? look.Tuning.CreatureLodMetres : look.Tuning.ClusteredLodMetres) * (name == "waker" ? WakerGait.Scale : 1),
             };
@@ -710,6 +721,21 @@ public sealed partial class CreatureArt
         }
     }
 
+    /// <summary>
+    /// A dark creature kept seeable on dark ground (systems-spec A.4a; note 1042; look.json darkCreatures): its baked
+    /// atlas's surfaces lighter by <c>lift</c> (ash, not lit: the lights and eyes left as they are), and its eyes' shine
+    /// raised to <c>eyeShine</c>, catching what light there is.
+    /// </summary>
+    MaterialLook Lifted(string name, ModelMaterial m, MaterialLook look)
+    {
+        var dark = Look.Tuning.DarkCreatures;
+        if (m.Emissive <= 0 && m.Glow <= 0 && dark.Lift.TryGetValue(name, out var lift))
+            look = look with { Colour = look.Colour * lift };
+        if (m.Name.Contains("eye", StringComparison.Ordinal) && dark.EyeShine.TryGetValue(name, out var shine))
+            look = look with { Emissive = Math.Max(look.Emissive, shine) };
+        return look;
+    }
+
     MaterialLook Resolve(ModelMaterial m, float wear, bool person = false)
     {
         int layer = string.IsNullOrEmpty(m.Texture) ? -1 : Look.Layer(m.Texture);
@@ -778,8 +804,9 @@ public sealed partial class CreatureArt
         var mats = m.Model.Materials;
         for (int i = 0; i < mats.Length; i++)
         {
-            m.Scratch[i] = adjust is null ? m.Looks[i] : adjust(mats[i], m.Looks[i]);
-            // (A watcher's shape, CreatureArt.Watching: the whole of it dark.)
+            // (A watcher's shape, CreatureArt.Watching: the whole of it dark, as baked, its eyes the tell.)
+            var look = _shade < 1 ? m.Looks[i] : m.Lit[i];
+            m.Scratch[i] = adjust is null ? look : adjust(mats[i], look);
             if (_shade < 1)
                 m.Scratch[i] = m.Scratch[i] with { Colour = m.Scratch[i].Colour * _shade, Emissive = m.Scratch[i].Emissive * _shade };
         }
@@ -2812,8 +2839,10 @@ public sealed partial class CreatureArt
     {
         var (r, u, b) = Basis(lamp);
         var o = lamp.Translation;
+        var ff = Look.Tuning.FireFlies;
+        var ember = ff.EmberColour;
         float fill = Math.Clamp((float)t / FireFlySwarmFills, 0, 1);
-        int count = (int)MathF.Round(5 + (FireFlyMost - 5) * fill);
+        int count = (int)MathF.Round(ff.Fewest + (ff.Most - ff.Fewest) * fill);
         // The settled share grows faster than the swarm: by the time it's full, most are on the glass.
         int settled = (int)MathF.Round(count * (0.15f + 0.6f * MathF.Sqrt(fill)));
         for (int i = 0; i < count; i++)
@@ -2856,27 +2885,81 @@ public sealed partial class CreatureArt
                 fwd = v.LengthSquared() > 1e-10f ? Vector3.Normalize(v) : r;
                 up = Vector3.Normalize(u - fwd * Vector3.Dot(u, fwd));
                 clip = "flutter";
-                // T131 (the director: "what were the bubbles?"): the sparks it sheds off its burning tail, a short trail
-                // behind it on its loop, falling and dimming, so a swarm on the wing reads as embers round the lamp.
-                mesh.Emissive = 1;
-                for (int j = 1; j <= FireFlySparks; j++)
-                {
-                    double back = j * 0.07;
-                    var spark = Where(t - back) - u * (float)(0.05 * back * j);
-                    float fade = 1 - (j - 1f) / FireFlySparks;
-                    mesh.Box(spark, r, u, b, new Vector3(0.005f * fade + 0.002f), FireFlyEmber * (0.6f + 0.8f * fade) * (0.8f + 0.2f * MathF.Sin((float)t * 17 + i + j)));
-                }
-                mesh.Emissive = 0;
+                Sparks(Where, i);
             }
-            // The model faces -Z with its back +Y: its rows are where X, Y and Z go.
-            var z = -fwd;
-            var x = Vector3.Cross(up, z);
-            var m = new Matrix4x4(x.X, x.Y, x.Z, 0, up.X, up.Y, up.Z, 0, z.X, z.Y, z.Z, 0, at.X, at.Y, at.Z, 1);
-            Draw(mesh, "fire_fly", clip, t + k * 7.3, true, Matrix4x4.CreateScale(size) * m, seed: i + (float)seed, adjust: FireFlyLook);
+            Moth(at, up, fwd, clip, size, k, i);
         }
-        // The lamp's light through them: brighter, and redder, the more there are.
+        // Note 1041 (the visual tell audit, note 1037: a few moths on a lamp, 0-4 px at 20 m, inside the car): more of them
+        // outside it, come in out of the dark to its light, thicker the longer they linger: beating round the car past its
+        // walls and over its roof, each a glowing ember on the wing, so the swarm's seen from the roofs and the yard.
+        if (FireFlyRoom is { } room)
+        {
+            int outside = (int)MathF.Round(ff.Outside + ff.OutsidePerFill * fill);
+            // (The lamp hangs SceneArt.LampPositions' 0.42 m under the ceiling.)
+            float wall = (float)room.HalfSize.X + ff.OutsideFrom, floorUnder = 0.42f - (float)(room.Max.Y - room.Min.Y);
+            for (int i = 0; i < outside; i++)
+            {
+                float k = (float)((i * 0.6180339 + seed * 0.53 + 0.29) % 1);
+                float k2 = (float)((i * 0.7548777 + seed * 0.17 + 0.61) % 1);
+                // A third of them over the roof, the rest down each side, each on its own loop about its own place.
+                bool over = i % 3 == 2;
+                float side = i % 2 == 0 ? 1 : -1;
+                double w = (0.6 + 0.6 * k) * (k2 < 0.5 ? 1 : -1);
+                Vector3 Where(double s)
+                {
+                    double a = k * Math.PI * 2 + s * w;
+                    float loop = 0.35f + 0.5f * k2;
+                    float across = over ? (k2 - 0.5f) * 2 * wall : side * (wall + ff.OutsideReach * k * (0.75f + 0.25f * (float)Math.Sin(s * 0.9 + k * 7)));
+                    float high = over ? 0.42f + 0.3f + ff.OutsideAbove * k : floorUnder + 0.6f + (0.42f + ff.OutsideAbove - floorUnder - 0.6f) * k2;
+                    float along = (k - 0.5f) * 3.2f;
+                    return o + r * (across + loop * (float)Math.Cos(a)) + u * (high + 0.25f * (float)Math.Sin(s * 1.7 + k * 4))
+                        + b * (along + loop * (float)Math.Sin(a));
+                }
+                var at = Where(t);
+                var v = Where(t + 0.05) - at;
+                var fwd = v.LengthSquared() > 1e-10f ? Vector3.Normalize(v) : r;
+                var up = Vector3.Normalize(u - fwd * Vector3.Dot(u, fwd));
+                Sparks(Where, i + 97);
+                Moth(at, up, fwd, "flutter", 0.85f + 0.3f * k2, k, i + 97);
+            }
+        }
+        // The lamp's glass glowing through them, and its light: brighter, and redder, the more there are.
         float flick = 0.85f + 0.15f * MathF.Sin((float)t * 13 + 1.7f) * MathF.Sin((float)t * 5.3f);
-        mesh.PointLights.Add(new PointLight(o, Palette.FurnaceOrange * (0.25f + 0.9f * fill) * flick, 2.5f + 2.5f * fill));
+        mesh.Billboard(o, ff.GlassSize * (1 + fill), 0, new Vector4(Palette.FurnaceOrange * (ff.Glass + ff.GlassPerFill * fill) * flick, 1), -1, FxBlend.Additive);
+        mesh.PointLights.Add(new PointLight(o, Palette.FurnaceOrange * (ff.Light + ff.LightPerFill * fill) * flick, ff.LightRange + ff.LightRangePerFill * fill));
+
+        // One moth: the model faces -Z with its back +Y (its rows are where X, Y and Z go); its glow round it. Its glow is
+        // what's seen of it far off: full size from HaloFull m away, shrinking nearer, so up close it's the moth; and past
+        // that the moth's under a pixel, so the glow is all that's drawn.
+        void Moth(Vector3 at, Vector3 up, Vector3 fwd, string clip, float size, float k, int i)
+        {
+            float far = at.Length() / ff.HaloFull;
+            if (far < 1)
+            {
+                var z = -fwd;
+                var x = Vector3.Cross(up, z);
+                var m = new Matrix4x4(x.X, x.Y, x.Z, 0, up.X, up.Y, up.Z, 0, z.X, z.Y, z.Z, 0, at.X, at.Y, at.Z, 1);
+                Draw(mesh, "fire_fly", clip, t + k * 7.3, true, Matrix4x4.CreateScale(size) * m, seed: i + (float)seed, adjust: FireFlyLook);
+            }
+            float halo = ff.Halo * Math.Clamp(far, 0, 1);
+            if (halo > 0.01f)
+                mesh.Billboard(at, halo, 0, new Vector4(ember * ff.HaloGlow * (0.75f + 0.25f * MathF.Sin((float)t * 9 + i * 1.7f)), 1), -1, FxBlend.Additive);
+        }
+
+        // T131 (the director: "what were the bubbles?"): the sparks it sheds off its burning tail, a short trail behind it on its
+        // loop, falling and dimming, so a swarm on the wing reads as embers round the lamp.
+        void Sparks(Func<double, Vector3> where, int i)
+        {
+            mesh.Emissive = 1;
+            for (int j = 1; j <= ff.Sparks; j++)
+            {
+                double back = j * 0.07;
+                var spark = where(t - back) - u * (float)(0.05 * back * j);
+                float fade = 1 - (j - 1f) / ff.Sparks;
+                mesh.Box(spark, r, u, b, new Vector3(0.005f * fade + 0.002f), ember * (0.6f + 0.8f * fade) * (0.8f + 0.2f * MathF.Sin((float)t * 17 + i + j)));
+            }
+            mesh.Emissive = 0;
+        }
     }
 
     /// <summary>
@@ -3213,11 +3296,17 @@ public sealed partial class CreatureArt
             case EnemyKind.Stoker when e is Sim.Enemies.Stoker { Boarding: true } && _models.ContainsKey("stoker"):
                 {
                     // Boarding at the tender (note 263): crouched on the coal and creeping across the footplate to the fire
-                    // door, facing it (the engine's −Z), lit by its own sick glow: the telegraph, in the open.
+                    // door, facing it (the engine's −Z), lit by its own sick glow: the telegraph, in the open (look.json
+                    // darkCreatures stokerBoard*: seen from the cab against the black tender, note 1042).
+                    var dark = Look.Tuning.DarkCreatures;
                     if (Draw(mesh, "stoker", "peer", e.PhaseSeconds, true, model, seed: 13))
                     {
                         float flicker = 0.8f + 0.2f * (float)Math.Sin(e.PhaseSeconds * 17.0);
-                        mesh.PointLights.Add(new PointLight(Vector3.Transform(new Vector3(0, 0.4f, 0), model), StokerFire * flicker * 1.6f, 2.2f));
+                        var over = Vector3.Transform(new Vector3(0, dark.StokerBoardLift, 0), model);
+                        mesh.PointLights.Add(new PointLight(over, StokerFire * flicker * dark.StokerBoardGlow, dark.StokerBoardReach));
+                        // Its glow seen over the tender's rim when the coal hides it (note 1042): a sick-green haze about it.
+                        if (dark.StokerBoardHalo > 0 && SparkLayer >= 0)
+                            mesh.Billboard(over, dark.StokerBoardHalo, 0, new Vector4(StokerFire, dark.StokerBoardHaloAlpha * flicker), SparkLayer, FxBlend.Additive, 0, 2);
                     }
                     return true;
                 }
