@@ -202,9 +202,10 @@ public sealed partial class Effects
 
     /// <summary>
     /// A car's fire seen from outside (GDD App. C.5): <see cref="Burn"/> how big it is this frame (0 out),
-    /// <see cref="Alight"/> flaming, <see cref="Since"/> seconds since it went out, <see cref="Peak"/> the worst it got.
+    /// <see cref="Alight"/> flaming, <see cref="Since"/> seconds since it went out, <see cref="Peak"/> the worst it got,
+    /// <see cref="Hot"/> its hottest cell this frame (0 out; note 1041).
     /// </summary>
-    public readonly record struct Burning(float Burn, bool Alight, float Since, float Peak)
+    public readonly record struct Burning(float Burn, bool Alight, float Since, float Peak, float Hot = 0)
     {
         /// <summary>How charred the car is: as bad as the fire got, the paint going first.</summary>
         public float Char => Math.Clamp(Peak * 1.15f - 0.1f, 0, 1);
@@ -227,7 +228,7 @@ public sealed partial class Effects
     public void CarSmoke(MeshBuilder mesh, Vector3 o, Vector3 r, Vector3 u, Vector3 b, Sim.Train.CarShape shape, Burning fire, float speed, double t, int seed)
     {
         float amount = fire.Smoke;
-        if (amount < 0.02f || _smoke < 0)
+        if (amount < 0.02f && fire.Hot <= 0 && fire.Burn <= 0 || _smoke < 0)
             return;
         float half = (float)shape.HalfLength, wide = (float)shape.HalfWidth, roof = (float)shape.RoofHeight;
         Vector3 L(float x, float y, float z) => o + r * x + u * y + b * z;
@@ -259,15 +260,48 @@ public sealed partial class Effects
                 grey += Palette.FurnaceOrange * 0.28f * fire.Burn * MathF.Max(0, 1 - s * 2.5f);
             mesh.Billboard(at, size, h * 6.28f + age * 0.3f, new Vector4(grey * (0.85f + 0.3f * h3), a), _smoke, FxBlend.Alpha, (int)(s * 15.99f), 4);
         }
-        if (!fire.Alight)
+        // (A burning car told no hottest cell has its intensity as the hottest.)
+        float hot = fire.Hot > 0 ? fire.Hot : fire.Burn;
+        if (hot <= 0)
             return;
-        // The doors' cracks glowing, and the light through them on the ground and the next car.
+        // Note 1041 (the visual tell audit, note 1037: 15 s in, a fire on the farthest car showed nothing outside at 60 m):
+        // from its first cell alight, a column of smoke out of the roof's seams, rising well clear of the train and laid back
+        // by its wind, lit from under where it leaves the car; and the doors' cracks and the roof's seams glowing, and the light
+        // through them on the ground and the next car: dull red while it smoulders, orange and brighter as it takes hold. The
+        // sim's intensity is the mean of the car's cells (one cell alight is a sixteenth of it), so the hottest scales it.
+        var fo = look.Tuning.FireOutside;
+        int column = (int)(fo.Column + fo.ColumnPerHeat * hot);
+        for (int k = 0; k < column; k++)
+        {
+            float h = Hash(k * 2.31f + seed * 4.7f), h2 = Hash(k * 6.13f + seed * 1.3f + 0.25f), h3 = Hash(k * 3.71f + seed * 8.9f);
+            float period = fo.ColumnSeconds * (0.8f + 0.4f * h);
+            float age = (float)((t * (0.9 + 0.2 * h2) + h3 * 31) % period), s = age / period;
+            var from = new Vector3((h2 - 0.5f) * wide, roof + 0.1f, (h - 0.5f) * 1.6f * MathF.Max(0.5f, half - 0.8f));
+            float climb = age * fo.ColumnRise * (0.8f + 0.4f * hot) / (1 + wind * 0.08f);
+            var at = L(from.X + MathF.Sin(age * 0.7f + h * 6) * 0.4f * s, from.Y + climb, from.Z + wind * age * 0.8f);
+            float size = (fo.ColumnSize + fo.ColumnGrow * s) * (0.75f + 0.5f * hot);
+            float a = MathF.Min(1, (fo.ColumnAlpha + fo.ColumnAlphaPerHeat * hot) * MathF.Sin(MathF.PI * MathF.Min(1, s * 1.1f + 0.06f)));
+            var grey = fo.Grey + Palette.FurnaceOrange * fo.ColumnLit * hot * MathF.Max(0, 1 - s * 3);
+            mesh.Billboard(at, size, h * 6.28f + age * 0.25f, new Vector4(grey * (0.85f + 0.3f * h3), a), _smoke, FxBlend.Alpha, (int)(s * 15.99f), 4);
+        }
         float flicker = 0.75f + 0.25f * MathF.Sin((float)t * 13.1f + seed) * MathF.Sin((float)t * 7.3f);
+        // Smouldering it's the embers' red; alight, the flames' orange.
+        var colour = fire.Alight ? Palette.FurnaceOrange : Palette.FurnaceOrange * new Vector3(1, 0.5f, 0.35f);
+        float glow = (fo.Seams + fo.SeamsPerHeat * hot) * flicker;
+        // The fire's light on its own smoke, over the roof where it leaves the car: what's seen of it through the fog, far off.
+        // (By the root of the heat: there from the first, and not a fireball once it's well alight. The smoke spreads the
+        // flames' flicker out: it breathes a little, where the cracks flicker hard.)
+        mesh.Billboard(L(0, roof + 0.6f + 0.6f * hot, 0), fo.UnderGlowSize * (0.7f + 0.4f * hot), 0,
+            new Vector4(colour * fo.UnderGlow * MathF.Sqrt(hot) * (0.9f + 0.1f * flicker), 1), -1, FxBlend.Additive, stretch: 0.6f);
         foreach (float sd in (ReadOnlySpan<float>)[-1, 1])
         {
-            mesh.Billboard(L(sd * (wide + 0.03f), 1.6f, 0), 1.1f + fire.Burn, 0, new Vector4(Palette.FurnaceOrange * 0.4f * fire.Burn * flicker, 1), -1,
-                FxBlend.Additive, stretch: 0.35f);
-            mesh.PointLights.Add(new PointLight(L(sd * (wide + 0.4f), 1.4f, 0), Palette.FurnaceOrange * (0.6f + 1.4f * fire.Burn) * flicker, 4 + 4 * fire.Burn));
+            // The side door's crack, floor to lintel, and the eave's seam along the roof, a glow at a time down it.
+            mesh.Billboard(L(sd * (wide + 0.03f), 1.6f, 0), 1.1f + hot, 0, new Vector4(colour * glow, 1), -1, FxBlend.Additive, stretch: 0.35f);
+            for (int k = 0; k < 6; k++)
+                mesh.Billboard(L(sd * (wide + 0.03f), roof - 0.12f, (k / 5f - 0.5f) * 2 * (half - 0.5f)), 0.9f + 0.5f * hot, 0,
+                    new Vector4(colour * glow * 0.45f, 1), -1, FxBlend.Additive, stretch: 0.3f);
+            mesh.PointLights.Add(new PointLight(L(sd * (wide + 0.4f), 1.4f, 0), colour * (fo.Light + fo.LightPerHeat * hot) * flicker,
+                fo.LightRange + fo.LightRangePerHeat * hot));
         }
     }
 
