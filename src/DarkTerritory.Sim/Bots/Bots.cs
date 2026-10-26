@@ -123,6 +123,9 @@ public sealed class GunnerBot(GunTuning guns, ChoirTuning? choir = null, int see
         // Note 741: nobody driving and nobody else to go: off the gun, forward to the controls (the legs' relief).
         if (_legs.ReliefWanted(world))
             return _legs.Decide(self, world, tick, out aimed);
+        // Note 1051: the Stoker at the firebox with no walker to send: off the gun for it while nothing's coming at the back.
+        if (!hounds && _legs.StokerWanted(world))
+            return _legs.Decide(self, world, tick, out aimed);
         // T103 (T93 playtest: "so a cannon can be saved before decoupling a car"): a car the Car Hugger has hold of is a car
         // lost, cut loose or eaten through, and its gun with it: first, the gun pushed up the rail onto the car ahead.
         if (SaveGun(self, world) is { } saving)
@@ -651,6 +654,62 @@ public sealed class RoofWalkerBot(int seed, StopHand? job = null) : IWorldBot
         if (forward)
             Head(-1);
         return null;
+    }
+
+    /// <summary>Gone forward to fight the Stoker at the firebox door (note 1051, for tests and the harness), or at it.</summary>
+    public bool Stokering { get; private set; }
+
+    /// <summary>
+    /// Note 1051: a gunner's legs wanted forward for the Stoker: it's about, a driver's at the controls, no walker to send, and
+    /// nobody else living gone for it.
+    /// </summary>
+    public bool StokerWanted(World world) =>
+        Gunner && Calls is { } calls && Me >= 0 && (Stokering || Heed.StokerAbout(world) is not null && !DriverGone(world, calls) && !AStokerHandFor(calls, world.Train)
+            && (calls.StokerHand is not { } hand || hand == Me || !Crew.Any(c => c.Id == hand && c.State.Alive)));
+
+    /// <summary>
+    /// The Stoker's hand (note 1051; GDD §20, "answered better by two than by one"; App. A.5): the Stoker crossing the footplate or
+    /// in the firebox, and a driver at the controls (a dead one is the relief's, <see cref="Relieve"/>, whose driving fights it
+    /// itself). One walker, claimed on the crew's calls (<see cref="CrewCalls.StokerHand"/>), a gunner's legs only with no
+    /// walker, goes forward to the cab the relief's way (along the roofs, onto the engine, down its roof hatch) and fights it
+    /// from the fireman's side of the door (<see cref="Heed.AtTheFirebox"/>), so the driver keeps driving
+    /// (<see cref="ConductorBot"/>'s FightStoker leaves it to a hand at the door). Once it's gone, back out the way it came
+    /// (<see cref="Relieve"/>'s). Null otherwise.
+    /// </summary>
+    /// <summary>A bot walker alive and out of the cab (not the driver, nor a gunner) to go for the Stoker instead of a gunner.</summary>
+    bool AStokerHandFor(CrewCalls calls, TrainOnLine train) =>
+        Crew.Any(c => c.Id != Me && c.State.Alive && calls.IsBot(c.Id) && calls.Walker(c.Id) && c.Id != calls.Gunner(false) && c.Id != calls.Gunner(true)
+            && !PlayerMotor.InCab(c.State, train));
+
+    PlayerIntent? StokerHand(in PlayerState self, World world, uint tick)
+    {
+        Stokering = false;
+        if (Calls is not { } calls || Me < 0)
+            return null;
+        var stoker = self.Alive ? Heed.StokerAbout(world) : null;
+        if (stoker is null || DriverGone(world, calls) || Gunner && AStokerHandFor(calls, world.Train))
+        {
+            if (calls.StokerHand == Me)
+                calls.StokerHand = null;
+            return null;
+        }
+        if (calls.StokerHand != Me)
+        {
+            if (calls.StokerHand is { } other && Crew.Any(c => c.Id == other && c.State.Alive) && tick - calls.StokerHandSaid <= SimConstants.TickRate)
+                return null;
+            calls.StokerHand = Me;
+        }
+        calls.StokerHandSaid = tick;
+        Stokering = true;
+        _cameForward = true;
+        var train = world.Train;
+        if (PlayerMotor.InCab(self, train))
+            return Heed.AtTheFirebox(self, world, stoker, -1);
+        if (ReliefDriver.ToTheCab(self, train, out bool forward) is { } going)
+            return going;
+        if (forward)
+            Head(-1);
+        return Decide(self, train, tick);
     }
 
     GunnerBot? _manning;
@@ -1718,6 +1777,13 @@ public sealed class RoofWalkerBot(int seed, StopHand? job = null) : IWorldBot
             _warm.LeaveOpen = door => door is 0 or 1 && world.Train.Boiler.Ruptured;
             _warm.Passing = (car, door) => AtTheDoor(world.Train, Crew, car, door);
             _warm.ShutBehind = (car, door) => ShutBehind(world.Train, Crew, car, door, _warm.LeaveOpen);
+        }
+        // Note 1051: the Stoker on the footplate or in the fire, and a driver at the controls: forward to the firebox door to
+        // fight it, so the driver keeps driving.
+        if (StokerHand(self, world, tick) is { } stoking)
+        {
+            Calls?.CanFeed(Me, false);
+            return stoking;
         }
         // The driver's dead (note 399): forward to take the controls, before anything else.
         if (Relieve(self, world, tick, out aimed) is { } relieving)
@@ -3751,6 +3817,10 @@ public sealed partial class ConductorBot(CrewCalls? calls = null, int member = 0
             || world.ActiveEnemies.OfType<Stoker>().FirstOrDefault(st => !st.Gone && st.Phase is SpinePhase.Telegraph or SpinePhase.Commit) is not { } stoker)
             return null;
         var firebox = train.Frames[0].Shape.Interactables.First(i => i.Kind == InteractableKind.Firebox).Position;
+        // Note 1051 (GDD §20, "better by two"): a crewmate at the fireman's side of the door has it, so the driver keeps the
+        // controls: driving on while it crosses the footplate, and on the brake against its runaway once it's in.
+        if (!Fireman && Heed.HandAtTheFirebox(train, Crewmates))
+            return stoker.Boarding ? null : new PlayerIntent { Buttons = PlayerButtons.Brake, ThrottleNotch = -4 };
         // On its way in from the bunker (note 263) it's in the open: at the fire, club it there.
         if (stoker.Boarding)
         {
