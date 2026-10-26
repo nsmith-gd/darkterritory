@@ -961,6 +961,8 @@ public sealed record DirectorTuning(
     public string[] Roster { get; init; } = [];
     /// <summary>App. B.1 "want balance": each want's target share of the budget (kill, split, trust, cargo).</summary>
     public Dictionary<string, double> WantShares { get; init; } = new();
+    /// <summary>App. B.1 want balance held to its shares (enemies.json director.wantHold; note 1048).</summary>
+    public WantHoldTuning WantHold { get; init; } = new();
     /// <summary>App. B.1 hard caps: corrupted humans, at most this many at a time.</summary>
     public int MaxCorrupted { get; init; } = 1;
     /// <summary>GDD v1.4 App. D.11, the dead's creature vote (enemies.json director.vote; note 180).</summary>
@@ -982,6 +984,20 @@ public sealed record DirectorTuning(
 /// each kind's night (its chance and its cap) and the night's variety hold for them as for the rest. Mirror of enemies.json
 /// <c>director.curve</c>; field docs live there.
 /// </summary>
+/// <summary>
+/// App. B.1 want balance held to its shares (note 1048). <see cref="Floor"/>: each want with a share has this many of its kinds
+/// about tonight, brought back from the night's chances as the night's floor brings kinds back (note 868); 0, none.
+/// <see cref="Fill"/>: pressed, with everything the rules let in now of wants already over their shares (and
+/// <see cref="FillFrom"/> spent tonight), the pressure spends on the night's curve's rule-less of the wants under theirs
+/// instead, as its fill does when no rule is met. Both off: the shares only weigh what the rules let in.
+/// </summary>
+public sealed record WantHoldTuning
+{
+    public int Floor { get; init; }
+    public bool Fill { get; init; }
+    public double FillFrom { get; init; }
+}
+
 public sealed record CurveTuning
 {
     public int Power { get; init; } = 1;
