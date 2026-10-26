@@ -100,6 +100,8 @@ public sealed record HarnessOptions
     public IReadOnlyList<EnemyKind>? Insist { get; init; }
     /// <summary>With <see cref="Insist"/>: seconds after one's gone before it's sent again.</summary>
     public double InsistEvery { get; init; } = 10;
+    /// <summary>With <see cref="Insist"/>: the kinds sent only when their own rule would have them (<see cref="World.InsistByRule"/>, note 1036).</summary>
+    public IReadOnlySet<EnemyKind>? InsistByRule { get; init; }
     /// <summary>
     /// With <see cref="Insist"/>: the look-out's errand (note 212), the last walker's (or with none, the gunner's: note 222), to the Gaunt, Ribbits or a Dragger
     /// insisted on. Null: the crew keep to their posts.
@@ -293,6 +295,8 @@ public sealed record ThreatReport(double Budget, double Spent, IReadOnlyDictiona
     public IReadOnlyDictionary<string, int> Grabs { get; init; } = new Dictionary<string, int>();
     /// <summary>Enemies that came on (telegraphed, or further), by kind: what the night actually exercised.</summary>
     public IReadOnlyDictionary<string, int> Engaged { get; init; } = new Dictionary<string, int>();
+    /// <summary>Enemies that went Alert (its prey picked, for the Gannet: it hangs over a walker), by kind (note 1036).</summary>
+    public IReadOnlyDictionary<string, int> Alerted { get; init; } = new Dictionary<string, int>();
     /// <summary>GRABs a crewmate broke (the grab ended in a break-off, not a punish), by kind.</summary>
     public IReadOnlyDictionary<string, int> Rescues { get; init; } = new Dictionary<string, int>();
     /// <summary>The director's pressure over the night (note 266), beside its per-second tally (<see cref="Director"/>).</summary>
@@ -313,6 +317,8 @@ public sealed record ThreatReport(double Budget, double Spent, IReadOnlyDictiona
     public int TrussDraggers { get; init; }
     /// <summary>The fires boarded packs set (note 269), beside the upkeep's hot boxes caught: where the burns come from (note 437).</summary>
     public int PackFires { get; init; }
+    /// <summary>Structures Tower Jaw brought down (note 1036): a coaling tower or a crane's gantry, whether or not its spine said so.</summary>
+    public int TowersDown { get; init; }
     /// <summary>The kinds the night's chances rolled out that came in after all: the floor's (note 868) and the fresh ones (note 863).</summary>
     public IReadOnlyList<string> Floor { get; init; } = [];
     public IReadOnlyList<string> Fresh { get; init; } = [];
@@ -430,6 +436,7 @@ public static class Harness
         {
             host.World.Insist = insist;
             host.World.InsistEvery = o.InsistEvery;
+            host.World.InsistByRule = o.InsistByRule;
         }
         if (o.Hazards is { LampsOut: true })
         {
@@ -812,10 +819,12 @@ public static class Harness
                 AtTheCap = capped,
                 Grabs = Count(events.Where(e => e.To == SpinePhase.Grab)),
                 Engaged = Count(events.Where(e => e.To == SpinePhase.Telegraph).DistinctBy(e => e.EnemyId)),
+                Alerted = Count(events.Where(e => e.To == SpinePhase.Alert).DistinctBy(e => e.EnemyId)),
                 Rescues = Count(events.Where(e => e.From == SpinePhase.Grab && e.To is SpinePhase.BreakOff or SpinePhase.Gone)),
                 Pressure = new PressureReport(Math.Round(d.Grace, 1), d.Tuning.Pressure.Threshold, PressureEvery, per5Min, pressureTrace),
                 Slack = d.Posts.Stats.ToDictionary(kv => kv.Key, kv => new SlackReport(kv.Value.Max, kv.Value.Over)),
                 PackFires = host.World.PackFires,
+                TowersDown = host.World.TowersDown,
                 Floor = [.. d.FloorBrought],
                 Fresh = [.. d.FreshBrought],
                 FreeSpawns = d.Log.Where(l => l.Free).GroupBy(l => l.Kind.ToString()).OrderBy(g => g.Key).ToDictionary(g => g.Key, g => g.Count())

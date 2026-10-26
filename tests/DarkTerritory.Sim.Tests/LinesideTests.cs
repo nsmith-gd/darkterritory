@@ -357,6 +357,29 @@ public class LinesideTests
     }
 
     [Fact]
+    public void OnALadderUnderTheRoofWarningABotGoesDownOnlyWithTheTrainMoving()
+    {
+        // Note 1036: stood 9 m short of frontier:7's truss bridge (its warning up all the while), a gunner coming back aboard
+        // up a side ladder was sent back down it by the warning, hung at its foot, and the driver waited on it all night. The
+        // mouth takes nobody from a standing train: at a stand it climbs on (and in from the roof as ever); moving, it goes down.
+        var route = Tunnel();
+        PlayerIntent OnTheLadder(double speed)
+        {
+            var train = new TrainOnLine(new TrainDynamics(Consist.Uniform(T, 5, 1)), route.Build(), 1490);
+            train.Dynamics.Velocity = speed;
+            var world = new World(train, Tuning.Combat);
+            world.EnableLineside(S, route);
+            Assert.NotNull(world.Lineside!.Warning(train));
+            var ladder = train.Frames[2].Shape.Ladders[0];
+            var s = new PlayerState { Parent = 2, Position = ladder.Foot + new Double3(0, 1, 0), Surface = Surface.Ladder, Health = P.Health, LineHint = train.Cars[2].FrontDistance };
+            var bot = new RoofWalkerBot(1) { Me = 1 };
+            return bot.Decide(s, world, 0, out _);
+        }
+        Assert.True(OnTheLadder(0).MoveZ >= 0, "stood, sent back down the ladder");
+        Assert.Equal(-1, OnTheLadder(12).MoveZ);
+    }
+
+    [Fact]
     public void GreaseTakesTheGrip()
     {
         var route = Line([new TrackSegment(3000)], new RouteFeature(FeatureKind.Grease, 500, 700));

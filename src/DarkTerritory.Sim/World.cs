@@ -468,6 +468,13 @@ public sealed partial class World
     public IReadOnlyList<EnemyKind>? Insist { get; set; }
     public double InsistAfter { get; set; } = 2;
     public double InsistEvery { get; set; } = 10;
+    /// <summary>
+    /// Note 1036: of <see cref="Insist"/>, the kinds sent only when their own rule would have them (its gate, not its dice):
+    /// the Knotter onto a train above its boardAbove, the Gannet over one run fast its arriveSeconds. Set aside, a Knotter
+    /// boarded the train standing at the start, the bots stood to club it slack, and it was back every insistEvery: the
+    /// train never left. Null: every insisted kind wherever its spawn can place it.
+    /// </summary>
+    public IReadOnlySet<EnemyKind>? InsistByRule { get; set; }
     readonly Dictionary<EnemyKind, double> _insistGone = [];
 
     /// <summary>
@@ -3085,6 +3092,8 @@ public sealed partial class World
             if (d.Log.Any(l => l.Kind == kind) && !_insistGone.ContainsKey(kind))
                 _insistGone[kind] = ElapsedSeconds;
             if (_insistGone.TryGetValue(kind, out double gone) && ElapsedSeconds - gone < InsistEvery)
+                continue;
+            if (InsistByRule?.Contains(kind) == true && Spawns.For(kind) is { } gate && gate.Weight(new SpawnContext(this, t, d)) is null)
                 continue;
             // An insisted kind is a special attempt (note 885): placed by its rule, charged only if it placed (note 880's log told).
             int mark = _nextEnemyId;

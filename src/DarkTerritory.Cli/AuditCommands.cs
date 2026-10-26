@@ -106,17 +106,28 @@ static class AuditCommands
         var routeTuning = RouteTuning.Load(content);
         var facilities = DataFile.Load<DarkTerritory.Sim.Run.FacilityTuning>(Path.Combine(content, DarkTerritory.Sim.Run.FacilityTuning.File));
         var sight = DataFile.Load<SightTuning>(Path.Combine(content, SightTuning.File));
-        bool Crane(RouteFeature f) => facilities.ModulesOf(f).Contains(DarkTerritory.Sim.Run.ModuleKind.Crane);
-        var routes = grid.Routes.Distinct().ToDictionary(r => r, r => DarkTerritory.Sim.LineGen.Routes.Generate(content, r, cars));
+        // A pair whose stop none of the grid's routes has (note 1036: the Track Doll at a coaling tower's loading) is run on
+        // the first of siteRoutes that has one, instead, in that cell (--conflicts only).
+        var siteRoutes = conflicts is null ? [] : t.SiteRoutes.Where(r => !grid.Routes.Contains(r)).ToList();
+        var routes = grid.Routes.Concat(siteRoutes).Distinct().ToDictionary(r => r, r => DarkTerritory.Sim.LineGen.Routes.Generate(content, r, cars));
         var yards = routes.ToDictionary(x => x.Key, x => x.Value.GateOr(routeTuning.YardLength));
         // Where each combination starts on each route: it depends on the kinds and the line only (the same every night).
         var stages = routes.SelectMany(x =>
         {
             var stageLine = x.Value.Build();
             return combos.Select(k => (Key: (x.Key, string.Join("+", k)), Stage: DarkTerritory.Sim.Net.Combinations.Stage(x.Value, stageLine, k, c.Enemies, yards[x.Key],
-                t.LeadM, t.ApproachM, Crane, atStops: args.Contains("--at-stops") || conflicts is not null, stop: Stop(k), gradeWithin: Grade(k) ? t.GradeWithinM : 0)));
+                t.LeadM, t.ApproachM, facilities.ModulesOf, atStops: args.Contains("--at-stops") || conflicts is not null, stop: Stop(k), gradeWithin: Grade(k) ? t.GradeWithinM : 0,
+                fastClear: t.FastClearM)));
         }).ToDictionary(x => x.Key, x => x.Stage);
-        var nights = DarkTerritory.Sim.Net.Combinations.Nights(combos, hazards, every, grid);
+        // Where each combination's cell on a grid route is really run: there, or a site route that stages what it couldn't.
+        string RunOn(string route, IReadOnlyList<EnemyKind> k)
+        {
+            var stage = stages[(route, string.Join("+", k))];
+            bool site = stage.Unstaged.Any(u => DarkTerritory.Sim.Net.Combinations.AtSites.Any(a => a.ToString() == u));
+            return site && siteRoutes.FirstOrDefault(r => stages[(r, string.Join("+", k))].Unstaged.Count < stage.Unstaged.Count) is { } other ? other : route;
+        }
+        var nights = DarkTerritory.Sim.Net.Combinations.Nights(combos, hazards, every, grid)
+            .Select(n => n with { Route = RunOn(n.Route, n.Kinds) }).Distinct().ToList();
         var runs = new CombinationRun[nights.Count];
         var clock = System.Diagnostics.Stopwatch.StartNew();
         int done = 0;
@@ -131,8 +142,18 @@ static class AuditCommands
             {
                 Bots = crew,
                 Cars = cars,
-                // At a stop, long enough to get there and get down to work.
-                Seconds = stage.AtStop ? Opt(args, "--stop-seconds", t.StopSeconds) : seconds,
+                // At a stop, long enough to get there and get down to work; for a fast train's kind (note 1036), to get up to
+                // speed and hold it long enough to bring it.
+                Seconds = stage.Loading ? Opt(args, "--loading-seconds", t.LoadingSeconds) : stage.AtStop || stage.Long ? Opt(args, "--stop-seconds", t.StopSeconds) : stage.Fast ? Opt(args, "--fast-seconds", t.FastSeconds) : seconds,
+                Express = stage.Fast ? t.ExpressSpeed : null,
+                // At a coaling tower (note 1036), a tender short enough of coal that the crew stop to fill it.
+                Script = stage.Coal && c.Boiler is { } coalBoiler
+                    ? (tick, w) =>
+                    {
+                        if (tick == 0)
+                            w.Train.Boiler.Tender = Math.Min(w.Train.Boiler.Tender, coalBoiler.TenderCapacity * t.CoalTenderShare);
+                    }
+                : null,
                 Seed = seed,
                 // A clean link: the meeting's under test here, not the netcode (the soak's rough-link nights are for that).
                 Link = new Ballast.Net.LinkConditions(0, 0, 0),
@@ -146,6 +167,7 @@ static class AuditCommands
                 YardLength = yard,
                 Insist = kinds,
                 InsistEvery = t.InsistEvery,
+                InsistByRule = DarkTerritory.Sim.Net.Combinations.ByRule,
                 Look = t.Look,
                 Hazards = hz,
                 // --trace dir (note 1036): each night a second at a time, to read what its verdict came of.
@@ -160,7 +182,7 @@ static class AuditCommands
         {
             var mine = Enumerable.Range(0, nights.Count).Where(i => nights[i].Kinds == key.Kinds && nights[i].Hazards == key.Hazards).Select(i => runs[i]).ToList();
             // What no place suited, on any of the routes (each says which in its cell's nights' start).
-            var unstaged = grid.Routes.Distinct().SelectMany(r => stages[(r, string.Join("+", key.Kinds))].Unstaged).Distinct().ToList();
+            var unstaged = grid.Routes.Distinct().Select(r => RunOn(r, key.Kinds)).Distinct().SelectMany(r => stages[(r, string.Join("+", key.Kinds))].Unstaged).Distinct().ToList();
             return DarkTerritory.Sim.Net.Combinations.Judge(key.Kinds, key.Hazards, mine, unstaged, t);
         }).ToList();
         var result = DarkTerritory.Sim.Net.Combinations.Report(size, rows);
@@ -174,7 +196,16 @@ static class AuditCommands
             hazards = hazards.Select(x => x.Name),
             everyHazard = every,
             atStops = args.Contains("--at-stops"),
-            conflicts = conflicts?.Select(p => new { pair = p.Name, kinds = string.Join("+", p.Kinds), p.AtStop, p.Grade }),
+            conflicts = conflicts?.Select(p => new
+            {
+                pair = p.Name,
+                kinds = string.Join("+", p.Kinds),
+                p.AtStop,
+                p.Grade,
+                // Where it's staged on each grid route (note 1036): the route it's really run on, the start, and how.
+                staged = grid.Routes.Distinct().Select(r => (Grid: r, On: RunOn(r, p.Kinds))).Select(x => (x.Grid, x.On, S: stages[(x.On, string.Join("+", p.Kinds))]))
+                    .Select(x => new { route = x.Grid, runOn = x.On, x.S.StartM, x.S.AtStop, x.S.Fast, x.S.Coal, x.S.Unstaged }),
+            }),
             result
         });
         return result.Pass ? 0 : 1;
@@ -239,9 +270,10 @@ static class AuditCommands
                 return;
             var sb = new System.Text.StringBuilder().Append(CultureInfo.InvariantCulture, $"{t * DarkTerritory.Sim.SimConstants.TickSeconds:0}s v{world.Train.Dynamics.Velocity:0.0} d{world.Train.Dynamics.Distance:0}");
             foreach (var (b, s) in bots)
-                sb.Append(CultureInfo.InvariantCulture, $" [{b.Name} car{s.Parent} {s.Position.X:0.0},{s.Position.Y:0.0},{s.Position.Z:0.0} y{s.Yaw:0.00} hp{s.Health} {s.Death} {s.Surface} {s.Flags}]");
+                sb.Append(CultureInfo.InvariantCulture, $" [{b.Name} car{s.Parent} {s.Position.X:0.0},{s.Position.Y:0.0},{s.Position.Z:0.0} y{s.Yaw:0.00} hp{s.Health} {s.Death} {s.Surface} {s.Flags} {Harness.Describe(b, s)}]");
             foreach (var e in world.ActiveEnemies.Where(e => !e.Gone))
-                sb.Append(CultureInfo.InvariantCulture, $" <{e.Kind}#{e.Id} {e.Phase} car{e.Attached} d{e.LineDistance:0} lat{e.Lateral:0.0}>");
+                sb.Append(CultureInfo.InvariantCulture, $" <{e.Kind}#{e.Id} {e.Phase} car{e.Attached} d{e.LineDistance:0} lat{e.Lateral:0.0} x{e.Extra:0.00}>");
+            sb.Append(CultureInfo.InvariantCulture, $" towersDown={world.TowersDown} run={world.Run?.Phase}{(world.Run is { Facility: >= 0 } at ? "@" + at.Facility : "")} bodies={world.Bodies?.All.Count() ?? 0}");
             sb.Append(CultureInfo.InvariantCulture, $" roofWarning={world.Lineside?.Warning(world.Train)?.Kind.ToString() ?? "-"} choir={world.Choir.Build:0.00}{(world.Choir.Present ? " here" : "")}");
             w.WriteLine(sb.ToString());
         };

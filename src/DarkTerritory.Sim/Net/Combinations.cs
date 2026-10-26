@@ -24,6 +24,17 @@ public sealed record CombinationTuning
     /// <summary>A conflict pair with a grade (<c>--conflicts</c>, note 1032): the steep stretch lies within this far of the start (m).</summary>
     public double GradeWithinM { get; init; } = 1200;
     public double StopSeconds { get; init; } = 150;
+    /// <summary>A combination with a kind that comes to a fast train (<see cref="Combinations.Fast"/>, note 1036): the express driver's speed (m/s).</summary>
+    public double ExpressSpeed { get; init; } = 21;
+    /// <summary>... the night's length (s), and how far ahead of its start the line has no tunnel (m).</summary>
+    public double FastSeconds { get; init; } = 150;
+    public double FastClearM { get; init; } = 3000;
+    /// <summary>At a coaling tower (note 1036), the tender's coal at the start, a share of its capacity.</summary>
+    public double CoalTenderShare { get; init; } = 0.5;
+    /// <summary>A pair whose condition is the stop or its loading, or with a creature of the loading (note 1036): the night's length (s).</summary>
+    public double LoadingSeconds { get; init; } = 360;
+    /// <summary>Routes (tier:seed) a conflict pair is run on instead when its stop is on none of the grid's (note 1036).</summary>
+    public IReadOnlyList<string> SiteRoutes { get; init; } = [];
     public double ApproachM { get; init; } = 350;
     public double UnwinnableLost { get; init; } = 0.5;
     public double TrivialCargoLoss { get; init; } = 0.02;
@@ -41,7 +52,16 @@ public sealed record CombinationNight(IReadOnlyList<EnemyKind> Kinds, HazardSet 
     string Route = "");
 
 /// <summary>Where a combination's nights start: out on the line, or short of a facility the crew stop and work at.</summary>
-public sealed record CombinationStage(double StartM, bool AtStop, IReadOnlyList<string> Unstaged);
+/// <param name="Coal">At a coaling tower: the tender's staged short enough of coal for the crew to stop and fill it
+/// (<see cref="CombinationTuning.CoalTenderShare"/>; the bots coal only with a quarter of it to fill).</param>
+/// <param name="Long">A kind in it stands the train (<see cref="Combinations.Stands"/>): the night runs <see cref="CombinationTuning.StopSeconds"/>.</param>
+/// <param name="Fast">Run with the express driver (<see cref="CombinationTuning.ExpressSpeed"/>): a kind in it comes only to a fast train.</param>
+public sealed record CombinationStage(double StartM, bool AtStop, IReadOnlyList<string> Unstaged, bool Fast = false, bool Coal = false)
+{
+    public bool Long { get; init; }
+    /// <summary>At a stop for its loading (<see cref="CombinationTuning.LoadingSeconds"/>): the pair's condition is the stop, or a creature in it comes at the loading.</summary>
+    public bool Loading { get; init; }
+}
 
 /// <summary>
 /// One pair of the director's conflict table (App. B.1 contradiction seeding) as the sweep runs it (note 1032): the
@@ -59,6 +79,8 @@ public sealed record CombinationRun(int Seed, double StartM, string End, int Dea
     double CargoLoss, IReadOnlyList<string> Engaged)
 {
     public IReadOnlyList<string> Placed { get; init; } = [];
+    /// <summary>Structures brought down (Tower Jaw's coaling tower or gantry, note 1036): a landing, though its spine records none.</summary>
+    public int TowersDown { get; init; }
     /// <summary>The route (tier:seed) and crew size of the night's cell (note 204).</summary>
     public string Route { get; init; } = "";
     public int Crew { get; init; }
@@ -162,39 +184,102 @@ public static class Combinations
     };
 
     /// <summary>
+    /// The kinds that come only to a train run fast (note 1036): the Gannet (App. B.4: enemies.json gannet.arriveAbove 18 m/s
+    /// for arriveSeconds 30, in open country). The sweep's driver cruises at 14 m/s, so on its nights the Gannet was never
+    /// sent at all; a combination with one is run with the express driver (note 376: hot, no stops), from a stretch with no
+    /// tunnel for <see cref="CombinationTuning.FastClearM"/> (in one, it peels off).
+    /// </summary>
+    /// <summary>
+    /// The kinds that come only at some stops (note 1036; <see cref="Stage"/>): the Grumbler a crane's, Tower Jaw a coaling
+    /// tower's or a crane's, the Freight Beetle one with loose freight, the Track Doll's loading a coaling tower's on the main.
+    /// Unstaged on a route for want of one, the conflicts sweep runs them on a site route instead.
+    /// </summary>
+    public static IReadOnlySet<EnemyKind> AtSites { get; } = new HashSet<EnemyKind>
+    {
+        EnemyKind.Grumbler, EnemyKind.TowerJaw, EnemyKind.FreightBeetle, EnemyKind.TrackDoll,
+    };
+
+    /// <summary>
+    /// The kinds the sweep insists on only when their own rule would send them (<see cref="World.InsistByRule"/>, note 1036):
+    /// the Knotter boards a train above knotter.boardAbove, the Gannet comes over one fast. Their rule is the meeting.
+    /// </summary>
+    public static IReadOnlySet<EnemyKind> ByRule { get; } = new HashSet<EnemyKind> { EnemyKind.Knotter, EnemyKind.Gannet };
+
+    /// <summary>
+    /// The kinds that stand the train (note 1036): the Knotter's killed only at a stand, so the crew stop for each. A
+    /// combination with one runs <see cref="CombinationTuning.StopSeconds"/>: on 90 s, two Knotters' stands left the train 9 m
+    /// short of the Car Hugger's bridge at the end.
+    /// </summary>
+    public static IReadOnlySet<EnemyKind> Stands { get; } = new HashSet<EnemyKind> { EnemyKind.Knotter };
+
+    /// <summary>The kinds met once they've picked someone (gone Alert), not only once they telegraph (note 1036): the Gannet's hang.</summary>
+    public static IReadOnlySet<EnemyKind> MetAtAlert { get; } = new HashSet<EnemyKind> { EnemyKind.Gannet };
+
+    /// <summary>The kinds that come at a stop's loading (note 1036): Tower Jaw at its structure, the Freight Beetle among the freight.</summary>
+    public static IReadOnlySet<EnemyKind> AtLoading { get; } = new HashSet<EnemyKind> { EnemyKind.TowerJaw, EnemyKind.FreightBeetle };
+
+    public static IReadOnlySet<EnemyKind> Fast { get; } = new HashSet<EnemyKind> { EnemyKind.Gannet };
+
+    /// <summary>
     /// Where a combination's nights start (on <paramref name="route"/>, built as <paramref name="line"/>). With a kind that
     /// comes at a stop, and <paramref name="atStops"/>: <paramref name="approach"/> short of the first facility with a spur to work (one with a crane for the
     /// Grumbler, <paramref name="crane"/>). Otherwise the first place clear of the yard, stops and tunnels from which every kind
     /// that needs the line to place it can be placed (the Car Hugger's marsh or bridge ahead), <paramref name="lead"/> short. The kinds no place suits are returned as <c>Unstaged</c>.
     /// </summary>
     public static CombinationStage Stage(Route.Route route, Rail.RailLine line, IReadOnlyList<EnemyKind> kinds, EnemyTuning e, double yard, double lead,
-        double approach = 350, Func<RouteFeature, bool>? crane = null, bool atStops = true, bool stop = false, double gradeWithin = 0)
+        double approach = 350, Func<RouteFeature, IReadOnlyCollection<DarkTerritory.Sim.Run.ModuleKind>>? modules = null, bool atStops = true, bool stop = false,
+        double gradeWithin = 0, double fastClear = 0)
     {
         // A conflict pair with a stop in it (note 1032) is staged at one whatever its creature.
         if (atStops && (stop || kinds.Any(AtStops.Contains)))
         {
-            var spurs = route.Of(FeatureKind.Facility).Where(f => line.Branches.Any(b => b.Kind == Rail.BranchKind.Spur && b.Toe >= f.Start - 50 && b.Toe <= f.End + 50))
-                .Where(f => f.Start - approach >= yard + 100).ToList();
-            bool wantCrane = kinds.Contains(EnemyKind.Grumbler) && crane is not null;
-            var at = (wantCrane ? spurs.FirstOrDefault(crane!) : null) ?? spurs.FirstOrDefault();
+            bool Spur(RouteFeature f) => line.Branches.Any(b => b.Kind == Rail.BranchKind.Spur && b.Toe >= f.Start - 50 && b.Toe <= f.End + 50);
+            bool Coaling(RouteFeature f) => f.Facility == FacilityKind.CoalingTower;
+            bool Has(RouteFeature f, DarkTerritory.Sim.Run.ModuleKind m) => modules?.Invoke(f).Contains(m) == true;
+            bool Crane(RouteFeature f) => Has(f, DarkTerritory.Sim.Run.ModuleKind.Crane);
+            bool Structure(RouteFeature f) => Coaling(f) || Crane(f);
+            bool Crates(RouteFeature f) => Has(f, DarkTerritory.Sim.Run.ModuleKind.Crates);
+            var stops = route.Of(FeatureKind.Facility).Where(f => Spur(f) || Coaling(f)).Where(f => f.Start - approach >= yard + YardClear).ToList();
+            // What the stop must have for each kind that's there only at some (note 1036): the Grumbler a crane; Tower Jaw a
+            // structure to gnaw, a coaling tower's leg or a crane's gantry; the Freight Beetle loose freight, a stop with crates;
+            // the Track Doll a stop worked on the main line, where it can stand ahead: a coaling tower (a spur's loading is off
+            // the main, and the doll comes only on it). The rest go to any stop with a spur.
+            var needs = new List<(EnemyKind Kind, Func<RouteFeature, bool> Ok)>();
+            if (kinds.Contains(EnemyKind.Grumbler) && modules is not null)
+                needs.Add((EnemyKind.Grumbler, Crane));
+            if (kinds.Contains(EnemyKind.TowerJaw))
+                needs.Add((EnemyKind.TowerJaw, Structure));
+            if (kinds.Contains(EnemyKind.FreightBeetle) && modules is not null)
+                needs.Add((EnemyKind.FreightBeetle, Crates));
+            if (kinds.Contains(EnemyKind.TrackDoll))
+                needs.Add((EnemyKind.TrackDoll, Coaling));
+            // A coaling tower only for a kind that asks for one; the rest want a yard to work.
+            var at = stops.FirstOrDefault(f => needs.All(n => n.Ok(f)) && (Spur(f) || needs.Count > 0)) ?? stops.FirstOrDefault(Spur);
             if (at is not null)
             {
-                double toe = line.Branches.Where(b => b.Kind == Rail.BranchKind.Spur && b.Toe >= at.Start - 50 && b.Toe <= at.End + 50).Min(b => b.Toe);
-                var unstaged = new List<string>();
-                if (wantCrane && !crane!(at))
-                    unstaged.Add(EnemyKind.Grumbler.ToString());
+                var unstaged = needs.Where(n => !n.Ok(at)).Select(n => n.Kind.ToString()).ToList();
                 unstaged.AddRange(kinds.Where(k => k is EnemyKind.CarHugger).Select(k => k.ToString()));
-                return new CombinationStage(Math.Round(toe - approach), true, unstaged);
+                // At the stop for its loading (note 1036): a crew of two was still down the Foundry's spur when 150 s ran out,
+                // the loading 134-184 s in.
+                bool loading = stop || kinds.Any(AtLoading.Contains);
+                if (Coaling(at))
+                    return new CombinationStage(Math.Round(at.Start - approach), true, unstaged, Coal: true) { Loading = loading };
+                double toe = line.Branches.Where(b => b.Kind == Rail.BranchKind.Spur && b.Toe >= at.Start - 50 && b.Toe <= at.End + 50).Min(b => b.Toe);
+                return new CombinationStage(Math.Round(toe - approach), true, unstaged) { Loading = loading };
             }
         }
         // Out on the line, what comes at a stop is sent at the crew as they board from the ballast at the start (the halt's
         // stop): unstaged, since it's no facility, and it may well lie in wait unmet.
-        var (start, missing) = OnTheLine(route, line, kinds, e, yard, lead, gradeWithin);
-        return new CombinationStage(start, false, [.. missing, .. kinds.Where(AtStops.Contains).Select(k => k.ToString())]);
+        bool fast = kinds.Any(Fast.Contains);
+        var (start, missing) = OnTheLine(route, line, kinds, e, yard, lead, gradeWithin, fast ? fastClear : 0);
+        return new CombinationStage(start, false, [.. missing, .. kinds.Where(AtStops.Contains).Select(k => k.ToString())], fast) { Long = kinds.Any(Stands.Contains) };
     }
 
+    /// <summary>The nearest a night starts past the yard's gate (m): a stop's approach, or the Car Hugger's lurk.</summary>
+    const double YardClear = 100;
+
     static (double StartM, IReadOnlyList<string> Unstaged) OnTheLine(Route.Route route, Rail.RailLine line, IReadOnlyList<EnemyKind> kinds,
-        EnemyTuning e, double yard, double lead, double gradeWithin = 0)
+        EnemyTuning e, double yard, double lead, double gradeWithin = 0, double fastClear = 0)
     {
         bool Hugger(double s) => route.Features.Any(f => f.Kind is FeatureKind.Marsh or FeatureKind.Bridge
             && (f.Start + f.End) * 0.5 is var at && at >= s + e.CarHugger.LurkAheadMin + lead && at <= s + e.CarHugger.LurkAheadMax
@@ -204,6 +289,10 @@ public static class Combinations
         var needs = new List<(EnemyKind Kind, Func<double, bool> Ok)>();
         if (kinds.Contains(EnemyKind.CarHugger))
             needs.Add((EnemyKind.CarHugger, Hugger));
+        // A fast train's kind (note 1036): open country ahead for the express's run, no tunnel in it.
+        if (fastClear > 0)
+            foreach (var k in kinds.Where(Fast.Contains))
+                needs.Add((k, s => !route.Features.Any(f => f.Kind == FeatureKind.Tunnel && f.End >= s && f.Start <= s + fastClear)));
         // A conflict pair's grade (note 1032): a stretch as steep as the director's "grade" reads within gradeWithin ahead.
         bool Steep(double s)
         {
@@ -214,16 +303,19 @@ public static class Combinations
         }
         // The places to try: just far enough short of each thing a kind needs (so the train's soon on it from a stand), then
         // every 50 m of the line.
+        // Note 1036: short of a marsh or bridge, as near the yard as YardClear: frontier:7's and deadLines:2's only bridges are
+        // 560-600 m past the gate, and from yard + 400 the Car Hugger had nowhere to lurk on either (never placed).
         var tries = new List<double>();
         if (kinds.Contains(EnemyKind.CarHugger))
-            tries.AddRange(route.Features.Where(f => f.Kind is FeatureKind.Marsh or FeatureKind.Bridge).Select(f => (f.Start + f.End) * 0.5 - e.CarHugger.LurkAheadMin - lead));
+            tries.AddRange(route.Features.Where(f => f.Kind is FeatureKind.Marsh or FeatureKind.Bridge).Select(f => (f.Start + f.End) * 0.5 - e.CarHugger.LurkAheadMin - lead)
+                .Where(s => s >= yard + YardClear));
         for (double s = yard + 400; s < route.RunLength - 4000; s += 50)
             tries.Add(s);
         int wanted = needs.Count + (gradeWithin > 0 ? 1 : 0);
         int Met(double s) => needs.Count(n => n.Ok(s)) + (gradeWithin > 0 && Steep(s) ? 1 : 0);
         double best = -1;
         int bestMet = -1;
-        foreach (double s in tries.Where(s => s >= yard + 400 && s < route.RunLength - 4000))
+        foreach (double s in tries.Where(s => s < route.RunLength - 4000))
         {
             if (!Clear(s))
                 continue;
@@ -248,12 +340,18 @@ public static class Combinations
         bool derailed = threats?.Derailed == true;
         bool lost = derailed || end is "Stranded" or "CrewLost" or "Derailed" || r.Deaths >= Math.Max(1, Math.Ceiling(t.UnwinnableLost * crew));
         var engaged = threats?.Engaged.Keys.Where(k => n.Kinds.Any(kind => kind.ToString() == k)).ToList() ?? [];
+        // The Gannet's met when it hangs over a walker (note 1036): a crew that stands still under it (Heed.Gannet, note 454)
+        // is never folded on, and that's its answer working, not a meeting that never came.
+        // And Tower Jaw that brought its structure down came on, telegraph or none (note 1036: its fall is entered from Alert).
+        if (threats?.TowersDown > 0 && n.Kinds.Contains(EnemyKind.TowerJaw) && !engaged.Contains(nameof(EnemyKind.TowerJaw)))
+            engaged.Add(nameof(EnemyKind.TowerJaw));
+        engaged.AddRange(threats?.Alerted.Keys.Where(k => MetAtAlert.Any(kind => kind.ToString() == k) && n.Kinds.Any(kind => kind.ToString() == k) && !engaged.Contains(k)) ?? []);
         // The Choir isn't spawned by a rule: it's there once its ghosts are.
         var placed = n.Kinds.Select(k => k.ToString()).Where(k => threats?.Spawned.ContainsKey(k) == true || engaged.Contains(k)).ToList();
         return new CombinationRun(n.Seed, Math.Round(n.StartM), end, r.Deaths, derailed, lost,
             threats?.Grabs.Values.Sum() ?? 0, threats?.Punishes.Values.Sum() ?? 0, threats?.Rescues.Values.Sum() ?? 0,
             Math.Round(1 - (threats?.MeanCargoIntegrity ?? 1), 3), engaged)
-        { Placed = placed, Route = n.Route, Crew = crew };
+        { Placed = placed, Route = n.Route, Crew = crew, TowersDown = threats?.TowersDown ?? 0 };
     }
 
     /// <summary>
@@ -307,7 +405,7 @@ public static class Combinations
             verdict = "dormant";
             detail = $"put there, never came on: {string.Join(", ", unexercised)}";
         }
-        else if (runs.All(r => r.Grabs == 0 && r.Punishes == 0 && r.Deaths == 0 && !r.Derailed && r.CargoLoss <= t.TrivialCargoLoss))
+        else if (runs.All(r => r.Grabs == 0 && r.Punishes == 0 && r.Deaths == 0 && !r.Derailed && r.CargoLoss <= t.TrivialCargoLoss && r.TowersDown == 0))
         {
             verdict = "trivial";
             detail = "everything came on and nothing landed: no grab, no punish, no death, the cargo untouched";
@@ -315,7 +413,8 @@ public static class Combinations
         else
         {
             verdict = "fair";
-            detail = $"{runs.Sum(r => r.Grabs)} grabs ({runs.Sum(r => r.Rescues)} broken), {runs.Sum(r => r.Punishes)} punishes, {runs.Sum(r => r.Deaths)} dead over {runs.Count} nights";
+            detail = $"{runs.Sum(r => r.Grabs)} grabs ({runs.Sum(r => r.Rescues)} broken), {runs.Sum(r => r.Punishes)} punishes, {runs.Sum(r => r.Deaths)} dead over {runs.Count} nights"
+                + (runs.Sum(r => r.TowersDown) is > 0 and var down ? $", {down} structures down" : "");
         }
         return new CombinationRow(names, hazards.Name, verdict, detail, unexercised, unstaged, cells, runs);
     }
