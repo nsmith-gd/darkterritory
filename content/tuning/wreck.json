@@ -141,6 +141,11 @@
     // against the world (a car kept out of a tree at every substep no longer passes through it on a line between a frame's
     // ends), and takes out the half of a car's sink into the ground its contact leaves, after it's moved (unsink), so what's
     // under a car is between it and the ground as they are.
-    "wreckSubsteps": true, "unsink": true
+    "wreckSubsteps": true, "unsink": true,
+    // E.4 O7/O8 (note 1055): the subject lost from a camera (fewer than two of head, chest and pelvis seen past the ground and
+    // a tunnel's rock, or another body over their head or chest) for more than coverSeconds of the shot's real time, and the
+    // shot cuts to its next-best camera. O11: under a bridge's deck a camera's candidate may sit, underDeckM (m) below it
+    // or more, keeping O3's groundClearance over the land and the water down there.
+    "coverSeconds": 0.2, "underDeckM": 2.5
   }
 }
