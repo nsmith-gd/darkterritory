@@ -776,6 +776,35 @@ public static partial class Staging
         return bodies;
     }
 
+    /// <summary>
+    /// Fusees (note 1052; <c>dt screenshot --fusees</c>): a trail of them struck and dropped on the ground off the train's right
+    /// side, out from car 2 and away from it, each a little further burnt down than the one after it (the first dropped
+    /// furthest out, on the way in), as a crewmate coming back from a village leaves them; and a box of them in the ballast.
+    /// </summary>
+    public static Sim.Physics.Bodies Fusees(TrainOnLine train)
+    {
+        var bodies = new Sim.Physics.Bodies();
+        var car = train.Frames[Math.Min(2, train.Frames.Count - 1)];
+        double hint = train.Dynamics.Distance;
+        Sim.Physics.Body Lay(Double3 local, Sim.Physics.BodyKind kind)
+        {
+            var at = car.ToWorld(local);
+            at = at with { Y = Sim.Player.PlayerMotor.GroundAt(at, train.Line, ref hint) };
+            var b = bodies.SpawnItem(at, hint, kind);
+            b.Pbd.Sleep();
+            return b;
+        }
+        double[] out_ = [6, 14, 23, 33];
+        for (int i = 0; i < out_.Length; i++)
+        {
+            var b = Lay(new Double3(car.Shape.HalfWidth + out_[i], 0, 1.5 * i - 2), Sim.Physics.BodyKind.Fusee);
+            b.Charge = 0.9 - 0.2 * i;
+            b.Burns = 180 * b.Charge;
+        }
+        Lay(new Double3(car.Shape.HalfWidth + 2.2, 0, 1.2), Sim.Physics.BodyKind.Fusees).Charge = 3;
+        return bodies;
+    }
+
     public static Sim.Physics.Bodies Stocked(TrainOnLine train, string content, double charge = 1)
     {
         var tuning = DataFile.Load<TrainTuning>(Path.Combine(content, TrainTuning.File));

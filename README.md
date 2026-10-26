@@ -45,7 +45,7 @@ Every key rebinds in **Settings > Controls**. The defaults:
 | C | The route card, a page a press, then away |
 | Tab | The chase view; dead, the next of the dead's views |
 | G | Swing the tool you carry |
-| H | The whistle cord, in the cab |
+| H | The whistle cord in the cab; the communication cord in a car |
 | K | The lamp in the car you're in |
 | Z | Cut a coupling (held, looking down at the coupler) |
 | F | Grab the nearest ladder |

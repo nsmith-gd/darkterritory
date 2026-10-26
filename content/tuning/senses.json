@@ -31,7 +31,11 @@
     "body": [ { "sense": "absence", "radius": 20, "strength": 1 } ],
     // A flare from the flare pistol, burning where it came down (note 871; upgrades.md §4: "a flare lights a village"): the
     // brightest light there is, and a little heat close to.
-    "flare": [ { "sense": "light", "radius": 60, "strength": 1 }, { "sense": "heat", "radius": 2, "strength": 0.5 } ]
+    "flare": [ { "sense": "light", "radius": 60, "strength": 1 }, { "sense": "heat", "radius": 2, "strength": 0.5 } ],
+    // A fusee struck and dropped (note 1052; upgrades.md §7.3: "the way back to the train glows"): a red light seen down a
+    // village street: a road flare, seen further than a hand lamp but fainter, and far under the flare pistol's; and its heat at
+    // a hand.
+    "fusee": [ { "sense": "light", "radius": 25, "strength": 0.4 }, { "sense": "heat", "radius": 1, "strength": 0.3 } ]
   },
   // How long a wound toy plays once it's let go (s): 0, only while it's in the hands.
   "toys": { "playsSeconds": { "squeaker": 0, "musicBox": 90, "drummer": 30 } },

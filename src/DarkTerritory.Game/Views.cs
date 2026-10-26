@@ -369,6 +369,15 @@ public static class Views
                 train.Frames[^1].ToWorld(new Double3(0.4, 0.5, train.Frames[^1].Shape.HalfLength + 26)), 65),
             "searchlightlamp" => Camera.LookAt(train.Frames[^1].ToWorld(new Double3(train.Frames[^1].Shape.HalfWidth + 2.2, train.Frames[^1].Shape.RoofHeight + 1.2, train.Frames[^1].Shape.HalfLength - 2.4)),
                 train.Frames[^1].ToWorld(new Double3(train.Frames[^1].Shape.HalfWidth - 0.4, train.Frames[^1].Shape.RoofHeight + 0.5, train.Frames[^1].Shape.HalfLength - 0.3)), 50),
+            // The crew's tools (note 1052; `--upgrades commCord,trainTelltale`): the cord's gong on the cab's right wall from
+            // across the cab, the telltale lamp at the end of the dials over the glass; the cord down car 2's side and over the
+            // coupling to the car ahead, from the ballast; and fusees burning out from car 2 (`--fusees`), from the train's side.
+            "cordgong" => Camera.LookAt(engine.ToWorld(CabEye(engine.Shape, -1)),
+                engine.ToWorld(new Double3(engine.Shape.Cab!.Value.Max.X, engine.Shape.Cab!.Value.Max.Y - 0.6, engine.Shape.Cab!.Value.Min.Z + 0.5)), 70),
+            "cordside" => Camera.LookAt(target.ToWorld(new Double3(target.Shape.HalfWidth + 5.5, 1.9, -target.Shape.HalfLength + 3.5)),
+                target.ToWorld(new Double3(target.Shape.HalfWidth, roof - 0.6, -target.Shape.HalfLength - 0.8)), 60),
+            "fusees" => Camera.LookAt(target.ToWorld(new Double3(target.Shape.HalfWidth + 0.8, 1.7, -3.5)),
+                target.ToWorld(new Double3(target.Shape.HalfWidth + 18, 0.2, 1)), 65),
             "searchlightside" => Camera.LookAt(train.Frames[^1].ToWorld(new Double3(-14, 6, train.Frames[^1].Shape.HalfLength + 22)),
                 train.Frames[^1].ToWorld(new Double3(0, 1.5, train.Frames[^1].Shape.HalfLength + 8)), 60),
             "launcher" => Camera.LookAt(train.Frames[^1].ToWorld(new Double3(3.2, 2.4, train.Frames[^1].Shape.HalfLength + 4.5)),

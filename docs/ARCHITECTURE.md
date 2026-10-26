@@ -1210,6 +1210,7 @@ written here instead is moved out by `tools/coord/notes.py split`; the Coordinat
 - [1049. The Stoker's cab eye in the visual tell audit (n1-D1, nathaniel1's Token Budget Manager's worker; queue #748, from #740's note 1042;…](notes/1049.md)
 - [1050. The GDD against the game a third time: what it still promises that isn't built (n1-A5, nathaniel1's Token Budget Manager's worker; queue…](notes/1050.md)
 - [1051. The social test's failures taken up (n1-S4, nathaniel1's Token Budget Manager's worker; queue #750; GDD §20; note 1050 rank 1 and its…](notes/1051.md)
+- [1052. The crew's tools I: the communication cord, the end-of-train telltale and fusees (nathaniel1 n1-T3, the Token Budget Manager's worker;…](notes/1052.md)
 - [1053. The houses' windows shut and can be escaped through, the Hollow House's too (B4, queue #751, picked up from nathaniel1; GDD F.5 Decided, 13…](notes/1053.md)
 - [1058. Bots load from a siding they've cleared (B4, queue #757, picked up from nathaniel1; level-design I.4; note 1050 rank 8)](notes/1058.md)
 <!-- end of the notes index -->

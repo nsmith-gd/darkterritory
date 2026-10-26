@@ -779,6 +779,7 @@ object CampaignCommand(string content, string verb, string[] args)
                     "extinguisher" => DarkTerritory.Sim.Campaign.Campaign.BuyStores(t, s, DarkTerritory.Sim.Campaign.StoreKind.Extinguisher),
                     // Note 871: the flare pistol, from the Frontier tier.
                     "flare" => DarkTerritory.Sim.Campaign.Campaign.BuyStores(t, s, DarkTerritory.Sim.Campaign.StoreKind.Flare),
+                    "fusee" => DarkTerritory.Sim.Campaign.Campaign.BuyStores(t, s, DarkTerritory.Sim.Campaign.StoreKind.Fusee),
                     "sell" => DarkTerritory.Sim.Campaign.Campaign.SellCar(t, s),
                     // Note 1039: the blacksmith scrapes the train's growth off.
                     "scrape" => DarkTerritory.Sim.Campaign.Campaign.Scrape(t, s, standing),
@@ -2394,6 +2395,8 @@ static object Screenshot(TrainTuning t, string content, string[] args)
         // --whimsy taken:3,canary:dead,playing (note 715): which of Gerald (bit 0) and the gnomes the Gannet's had, the canary's
         // mood, the gramophone going.
         WhimsyNow = Staging.Whimsy(Str(args, "--whimsy", "")) is var whimsyStaged ? () => whimsyStaged : null,
+        // --telltale-out (note 1052; with --upgrades trainTelltale): the cab's telltale gone dark, the train parted behind it.
+        TelltaleNow = args.Contains("--telltale-out") ? () => false : null,
         Holdouts = holdouts,
         Town = town,
         Arrival = arrival,
@@ -2420,6 +2423,8 @@ static object Screenshot(TrainTuning t, string content, string[] args)
             : args.Contains("--bodies") ? Staging.Bodies(train, content).All
             // --flares (note 964): the flare pistol's shot along the view's look, one in its arc and one burning on the ground.
             : args.Contains("--flares") ? Staging.Flares(train, camera.Position, new Double3(camera.Forward.X, camera.Forward.Y, camera.Forward.Z)).All
+            // --fusees (note 1052): a trail of fusees burning out from car 2's side, and a box of them.
+            : args.Contains("--fusees") ? Staging.Fusees(train).All
             : args.Contains("--stocked") ? WithToolInLocker(Staging.Stocked(train, content, Opt(args, "--charge", 1)), train, args).All : cargo,
         // --crew: three on car 2's roof, one reaching up, one holding out both hands, one with a keyboard (T47's arms).
         // --working: the crew at work (X1): carrying, at a hatch and a brake wheel on car 2's roof, sat at the last gun.

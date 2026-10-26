@@ -3,7 +3,7 @@ using Ballast;
 namespace DarkTerritory.Sim.Enemies;
 
 /// <summary>What gives a sense off (the sense table's items, content/tuning/senses.json; note 728).</summary>
-public enum EmitterKind : byte { HandLamp, CarLamp, Squeaker, MusicBox, Drummer, Spray, Knock, BurningLamp, Food, Body, Flare }
+public enum EmitterKind : byte { HandLamp, CarLamp, Squeaker, MusicBox, Drummer, Spray, Knock, BurningLamp, Food, Body, Flare, Fusee }
 
 /// <summary>
 /// Something in the world giving off (or, <see cref="Strength"/> negative, masking) a sense a creature answers (GDD App. A.1;
