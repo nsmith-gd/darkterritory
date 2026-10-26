@@ -115,7 +115,7 @@ static class WreckCommands
                 var recording = WreckFilm.Record(tuning, start, Ground, probe: probe, world: met ? solids : null);
                 double recordMs = clock.Elapsed.TotalMilliseconds;
                 var film = WreckFilm.Shoot(tuning, start, Ground, recording, world: met ? solids : null);
-                var faults = film.CameraFaults(Ground);
+                var faults = film.CameraFaults(Ground, solids);
                 bool ok = probe.Over == 0 && probe.CarsInside == 0 && faults.Count == 0;
                 pass &= ok;
                 rows.Add(new
@@ -137,6 +137,8 @@ static class WreckCommands
                         carDeepest = Math.Round(probe.CarDeepest, 3)
                     },
                     camera = faults,
+                    // E.4 O8 (note 1055): the shots that cut to their next-best camera, by subject and when.
+                    cuts = film.Shots.Where(x => x.Cut is not null).Select(x => new { subject = x.Subject, at = Math.Round(x.Cut!.At, 2) }),
                 });
             }
         return new { route = route?.Name, at = route is null ? (double?)null : Math.Round(front), restInside = tuning.Film.RestInside, lensClearance = tuning.Film.LensClearance, pass, rows };

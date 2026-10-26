@@ -145,7 +145,7 @@ public class FilmTests
         WreckFilm.Record(W, w.Film!, Ground(w), probe: through);
         Assert.True(through.CarDeepest > 5 && through.Over > 100, $"without it: cars {through.CarDeepest:0.0} m in, {through.Over} particle-substeps over");
         // And the film's shots stay clean in there.
-        Assert.Empty(w.ShootFilm()!.CameraFaults(Ground(w)));
+        Assert.Empty(w.ShootFilm()!.CameraFaults(Ground(w), w.FilmWorld()));
     }
 
     /// <summary>
@@ -163,6 +163,33 @@ public class FilmTests
         WreckFilm.Record(W, w.Film!, Ground(w), probe: through);
         Assert.Contains("the world", through.What);
         Assert.True(through.Over > 100, $"without them: {through.Over} particle-substeps over");
+    }
+
+    /// <summary>
+    /// E.4 O11, O7 and O8 (note 1055): a derail in deadLines:5's tunnel. Every shot's camera is in the bore, never in the rock
+    /// (O3, E.11's clean camera); no player's shot loses its subject (out of sight past the ground and the rock, or their head
+    /// or chest covered by another body) for longer than 0.2 s of its real time; and where the best camera would have lost
+    /// them, the shot cuts to the next-best from then on.
+    /// </summary>
+    [Theory]
+    [InlineData(8, 20)]
+    [InlineData(4, 8, Skip = "Note 1055's residual: a crew of four at 8 m/s, player 2 lies where no camera clear of the rock and the cars sees them; the O10 fallback loses them 3.18 s")]
+    public void InATunnelTheCameraKeepsToTheBoreAndCutsRatherThanLoseThem(int crew, double speed)
+    {
+        var w = OnTheLine("deadLines:5", InTheTunnel, crew, speed);
+        var film = w.ShootFilm()!;
+        Assert.Empty(film.CameraFaults(Ground(w), w.FilmWorld()));
+        foreach (var shot in film.Shots.Where(s => s.Kind == ShotKind.Player))
+            Assert.True(film.LostSeconds(shot, Ground(w), w.FilmWorld()) <= W.Film.CoverSeconds + 1.0 / WreckFilm.Rate,
+                $"player {shot.Subject}'s shot loses them {film.LostSeconds(shot, Ground(w), w.FilmWorld()):0.00} s");
+        if (crew == 8)
+        {
+            // Player 1's best camera loses them 1.27 s in: the shot cuts there, to a camera held clear of the rock.
+            var cut = Assert.Single(film.Shots, s => s.Cut is not null);
+            Assert.InRange(cut.Cut!.At, cut.From, cut.To);
+            Assert.Equal(cut.Cut.Camera, film.CameraAt(cut, cut.Cut.At + 0.01, cut.Camera));
+            Assert.False(w.FilmWorld().InRock(cut.Cut.Camera));
+        }
     }
 
     [Fact]

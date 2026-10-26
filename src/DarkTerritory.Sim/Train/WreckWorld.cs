@@ -64,6 +64,15 @@ public sealed class WreckWorld(StopWalls? walls, ITrackConditions? land)
     /// <summary>What's within reach of a body this substep: the walls, and whether a tunnel's bore is (<see cref="Around"/>).</summary>
     public sealed record Near(IReadOnlyList<Wall> Walls, bool Bore);
 
+    /// <summary>The land's own height under a point, under a bridge's deck (note 1055); null where the line has none of its own.</summary>
+    public double? Terrain(Double3 p) => land?.Terrain(p);
+
+    /// <summary>A point in a tunnel's rock held back into its bore for something of <paramref name="r"/> (E.4 O11's candidates); elsewhere, as it is.</summary>
+    public Double3 Hold(Double3 p, double r) => land?.Bore(p, r) ?? p;
+
+    /// <summary>Whether a point is in a tunnel's rock (not in its bore): what never fades between a camera and its subject (E.4 O2).</summary>
+    public bool InRock(Double3 p) => land?.NearBore(p, 1) == true && (land.Bore(p, 0) - p).Length > 1e-9;
+
     /// <summary>The walls near a point that stand all night (see the class's remarks).</summary>
     public IEnumerable<Wall> Fixed(Double3 p)
     {

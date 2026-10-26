@@ -47,7 +47,8 @@ public sealed record FilmTuning(
     double SpinMin = 0, double SurviveHits = 2, double MostHits = 3, double CertainDeathSpeed = 16, double GiveUpSeconds = 2.4, double Muscle = 0.25, double Reach = 0.06,
     double FirstPersonRate = 0.4, double FirstPersonAfter = 0.8, double FirstPersonMin = 1.5, double FirstPersonMax = 6,
     double ShotFill = 0.45, double FovMin = 22, double FovMax = 60, double TaskHold = 0.4,
-    int ExtraDolls = 8, int ExtraItems = 40, double Buoyancy = 1.3, double WaterDrag = 3, double RestInside = 0.02, double GroundClearance = 1, bool Flatten = true, bool WreckSubsteps = true, bool Unsink = true)
+    int ExtraDolls = 8, int ExtraItems = 40, double Buoyancy = 1.3, double WaterDrag = 3, double RestInside = 0.02, double GroundClearance = 1, bool Flatten = true, bool WreckSubsteps = true, bool Unsink = true,
+    double CoverSeconds = 0.2, double UnderDeckM = 2.5)
 {
     /// <summary>
     /// Real seconds into a player's first-person beat that their death lands, for a death <paramref name="recorded"/> seconds
@@ -219,6 +220,12 @@ public enum ShotKind : byte { Freeze, Establishing, Player, Settle, Cause }
 public sealed record FilmShot(ShotKind Kind, int Subject, double Real, double From, double To, double SlowAtPeak, Double3 Camera, Double3 CameraTo,
     Double3 Look, Double3 LookTo, double Fov, string Card, int Rig = -1, Double3 RigAt = default)
 {
+    /// <summary>
+    /// E.4 O8 (note 1055): the next-best camera the shot cuts to, from recorded <see cref="FilmCut.At"/> on, where the subject
+    /// would be lost from this one (out of sight, or covered by another body) for longer than the rule allows. Null for none.
+    /// </summary>
+    public FilmCut? Cut { get; init; }
+
     /// <summary>Recorded time at <paramref name="real"/> seconds into the shot: easing from the base speed to the peak's and back.</summary>
     public double At(double real)
     {
@@ -258,6 +265,9 @@ public sealed record FilmShot(ShotKind Kind, int Subject, double Real, double Fr
         return u - k * (u / 2 - DMath.Sin(2 * DMath.PI * u) / (4 * DMath.PI));
     }
 }
+
+/// <summary>A shot's cut to its next-best camera (E.4 O8; note 1055): from recorded <paramref name="At"/>, held there (rigged to car <paramref name="Rig"/> at <paramref name="RigAt"/>, or not, −1), at its own lens.</summary>
+public sealed record FilmCut(double At, Double3 Camera, double Fov, int Rig = -1, Double3 RigAt = default);
 
 /// <summary>
 /// The derailment as a film (GDD v1.4 App. E): the wreck pre-simulated to rest from its start, the crew ragdolled and flung
@@ -380,7 +390,7 @@ public sealed class WreckFilm
         // E.5's peak, scored as before (the order: the biggest flight last), but its moment is the hit that kills them (App.
         // E.2 step 1, the director's decision of 5 Oct 2026): the shot, the bookmark and the opera's hit go where they die.
         var peaks = start.Players.Select((p, i) => (p.Id, (deaths[p.Id].At, Peak(frames, start.Cars, i, ground).Score))).ToDictionary(x => x.Id, x => x.Item2);
-        var shots = Director.Plan(t, start, frames, peaks, ground);
+        var shots = Director.Plan(t, start, frames, peaks, new Director.Lot(ground, world, water));
         return new WreckFilm(t, start, frames, deaths, shots, peaks);
     }
 
@@ -1452,8 +1462,11 @@ public sealed class WreckFilm
     /// body (the subject's too) or debris (the stowed dead, what's carried or thrown) within the lens clearance. The cause
     /// card has no camera. (O5's distance to the subject is the planner's to choose by, not E.11's.)
     /// </summary>
-    public IReadOnlyList<FilmCameraFault> CameraFaults(Func<double, double, double> ground)
+    /// <param name="world">The line's walls and a tunnel's rock (note 1055): the camera's never in one (O3); null, none.</param>
+    /// <param name="water">The water's surface over a point (O3's clearance is over the water too, under a bridge); null, none.</param>
+    public IReadOnlyList<FilmCameraFault> CameraFaults(Func<double, double, double> ground, WreckWorld? world = null, Func<double, double, double?>? water = null)
     {
+        var lot = new Director.Lot(ground, world, water);
         var faults = new List<FilmCameraFault>();
         var t = Tuning;
         for (int s = 0; s < Shots.Count; s++)
@@ -1478,9 +1491,11 @@ public sealed class WreckFilm
                 if (subject >= 0)
                     eye = CameraAt(shot, recorded, eye);
                 var (a, b, w) = At(recorded);
-                double under = ground(eye.X, eye.Z) + t.GroundClearance - eye.Y;
+                double under = lot.Floor(t, eye) + t.GroundClearance - eye.Y;
                 if (under > 0)
                     Fault($"under {t.GroundClearance} m over the ground", under, real);
+                if (world?.Touch(eye, t.CameraRadius) is { } solid)
+                    Fault(world.InRock(eye) ? "in a tunnel's rock" : "in a wall or a tree", (solid.Position - eye).Length, real);
                 for (int c = 0; c < Start.Cars.Count && c < a.Cars.Count; c++)
                 {
                     var pose = (Double3.Lerp(a.Cars[c].Origin, b.Cars[c].Origin, w), a.Cars[c].Right, a.Cars[c].Up, a.Cars[c].Back);
@@ -1509,15 +1524,51 @@ public sealed class WreckFilm
         return faults;
     }
 
+    /// <summary>
+    /// E.4 O1, O7 and O8 on a finished player's shot (note 1055): the longest stretch of its real time the subject is lost
+    /// from its camera as the game moves it (cut included): fewer than two of their head, chest and pelvis seen past the
+    /// ground and a tunnel's rock, or their head or chest covered by another body or the debris. O8 holds it to
+    /// <see cref="FilmTuning.CoverSeconds"/>.
+    /// </summary>
+    public double LostSeconds(FilmShot shot, Func<double, double, double> ground, WreckWorld? world = null)
+    {
+        int doll = Start.Players.ToList().FindIndex(p => p.Id == shot.Subject);
+        if (shot.Kind != ShotKind.Player || doll < 0)
+            return 0;
+        var lot = new Director.Lot(ground, world, null);
+        int steps = Math.Max(1, (int)Math.Ceiling(shot.Real * Rate * 2));
+        double longest = 0, since = -1;
+        for (int k = 0; k <= steps; k++)
+        {
+            double real = shot.Real * k / steps, recorded = shot.At(real);
+            var eye = CameraAt(shot, recorded, Double3.Lerp(shot.Camera, shot.CameraTo, k / (double)steps));
+            var frame = Frames[(int)Math.Clamp(Math.Round(recorded * Rate), 0, Frames.Count - 1)];
+            bool lost = !Director.Keeps(frame, doll, eye, lot);
+            if (!lost)
+                since = -1;
+            else
+            {
+                if (since < 0)
+                    since = real;
+                longest = Math.Max(longest, real - since);
+            }
+        }
+        return longest;
+    }
+
     /// <summary>Where a shot's camera is at <paramref name="recorded"/>: rigged to its car (<see cref="FilmShot.Rig"/>), or held.</summary>
     public Double3 CameraAt(FilmShot shot, double recorded, Double3 held)
     {
-        if (shot.Rig < 0)
+        // Cut to its next-best camera (O8; note 1055): held there, or rigged as it is.
+        var (rigged, at) = shot.Cut is { } cut && recorded >= cut.At ? (cut.Rig, cut.RigAt) : (shot.Rig, shot.RigAt);
+        if (shot.Cut is { } c && recorded >= c.At)
+            held = c.Camera;
+        if (rigged < 0)
             return held;
         var (a, b, u) = At(recorded);
-        if (shot.Rig >= a.Cars.Count)
+        if (rigged >= a.Cars.Count)
             return held;
-        return Double3.Lerp(ToWorld(a.Cars[shot.Rig], shot.RigAt), ToWorld(b.Cars[shot.Rig], shot.RigAt), u);
+        return Double3.Lerp(ToWorld(a.Cars[rigged], at), ToWorld(b.Cars[rigged], at), u);
     }
 
     /// <summary>The recorded frame at <paramref name="seconds"/>, with the next and the share between (for playback).</summary>
@@ -1546,14 +1597,33 @@ public sealed class WreckFilm
     /// the settle, the cause card), and a camera for each from 24 candidates on a shell round the subject's peak, scored only
     /// if it passes the clearance rules against the whole recording.
     /// </summary>
-    static class Director
+    internal static class Director
     {
-        public static List<FilmShot> Plan(FilmTuning t, FilmStart start, IReadOnlyList<FilmFrame> frames, Dictionary<int, (double At, double Score)> peaks,
-            Func<double, double, double> ground)
+        /// <summary>
+        /// Where the shots are set (note 1055): the ground, the line's walls and a tunnel's rock (null, none), and the water.
+        /// </summary>
+        public sealed record Lot(Func<double, double, double> Ground, WreckWorld? World, Func<double, double, double?>? Water)
         {
+            /// <summary>
+            /// What a camera at <paramref name="eye"/> keeps O3's clearance over: the ground, or under a bridge's deck (E.4 O11, its
+            /// candidates may sit below it) the land and the water down there.
+            /// </summary>
+            public double Floor(FilmTuning t, Double3 eye)
+            {
+                double g = Ground(eye.X, eye.Z);
+                if (eye.Y < g - t.UnderDeckM && World?.Terrain(eye) is { } land && land < g - t.UnderDeckM)
+                    return Math.Max(land, Water?.Invoke(eye.X, eye.Z) ?? double.NegativeInfinity);
+                return g;
+            }
+        }
+
+        public static List<FilmShot> Plan(FilmTuning t, FilmStart start, IReadOnlyList<FilmFrame> frames, Dictionary<int, (double At, double Score)> peaks,
+            Lot lot)
+        {
+            var ground = lot.Ground;
             double length = (frames.Count - 1) * Dt;
             var shots = new List<FilmShot>();
-            var (wideEye, wideLook) = Wide(frames[Math.Min(frames.Count - 1, Rate / 2)], ground);
+            var (wideEye, wideLook) = Wide(frames[Math.Min(frames.Count - 1, Rate / 2)], lot);
             shots.Add(new FilmShot(ShotKind.Freeze, -1, t.FreezeSeconds, 0, 0, 1, wideEye, wideEye, wideLook, wideLook, 55, ""));
             double estTo = Math.Min(length, t.EstablishingSeconds * t.BaseSlow);
             shots.Add(new FilmShot(ShotKind.Establishing, -1, t.EstablishingSeconds, 0, estTo, 1, wideEye, wideEye + (wideLook - wideEye) * 0.08, wideLook, wideLook, 55, ""));
@@ -1566,11 +1636,14 @@ public sealed class WreckFilm
                 // death (with the hits they took on the way) and then the limp aftermath; the slowest moment is at the hit.
                 double span = each * (t.BaseSlow + t.PeakSlow) / 2;
                 double from = Math.Clamp(peak - span * 0.55, 0, Math.Max(0, length - span)), to = Math.Min(length, from + span);
-                var (eye, look, fov, rig, rigAt) = Camera(t, start, frames, i, from, to, ground);
+                // Its timing first (the slow motion's bell over it), for O7/O8's 0.2 s of real time.
+                var timing = new FilmShot(ShotKind.Player, p.Id, each, from, to, t.PeakSlow / t.BaseSlow, default, default, default, default, 0, "");
+                var (eye, look, fov, rig, rigAt, cut) = Camera(t, start, frames, i, timing, lot);
                 shots.Add(new FilmShot(ShotKind.Player, p.Id, each, from, to, t.PeakSlow / t.BaseSlow, eye, eye, look, look, fov,
-                    $"{p.Name.ToUpperInvariant()} - {p.Role.ToUpperInvariant()}", rig, rigAt));
+                    $"{p.Name.ToUpperInvariant()} - {p.Role.ToUpperInvariant()}", rig, rigAt)
+                { Cut = cut });
             }
-            var (endEye, endLook) = Wide(frames[^1], ground);
+            var (endEye, endLook) = Wide(frames[^1], lot);
             double settleFrom = Math.Max(0, length - t.SettleSeconds * (t.BaseSlow + 1) / 2);
             shots.Add(new FilmShot(ShotKind.Settle, -1, t.SettleSeconds, settleFrom, length, 1, endEye, endEye + (endLook - endEye) * -0.1, endLook, endLook, 55, ""));
             shots.Add(new FilmShot(ShotKind.Cause, -1, t.CauseSeconds, length, length, 1, endEye, endEye, endLook, endLook, 55, start.Cause));
@@ -1578,8 +1651,9 @@ public sealed class WreckFilm
         }
 
         /// <summary>E.4 O14: a wide of every ragdoll and the engine, from high on the side away from the consist's middle.</summary>
-        static (Double3 Eye, Double3 Look) Wide(FilmFrame frame, Func<double, double, double> ground)
+        static (Double3 Eye, Double3 Look) Wide(FilmFrame frame, Lot lot)
         {
+            var ground = lot.Ground;
             var points = frame.Ragdolls.Select(r => r[2]).Append(frame.Cars[0].Origin).ToList();
             var centre = points.Aggregate(Double3.Zero, (a, p) => a + p) * (1.0 / points.Count);
             double extent = Math.Max(8, points.Max(p => (p - centre).Length));
@@ -1591,50 +1665,133 @@ public sealed class WreckFilm
             double d = Math.Min(150, extent * 2.2);
             var eye = centre + dir * d + Double3.Up * (d * 0.6);
             eye = eye with { Y = Math.Max(eye.Y, ground(eye.X, eye.Z) + 3) };
+            // E.4 O11 (note 1055): in a tunnel, the wide's camera is in the bore, not up in the hill: in toward the middle of it
+            // until it's clear of the rock.
+            if (lot.World is { } world)
+                for (int k = 1; k <= 20 && world.InRock(eye); k++)
+                    eye = Double3.Lerp(centre + dir * d + Double3.Up * (d * 0.6), centre + Double3.Up * 2, k / 20.0);
             return (eye, centre);
         }
 
-        /// <summary>E.4 O1-O10 for one player's shot: the best clear candidate on the shell round their peak, or overhead.</summary>
-        static (Double3 Eye, Double3 Look, double Fov, int Rig, Double3 RigAt) Camera(FilmTuning t, FilmStart start, IReadOnlyList<FilmFrame> frames, int doll,
-            double from, double to, Func<double, double, double> ground)
+        /// <summary>
+        /// E.4 O1-O10 for one player's shot: the best candidate on the shell round their peak that holds O3-O5 the whole shot
+        /// and keeps the subject seen and uncovered (O1, O7) the whole shot; or (O8; note 1055), when none does, the one that
+        /// keeps them longest, cut where it loses them to the best that holds them from there; or (O10) from overhead.
+        /// </summary>
+        static (Double3 Eye, Double3 Look, double Fov, int Rig, Double3 RigAt, FilmCut? Cut) Camera(FilmTuning t, FilmStart start, IReadOnlyList<FilmFrame> frames,
+            int doll, FilmShot timing, Lot lot)
         {
-            int f0 = (int)(from * Rate), f1 = Math.Min(frames.Count - 1, (int)Math.Ceiling(to * Rate)), mid = (f0 + f1) / 2;
+            int f0 = (int)(timing.From * Rate), f1 = Math.Min(frames.Count - 1, (int)Math.Ceiling(timing.To * Rate)), mid = (f0 + f1) / 2;
             var subject = Middle(frames, doll, mid * Dt);
-            // Inside a car through the middle of the shot: the camera's rigged to that car (it held still in the world, the
-            // car ran off out of the shot at 20 m/s with them in it). Otherwise held in the world.
-            int rig = -1;
+            var whole = Candidate(t, start, frames, doll, f0, f1, timing, lot);
+            if (whole.Eye is { } eye)
+            {
+                double Lens(int a, int b, int rig, Double3 at) => Fit(t, frames, doll, a, b, f => EyeAt(frames, rig, (a + b) / 2, at, f));
+                if (whole.Lost < 0)
+                    return (eye, subject, Lens(f0, f1, whole.Rig, eye), whole.Rig, whole.RigAt, null);
+                // O8: lost after a while from the one that keeps them longest; from there, the best that holds them to the end.
+                if (whole.Lost > f0 + 2 && Candidate(t, start, frames, doll, whole.Lost, f1, timing, lot) is { Eye: { } next, Lost: < 0 } rest)
+                    return (eye, subject, Lens(f0, whole.Lost, whole.Rig, eye), whole.Rig, whole.RigAt,
+                        new FilmCut(whole.Lost * Dt, next, Lens(whole.Lost, f1, rest.Rig, next), rest.Rig, rest.RigAt));
+            }
+            // O10: nothing passed: from 70 degrees overhead at 12 m; or (note 1055) further up, or back along the line, held in
+            // a tunnel's bore (O11), the first of them clear of everything (O3-O5) the whole shot; else the 12 m.
+            var away = Away(frames, f0, f1, subject);
+            var along = (frames[f0].Cars[0].Back with { Y = 0 }).Length > 1e-6 ? (frames[f0].Cars[0].Back with { Y = 0 }).Normalized : away;
+            Double3 Held(Double3 p) => lot.World?.Hold(p, t.CameraRadius + 0.2) ?? p;
+            var fallbacks = new[] { 12.0, 16, 20, 25 }.Select(d => subject + new Double3(DMath.Cos(70 * DMath.PI / 180) * d * away.X, DMath.Sin(70 * DMath.PI / 180) * d,
+                    DMath.Cos(70 * DMath.PI / 180) * d * away.Z))
+                .Concat(new[] { 15.0, 20, 30 }.SelectMany(d => new[] { subject + along * d + Double3.Up * 3, subject - along * d + Double3.Up * 3 }))
+                .Select(Held).ToList();
+            // Of those clear, the first that keeps them the whole shot (O1, O7), else the one keeping them longest.
+            var clear = fallbacks.Where(e => Clear(t, start.Cars, frames, doll, f0, f1, _ => e, lot)).ToList();
+            int Kept(Double3 e) => Lost(t, frames, doll, f0, f1, _ => e, timing, lot) is var lost and >= 0 ? lost : int.MaxValue;
+            var overhead = clear.Count > 0 ? clear.MaxBy(Kept) : fallbacks[0];
+            return (overhead, subject, Fit(t, frames, doll, f0, f1, _ => overhead), -1, default, null);
+        }
+
+        /// <summary>The way out from the train's middle to the subject, level (the side the shots prefer, away from the consist).</summary>
+        static Double3 Away(IReadOnlyList<FilmFrame> frames, int f0, int f1, Double3 subject)
+        {
+            var train = frames[(f0 + f1) / 2].Cars.Aggregate(Double3.Zero, (a, c) => a + c.Origin) * (1.0 / frames[0].Cars.Count);
+            var away = (subject - train) with { Y = 0 };
+            return away.Length > 1e-6 ? away.Normalized : new Double3(1, 0, 0);
+        }
+
+        /// <summary>
+        /// Inside a car through the middle of frames <paramref name="f0"/>-<paramref name="f1"/>: the camera's rigged to that car
+        /// (it held still in the world, the car ran off out of the shot at 20 m/s with them in it), at <paramref name="eye"/>
+        /// in its frame. Otherwise held in the world (−1).
+        /// </summary>
+        static (int Rig, Double3 RigAt) Rigging(FilmStart start, IReadOnlyList<FilmFrame> frames, int doll, int f0, int f1, Double3 eye)
+        {
+            int mid = (f0 + f1) / 2, rig = -1;
             for (int c = 0; c < start.Cars.Count && c < frames[mid].Cars.Count; c++)
                 if (InBox(frames[mid].Cars[c], start.Cars[c], frames[mid].Ragdolls[doll][2]))
                     rig = c;
-            Double3 EyeAt(Double3 eye, int f) => rig < 0 ? eye : ToWorld(frames[f].Cars[rig], ToLocal(frames[mid].Cars[rig], eye));
-            var vel = (frames[f1].Ragdolls[doll][2] - frames[f0].Ragdolls[doll][2]) * (1.0 / Math.Max(Dt, to - from));
-            var train = frames[(f0 + f1) / 2].Cars.Aggregate(Double3.Zero, (a, c) => a + c.Origin) * (1.0 / frames[0].Cars.Count);
-            var away = (subject - train) with { Y = 0 };
-            away = away.Length > 1e-6 ? away.Normalized : new Double3(1, 0, 0);
+            return (rig, rig < 0 ? default : ToLocal(frames[mid].Cars[rig], eye));
+        }
+
+        /// <summary>A camera at <paramref name="eye"/> (as at frame <paramref name="mid"/>) at frame <paramref name="f"/>: held, or carried by its rig.</summary>
+        static Double3 EyeAt(IReadOnlyList<FilmFrame> frames, int rig, int mid, Double3 eye, int f) =>
+            rig < 0 ? eye : ToWorld(frames[f].Cars[rig], ToLocal(frames[mid].Cars[rig], eye));
+
+        /// <summary>
+        /// The best candidate for frames <paramref name="f0"/>-<paramref name="f1"/> (O9): of those holding O3-O5 throughout,
+        /// one that keeps the subject (O1, O7) throughout, by score; else the one keeping them longest. Its eye (none if no
+        /// candidate held O3-O5), the frame they're lost from (−1 never), and its rig.
+        /// </summary>
+        static (Double3? Eye, int Lost, int Rig, Double3 RigAt) Candidate(FilmTuning t, FilmStart start, IReadOnlyList<FilmFrame> frames, int doll, int f0, int f1,
+            FilmShot timing, Lot lot)
+        {
+            int mid = (f0 + f1) / 2;
+            var subject = Middle(frames, doll, mid * Dt);
+            int rig = Rigging(start, frames, doll, f0, f1, subject).Rig;
+            var vel = (frames[f1].Ragdolls[doll][2] - frames[f0].Ragdolls[doll][2]) * (1.0 / Math.Max(Dt, (f1 - f0) * Dt));
+            var away = Away(frames, f0, f1, subject);
             (Double3 Eye, double Score)? best = null;
-            foreach (double r in new[] { 4.0, 7, 11 })
-                foreach (double el in new[] { 10.0, 25, 45 })
-                    for (int a = 0; a < 8; a++)
-                    {
-                        double az = a * DMath.PI / 4, e = el * DMath.PI / 180;
-                        var dir = new Double3(DMath.Cos(az) * DMath.Cos(e), DMath.Sin(e), DMath.Sin(az) * DMath.Cos(e));
-                        var eye = subject + dir * r;
-                        if (!Clear(t, start.Cars, frames, doll, f0, f1, f => EyeAt(eye, f), ground))
-                            continue;
-                        var flat = (dir with { Y = 0 }).Normalized;
-                        double across = vel.Length > 0.5 ? 1 - Math.Abs(Double3.Dot(vel.Normalized, dir * -1)) : 0.5;
-                        // The close ring first (the director, 5 Oct 2026: subjects were 5-40% of the frame, under O6's 25%): a
-                        // 7 m candidate has to be much the better side or angle to win, an 11 m one more so.
-                        double score = Double3.Dot(flat, away) * 1.0 + across * 0.8 - (r - 4) * 0.12 - Math.Abs(el - 25) * 0.005;
-                        if (best is null || score > best.Value.Score)
-                            best = (eye, score);
-                    }
-            // O10: nothing passed: from 70 degrees overhead at 12 m.
-            var overhead = subject + new Double3(DMath.Cos(70 * DMath.PI / 180) * 12 * away.X, DMath.Sin(70 * DMath.PI / 180) * 12, DMath.Cos(70 * DMath.PI / 180) * 12 * away.Z);
-            var chosen = best?.Eye ?? overhead;
-            if (best is null)
-                rig = -1;
-            return (chosen, subject, Fit(t, frames, doll, f0, f1, f => EyeAt(chosen, f)), rig, rig < 0 ? default : ToLocal(frames[mid].Cars[rig], chosen));
+            (Double3 Eye, int Lost)? longest = null;
+            // O11 (note 1055): in a tunnel, the candidates are in the bore: those the shell puts in the rock are held into it,
+            // and there are more along it, ahead of the subject and behind, the way the train ran.
+            bool bore = lot.World?.InRock(subject + Double3.Up * 12) == true;
+            var along = (frames[f0].Cars[0].Back with { Y = 0 }).Length > 1e-6 ? (frames[f0].Cars[0].Back with { Y = 0 }).Normalized : new Double3(0, 0, 1);
+            var shell = from r in new[] { 4.0, 7, 11 }
+                        from el in new[] { 10.0, 25, 45 }
+                        from a in Enumerable.Range(0, 8)
+                        select (R: r, El: el, Dir: new Double3(DMath.Cos(a * DMath.PI / 4) * DMath.Cos(el * DMath.PI / 180), DMath.Sin(el * DMath.PI / 180),
+                            DMath.Sin(a * DMath.PI / 4) * DMath.Cos(el * DMath.PI / 180)));
+            if (bore)
+                shell = shell.Concat(from r in new[] { 4.0, 7, 11, 15, 20 }
+                                     from way in new[] { 1.0, -1.0 }
+                                     from el in new[] { 5.0, 10, 25 }
+                                     select (R: r, El: el, Dir: (along * (way * DMath.Cos(el * DMath.PI / 180)) + Double3.Up * DMath.Sin(el * DMath.PI / 180)).Normalized));
+            foreach (var (r, el, dir) in shell.ToList())
+            {
+                var eye = subject + dir * r;
+                if (bore)
+                    eye = lot.World!.Hold(eye, t.CameraRadius + 0.2);
+                Double3 At(int f) => EyeAt(frames, rig, mid, eye, f);
+                if (!Clear(t, start.Cars, frames, doll, f0, f1, At, lot))
+                    continue;
+                int lost = Lost(t, frames, doll, f0, f1, At, timing, lot);
+                if (lost >= 0)
+                {
+                    if (longest is null || lost > longest.Value.Lost)
+                        longest = (eye, lost);
+                    continue;
+                }
+                var flat = (dir with { Y = 0 }).Normalized;
+                double across = vel.Length > 0.5 ? 1 - Math.Abs(Double3.Dot(vel.Normalized, dir * -1)) : 0.5;
+                // The close ring first (the director, 5 Oct 2026: subjects were 5-40% of the frame, under O6's 25%): a
+                // 7 m candidate has to be much the better side or angle to win, an 11 m one more so.
+                double score = Double3.Dot(flat, away) * 1.0 + across * 0.8 - (r - 4) * 0.12 - Math.Abs(el - 25) * 0.005;
+                if (best is null || score > best.Value.Score)
+                    best = (eye, score);
+            }
+            if ((best?.Eye ?? longest?.Eye) is not { } chosen)
+                return (null, f0, -1, default);
+            var (rigged, rigAt) = Rigging(start, frames, doll, f0, f1, chosen);
+            return (chosen, best is null ? longest!.Value.Lost : -1, rigged, rigAt);
         }
 
         static bool InBox((Double3 Origin, Double3 Right, Double3 Up, Double3 Back) pose, FilmCar car, Double3 world)
@@ -1696,12 +1853,14 @@ public sealed class WreckFilm
         /// <see cref="CameraFaults"/>.
         /// </remarks>
         static bool Clear(FilmTuning t, IReadOnlyList<FilmCar> cars, IReadOnlyList<FilmFrame> frames, int doll, int f0, int f1, Func<int, Double3> eyeAt,
-            Func<double, double, double> ground)
+            Lot lot)
         {
             for (int f = f0; f <= f1; f++)
             {
                 var eye = eyeAt(f);
-                if (eye.Y < ground(eye.X, eye.Z) + t.GroundClearance)
+                // O3 and O11 (note 1055): over the ground, or under a bridge's deck over the land and the water; never in a
+                // tunnel's rock, a tree or a wall.
+                if (eye.Y < lot.Floor(t, eye) + t.GroundClearance || lot.World?.Touch(eye, t.CameraRadius) is not null)
                     return false;
                 var frame = frames[f];
                 var joints = frame.Ragdolls[doll];
@@ -1723,22 +1882,76 @@ public sealed class WreckFilm
                 foreach (var j in (frame.Dead ?? []).SelectMany(x => x).Concat((frame.Loads ?? []).Select(x => x.At)).Concat((frame.Items ?? []).Select(x => x.At)))
                     if ((j - eye).Length < t.LensClearance + t.CameraRadius)
                         return false;
-                int seen = 0;
-                foreach (int j in new[] { 0, 1, 2 })
-                    if (Sightline(eye, joints[j], ground))
-                        seen++;
-                if (seen < 2)
-                    return false;
             }
             return true;
         }
 
-        static bool Sightline(Double3 eye, Double3 at, Func<double, double, double> ground)
+        /// <summary>
+        /// E.4 O1 and O7 with O8's allowance (note 1055): the frame from which the subject's been lost for more than
+        /// <see cref="FilmTuning.CoverSeconds"/> of the shot's real time (fewer than two of their head, chest and pelvis seen past
+        /// what never fades, the ground and a tunnel's rock; or their head or chest covered by another body or a piece of the
+        /// debris); −1 if never.
+        /// </summary>
+        static int Lost(FilmTuning t, IReadOnlyList<FilmFrame> frames, int doll, int f0, int f1, Func<int, Double3> eyeAt, FilmShot timing, Lot lot)
+        {
+            int since = -1;
+            for (int f = f0; f <= f1; f++)
+            {
+                if (Keeps(frames[f], doll, eyeAt(f), lot))
+                    since = -1;
+                else if (since < 0)
+                    since = f;
+                if (since >= 0 && timing.RealAt((f + 1) * Dt) - timing.RealAt(since * Dt) > t.CoverSeconds)
+                    return since;
+            }
+            return -1;
+        }
+
+        /// <summary>O1 and O7 at one frame: two of the subject's head, chest and pelvis seen, and nothing over their head or chest.</summary>
+        public static bool Keeps(FilmFrame frame, int doll, Double3 eye, Lot lot)
+        {
+            var joints = frame.Ragdolls[doll];
+            int seen = 0;
+            foreach (int j in new[] { 0, 1, 2 })
+                if (Sightline(eye, joints[j], lot))
+                    seen++;
+            return seen >= 2 && !Covered(frame, doll, eye);
+        }
+
+        /// <summary>O7: another body's joint, or a piece of the debris, across the line to the subject's head or chest.</summary>
+        static bool Covered(FilmFrame frame, int doll, Double3 eye)
+        {
+            var subject = frame.Ragdolls[doll];
+            foreach (int j in new[] { 0, 1 })
+            {
+                var d = subject[j] - eye;
+                double len2 = Double3.Dot(d, d);
+                if (len2 < 1e-9)
+                    continue;
+                bool Across(Double3 p)
+                {
+                    double u = Double3.Dot(p - eye, d) / len2;
+                    return u > 0.05 && u < 0.95 && (eye + d * u - p).Length < OtherBody;
+                }
+                for (int other = 0; other < frame.Ragdolls.Count; other++)
+                    if (other != doll && frame.Ragdolls[other].Any(Across))
+                        return true;
+                if ((frame.Dead ?? []).Any(x => x.Any(Across)) || (frame.Items ?? []).Concat(frame.Loads ?? []).Any(x => Across(x.At)))
+                    return true;
+            }
+            return false;
+        }
+
+        /// <summary>How near the line to the subject another body's joint covers it (m): a joint's own size and a little.</summary>
+        const double OtherBody = 0.15;
+
+        /// <summary>O1: the line from the camera to a joint, clear of what never fades (O2): the ground, and a tunnel's rock (note 1055).</summary>
+        static bool Sightline(Double3 eye, Double3 at, Lot lot)
         {
             for (int k = 1; k < 12; k++)
             {
                 var p = Double3.Lerp(eye, at, k / 12.0);
-                if (p.Y < ground(p.X, p.Z) - 0.05)
+                if (p.Y < lot.Ground(p.X, p.Z) - 0.05 || lot.World?.InRock(p) == true)
                     return false;
             }
             return true;
