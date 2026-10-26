@@ -25,7 +25,9 @@ public class RadioVoiceSoundTests
         var trains = DataFile.Load<TrainTuning>(Path.Combine(Content, TrainTuning.File));
         var players = DataFile.Load<PlayerTuning>(Path.Combine(Content, PlayerTuning.File));
         var line = new RailLine(new LineDefinition("t", [new TrackSegment(10_000)]));
-        var client = new ClientSession(new LoopbackNetwork().CreateClient(), new TrainOnLine(new TrainDynamics(Consist.Uniform(trains, 3, 0)), line, 2_000), trains, players);
+        var net = new LoopbackNetwork();
+        net.CreateHost();
+        var client = new ClientSession(net.CreateClient(), new TrainOnLine(new TrainDynamics(Consist.Uniform(trains, 3, 0)), line, 2_000), trains, players);
         var audio = new GameAudio(Content);
         audio.Bank.Samples.InlineBytes = long.MaxValue;
         var ears = new VoiceChat(audio.Mixer);
