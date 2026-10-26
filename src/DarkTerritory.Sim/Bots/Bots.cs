@@ -2189,7 +2189,11 @@ public sealed class RoofWalkerBot(int seed, StopHand? job = null) : IWorldBot
         // a car a Climber had, climbed straight back up the ladder from the plate into it.
         if (_warm is { Shelter: true } && self.Parent > 0)
         {
-            if (self.Surface == Surface.Ladder)
+            // Note 1036: not with the train standing, where the mouth takes nobody: on up, and in from the roof as ever. Stood
+            // 9 m short of frontier:7's truss bridge (its warning up all the while) after a Knotter, the gunner coming back
+            // aboard by the guard van's side ladder was sent back down it, hung at its foot, and the driver waited on it
+            // there for the rest of the night.
+            if (self.Surface == Surface.Ladder && train.Dynamics.Speed >= Net.CabControls.StandingBelow)
                 return new PlayerIntent { MoveZ = -1 };
             if (self.Surface is Surface.Coupler or Surface.Deck)
                 return new PlayerIntent();

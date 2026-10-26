@@ -38,6 +38,15 @@
   // §8) ends the campaign: the save is closed, the company has no more trains for that crew, and the slot's next start is a
   // new crew from a fortress. Off, the night is settled like any other lost one and the crew goes on (as before note 632).
   "dawnEndsCampaign": true,
+  // GDD Part Eleven q8 ("Is corruption ever visible on the train itself: growth in the couplings, in the tender, under the
+  // cars?"; note 1026 rank 6, queue #730, note 1039). Look only, and off until the director answers note 1026's Q2. On, each
+  // creature that gets onto a car leaves `perBoarder` of growth under that car's floor and `toCouplings` of that at each of
+  // its couplings, and `toTender` of it in the tender (the coal draws it forward). Every spot already grown spreads by
+  // `perNight` a night settled, to `most` at most (1, black all over); how it's drawn and heard is look.json's
+  // "trainGrowth". The blacksmith scrapes the whole train clean for
+  // `scrapeCost` scrip (small: about half a spare lamp). Not in the GDD: these numbers are ours, to read on a few nights.
+  "growth": { "on": false, "perBoarder": 0.18, "toCouplings": 0.6, "toTender": 0.05, "perNight": 0.04, "most": 1,
+    "scrapeCost": 35 },
   // Spec E: 3 save slots per host.
   "saveSlots": 3,
   // Spec F.3. Cost is a share of what the next car costs now. "effect" multiplies tuning: tender (tender capacity),

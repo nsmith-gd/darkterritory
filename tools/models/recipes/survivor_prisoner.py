@@ -68,5 +68,5 @@ DRESS = {
 }
 
 crewfigure.build("survivor_prisoner", crewfigure.Style(
-    dress=DRESS, masks={"bands": bands, "number": number, "scars": scars}, grade=grade, preview="PRISONER_PREVIEW", figure="bare", hats=False,
+    dress=DRESS, masks={"bands": bands, "number": number, "scars": scars}, grade=grade, preview="PRISONER_PREVIEW", figure="bare", hats=False, face=True,
     what="a freed prisoner in penal greys, modelled over tools/blender/crew.py"))

@@ -1121,6 +1121,9 @@ CampaignState? Play(IPlaySession session, CampaignState? campaign)
     telemetry.NightBegin(telemetryWorld, net is null ? "solo" : net.Host is not null ? "host" : "client", humans: Math.Max(1, session.World.Names.Count),
         bots: 0, me: session.PlayerId);
 #if DEVTOOLS
+    // --growth 0.8 (or a spec, 0,40,12/20,0; note 1039): the train grown over for a look, whatever campaign.json's growth says.
+    if (Arg("--growth", "") is { Length: > 0 } grow)
+        session.World.Growth = DarkTerritory.Sim.Campaign.TrainGrowth.Dev(grow, session.Train.Vehicles.Count);
     // A note (F8, F9) carries the last minute's frames (GDD §34.3).
     if (dev.Notes is { } frameNotes)
         frameNotes.Frames = () => frameWatch.Story(timer.Elapsed.TotalSeconds);
@@ -1159,6 +1162,7 @@ CampaignState? Play(IPlaySession session, CampaignState? campaign)
         Outfits = session.World.Outfits,
         Paints = session.World.Paints,
         CrewSigil = session.World.CrewSigil,
+        Growth = session.World.Growth,
         Impacts = session.World.Impacts,
         Run = session.World.Run,
         Band = session.World.BandTuning,
@@ -1230,6 +1234,21 @@ CampaignState? Play(IPlaySession session, CampaignState? campaign)
             telemetry.Purchase($"upgrade:{id}", scripBefore - campaign.Scrip, campaign.Scrip);
         }
         return bought;
+    }
+    : null;
+    // Note 1039: the blacksmith scrapes the train's growth off; the yard's hosted again, clean.
+    frontEnd.SmithyScrape = net is { Host: not null } && campaign is not null ? () =>
+    {
+        double scripBefore = campaign!.Scrip;
+        var scraped = Campaign.Scrape(campaignTuning, campaign!, frontEnd.Standing);
+        if (scraped.Ok)
+        {
+            campaign = scraped.State;
+            saves.Save(campaign);
+            refitWanted = true;
+            telemetry.Purchase("scrape", scripBefore - campaign.Scrip, campaign.Scrip);
+        }
+        return scraped;
     }
     : null;
     // Dave's words and his card (note 570): on this machine, as a town's are.

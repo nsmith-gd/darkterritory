@@ -153,7 +153,8 @@ def model(objs, lm, brow=1.0):
 def decimate(objs, target, lm, first=1.2):
     """The game mesh's head: collapsed to about `target` triangles, symmetrically, the face kept dense and the skull
     behind and above it, under the hat or hair, collapsed most: first the whole to `first` times the target, then only
-    the skull (a vertex group the collapse is held to) the rest of the way."""
+    the skull (a vertex group the collapse is held to) the rest of the way. `first` None: a bare head (the survivors'),
+    its skull seen, collapsed evenly with the face."""
     def tris():
         return sum(sum(len(p.vertices) - 2 for p in o.data.polygons) for o in objs)
 
@@ -171,6 +172,10 @@ def decimate(objs, target, lm, first=1.2):
             bpy.context.view_layer.objects.active = o
             bpy.ops.object.modifier_apply(modifier=m.name)
 
+    if first is None:
+        if tris() > target:
+            collapse(target / tris())
+        return
     if tris() > target * first:
         collapse(target * first / tris())
     tip = lm["tip"]

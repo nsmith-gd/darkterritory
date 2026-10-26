@@ -493,8 +493,9 @@ DRESS = {
     "dave_lining.": ("wool", 24.0, (0.9, 0.9, 0.9), 0.35, 2),
 }
 
+# (His head 1900 triangles: rebaked on today's crew figure, its hands' own union, he came to 10068, over GDD §27's 10k; note 1033.)
 crewfigure.build("dave", crewfigure.Style(
-    dress=DRESS, figure="dave", hats=False, lamp=False, mask=head_kit,
+    dress=DRESS, figure="dave", hats=False, lamp=False, mask=head_kit, face=True, head_tris=1900,
     shapes={"dave_vest.0": wales, "dave_vest.1": nap, "dave_vest.3": raised, "dave_vest.5": grain, "crew_atlas.trouser": denim},
     masks={"spatter": spatter, "fleck": fleck_colour, "cloth": cloth, "lining": lining, "bare": bare, "hair": hair_mask}, grade=grade,
     preview="DAVE_PREVIEW",

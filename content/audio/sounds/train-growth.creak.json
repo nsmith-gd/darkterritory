@@ -1,0 +1,23 @@
+// The train's corruption (GDD Part Eleven q8; ARCHITECTURE §8 note 1039): a car grown over creaking wetly at speed. The
+// frame's own creak (bed-groan's), smothered: its top cut off as if heard through the growth, and under it a slow wet
+// suck and a few bubbling clicks as the black stuff in the joints works with the frame. Rarer and lower than the bend's
+// creaks (GameAudio.GrowthCreak, look.json trainGrowth): a sound the crew notices on a straight, where nothing else creaks.
+{
+  "tier": 5, "loop": false, "duration": 0.9, "maxInstances": 6, "minDistance": 3, "maxDistance": 70, "rolloff": 1.0, "gainDb": -6,
+  "flat": false,
+  "layers": [
+    // The frame's creak, muffled.
+    { "source": "sample", "sample": "bed-groan/creak", "gain": 0.9, "pitchJitter": 0.25, "gainJitter": 0.4,
+      "filters": [{ "type": "lowPass", "frequency": 1400 }] },
+    // The wet suck: low noise swelling and pulled back, wobbling.
+    { "source": "noise", "gain": 0.8,
+      "filters": [{ "type": "bandPass", "frequency": 320, "q": 1.4 }, { "type": "lowPass", "frequency": 900 }],
+      "tremolo": { "rate": 9, "depth": 0.6, "jitter": 0.7 },
+      "envelope": [[0, 0], [0.12, 1], [0.45, 0.7], [0.9, 0]] },
+    // A few bubbling clicks through it.
+    { "source": "impulse", "frequency": 7, "gain": 0.4, "delay": 0.1,
+      "filters": [{ "type": "bandPass", "frequency": 700, "q": 4 }],
+      "tremolo": { "rate": 5, "depth": 1, "duty": 0.35, "jitter": 0.9 },
+      "envelope": [[0, 1], [0.7, 0]] }
+  ]
+}

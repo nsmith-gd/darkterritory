@@ -44,6 +44,21 @@
     // combinations. A pair with a stop or its loading in it is staged at one, as --at-stops does; a pair with a grade starts
     // with a stretch as steep as the director's "grade" (enemies.json director.gradePercent) within gradeWithinM ahead.
     "gradeWithinM": 1200,
+    // A combination with a kind that comes only to a fast train (note 1036: the Gannet, enemies.json gannet.arriveAbove for
+    // arriveSeconds) is run with the express driver (note 376: hot at expressSpeed, no stops) for fastSeconds, from a stretch
+    // with no tunnel for fastClearM ahead (in one, the Gannet peels off). The sweep's driver cruises at 14 m/s: on its nights
+    // the Gannet was never sent.
+    "expressSpeed": 21, "fastSeconds": 150, "fastClearM": 3000,
+    // A pair at a stop goes to one that has what its creature needs (note 1036): the Grumbler a crane, Tower Jaw a coaling
+    // tower or a crane's gantry, the Freight Beetle crates, the Track Doll's loading a coaling tower (worked on the main line,
+    // where the doll comes; a spur's loading is off it). At a coaling tower the tender starts at coalTenderShare of its
+    // capacity, so the crew stop to fill it. None of the grid's routes having such a stop, the pair's cells are run on the
+    // first of siteRoutes that does (frontier:3: its coaling tower's the night's first stop).
+    "coalTenderShare": 0.5, "siteRoutes": ["frontier:3"],
+    // A pair whose condition is the stop or its loading, or with a creature that comes at the loading (Tower Jaw, the Freight
+    // Beetle), runs loadingSeconds: a crew of two's loading began 134-184 s in (frontier:7's Foundry, deadLines:2's yard), so
+    // on stopSeconds' 150 it never met the loading at all.
+    "loadingSeconds": 360,
     "unwinnableLost": 0.5, "trivialCargoLoss": 0.02,
     // GDD §34 "every pair and triple": a meeting the bots never give its chance can't be judged (note 186's "dormant"). On
     // these nights only, the last walker is the look-out (note 212): off the ballast at the start it waits up to waitSeconds

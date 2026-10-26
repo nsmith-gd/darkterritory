@@ -40,7 +40,9 @@ public sealed partial class GameAudio
         string walls = Path.Combine(contentRoot, WallsTuning.File);
         _walls = File.Exists(walls) ? new HotData<WallsTuning>(walls) : null;
         string look = Path.Combine(contentRoot, LookTuning.File);
-        CargoOutside = File.Exists(look) ? DataFile.Load<LookTuning>(look).CargoOutside : new();
+        var lookTuning = File.Exists(look) ? DataFile.Load<LookTuning>(look) : new LookTuning();
+        CargoOutside = lookTuning.CargoOutside;
+        Growth = lookTuning.TrainGrowth;
         Mixer = new Mixer(Bank, _mix.Value);
         PrepareMix(contentRoot);
         Opera = new Opera(contentRoot);
@@ -52,6 +54,8 @@ public sealed partial class GameAudio
     public SoundBank Bank { get; }
     /// <summary>What's in a car heard from outside it (look.json cargoOutside, note 1025): its sounds as loud as what's left of it.</summary>
     public CargoOutsideTuning CargoOutside { get; set; }
+    /// <summary>The train's corruption heard (look.json trainGrowth, note 1039): a heavily grown car creaking wetly at speed.</summary>
+    public TrainGrowthLook Growth { get; set; }
     /// <summary>The yard's voice on the radio (note 240): what it can say, and how long a line takes it.</summary>
     public ClerkVoice Clerk { get; }
     public Mixer Mixer { get; }

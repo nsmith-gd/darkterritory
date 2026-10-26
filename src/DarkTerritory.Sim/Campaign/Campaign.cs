@@ -23,6 +23,8 @@ public sealed record CampaignTuning(int StartingCars, double StartingScrip, int 
     /// 632: "the campaign ends", roguelike): the save is closed, and the next start is a new crew. Unset, the crew goes on.
     /// </summary>
     public bool DawnEndsCampaign { get; init; }
+    /// <summary>Corruption growing on the train (campaign.json <c>growth</c>; GDD Part Eleven q8; note 1039). Unset or off, none.</summary>
+    public GrowthTuning? Growth { get; init; }
 }
 
 /// <summary>One line of the fortress's stores: its price, how many a night takes at most, and what each holds.</summary>
@@ -256,6 +258,12 @@ public sealed record CampaignState
     /// the fortress. Painted on the engine's side and small on every crewmate's mask; it travels with the save (note 724).
     /// </summary>
     public int Sigil { get; init; }
+    /// <summary>
+    /// The corruption grown on the train (note 1039; GDD Part Eleven q8): where creatures got on, a little more each night,
+    /// until the blacksmith scrapes it off (<see cref="Campaign.Scrape"/>). Null in a save from before it, or with
+    /// campaign.json <c>growth</c> off: a clean train.
+    /// </summary>
+    public TrainGrowth? Growth { get; init; }
 }
 
 /// <summary>What a purchase came to: the new state, or why not.</summary>
@@ -556,8 +564,31 @@ public static class Campaign
         foreach (var (name, look) in report.Identities)
             identities[name] = look;
         // The departure's stores were the night's issue (note 182): spent with it.
-        return s with { Cars = cars, Scrip = scrip, Runs = s.Runs + 1, History = [.. s.History, log], Current = null, Checkpoint = null, SpareKits = spares, Identities = identities, Stores = new(), Over = s.Over || Ends(t, report.End) };
+        // Note 1039: the night's boarders grow on the train where they got on, and what's grown spreads.
+        var growth = t?.Growth is { On: true } g ? (s.Growth ?? TrainGrowth.None).Night(g, report.Boarded, cars + 1) : s.Growth;
+        return s with { Cars = cars, Scrip = scrip, Runs = s.Runs + 1, History = [.. s.History, log], Current = null, Checkpoint = null, SpareKits = spares, Identities = identities, Stores = new(), Over = s.Over || Ends(t, report.End), Growth = growth };
     }
+
+    /// <summary>
+    /// The blacksmith scrapes the train clean (note 1039; campaign.json <c>growth.scrapeCost</c>): the couplings, the tender and
+    /// under every car, for a small fee. Not mid-night, and not a clean train.
+    /// </summary>
+    public static Purchase Scrape(CampaignTuning t, CampaignState s, Towns.StandingTuning? standing = null)
+    {
+        if (t.Growth is not { On: true } g)
+            return new(s, "the blacksmith doesn't do that");
+        if (s.Current is not null)
+            return new(s, "the train's scraped before the gates open");
+        if (s.Growth is not { Any: true })
+            return new(s, "there's nothing grown on the train to scrape");
+        double cost = ScrapeCost(t, s, standing);
+        return s.Scrip < cost ? new(s, $"scraping the train costs {cost:0} scrip; you have {s.Scrip:0}")
+            : new(s with { Growth = null, Scrip = s.Scrip - cost }, null);
+    }
+
+    /// <summary>What the blacksmith asks to scrape the train (note 1039), dearer in a town cold to the crew as their upgrades are.</summary>
+    public static double ScrapeCost(CampaignTuning t, CampaignState s, Towns.StandingTuning? standing = null) =>
+        Math.Round((t.Growth?.ScrapeCost ?? 0) * Dearer(s, standing));
 
     /// <summary>
     /// Two copies of one crew's save (GDD §11, note 724): the one with more nights settled wins; with as many, the newer
