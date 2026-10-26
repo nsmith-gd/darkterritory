@@ -1192,6 +1192,7 @@ written here instead is moved out by `tools/coord/notes.py split`; the Coordinat
 - [1031. The towns' and the shore's leftovers (Uma, nathaniel3; queue #734; level-design T.4, maritime-rules §4; note 1026's rank 10)](notes/1031.md)
 - [1032. What the harness verifies: the checks the GDD promised that nothing ran (Silas, the Token Budget Manager's worker, nathaniel3; queue #735;…](notes/1032.md)
 - [1034. Moments and the reel: commendation clips instead of stills (n1-H2, nathaniel1's Token Budget Manager's worker; queue #256, carried on from…](notes/1034.md)
+- [1037. The visual tell audit, `dt tells` (n1-V1, nathaniel1's Token Budget Manager's worker; queue #262, after W1's stale claim, note 1026;…](notes/1037.md)
 - [1038. The social test measured, `dt social` (n1-S3, nathaniel1's Token Budget Manager's worker; queue #255, carried on from W1's claim of 9 Oct,…](notes/1038.md)
 - [1040. A corrupted human's voice on the crew's radio (n1-R2, nathaniel1's Token Budget Manager's worker; queue #729; GDD Part Eleven q4; note 1026…](notes/1040.md)
 <!-- end of the notes index -->

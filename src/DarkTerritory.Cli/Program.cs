@@ -79,6 +79,13 @@ return args switch
     ["gym", ..] => Print(DarkTerritory.Dev.Gym.GymCheck.Run(content,
         Str(args, "--only", "") is { Length: > 0 } only ? DarkTerritory.Dev.Live.EnemyNames.ParseAll(only.Split(',')) : null,
         Opt(args, "--seconds", 6), args.Contains("--no-shots") ? null : Str(args, "--shots", "out/gym"))),
+    // dt tells [--only moose,gaunt] [--conditions clear,fog] [--out out/tells] [--frames]: the visual tell audit (systems-spec
+    // A.4a, note 1037), A.3's audio audit's twin: each creature called in the gym, seen from its warning distance in the clear,
+    // the dark, rain and fog; its pixels and contrast against tells.json's floor, a table and a contact sheet per tell.
+    ["tells", ..] => Print(DarkTerritory.Dev.Tells.TellAudit.Run(content,
+        Str(args, "--only", "") is { Length: > 0 } tellsOnly ? tellsOnly.Split(',') : null,
+        Str(args, "--conditions", "") is { Length: > 0 } nights ? nights.Split(',') : null,
+        Str(args, "--out", "out/tells"), args.Contains("--frames"))),
     // dt edition bake <name> --into <dir>: the base content with an edition (editions/<name>) baked in, as the demo build
     // ships it (T79). dt [--edition demo] edition: what the content in use is.
     ["edition", "bake", var name, ..] => Print(new { edition = name, content = Path.GetFullPath(Mods.Bake(baseContent, name, Str(args, "--into", $"out/editions/{name}"))) }),
