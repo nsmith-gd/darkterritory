@@ -3192,6 +3192,18 @@ static object Screenshot(TrainTuning t, string content, string[] args)
         camera = Staging.TownCamera(town, "lostcrews");
     // The crew's logbook on its shelf in car one, as every night has it (note 721; the lockers view sees it).
     scene.Logbook = LogbookReader.Shelf(train, new LogbookTuning());
+    // --rail a.png,b.png,... (note 1056): the crew photos pinned on the big cab's photo rail, the nth file night n's, as many
+    // as its frames and kept as memory.json's rail says (`dt screenshot --view crewphoto` makes one; the backwall and
+    // photorail views see it).
+    if (Str(args, "--rail", "") is { Length: > 0 } railFiles)
+    {
+        var railTuning = DataFile.Load<MemoryTuning>(Path.Combine(content, MemoryTuning.File)).Rail;
+        var photos = railFiles.Split(',', StringSplitOptions.RemoveEmptyEntries | StringSplitOptions.TrimEntries)
+            .Select(f => BookmarkAlbum.ReadPhoto(Path.GetFullPath(f))).ToList();
+        (scene.RailCells, scene.RailGlow) = (railTuning.Cells, railTuning.Glow);
+        scene.Rail = [.. PhotoRail.Pinned(Enumerable.Range(0, photos.Count).Where(i => photos[i] is not null), DarkTerritory.Game.Art.TrainKit.PhotoFrames, railTuning.Keep)
+            .Select(i => photos[i]!)];
+    }
     scene.Build(mesh, train, camera.Position, leaned);
     // How long a frame's scene takes to build on the CPU, warm (the first build cooks the kit's pieces).
     var buildClock = Stopwatch.StartNew();

@@ -23,6 +23,34 @@ public static partial class TrainKit
     public static Box? GalleryFloor(CarShape shape) =>
         shape.Solids.Where(s => s.Part == PartKind.Gallery).OrderByDescending(s => s.Box.Max.Y).Select(s => (Box?)s.Box).FirstOrDefault();
 
+    /// <summary>The photo rail's frames (note 1056): two rows of two over each way out, eight in all.</summary>
+    public const int PhotoFrames = 8;
+
+    /// <summary>A rail frame's outside size (m, across and up), the print's inside it (16:9, the crew photo's shape), and the gap between frames.</summary>
+    public static readonly Vector2 PhotoFrameSize = new(0.28f, 0.18f), PhotoPrintSize = new(0.248f, 0.1395f);
+    public const float PhotoFrameGap = 0.03f;
+
+    /// <summary>The photo rail's top (frame Y): just under the roof's low edge, over the doorways' heads.</summary>
+    static float PhotoRailTop(CarShape shape, float doorHeight) => (float)shape.Cab!.Value.Min.Y + 0.1f + doorHeight + 0.44f;
+
+    /// <summary>
+    /// Rail frame <paramref name="index"/>'s centre on its face (the engine's frame; its print faces −Z, into the cab), in the
+    /// order a night's photo is pinned (note 1056): as you face the back wall, left to right along the top row, then along
+    /// the bottom; each side's pair over its way out. Even indexes are the top row.
+    /// </summary>
+    public static Vector3 PhotoFrame(CarShape shape, int index, float? doorHeight = null)
+    {
+        float top = PhotoRailTop(shape, doorHeight ?? (float)new Sim.Train.DoorwayTuning().Height);
+        // Facing the back wall (+Z), your left is +X: the frames run from +X to −X, two over each doorway, either side of
+        // the plate over the boiler's end (the cuckoo clock's under the rail between them).
+        int row = index / 4, col = index % 4;
+        float half = (float)shape.Solids.First(s => s.Part == PartKind.Boiler).Box.Max.X;
+        float step = PhotoFrameSize.X + 0.04f, inner = half + 0.03f + PhotoFrameSize.X / 2;
+        float x = col switch { 0 => inner + step, 1 => inner, 2 => -inner, _ => -inner - step };
+        float y = top - 0.02f - PhotoFrameSize.Y / 2 - row * (PhotoFrameSize.Y + PhotoFrameGap);
+        return new Vector3(x, y, BackFace(shape) - 0.025f);
+    }
+
     /// <summary>The back wall's face into the cab (frame Z): the plate over the boiler's end.</summary>
     static float BackFace(CarShape shape) => (float)shape.Cab!.Value.Max.Z - 0.15f;
 
@@ -243,8 +271,8 @@ public static partial class TrainKit
     /// The back wall (note 716): the plate over the boiler's end warm with it, its rivets and the feed's pipe across it, a
     /// warming shelf at waist height with the kettle on its left half (its right half kept for the gramophone,
     /// <see cref="GramophoneShelf"/>); over them the cuckoo clock, a carved house with its weights on chains; along the top
-    /// of the wall, over both ways out down the boiler, the photo rail's empty frames (queue #455 pins the crew's photos in
-    /// them); and on the side walls at the back, the trophy shelf on the left and the crew's hooks on the right.
+    /// of the wall, over both ways out down the boiler, the photo rail's frames (note 1056: each delivered night's crew photo
+    /// pinned in the next); and on the side walls at the back, the trophy shelf on the left and the crew's hooks on the right.
     /// </summary>
     static void BackWall(Kit k, CarShape shape, float w, float deck, float bw, float roofLow)
     {
@@ -312,24 +340,26 @@ public static partial class TrainKit
             k.Lathe(new Vector3(x, bottom, cz + 0.01f), [new(0.025f, 0), new(0.03f, 0.03f), new(0.03f, 0.11f), new(0.012f, 0.14f)], 8);
         }
 
-        // The photo rail: a moulded rail along the top of the back wall, over both ways out, its frames hung empty.
-        float railY = deck + k.DoorHeight() + 0.12f;
+        // The photo rail (note 1056): a moulded rail along the top of the back wall, and over both ways out its frames, two
+        // rows of two a side, landscape for the crew photo's shape; their mounts blank till a night's photo's pinned in one
+        // (the scene draws it, GreyboxScene.Memory).
+        float railTop = PhotoRailTop(shape, k.DoorHeight());
         k.Use("wood_floor", Palette.DeepBrown * 1.2f, 0.7f, 0.15f);
-        k.Box(new Vector3(-w + 0.1f, railY + 0.32f, face - 0.04f), new Vector3(w - 0.1f, railY + 0.36f, face));
-        for (int i = 0; i < 6; i++)
+        k.Box(new Vector3(-w + 0.1f, railTop, face - 0.04f), new Vector3(w - 0.1f, railTop + 0.04f, face));
+        for (int i = 0; i < PhotoFrames; i++)
         {
-            float side = i < 3 ? -1 : 1, j = i % 3;
-            float x = side * (bw + 0.1f + j * 0.19f) + (side > 0 ? 0 : -0.15f) + 0.075f;
-            if (MathF.Abs(x) > w - 0.18f)
-                continue;
-            var c = new Vector3(x, railY + 0.17f, face - 0.025f);
+            var c = PhotoFrame(shape, i, k.DoorHeight());
+            float hw = PhotoFrameSize.X / 2, hh = PhotoFrameSize.Y / 2;
             k.Use("wood_crate", new Vector3(0.18f, 0.11f, 0.06f), 0.6f, 0.2f, tile: 0.4f);
-            k.Box(c - new Vector3(0.075f, 0.1f, 0.012f), c + new Vector3(0.075f, 0.1f, 0.012f), Kit.Faces.All & ~Kit.Faces.PosZ);
-            k.Use("paper_form", new Vector3(0.16f, 0.15f, 0.13f), 0.6f, 0.05f, tile: 0.3f);
-            k.Box(c - new Vector3(0.055f, 0.075f, 0.016f), c + new Vector3(0.055f, 0.075f, -0.012f), Kit.Faces.NegZ);
+            k.Box(c - new Vector3(hw, hh, 0.012f), c + new Vector3(hw, hh, 0.012f), Kit.Faces.All & ~Kit.Faces.PosZ);
+            // The mount: a plain pale card, matte (the print's laid on it just in front; a printed form's texture read as one).
+            k.Use("none", new Vector3(0.62f, 0.58f, 0.5f), 0.3f, 0);
+            k.Box(c - new Vector3(hw - 0.012f, hh - 0.012f, 0.016f), c + new Vector3(hw - 0.012f, hh - 0.012f, -0.012f), Kit.Faces.NegZ);
+            // Hung on two brass wires: the top row from the rail, the bottom row from the frame over it.
             k.Use("brass", Palette.TarnishedBrass, 0.5f, 0.6f);
-            k.Rod(c + new Vector3(-0.04f, 0.1f, 0), new Vector3(c.X, railY + 0.32f, face - 0.03f), 0.003f);
-            k.Rod(c + new Vector3(0.04f, 0.1f, 0), new Vector3(c.X, railY + 0.32f, face - 0.03f), 0.003f);
+            float from = i % 2 == 0 ? railTop : c.Y + hh + PhotoFrameGap;
+            k.Rod(c + new Vector3(-hw * 0.6f, hh, 0), new Vector3(c.X, from, face - 0.03f), 0.003f);
+            k.Rod(c + new Vector3(hw * 0.6f, hh, 0), new Vector3(c.X, from, face - 0.03f), 0.003f);
         }
 
         var cab = shape.Cab!.Value;
