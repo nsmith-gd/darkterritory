@@ -1069,10 +1069,13 @@ public sealed class Director
         BringBack(ref about, rolled, sends.Contains, () => st.FloorKinds - sends.Count(k => !_outTonight.Contains(k)));
         // App. B.1 want balance (note 1048): the shares are spent on what's about, and the chances can leave a want with
         // nothing (Local seed 1 rolled out every cargo kind but the Fire Flies). Each want with a share has wantHold.floor of
-        // its kinds about tonight, brought back as above, after the floor's own (so its draws are as they were).
+        // its kinds about tonight, brought back as above, after the floor's own (so its draws are as they were). Never one
+        // whose chance the director set by hand (the rare kinds' trial, note 915): the Passenger stays at its 30 %.
         if (tuning.WantHold.Floor > 0)
         {
-            var wantOf = Spawns.Rules.ToDictionary(r => Key(r.Kind), r => WantOf(r.Kind).ToString().ToLowerInvariant());
+            var wantOf = Spawns.Rules.Select(r => r.Kind).Distinct()
+                .Where(k => !(tuning.NightChanceTrial.On && tuning.NightChanceTrial.Chances.ContainsKey(Key(k)) && _outTonight.Contains(Key(k))))
+                .ToDictionary(Key, k => WantOf(k).ToString().ToLowerInvariant());
             // And, for the fill (wantHold.fill), one of its rule-less (curve.kinds) about, if it has any.
             var free = tuning.Curve.Kinds.Where(k => k.Value > 0).Select(k => k.Key).ToHashSet();
             foreach (var want in tuning.WantShares.Where(w => w.Value > 0).Select(w => w.Key).Order(StringComparer.Ordinal))
