@@ -44,6 +44,8 @@ public sealed class Brakeman(int id) : Enemy(id)
     public override bool Working(World world) => !Gone && Mode is BrakemanMode.Climb or BrakemanMode.Walk or BrakemanMode.Wind;
 
     public BrakemanMode Mode => (BrakemanMode)(int)Height;
+    /// <summary>Seconds in his <see cref="Mode"/> (host): how long he's been hidden, for his voice on the radio (note 1040).</summary>
+    public double ModeSeconds => _modeSeconds;
     /// <summary>Metres back from the engine's front.</summary>
     public double Back => Extra;
     public int Way => Extra2 >= 0 ? 1 : -1;
