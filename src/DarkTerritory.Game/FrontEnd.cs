@@ -243,6 +243,8 @@ public sealed class FrontEnd
     /// The host's purchase at the forge (note 697): the app buys it on its own campaign, saves it, and fits it before the gate.
     /// </summary>
     public Func<string, Purchase>? SmithyBuy { get; set; }
+    /// <summary>The host's word to the blacksmith to scrape the train clean (note 1039): the campaign's, saved at once. Null on a joiner.</summary>
+    public Func<Purchase>? SmithyScrape { get; set; }
 
     /// <summary>
     /// The blacksmith's shelves with no prices and no stock rules (a developer build's unlock, note 747, sets it): every upgrade
@@ -2011,8 +2013,37 @@ public sealed class FrontEnd
                 mode.Choose();
                 return null;
             }));
+        if (ScrapeEntry(shop) is { } scrape)
+            list.Add(scrape);
         list.Add(new(new("DONE", "Back to the yard."), () => { CloseNight(); return null; }, Back: true));
         return list;
+    }
+
+    /// <summary>
+    /// The blacksmith scrapes the train (note 1039; campaign.json <c>growth</c>): the black growth off the couplings, out of the
+    /// tender and from under the cars, for a small fee. Only with the growth on and something grown.
+    /// </summary>
+    Entry? ScrapeEntry(SmithyShop shop)
+    {
+        if (_campaign.Growth is not { On: true } || shop.State.Growth is not { Any: true } grown)
+            return null;
+        double cost = Campaign.ScrapeCost(_campaign, shop.State, Standing);
+        int worst = grown.Cars.Select((g, i) => (g, i)).MaxBy(x => x.g).i;
+        string where = worst == 0 ? "in the tender" : $"under car {worst}";
+        return new(new($"SCRAPE THE TRAIN: {cost:0} SCRIP", $"The black growth off the couplings and out of the tender and from under the cars. It's worst {where}.",
+            shop.CanBuy && shop.State.Scrip >= cost), () =>
+        {
+            if (!shop.CanBuy || SmithyScrape is not { } scrape)
+            {
+                Message = $"The host keeps the crew's scrip: ask {shop.Payer ?? "them"} to have it scraped.";
+                return null;
+            }
+            var p = scrape();
+            if (p.Ok)
+                Smithy = shop with { State = p.State };
+            Message = p.Ok ? "Scraped clean before the gate." : p.Refused;
+            return null;
+        });
     }
 
     /// <summary>

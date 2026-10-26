@@ -303,6 +303,18 @@
     "light": 0.4, "lightPerFill": 1.4, "lightRange": 3, "lightRangePerFill": 3,
     "outside": 6, "outsidePerFill": 24, "outsideFrom": 0.4, "outsideReach": 2.5, "outsideAbove": 1.5
   },
+  // Corruption grown on the train (GDD Part Eleven q8; queue #730, note 1039): drawn by the train kit where the campaign has
+  // it (campaign.json "growth", off until the director answers note 1026's Q2). From "showFrom" of growth a spot shows,
+  // in "levels" steps to black all over: wet black crust and veins along a coupling and its hose, clumps and hanging strands
+  // under a car's floor, veins up its sides from the sill, and a crust over the tender's coal. A car grown past
+  // "creakFrom" creaks wetly at "creakSpeed" m/s and over, "creaksPerSecond" at most (fully grown, flat out).
+  "trainGrowth": {
+    "showFrom": 0.05,
+    "levels": 4,
+    "creakFrom": 0.5,
+    "creakSpeed": 9,
+    "creaksPerSecond": 0.8
+  },
   // A car eaten from its rear end by a Car Hugger (GDD v1.2 App. A.3 FEED; ARCHITECTURE §8 note 109), by how much of
   // what was left of it has been eaten (Vehicle.Eaten over eaten plus integrity: 1 is eaten through, when it's dropped).
   "bite": {

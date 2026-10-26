@@ -117,8 +117,8 @@ public class FilmTests
     [InlineData(4, 8)]
     [InlineData(7, 26)]
     [InlineData(8, 20)]
-    [InlineData(8, 8, Skip = "Note 1032: a real fault, queued. A crew of eight at 8 m/s: 174 particle-substeps more than 2 cm inside, the deepest player 1's head 2.7 cm in the ground at 4.86 s")]
-    [InlineData(8, 30, Skip = "Note 1032: a real fault, queued. A crew of eight at 30 m/s: 3077 particle-substeps more than 2 cm inside, the deepest player 1's chest 32 cm inside a car at 4.73 s (seven at 30 m/s: 1850, 32 cm)")]
+    [InlineData(8, 8)]
+    [InlineData(8, 30)]
     public void NoParticleEndsASubstepInsideASolid(int crew, double speed)
     {
         var w = Derailed(crew, speed, apart: true);
@@ -137,8 +137,8 @@ public class FilmTests
     [InlineData(4, 20)]
     [InlineData(4, 8)]
     [InlineData(8, 20)]
-    [InlineData(8, 14, Skip = "Note 1032: a real fault, queued. A crew of eight at 14 m/s: a player's shot has car 0 4 cm inside the 1.5 m lens clearance (E.4 O4)")]
-    [InlineData(8, 30, Skip = "Note 1032: a real fault, queued. A crew of eight at 30 m/s: a player's shot has player 1 22 cm inside the 1.5 m lens clearance (E.4 O4)")]
+    [InlineData(8, 14)]
+    [InlineData(8, 30)]
     public void EveryFinishedShotsCameraIsClean(int crew, double speed)
     {
         var w = Derailed(crew, speed, apart: true);

@@ -80,6 +80,13 @@ public sealed partial class World
     public CombatTuning? Combat { get; set; }
     /// <summary>Host: what the crew have said lately (T40), fed by the session as voice arrives. The Soot Children listen here.</summary>
     public Net.VoiceMemory Voices { get; } = new();
+    /// <summary>
+    /// Host: what each crewmate has said on the radio lately (note 1040), a minute of talk each, fed by the session as it forwards
+    /// a radio frame. A corrupted human on the radio says some of it back (<see cref="DarkTerritory.Sim.Enemies.RadioVoice"/>).
+    /// </summary>
+    public Net.VoiceMemory RadioVoices { get; } = new(DarkTerritory.Sim.Enemies.RadioVoice.FramesKept);
+    /// <summary>Host: the night's corrupted human on the radio, once it's spoken (note 1040: at most once a night).</summary>
+    public DarkTerritory.Sim.Enemies.RadioVoicePlay? RadioVoiceSaid { get; set; }
     /// <summary>The crew as they acted this tick (host, with enemies on), for spawns that go after someone in particular.</summary>
     public IReadOnlyList<(int Id, PlayerState State)> CrewThisTick =>
         _context is { } c ? [.. c.Crew.Select(x => ((int)x.Player.Id, x.Player.State))] : [];
@@ -457,6 +464,13 @@ public sealed partial class World
     /// </summary>
     public byte CrewSigil { get; set; }
 
+    /// <summary>
+    /// The corruption grown on the train (note 1039; GDD Part Eleven q8), from the campaign save: the train kit draws it at the
+    /// couplings, under the cars and in the tender, and a heavily grown car creaks wetly at speed. Every machine's world is
+    /// built with it (<c>SessionSetup.Growth</c>). Presentation only; null, a clean train.
+    /// </summary>
+    public Campaign.TrainGrowth? Growth { get; set; }
+
     /// <summary>The host's: the campaign's looks by player name, going into the night.</summary>
     public IReadOnlyDictionary<string, string> LooksByName { get; set; } = new Dictionary<string, string>();
     /// <summary>
@@ -468,6 +482,13 @@ public sealed partial class World
     public IReadOnlyList<EnemyKind>? Insist { get; set; }
     public double InsistAfter { get; set; } = 2;
     public double InsistEvery { get; set; } = 10;
+    /// <summary>
+    /// Note 1036: of <see cref="Insist"/>, the kinds sent only when their own rule would have them (its gate, not its dice):
+    /// the Knotter onto a train above its boardAbove, the Gannet over one run fast its arriveSeconds. Set aside, a Knotter
+    /// boarded the train standing at the start, the bots stood to club it slack, and it was back every insistEvery: the
+    /// train never left. Null: every insisted kind wherever its spawn can place it.
+    /// </summary>
+    public IReadOnlySet<EnemyKind>? InsistByRule { get; set; }
     readonly Dictionary<EnemyKind, double> _insistGone = [];
 
     /// <summary>
@@ -3027,6 +3048,9 @@ public sealed partial class World
         foreach (var e in _enemies.ToList())
             if (!e.Gone)
                 e.Step(ctx);
+        // Note 1039: who's got onto a car, for the corruption the campaign grows where they came on.
+        if (Authority)
+            Run?.Boarders(_enemies, Train);
         // The world is solid (note 279): nothing loose in it stands in a building or a tunnel's lining, and what walks is on the land.
         Sim.Enemies.Solidity.Settle(_enemies, Train, t);
         FellTowers();
@@ -3089,6 +3113,8 @@ public sealed partial class World
             if (d.Log.Any(l => l.Kind == kind) && !_insistGone.ContainsKey(kind))
                 _insistGone[kind] = ElapsedSeconds;
             if (_insistGone.TryGetValue(kind, out double gone) && ElapsedSeconds - gone < InsistEvery)
+                continue;
+            if (InsistByRule?.Contains(kind) == true && Spawns.For(kind) is { } gate && gate.Weight(new SpawnContext(this, t, d)) is null)
                 continue;
             // An insisted kind is a special attempt (note 885): placed by its rule, charged only if it placed (note 880's log told).
             int mark = _nextEnemyId;

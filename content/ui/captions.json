@@ -163,6 +163,8 @@
     "cs-mourners-drag": "SOMETHING DRAGGED OFF, KEENING",
     "tell-tower-jaw.gnaw": "CHISELLING INTO TIMBER",
     "tell-tower-jaw.creak": "TIMBERS CREAKING, LEANING",
+    // Note 1039: the train's corruption, a grown car's frame working at speed.
+    "train-growth.creak": "A WET CREAKING UNDER THE CAR",
     "tell-tower-jaw.groan": "TIMBERS GROANING, GIVING WAY",
     "tell-tower-jaw.crack": "A CRACK LIKE A SHOT",
     "cs-tower-jaw.tail-slap": "A HEAVY SLAP ON THE GROUND",

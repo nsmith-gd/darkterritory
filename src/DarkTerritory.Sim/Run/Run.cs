@@ -192,6 +192,11 @@ public sealed record RunReport(RunEnd End, double Seconds, double DistanceKm, in
     /// after it isn't here: the host's campaign takes it as it's paid (<see cref="Run.TakeSoldAfter"/>).
     /// </summary>
     public double Sold { get; init; }
+    /// <summary>
+    /// Note 1039: how many creatures got onto each vehicle tonight, by its id (0 the engine): where the campaign grows the
+    /// train's corruption (campaign.json <c>growth</c>). Empty in a report that doesn't say.
+    /// </summary>
+    public IReadOnlyList<int> Boarded { get; init; } = [];
 }
 
 /// <summary>
@@ -813,6 +818,33 @@ public sealed partial class Run
 
     readonly List<BroughtIn> _broughtIn = [];
 
+    /// <summary>Note 1039: every creature that's got onto the train tonight, by its id, and the vehicle's id it came on at.</summary>
+    readonly SortedDictionary<int, int> _boarders = [];
+
+    /// <summary>
+    /// Host, each tick (note 1039): the creatures on a car now, each counted once, where it first came on (one running the
+    /// roofs after is the same boarder), for the corruption the campaign grows there (<see cref="RunReport.Boarded"/>). A
+    /// hazard isn't a boarder.
+    /// </summary>
+    public void Boarders(IReadOnlyList<Enemies.Enemy> enemies, TrainOnLine train)
+    {
+        if (Phase == RunPhase.Yard)
+            return;
+        foreach (var e in enemies)
+            if (!e.Gone && !e.Hazard && e is not Enemies.Incident && e.Attached >= 0 && e.Attached < train.Vehicles.Count)
+                _boarders.TryAdd(e.Id, train.Vehicles[e.Attached].Id);
+    }
+
+    /// <summary>How many creatures got onto each vehicle tonight, by its id (note 1039).</summary>
+    public int[] BoardedOn(TrainOnLine train)
+    {
+        var on = new int[train.Vehicles.Count == 0 ? 0 : train.Vehicles.Max(v => v.Id) + 1];
+        foreach (var v in _boarders.Values)
+            if (v < on.Length)
+                on[v]++;
+        return on;
+    }
+
     /// <summary>The creatures brought into town tonight (note 589), in the order they came in. The host's.</summary>
     public IReadOnlyList<BroughtIn> BroughtIn => _broughtIn;
 
@@ -1125,6 +1157,8 @@ public sealed partial class Run
             Sold = Sold,
             Finder = delivered && finder >= 0 ? IncidentLog.NameOf(world, finder) : "",
             FinderWorth = delivered && finder >= 0 ? finderWorth : 0,
+            // Note 1039: where tonight's creatures got on, for the corruption the campaign grows there.
+            Boarded = BoardedOn(train),
             // D.8: who everyone is now, for the campaign to carry into the next night.
             Identities = Identity.ByName(world, world.LastCrew.Select(c => c.Id)),
             // Note 972: what the silly upgrades did tonight, for the clerk's lines about them (Radio.Fill).

@@ -74,4 +74,4 @@ def ruff(p, n):
 
 crewfigure.build("survivor_wildlander", crewfigure.Style(
     dress=DRESS, shapes=SHAPES, masks={"patches": patches, "coat": coat}, grade=grade, preview="WILDLANDER_PREVIEW", low_shapes={"coat": ruff},
-    figure="bare", hats=False, what="a freed wildlander in patched hides and furs, modelled over tools/blender/crew.py"))
+    figure="bare", hats=False, face=True, what="a freed wildlander in patched hides and furs, modelled over tools/blender/crew.py"))

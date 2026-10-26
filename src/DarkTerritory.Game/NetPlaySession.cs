@@ -118,6 +118,13 @@ public sealed record SessionSetup(string? Route = null, string Line = "test-loop
     /// </summary>
     [System.Text.Json.Serialization.JsonIgnore(Condition = System.Text.Json.Serialization.JsonIgnoreCondition.WhenWritingDefault)]
     public int Sigil { get; init; }
+    /// <summary>
+    /// The corruption grown on the train (note 1039), from the campaign save, as <see cref="Sim.Campaign.TrainGrowth.Spec"/>:
+    /// percent, the cars then the couplings. Presentation only, left out when there's none; every machine's world is built
+    /// with it (<see cref="World.Growth"/>).
+    /// </summary>
+    [System.Text.Json.Serialization.JsonIgnore(Condition = System.Text.Json.Serialization.JsonIgnoreCondition.WhenWritingDefault)]
+    public string? Growth { get; init; }
     /// <summary>A public lobby (note 724): anyone aboard can call the vote to put a player off. Every machine's roster says so.</summary>
     [System.Text.Json.Serialization.JsonIgnore(Condition = System.Text.Json.Serialization.JsonIgnoreCondition.WhenWritingDefault)]
     public bool VoteKicks { get; init; }
@@ -234,6 +241,9 @@ public sealed record SessionSetup(string? Route = null, string Line = "test-loop
             DawnEndsCampaign = CampaignNight && DataFile.Load<Sim.Campaign.CampaignTuning>(Path.Combine(content, Sim.Campaign.CampaignTuning.File)).DawnEndsCampaign,
             CrewMischief = Mischief,
             CrewSigil = (byte)Math.Clamp(Sigil, 0, Sim.Player.MaskPaint.Max - 1),
+            // Drawn only with campaign.json growth on (note 1039): a save grown before it was turned off stays clean to look at.
+            Growth = Growth is { Length: > 0 } && DataFile.Load<Sim.Campaign.CampaignTuning>(Path.Combine(content, Sim.Campaign.CampaignTuning.File)).Growth is { On: true }
+                ? Sim.Campaign.TrainGrowth.Parse(Growth) : null,
         };
         // The band's instruments and tunes (note 700), host and clients alike: a client plays the tune the host names.
         world.EnableBand(DataFile.Load<Sim.Player.BandTuning>(Path.Combine(content, Sim.Player.BandTuning.File)));

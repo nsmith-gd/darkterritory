@@ -20,6 +20,12 @@ public sealed record HarnessOptions
     /// </summary>
     public int Talkers { get; init; }
     public bool TalkRadio { get; init; }
+    /// <summary>
+    /// Note 1040: the talkers in bursts, as people talk: each says <see cref="TalkFor"/> s at the start of every
+    /// <see cref="TalkEvery"/> s (0, all night), so what they said ends and grows old (the Brakeman on the radio says it back).
+    /// </summary>
+    public double TalkFor { get; init; }
+    public double TalkEvery { get; init; }
     /// <summary>One 20 ms Opus frame at the game's 24 kbit/s (ARCHITECTURE §6.3: ~60 bytes).</summary>
     public const int TalkFrameBytes = 60;
     /// <summary>
@@ -100,6 +106,8 @@ public sealed record HarnessOptions
     public IReadOnlyList<EnemyKind>? Insist { get; init; }
     /// <summary>With <see cref="Insist"/>: seconds after one's gone before it's sent again.</summary>
     public double InsistEvery { get; init; } = 10;
+    /// <summary>With <see cref="Insist"/>: the kinds sent only when their own rule would have them (<see cref="World.InsistByRule"/>, note 1036).</summary>
+    public IReadOnlySet<EnemyKind>? InsistByRule { get; init; }
     /// <summary>
     /// With <see cref="Insist"/>: the look-out's errand (note 212), the last walker's (or with none, the gunner's: note 222), to the Gaunt, Ribbits or a Dragger
     /// insisted on. Null: the crew keep to their posts.
@@ -156,6 +164,23 @@ public sealed record RejoinReport(string Bot, int Was, int Back, double DroppedA
 public sealed record DawnReport(double LineAt, IReadOnlyList<string> AtLine, double TakenAt, double Short, double Speed, IReadOnlyList<string> AtTaking,
     double Closest = -1);
 
+/// <summary>
+/// Note 1040, with <c>brakeman.radio</c> on: whether a corrupted human spoke on the radio tonight, when (run seconds), in whose
+/// voice, how long, the frames the host sent and the crew's sets got, and the night's report's line naming it.
+/// </summary>
+public sealed record RadioVoiceReport(bool Said, double Seconds, string Voice, int Brakeman, double Length, long FramesSent, long FramesHeard, string Line)
+{
+    public static RadioVoiceReport Of(HostSession host, long heard)
+    {
+        var world = host.World;
+        if (world.RadioVoiceSaid is not { } said)
+            return new RadioVoiceReport(false, -1, "", -1, 0, host.RadioVoiceFramesSent, heard, "");
+        var line = Run.IncidentLog.Lines(world, 0, 0, _ => false).FirstOrDefault(l => l.Kind == Run.IncidentKind.Heard)?.Text ?? "";
+        return new RadioVoiceReport(true, Math.Round(said.Tick * SimConstants.TickSeconds, 1), Run.IncidentLog.NameOf(world, said.Voice), said.Brakeman,
+            Math.Round(said.Seconds, 2), host.RadioVoiceFramesSent, heard, line);
+    }
+}
+
 public sealed record CrewCapReport(int Cap, int Occupied, int Refusals, IReadOnlyList<string> Refused);
 
 /// <summary>Transports for the harness from elsewhere: the Sim doesn't reference platform code, so the CLI brings it.</summary>
@@ -193,6 +218,8 @@ public sealed record HarnessReport(int Ticks, double Seconds, string Link, doubl
     public long VoiceFramesHeard { get; init; }
     /// <summary>Note 956: voice frames the host didn't send a listener already hearing their fill, its upload strained.</summary>
     public long VoiceFramesHeldBack { get; init; }
+    /// <summary>Note 1040: the corrupted human on the radio, with <c>brakeman.radio</c> on (<c>dt harness --radio-voice</c>).</summary>
+    public RadioVoiceReport? RadioVoice { get; init; }
     /// <summary>What got through on the crew's voice, with <see cref="HarnessOptions.Voice"/> (note 186).</summary>
     public VoiceReport? Voice { get; init; }
     /// <summary>The jobs the train made as it ran (orchestrator.md §5.1), and how many got away from the crew; null without them.</summary>
@@ -293,6 +320,8 @@ public sealed record ThreatReport(double Budget, double Spent, IReadOnlyDictiona
     public IReadOnlyDictionary<string, int> Grabs { get; init; } = new Dictionary<string, int>();
     /// <summary>Enemies that came on (telegraphed, or further), by kind: what the night actually exercised.</summary>
     public IReadOnlyDictionary<string, int> Engaged { get; init; } = new Dictionary<string, int>();
+    /// <summary>Enemies that went Alert (its prey picked, for the Gannet: it hangs over a walker), by kind (note 1036).</summary>
+    public IReadOnlyDictionary<string, int> Alerted { get; init; } = new Dictionary<string, int>();
     /// <summary>GRABs a crewmate broke (the grab ended in a break-off, not a punish), by kind.</summary>
     public IReadOnlyDictionary<string, int> Rescues { get; init; } = new Dictionary<string, int>();
     /// <summary>The director's pressure over the night (note 266), beside its per-second tally (<see cref="Director"/>).</summary>
@@ -313,6 +342,8 @@ public sealed record ThreatReport(double Budget, double Spent, IReadOnlyDictiona
     public int TrussDraggers { get; init; }
     /// <summary>The fires boarded packs set (note 269), beside the upkeep's hot boxes caught: where the burns come from (note 437).</summary>
     public int PackFires { get; init; }
+    /// <summary>Structures Tower Jaw brought down (note 1036): a coaling tower or a crane's gantry, whether or not its spine said so.</summary>
+    public int TowersDown { get; init; }
     /// <summary>The kinds the night's chances rolled out that came in after all: the floor's (note 868) and the fresh ones (note 863).</summary>
     public IReadOnlyList<string> Floor { get; init; } = [];
     public IReadOnlyList<string> Fresh { get; init; } = [];
@@ -430,6 +461,7 @@ public static class Harness
         {
             host.World.Insist = insist;
             host.World.InsistEvery = o.InsistEvery;
+            host.World.InsistByRule = o.InsistByRule;
         }
         if (o.Hazards is { LampsOut: true })
         {
@@ -469,7 +501,7 @@ public static class Harness
         var talkFrame = new byte[HarnessOptions.TalkFrameBytes];
         for (int i = 0; i < talkFrame.Length; i++)
             talkFrame[i] = (byte)(i * 37 + 11);
-        long voiceHeard = 0;
+        long voiceHeard = 0, radioVoiceHeard = 0;
         for (int i = 0; i < o.Bots; i++)
         {
             var transport = new CountingTransport(ClientTransport(i));
@@ -743,13 +775,16 @@ public static class Harness
             if (o.Talkers > 0)
             {
                 int frames = (int)((t + 1) * 50 / SimConstants.TickRate) - (int)(t * 50 / SimConstants.TickRate);
+                bool talking = o.TalkEvery <= 0 || t * SimConstants.TickSeconds % o.TalkEvery < o.TalkFor;
                 for (int k = 0; k < Math.Min(o.Talkers, clients.Count); k++)
-                    if (clients[k].Session.Connected)
+                    if (talking && clients[k].Session.Connected)
                         for (int f = 0; f < frames; f++)
                             clients[k].Session.SendVoice(talkSequence[k]++, o.TalkRadio, talkFrame);
                 foreach (var (session, _, _) in clients)
                 {
                     voiceHeard += session.VoiceFrames.Count;
+                    // Note 1040: a corrupted human's words on the radio, as each crewmate's set got them.
+                    radioVoiceHeard += session.VoiceFrames.Count(f => f.Path.HasFlag(VoicePath.Mimic | VoicePath.Radio));
                     session.VoiceFrames.Clear();
                 }
             }
@@ -812,10 +847,12 @@ public static class Harness
                 AtTheCap = capped,
                 Grabs = Count(events.Where(e => e.To == SpinePhase.Grab)),
                 Engaged = Count(events.Where(e => e.To == SpinePhase.Telegraph).DistinctBy(e => e.EnemyId)),
+                Alerted = Count(events.Where(e => e.To == SpinePhase.Alert).DistinctBy(e => e.EnemyId)),
                 Rescues = Count(events.Where(e => e.From == SpinePhase.Grab && e.To is SpinePhase.BreakOff or SpinePhase.Gone)),
                 Pressure = new PressureReport(Math.Round(d.Grace, 1), d.Tuning.Pressure.Threshold, PressureEvery, per5Min, pressureTrace),
                 Slack = d.Posts.Stats.ToDictionary(kv => kv.Key, kv => new SlackReport(kv.Value.Max, kv.Value.Over)),
                 PackFires = host.World.PackFires,
+                TowersDown = host.World.TowersDown,
                 Floor = [.. d.FloorBrought],
                 Fresh = [.. d.FreshBrought],
                 FreeSpawns = d.Log.Where(l => l.Free).GroupBy(l => l.Kind.ToString()).OrderBy(g => g.Key).ToDictionary(g => g.Key, g => g.Count())
@@ -890,6 +927,7 @@ public static class Harness
             VoiceFramesHeard = voiceHeard,
             VoiceFramesForwarded = host.VoiceFramesForwarded,
             VoiceFramesHeldBack = host.VoiceFramesHeldBack,
+            RadioVoice = host.World.Enemies?.Brakeman.Radio.On == true ? RadioVoiceReport.Of(host, radioVoiceHeard) : null,
             Wire = host.WireTally is { } tally && reports.Count > 0
                 ? tally.OrderByDescending(t => t.Value).ToDictionary(t => t.Key.ToString(), t => Math.Round(t.Value * 8.0 / 1000 / seconds / reports.Count, 2))
                 : null,

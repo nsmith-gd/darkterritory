@@ -308,6 +308,12 @@ public sealed partial class SceneArt(Look look)
     public int CrewSigil { get; set; }
 
     /// <summary>
+    /// The corruption grown on the train (note 1039; World.Growth), drawn at the couplings, under the cars and in the tender.
+    /// GreyboxScene sets it each frame; null, a clean train.
+    /// </summary>
+    public Sim.Campaign.TrainGrowth? Growth { get; set; }
+
+    /// <summary>
     /// A car of livestock (GDD §19 "makes noise constantly", the slaughterhouse's): sheep packed down the load side in its
     /// pen (tools/blender/sheep.py), each on its own beat: mostly shifting and shuffling, every few seconds one bleating,
     /// now and then one startled by the noise. The noise is seen as well as heard.
@@ -1677,6 +1683,16 @@ public sealed partial class SceneArt(Look look)
         var soot = charred > 0 ? Vector3.Lerp(Vector3.One, CharTint, charred) : default;
         // Under emergency lighting the headlamp and tail lamp have no power.
         mesh.Instances.Add(new MeshInstance(body, m, windows, Tint: soot, Scar: scar, Bite: cut, BiteFloor: floor));
+        // The corruption grown on it (note 1039): its couplings, under its floor, the engine's tender.
+        if (Growth is { } grown)
+        {
+            var g = Look.Tuning.TrainGrowth;
+            int id = vehicle?.Id ?? frame.Index;
+            int own = g.Level(grown.Car(id)), front = id > 0 ? g.Level(grown.Coupling(id - 1)) : 0, rear = g.Level(grown.Coupling(id));
+            if (own + front + rear > 0)
+                mesh.Instances.Add(new MeshInstance(Piece($"growth:{ShapeKey(shape)}:{own}{front}{rear}:{id % 3}",
+                    () => GrowthKit.Grown(Look, shape, own, front, rear, g.Levels, id % 3)), m, lamps));
+        }
         // The engine's dressing (note 338: its plough, housings, pipes and grilles), over it and casting no shadow.
         if (engine)
         {

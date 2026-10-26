@@ -357,6 +357,15 @@ public static partial class Heed
         var me = PlayerMotor.WorldPosition(self, train);
         int side = frame.ToLocal(me).X >= 0 ? 1 : -1;
         double outside = frame.Shape.HalfWidth + BesideTheCar;
+        // Note 1036: down only where there's ground beside the gap (its other side, if not this): stood on frontier:7's bridge
+        // for a Knotter, the gunner went down to it off the side and fell to the river. Over the water both sides, it's left
+        // to the driver's give-up.
+        if (!StopHand.GroundBeside(train, at, side))
+        {
+            if (!StopHand.GroundBeside(train, at, -side))
+                return intent;
+            side = -side;
+        }
         var beside = frame.ToWorld(new Double3(side * outside, 0, knot.Local.Z));
         if (hand.Afoot(self, world, beside, 0.6) is { } going)
             return Up(self, going);

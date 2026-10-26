@@ -121,7 +121,8 @@ DRESS = {
 }
 SHAPES = {k: torn for k in ("crew_atlas.coat", "crew_atlas.sleeve", "crew_atlas.trouser", "crew_atlas.scarf", "crew_atlas.cap")}
 
+# (His head 1900 triangles: rebaked on today's crew figure, its hands' own union, he came to 9063, over his 9k; note 1033.)
 crewfigure.build("husk", crewfigure.Style(
     head=shrink, dress=DRESS, shapes=SHAPES, masks={"rot": rot, "eyes": eyes, "tar": tar}, grade=grade,
-    preview="HUSK_PREVIEW", lamp=False, mask="torn", figure="bare",
+    preview="HUSK_PREVIEW", lamp=False, mask="torn", figure="bare", head_tris=1900,
     what="a crewman gone wrong, modelled over tools/blender/crew.py"))
