@@ -239,9 +239,12 @@ public sealed partial class GreyboxScene
 
     /// <summary>
     /// The firebox's light: the fire's orange, or with a Stoker in it (T53) "wrong-coloured firebox glow" (App. A.5), a sick
-    /// green that burns brighter, not dimmer, as the pressure climbs.
+    /// green that burns brighter, not dimmer, as the pressure climbs. Only once it's in (A.5's FEED): out on the tender and the
+    /// footplate (Extra2), boarding or leaving, its tell is its own sick glow there, and the cab's fire is still orange (note
+    /// 1049; look.json darkCreatures stokerGreenFireOutside).
     /// </summary>
-    Vector3 FireColour(float scale) => Enemies?.Any(e => e.Kind == EnemyKind.Stoker && !e.Gone) == true
+    Vector3 FireColour(float scale) => Enemies?.Any(e => e.Kind == EnemyKind.Stoker && !e.Gone
+            && (e.Extra2 <= 0.5 || Look?.Tuning.DarkCreatures.StokerGreenFireOutside == true)) == true
         ? Palette.SignalGreen * (0.5f + 0.8f * scale) : Palette.FurnaceOrange * scale;
     /// <summary>Tonight's run, for facility machinery (the coaling chute pouring).</summary>
     public Sim.Run.Run? Run { get; set; }
@@ -850,6 +853,9 @@ public sealed partial class GreyboxScene
             creatures.FireDoorOpen = FireDoorOpen
                 ? Art.TrainKit.FireDoor(frames[0].Shape) - ToF(frames[0].Shape.Interactables.First(i => i.Kind == InteractableKind.Firebox).Position)
                 : null;
+        // The headlamp, for a Track Doll's glaze to catch (Art/CreatureArt.HeadlampLit).
+        if (Look?.Art.Creatures is { } headlamp)
+            headlamp.HeadlampLit = LampLit;
         // On the stack's rim, looking down the boiler at the cab (App. A.5 "it perches on the smokestack").
         double down = StokerLowFor - (StokerDownAt - StokerDescendSeconds);
         if (StokerLowFor >= 0 && down < StokerDescendSeconds && Look?.Art.Creatures is { } perching && frames.Count > 0

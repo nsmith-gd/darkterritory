@@ -194,7 +194,10 @@ public sealed unsafe class GreyboxRenderer : IDisposable
         }
     }
 
-    /// <summary>What a set of material arrays is made from: the very layers (by reference: a look's are read once), sized and sampled alike.</summary>
+    /// <summary>
+    /// What a set of material arrays is made from: the very layers (by reference: a look's outlines are made once, note 1047),
+    /// sized and sampled alike.
+    /// </summary>
     readonly record struct MaterialKey(IReadOnlyList<MaterialLayer> Layers, int LayerSize, int HeroSize, int BigHeroSize, float MipBias, int Shift)
     {
         public bool Equals(MaterialKey other) => ReferenceEquals(Layers, other.Layers) && LayerSize == other.LayerSize && HeroSize == other.HeroSize
@@ -216,6 +219,8 @@ public sealed unsafe class GreyboxRenderer : IDisposable
     public const int LayerTable = 512;
     // Which layers bend in the wind: the foliage's cards and boughs (by name, *_card and *_bough).
     float[] _motion = [];
+    // What was loaded, its layers as outlines and no backdrop (note 1047): the names and sizes, never the pixels, which are
+    // on the GPU.
     RenderAssets? _assets;
 
     VkBuffer _vertices;
@@ -538,7 +543,7 @@ public sealed unsafe class GreyboxRenderer : IDisposable
         (_backdrop, _lut) = Upload(assets);
         _materials = TakeMaterials(assets);
         Release(had);
-        _assets = assets;
+        _assets = assets with { Layers = assets.Outline ? assets.Layers : [.. assets.Layers.Select(l => l.Outlined())], Backdrop = null };
         Post = assets.Post;
         WriteSets();
     }
@@ -553,8 +558,7 @@ public sealed unsafe class GreyboxRenderer : IDisposable
             return;
         Api.vkDeviceWaitIdle();
         _backdrop.Dispose();
-        _assets = _assets with { Backdrop = sky };
-        _backdrop = UploadBackdrop(_assets);
+        _backdrop = UploadBackdrop(_assets with { Backdrop = sky });
         WriteSets();
     }
 
@@ -595,7 +599,7 @@ public sealed unsafe class GreyboxRenderer : IDisposable
         lock (shared)
         {
             if (!shared.TryGetValue(key, out m!))
-                shared[key] = m = UploadMaterials(assets, shift);
+                shared[key] = m = UploadMaterials(Pixels(assets), shift);
             m.Users++;
         }
         (_diffuse, _spec, _normal) = (m.Diffuse, m.Spec, m.Normal);
@@ -603,6 +607,20 @@ public sealed unsafe class GreyboxRenderer : IDisposable
         _heroSlot = m.HeroSlot;
         _motion = [.. assets.Layers.Select(l => Motion(l.Name))];
         return m;
+    }
+
+    /// <summary>
+    /// <paramref name="assets"/> with their layers' pixels: as they are, or read again when they're outlines (note 1047). Only
+    /// for the upload: nothing keeps them after it.
+    /// </summary>
+    static RenderAssets Pixels(RenderAssets assets)
+    {
+        if (!assets.Outline)
+            return assets;
+        var layers = assets.Reread?.Invoke() ?? throw new InvalidOperationException("outlined material layers with nothing to read their pixels from");
+        if (layers.Count != assets.Layers.Count)
+            throw new InvalidOperationException($"the material layers read again are {layers.Count}, not the {assets.Layers.Count} outlined");
+        return assets with { Layers = layers };
     }
 
     /// <summary>This renderer done with a set of material arrays: freed when no renderer holds it any more.</summary>
