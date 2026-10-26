@@ -114,7 +114,8 @@ draws the frame with it and without it in four nights: clear, dark (the headlamp
 Lines night's thickest haze) and fog (Deep Territory's thickest, 60 m). What differs is what the creature puts on the
 screen. It is seen when at least **60 pixels** of a 1280x720 frame differ by a visible step (3 L*) and the brightest tenth of
 them by **6 L*** (`content/tuning/tells.json`; `TellAuditTests` holds a fast few in every night). The ranked list of the
-tells under the floor, and what fixing each takes, is note 1037.
+tells under the floor, and what fixing each takes, is note 1037. A creature is measured as a night would show it: one that comes
+only to a crewmate on the ground, behind a gunner, or to a train under way is staged so (note 1043).
 
 ## A.5 Proximity voice
 
