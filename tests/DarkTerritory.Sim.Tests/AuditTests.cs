@@ -335,16 +335,98 @@ public class AuditTests
         var route = LineGen.Routes.Generate(Content, "frontier:7", 6);
         var line = route.Build();
         double yard = route.GateOr(Tuning.Route.YardLength);
-        // The Track Doll comes on the line; with the loading in its pair it's staged short of a facility's spur.
-        var loading = Combinations.Stage(route, line, [EnemyKind.TrackDoll], Tuning.Enemies, yard, 20, stop: true);
-        Assert.True(loading.AtStop);
-        Assert.Contains(line.Branches, b => b.Kind == BranchKind.Spur && b.Toe - loading.StartM > 0 && b.Toe - loading.StartM < 1000);
+        // The Whistler with the stop in its pair is staged short of a facility's spur.
+        var stop = Combinations.Stage(route, line, [EnemyKind.Whistler], Tuning.Enemies, yard, 20, stop: true);
+        Assert.True(stop.AtStop);
+        Assert.True(stop.Loading);
+        Assert.Contains(line.Branches, b => b.Kind == BranchKind.Spur && b.Toe - stop.StartM > 0 && b.Toe - stop.StartM < 1000);
         // A grade pair starts within reach of a stretch as steep as the director's "grade".
         double within = Balance.Combinations.GradeWithinM;
         var grade = Combinations.Stage(route, line, [EnemyKind.TippyToesie], Tuning.Enemies, yard, 20, atStops: false, gradeWithin: within);
         Assert.Empty(grade.Unstaged);
         Assert.Contains(Enumerable.Range(0, (int)(within / 50) + 1), i =>
             Math.Abs(line.Sample(RailLine.MainPath, grade.StartM + i * 50).GradePercent) >= Tuning.Enemies.Director.GradePercent);
+    }
+
+    static readonly Run.FacilityTuning Facilities = DataFile.Load<Run.FacilityTuning>(Path.Combine(Content, Run.FacilityTuning.File));
+
+    [Fact]
+    public void EachConflictPairIsStagedWhereItsCreatureReallyComes()
+    {
+        // Note 1036 (queue #739): the nine pairs note 1032's sweep never met, each staged where it happens.
+        var t = Balance.Combinations;
+        CombinationStage Stage(Route.Route route, IReadOnlyList<EnemyKind> kinds, bool stop = false) =>
+            Combinations.Stage(route, route.Build(), kinds, Tuning.Enemies, route.GateOr(Tuning.Route.YardLength), t.LeadM, t.ApproachM,
+                Facilities.ModulesOf, stop: stop, fastClear: t.FastClearM);
+        Route.RouteFeature? At(Route.Route route, CombinationStage s) =>
+            route.Of(Route.FeatureKind.Facility).Where(f => f.Start > s.StartM).OrderBy(f => f.Start).FirstOrDefault();
+        var frontier7 = LineGen.Routes.Generate(Content, "frontier:7", 6);
+        var dead2 = LineGen.Routes.Generate(Content, "deadLines:2", 6);
+        var frontier3 = LineGen.Routes.Generate(Content, "frontier:3", 6);
+
+        // Tower Jaw at a structure: frontier:7's first stop, the Foundry, has a crane's gantry; deadLines:2 has neither a crane
+        // nor a coaling tower, and frontier:3 (balance.json siteRoutes) its coaling tower, worked on the main line.
+        var jaw = Stage(frontier7, [EnemyKind.TowerJaw], stop: true);
+        Assert.Empty(jaw.Unstaged);
+        Assert.Contains(Run.ModuleKind.Crane, Facilities.ModulesOf(At(frontier7, jaw)!));
+        Assert.True(jaw.Loading);
+        Assert.Equal(["TowerJaw"], Stage(dead2, [EnemyKind.TowerJaw], stop: true).Unstaged);
+        var coal = Stage(frontier3, [EnemyKind.Moose, EnemyKind.TowerJaw]);
+        Assert.Empty(coal.Unstaged);
+        Assert.True(coal.Coal);
+        Assert.Equal(Route.FacilityKind.CoalingTower, At(frontier3, coal)!.Facility);
+        Assert.Contains("frontier:3", t.SiteRoutes);
+
+        // The Track Doll's loading only at a coaling tower: on the main line, where the doll stands ahead.
+        Assert.Equal(["TrackDoll"], Stage(frontier7, [EnemyKind.TrackDoll], stop: true).Unstaged);
+        var doll = Stage(frontier3, [EnemyKind.TrackDoll], stop: true);
+        Assert.Empty(doll.Unstaged);
+        Assert.True(doll.Coal && doll.AtStop && doll.Loading);
+
+        // The Freight Beetle at a stop with crates: deadLines:2's Wreck Yard has none, so its Switchyard.
+        var beetle = Stage(dead2, [EnemyKind.FreightBeetle], stop: true);
+        Assert.Empty(beetle.Unstaged);
+        Assert.Contains(Run.ModuleKind.Crates, Facilities.ModulesOf(At(dead2, beetle)!));
+        Assert.Equal(Route.FacilityKind.Switchyard, At(dead2, beetle)!.Facility);
+
+        // The Gannet comes only to a fast train: the express driver, with no tunnel ahead for its run.
+        var gannet = Stage(frontier7, [EnemyKind.CinderHound, EnemyKind.Gannet]);
+        Assert.True(gannet.Fast);
+        Assert.False(gannet.AtStop);
+        Assert.DoesNotContain(frontier7.Features, f => f.Kind == Route.FeatureKind.Tunnel && f.End >= gannet.StartM && f.Start <= gannet.StartM + t.FastClearM);
+        Assert.False(Stage(frontier7, [EnemyKind.CinderHound]).Fast);
+
+        // The Car Hugger with the Knotter: short of frontier:7's bridge (560-600 m past the gate), and a stop night's length.
+        var hugger = Stage(frontier7, [EnemyKind.CarHugger, EnemyKind.Knotter]);
+        Assert.Empty(hugger.Unstaged);
+        Assert.True(hugger.Long);
+        Assert.Contains(frontier7.Features, f => f.Kind == Route.FeatureKind.Bridge
+            && (f.Start + f.End) / 2 - hugger.StartM >= Tuning.Enemies.CarHugger.LurkAheadMin && (f.Start + f.End) / 2 - hugger.StartM <= Tuning.Enemies.CarHugger.LurkAheadMax);
+    }
+
+    [Fact]
+    public void AKindInsistedByItsRuleWaitsForItsRule()
+    {
+        // Note 1036: the Knotter boards only a train above knotter.boardAbove. Insisted regardless, it boarded the train standing
+        // at the start, the bots stood to club it, and the train never left; insisted by its rule, it waits for the train to run.
+        var route = LineGen.Routes.Generate(Content, "frontier:7", 6);
+        int Knotters(IReadOnlySet<EnemyKind>? byRule) => Harness.Run(route.Build(), Tuning.Train, Tuning.Player, new HarnessOptions
+        {
+            Bots = 2,
+            Cars = 6,
+            Seconds = 8,
+            Seed = 1,
+            Link = new Ballast.Net.LinkConditions(0, 0, 0),
+            StartDistance = 1505,
+            WalkAboard = false,
+            Combat = Tuning.Combat,
+            Enemies = Tuning.Enemies,
+            Route = route,
+            Insist = [EnemyKind.Knotter],
+            InsistByRule = byRule,
+        }, Tuning.Boiler).Threats!.Spawned.GetValueOrDefault("Knotter");
+        Assert.True(Knotters(null) > 0, "insisted regardless, it boards the standing train");
+        Assert.Equal(0, Knotters(Combinations.ByRule));
     }
 
     // ---- §34 degraded comms: the crew's calls over a lossy, laggy voice.
