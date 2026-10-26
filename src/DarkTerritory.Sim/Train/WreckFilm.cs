@@ -1699,14 +1699,17 @@ public sealed class WreckFilm
             var away = Away(frames, f0, f1, subject);
             var along = (frames[f0].Cars[0].Back with { Y = 0 }).Length > 1e-6 ? (frames[f0].Cars[0].Back with { Y = 0 }).Normalized : away;
             Double3 Held(Double3 p) => lot.World?.Hold(p, t.CameraRadius + 0.2) ?? p;
-            var fallbacks = new[] { 12.0, 16, 20, 25 }.Select(d => subject + new Double3(DMath.Cos(70 * DMath.PI / 180) * d * away.X, DMath.Sin(70 * DMath.PI / 180) * d,
-                    DMath.Cos(70 * DMath.PI / 180) * d * away.Z))
-                .Concat(new[] { 15.0, 20, 30 }.SelectMany(d => new[] { subject + along * d + Double3.Up * 3, subject - along * d + Double3.Up * 3 }))
+            // In a tunnel (O11), only along its bore: overhead is the hill.
+            bool tunnel = lot.World?.InRock(subject + Double3.Up * 12) == true;
+            var alongLine = new[] { 6.0, 10, 15, 20, 30 }.SelectMany(d => new[] { subject + along * d + Double3.Up * 2, subject - along * d + Double3.Up * 2 });
+            var fallbacks = (tunnel ? alongLine : new[] { 12.0, 16, 20, 25 }.Select(d => subject + new Double3(DMath.Cos(70 * DMath.PI / 180) * d * away.X,
+                    DMath.Sin(70 * DMath.PI / 180) * d, DMath.Cos(70 * DMath.PI / 180) * d * away.Z)).Concat(alongLine))
                 .Select(Held).ToList();
-            // Of those clear, the first that keeps them the whole shot (O1, O7), else the one keeping them longest.
+            // Of those clear, the one keeping them longest (O1, O7); in a tunnel with none clear, still the one keeping them
+            // longest (a car by the lens, O4's, over a shot of the rock).
             var clear = fallbacks.Where(e => Clear(t, start.Cars, frames, doll, f0, f1, _ => e, lot)).ToList();
             int Kept(Double3 e) => Lost(t, frames, doll, f0, f1, _ => e, timing, lot) is var lost and >= 0 ? lost : int.MaxValue;
-            var overhead = clear.Count > 0 ? clear.MaxBy(Kept) : fallbacks[0];
+            var overhead = clear.Count > 0 ? clear.MaxBy(Kept) : tunnel ? fallbacks.MaxBy(Kept) : fallbacks[0];
             return (overhead, subject, Fit(t, frames, doll, f0, f1, _ => overhead), -1, default, null);
         }
 
