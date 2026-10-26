@@ -36,6 +36,12 @@ jobs:
           # and nobody dies on a quiet line.
           jq -e '.ticks as $t | .deaths == 0 and (.clients | length == 8)
             and all(.clients[]; .alive and .maxCorrectionM < 2 and .snapshots > 0.9 * $t and .corrections < ($t / 180))' out/soak/rough.json
+      - name: Stability, two to eight clients, on a perfect link and the rough one (GDD §34, note 1032)
+        run: |
+          # Exits 1 on a desync (a client drifting from the host past the link's limits, deaf to the snapshots, or a crew
+          # short of its clients) or a night that threw (tuning/balance.json stability).
+          dotnet run --project src/DarkTerritory.Cli -c Release --no-build -- harness stability > out/soak/stability.json
+          jq -c '{seconds, pass: .result.pass, rows: [.result.rows[] | {crew, link, pass, maxCorrectionM, corrections, crash, desynced}]}' out/soak/stability.json
       - name: A night on frontier:7 with the enemies, eight bots
         run: |
           dotnet run --project src/DarkTerritory.Cli -c Release --no-build -- harness --route frontier:7 --bots 8 --enemies --seconds 3600 > out/soak/night.json

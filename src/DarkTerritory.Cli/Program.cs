@@ -128,6 +128,8 @@ return args switch
     ["site", "sweep", ..] => Print(SweepStops(routeTuning, LoadStops(content), (int)Opt(args, "--seeds", 60))),
     ["site", ..] => Print(ShowStop(content, routeTuning, LoadStops(content), args)),
     ["linegen", var verb, ..] => Print(LineGenCommands.Run(content, verb, args)),
+    // dt harness stability: GDD §34's desync and crash detection across 2–8 clients (note 1032); exits 1 on either.
+    ["harness", "stability", ..] => AuditCommands.Stability(content, args),
     ["harness", ..] => Print(RunHarness(args)),
     ["wreck", ..] => Print(WreckCommands.Run(content, args)),
     ["trailer", ..] => Print(TrailerCommands.Run(content, args)),
@@ -153,9 +155,9 @@ return args switch
     ["afoot", ..] => Print(AfootCommands.Run(content, args)),
     // dt town [--route tier:seed] [--last culture] | dt town sweep [--seeds n]: the departure fortress's town (note 281).
     ["town", ..] => Print(TownCommands.Run(content, args)),
-    // dt balance --pairs|--triples: GDD §34's combination fairness (note 186). dt audit cascades|grabs: §34's cascade audit,
+    // dt balance --pairs|--triples: GDD §34's combination fairness (note 186); --conflicts, App. B.10's seeded pairs (note 1032). dt audit cascades|grabs: §34's cascade audit,
     // App. A.9 / B.10's per-tree GRAB check. Each exits 1 on a finding.
-    ["balance", ..] when args.Contains("--pairs") || args.Contains("--triples") => AuditCommands.Combinations(content, args),
+    ["balance", ..] when args.Contains("--pairs") || args.Contains("--triples") || args.Contains("--conflicts") => AuditCommands.Combinations(content, args),
     ["audit", var verb, ..] => AuditCommands.Audit(content, verb, args),
     ["balance", ..] => PrintBalance(RunBalance(args)),
     ["online", "check"] => Print(OnlineCheck()),
@@ -415,7 +417,7 @@ BalanceReport RunBalance(string[] args)
         rows[i] = Balance.Row(n, report);
         Console.Error.WriteLine($"{n.Tier}:{n.Seed} crew {n.Crew} cars {n.Cars}: {rows[i].End}, net {rows[i].Net}, lost {rows[i].CrewLost}");
     });
-    return Balance.Judge(rows, targets);
+    return Balance.Judge(rows, targets, enemies.Director.WantShares);
 }
 
 static object ModsReport(string baseContent)

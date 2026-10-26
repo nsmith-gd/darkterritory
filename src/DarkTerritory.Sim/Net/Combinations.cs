@@ -21,6 +21,8 @@ public sealed record CombinationTuning
     public int TripleSample { get; init; } = 136;
     public double InsistEvery { get; init; } = 10;
     public double LeadM { get; init; } = 20;
+    /// <summary>A conflict pair with a grade (<c>--conflicts</c>, note 1032): the steep stretch lies within this far of the start (m).</summary>
+    public double GradeWithinM { get; init; } = 1200;
     public double StopSeconds { get; init; } = 150;
     public double ApproachM { get; init; } = 350;
     public double UnwinnableLost { get; init; } = 0.5;
@@ -40,6 +42,14 @@ public sealed record CombinationNight(IReadOnlyList<EnemyKind> Kinds, HazardSet 
 
 /// <summary>Where a combination's nights start: out on the line, or short of a facility the crew stop and work at.</summary>
 public sealed record CombinationStage(double StartM, bool AtStop, IReadOnlyList<string> Unstaged);
+
+/// <summary>
+/// One pair of the director's conflict table (App. B.1 contradiction seeding) as the sweep runs it (note 1032): the
+/// creatures in it insisted on, and its conditions staged: <paramref name="AtStop"/> for a facility stop or its loading,
+/// <paramref name="Grade"/> for a climb or fall ahead. The Choir is a creature here (insisted on, it gathers).
+/// </summary>
+/// <param name="Unknown">Sides that are neither a creature nor a condition the director knows: a table typo.</param>
+public sealed record ConflictPair(string Name, IReadOnlyList<EnemyKind> Kinds, bool AtStop, bool Grade, IReadOnlyList<string> Unknown);
 
 /// <summary>How one night of a combination went.</summary>
 /// <param name="Lost">Counted lost: derailed, stranded, the crew wiped out, or <see cref="CombinationTuning.UnwinnableLost"/> of them dead.</param>
@@ -95,6 +105,22 @@ public static class Combinations
         EnemyKind.Gannet, EnemyKind.FreightBeetle,
     ];
 
+    /// <summary>The conflict table's conditions (<see cref="Director"/>'s <c>Present</c>): a stop, its loading, a grade ahead.</summary>
+    public static IReadOnlySet<string> Conditions { get; } = new HashSet<string> { "facilityStop", "facilityLoading", "grade" };
+
+    /// <summary>
+    /// App. B.10 "Contradiction quality: every seeded pair is solvable, hard, not impossible" (note 1032): the director's
+    /// conflict table (enemies.json <c>director.conflicts</c>) as combinations, in table order, a pair once.
+    /// </summary>
+    public static IReadOnlyList<ConflictPair> Conflicts(IEnumerable<string[]> table)
+    {
+        var kinds = Enum.GetValues<EnemyKind>().ToDictionary(Director.Key, k => k);
+        return [.. table.Where(p => p.Length == 2).DistinctBy(p => $"{p[0]}+{p[1]}").Select(p => new ConflictPair($"{p[0]}+{p[1]}",
+            [.. p.Where(kinds.ContainsKey).Select(x => kinds[x])],
+            p.Any(x => x is "facilityStop" or "facilityLoading"), p.Contains("grade"),
+            [.. p.Where(x => !kinds.ContainsKey(x) && !Conditions.Contains(x))]))];
+    }
+
     /// <summary>
     /// Every combination of <paramref name="size"/> from <paramref name="roster"/>, in roster order; with
     /// <paramref name="sample"/> &gt; 0, that many of them picked by <paramref name="seed"/> (the same pick every time).
@@ -142,9 +168,10 @@ public static class Combinations
     /// that needs the line to place it can be placed (the Car Hugger's marsh or bridge ahead), <paramref name="lead"/> short. The kinds no place suits are returned as <c>Unstaged</c>.
     /// </summary>
     public static CombinationStage Stage(Route.Route route, Rail.RailLine line, IReadOnlyList<EnemyKind> kinds, EnemyTuning e, double yard, double lead,
-        double approach = 350, Func<RouteFeature, bool>? crane = null, bool atStops = true)
+        double approach = 350, Func<RouteFeature, bool>? crane = null, bool atStops = true, bool stop = false, double gradeWithin = 0)
     {
-        if (atStops && kinds.Any(AtStops.Contains))
+        // A conflict pair with a stop in it (note 1032) is staged at one whatever its creature.
+        if (atStops && (stop || kinds.Any(AtStops.Contains)))
         {
             var spurs = route.Of(FeatureKind.Facility).Where(f => line.Branches.Any(b => b.Kind == Rail.BranchKind.Spur && b.Toe >= f.Start - 50 && b.Toe <= f.End + 50))
                 .Where(f => f.Start - approach >= yard + 100).ToList();
@@ -162,12 +189,12 @@ public static class Combinations
         }
         // Out on the line, what comes at a stop is sent at the crew as they board from the ballast at the start (the halt's
         // stop): unstaged, since it's no facility, and it may well lie in wait unmet.
-        var (start, missing) = OnTheLine(route, line, kinds, e, yard, lead);
+        var (start, missing) = OnTheLine(route, line, kinds, e, yard, lead, gradeWithin);
         return new CombinationStage(start, false, [.. missing, .. kinds.Where(AtStops.Contains).Select(k => k.ToString())]);
     }
 
     static (double StartM, IReadOnlyList<string> Unstaged) OnTheLine(Route.Route route, Rail.RailLine line, IReadOnlyList<EnemyKind> kinds,
-        EnemyTuning e, double yard, double lead)
+        EnemyTuning e, double yard, double lead, double gradeWithin = 0)
     {
         bool Hugger(double s) => route.Features.Any(f => f.Kind is FeatureKind.Marsh or FeatureKind.Bridge
             && (f.Start + f.End) * 0.5 is var at && at >= s + e.CarHugger.LurkAheadMin + lead && at <= s + e.CarHugger.LurkAheadMax
@@ -177,6 +204,14 @@ public static class Combinations
         var needs = new List<(EnemyKind Kind, Func<double, bool> Ok)>();
         if (kinds.Contains(EnemyKind.CarHugger))
             needs.Add((EnemyKind.CarHugger, Hugger));
+        // A conflict pair's grade (note 1032): a stretch as steep as the director's "grade" reads within gradeWithin ahead.
+        bool Steep(double s)
+        {
+            for (double at = s; at <= s + gradeWithin; at += 50)
+                if (Math.Abs(line.Sample(Rail.RailLine.MainPath, at).GradePercent) >= e.Director.GradePercent)
+                    return true;
+            return false;
+        }
         // The places to try: just far enough short of each thing a kind needs (so the train's soon on it from a stand), then
         // every 50 m of the line.
         var tries = new List<double>();
@@ -184,23 +219,25 @@ public static class Combinations
             tries.AddRange(route.Features.Where(f => f.Kind is FeatureKind.Marsh or FeatureKind.Bridge).Select(f => (f.Start + f.End) * 0.5 - e.CarHugger.LurkAheadMin - lead));
         for (double s = yard + 400; s < route.RunLength - 4000; s += 50)
             tries.Add(s);
+        int wanted = needs.Count + (gradeWithin > 0 ? 1 : 0);
+        int Met(double s) => needs.Count(n => n.Ok(s)) + (gradeWithin > 0 && Steep(s) ? 1 : 0);
         double best = -1;
         int bestMet = -1;
         foreach (double s in tries.Where(s => s >= yard + 400 && s < route.RunLength - 4000))
         {
             if (!Clear(s))
                 continue;
-            int met = needs.Count(n => n.Ok(s));
+            int met = Met(s);
             if (met > bestMet)
             {
                 (best, bestMet) = (s, met);
-                if (met == needs.Count)
+                if (met == wanted)
                     break;
             }
         }
         if (best < 0)
             best = yard + 400;
-        return (best, [.. needs.Where(n => !n.Ok(best)).Select(n => n.Kind.ToString())]);
+        return (best, [.. needs.Where(n => !n.Ok(best)).Select(n => n.Kind.ToString()), .. gradeWithin > 0 && !Steep(best) ? ["grade"] : Array.Empty<string>()]);
     }
 
     /// <summary>One night's run, from its harness report.</summary>

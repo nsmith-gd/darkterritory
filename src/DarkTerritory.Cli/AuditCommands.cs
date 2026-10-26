@@ -63,18 +63,33 @@ static class AuditCommands
     /// <summary>
     /// dt balance --pairs|--triples [--wide] [--routes a,b] [--crews 2,4,8] [--seeds n] [--every-hazard] [--at-stops] [--sample n]
     /// [--seconds s] [--hazards clear,wet] [--only a,b] [--parallel p]: GDD §34's combination fairness, over a grid of routes and
-    /// crew sizes (note 204).
+    /// crew sizes (note 204). dt balance --conflicts [--only a+b,...]: App. B.10's contradiction quality, the director's
+    /// conflict table's pairs instead of the roster's, each staged where it's made (note 1032).
     /// </summary>
     public static int Combinations(string content, string[] args)
     {
         var c = Load(content);
         var t = c.Balance.Combinations;
         int size = args.Contains("--triples") ? 3 : 2;
-        var roster = Str(args, "--only", "") is { Length: > 0 } o
+        var roster = !args.Contains("--conflicts") && Str(args, "--only", "") is { Length: > 0 } o
             ? [.. o.Split(',').Select(k => Enum.Parse<EnemyKind>(k, ignoreCase: true))]
             : DarkTerritory.Sim.Net.Combinations.Roster;
-        var combos = DarkTerritory.Sim.Net.Combinations.Of(roster, Math.Min(size, roster.Count), (int)Opt(args, "--sample", size == 3 ? t.TripleSample : 0),
-            (ulong)Opt(args, "--sample-seed", 1));
+        // App. B.10 "Contradiction quality: every seeded pair is solvable" (--conflicts, note 1032): the director's conflict
+        // table instead of the roster's pairs, each pair's creatures insisted on and staged where it's made: at a stop for
+        // what comes at one (as --at-stops) or a pair with the stop in it, short of a grade for a pair with one.
+        var conflicts = args.Contains("--conflicts")
+            ? DarkTerritory.Sim.Net.Combinations.Conflicts(c.Enemies.Director.Conflicts)
+                .Where(p => Str(args, "--only", "") is not { Length: > 0 } only || only.Split(',').Contains(p.Name)).ToList()
+            : null;
+        if (conflicts?.FirstOrDefault(p => p.Unknown.Count > 0) is { } typo)
+            throw new ArgumentException($"conflict {typo.Name}: no creature or condition {string.Join(", ", typo.Unknown)}");
+        var combos = conflicts is not null
+            ? [.. conflicts.Select(p => p.Kinds).DistinctBy(k => string.Join("+", k))]
+            : DarkTerritory.Sim.Net.Combinations.Of(roster, Math.Min(size, roster.Count), (int)Opt(args, "--sample", size == 3 ? t.TripleSample : 0),
+                (ulong)Opt(args, "--sample-seed", 1));
+        // A combination's conditions, from the conflict pairs it stands for (none on the roster's sweep).
+        bool Stop(IReadOnlyList<EnemyKind> k) => conflicts?.Any(p => p.AtStop && p.Kinds.SequenceEqual(k)) == true;
+        bool Grade(IReadOnlyList<EnemyKind> k) => conflicts?.Any(p => p.Grade && p.Kinds.SequenceEqual(k)) == true;
         var hazards = Str(args, "--hazards", "") is { Length: > 0 } h ? [.. t.HazardSets.Where(x => h.Split(',').Contains(x.Name))] : t.HazardSets;
         // Every combination against every hazard set is the nightly's (--every-hazard). By default each combination meets one,
         // the sets taken in turn down the list, so every combination is run and every set is met, in a few minutes.
@@ -99,7 +114,7 @@ static class AuditCommands
         {
             var stageLine = x.Value.Build();
             return combos.Select(k => (Key: (x.Key, string.Join("+", k)), Stage: DarkTerritory.Sim.Net.Combinations.Stage(x.Value, stageLine, k, c.Enemies, yards[x.Key],
-                t.LeadM, t.ApproachM, Crane, atStops: args.Contains("--at-stops"))));
+                t.LeadM, t.ApproachM, Crane, atStops: args.Contains("--at-stops") || conflicts is not null, stop: Stop(k), gradeWithin: Grade(k) ? t.GradeWithinM : 0)));
         }).ToDictionary(x => x.Key, x => x.Stage);
         var nights = DarkTerritory.Sim.Net.Combinations.Nights(combos, hazards, every, grid);
         var runs = new CombinationRun[nights.Count];
@@ -157,8 +172,52 @@ static class AuditCommands
             hazards = hazards.Select(x => x.Name),
             everyHazard = every,
             atStops = args.Contains("--at-stops"),
+            conflicts = conflicts?.Select(p => new { pair = p.Name, kinds = string.Join("+", p.Kinds), p.AtStop, p.Grade }),
             result
         });
+        return result.Pass ? 0 : 1;
+    }
+
+    /// <summary>
+    /// dt harness stability [--crews 2,3,8] [--seconds s] [--links perfect,rough] [--parallel p]: GDD §34 "Stability: desync
+    /// and crash detection across 2–8 clients" (note 1032). Each crew size on each link, a night of bots on the test loop;
+    /// exits 1 on a desync or a crash.
+    /// </summary>
+    public static int Stability(string content, string[] args)
+    {
+        var c = Load(content);
+        var t = c.Balance.Stability;
+        var crews = Str(args, "--crews", "") is { Length: > 0 } cs ? [.. cs.Split(',').Select(x => int.Parse(x, CultureInfo.InvariantCulture))] : t.Crews;
+        var links = Str(args, "--links", "perfect,rough").Split(',');
+        double seconds = Opt(args, "--seconds", t.Seconds);
+        var line = DarkTerritory.Sim.Rail.RailLine.Load(Path.Combine(content, "lines/test-loop.json"));
+        var nights = (from crew in crews from link in links select (crew, link)).ToList();
+        var rows = new StabilityRow[nights.Count];
+        var clock = System.Diagnostics.Stopwatch.StartNew();
+        Parallel.For(0, nights.Count, new ParallelOptions { MaxDegreeOfParallelism = (int)Opt(args, "--parallel", Environment.ProcessorCount) }, i =>
+        {
+            var (crew, link) = nights[i];
+            HarnessReport? report = null;
+            string? crash = null;
+            try
+            {
+                report = Harness.Run(line, c.Train, c.Player, new HarnessOptions
+                {
+                    Bots = crew,
+                    Seconds = seconds,
+                    Seed = crew,
+                    Link = link == "perfect" ? Ballast.Net.LinkConditions.Perfect : Ballast.Net.LinkConditions.Rough,
+                }, c.Boiler);
+            }
+            catch (Exception e)
+            {
+                crash = $"{e.GetType().Name}: {e.Message}";
+            }
+            rows[i] = DarkTerritory.Sim.Net.Stability.Judge(crew, link, report, crash, t);
+            Console.Error.WriteLine($"crew {crew} {link}: {(rows[i].Pass ? "ok" : "FAILED")}, {clock.Elapsed.TotalSeconds:0} s");
+        });
+        var result = DarkTerritory.Sim.Net.Stability.Report(rows);
+        Print(new { seconds = Math.Round(clock.Elapsed.TotalSeconds), nightSeconds = seconds, result });
         return result.Pass ? 0 : 1;
     }
 

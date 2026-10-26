@@ -1189,5 +1189,6 @@ written here instead is moved out by `tools/coord/notes.py split`; the Coordinat
 - [1029. Tower Jaw's gantry comes down; a structure's fall reaches a joiner (Ash, nathaniel2's Token Budget Manager's worker; queue #732; note…](notes/1029.md)
 - [1030. The yard photographer's gallery on the end card (Vera, nathaniel3's Token Budget Manager's worker; queue #733; docs/design/upgrades.md §4…](notes/1030.md)
 - [1031. The towns' and the shore's leftovers (Uma, nathaniel3; queue #734; level-design T.4, maritime-rules §4; note 1026's rank 10)](notes/1031.md)
+- [1032. What the harness verifies: the checks the GDD promised that nothing ran (Silas, the Token Budget Manager's worker, nathaniel3; queue #735;…](notes/1032.md)
 - [1034. Moments and the reel: commendation clips instead of stills (n1-H2, nathaniel1's Token Budget Manager's worker; queue #256, carried on from…](notes/1034.md)
 <!-- end of the notes index -->
