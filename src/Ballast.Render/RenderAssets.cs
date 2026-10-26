@@ -39,12 +39,30 @@ public sealed record Image(int Width, int Height, byte[] Rgba)
             }
         return new Image(width, height, px);
     }
+
+    /// <summary>
+    /// An image's size without its pixels (<see cref="RenderAssets.Outlined"/>): what a renderer keeps of a layer once it's
+    /// uploaded. Nothing draws from one; <see cref="HasPixels"/> says which it is.
+    /// </summary>
+    public static Image Outline(int width, int height) => new(width, height, []);
+
+    /// <summary>False for an <see cref="Outline"/>.</summary>
+    public bool HasPixels => Rgba.Length > 0;
 }
 
 /// <summary>One material's maps (GDD §27, pipeline "at most three maps"): diffuse (alpha = cutout) and spec.</summary>
 /// <param name="Spec">R: specular strength. G: gloss (Phong exponent 4..128). B: emissive mask.</param>
 /// <param name="Normal">Tangent-space normal map (x right, y down the image, z out: tools/art's convention), or null for flat.</param>
-public sealed record MaterialLayer(string Name, Image Diffuse, Image Spec, bool AlphaTest = false, Image? Normal = null);
+public sealed record MaterialLayer(string Name, Image Diffuse, Image Spec, bool AlphaTest = false, Image? Normal = null)
+{
+    /// <summary>This layer's name and sizes, its pixels let go (<see cref="Image.Outline"/>).</summary>
+    public MaterialLayer Outlined() => this with
+    {
+        Diffuse = Image.Outline(Diffuse.Width, Diffuse.Height),
+        Spec = Image.Outline(Spec.Width, Spec.Height),
+        Normal = Normal is { } n ? Image.Outline(n.Width, n.Height) : null,
+    };
+}
 
 /// <summary>The post stack's settings (pipeline "Lighting, VFX and post"): what 2006–2008 hardware shipped with.</summary>
 public sealed record PostSettings
@@ -122,6 +140,23 @@ public sealed record RenderAssets
     /// <summary>A 16³ colour grade, display to display (<see cref="ColourGrade.Bake"/>).</summary>
     public byte[]? Lut { get; init; }
     public PostSettings Post { get; init; } = new();
+    /// <summary>
+    /// The layers' pixels read again (from disk), for when <see cref="Layers"/> are outlines (<see cref="Outlined"/>) and a
+    /// renderer has to upload them anew: no renderer on its device holds them any more, or it's another device. In the
+    /// layers' order, the same names; null when the layers are the pixels themselves.
+    /// </summary>
+    public Func<IReadOnlyList<MaterialLayer>>? Reread { get; init; }
+
+    /// <summary>
+    /// These assets with their layers as outlines (names and sizes, no pixels) and no backdrop, <paramref name="reread"/>
+    /// to read the pixels again (ARCHITECTURE §8 note 1047): about a gigabyte and a quarter of decoded textures needn't stay
+    /// in memory for the run once they're on the GPU.
+    /// </summary>
+    public RenderAssets Outlined(Func<IReadOnlyList<MaterialLayer>> reread) =>
+        this with { Layers = [.. Layers.Select(l => l.Outlined())], Backdrop = null, Reread = reread };
+
+    /// <summary>Whether the layers are outlines, their pixels to be read again (<see cref="Reread"/>) to upload them.</summary>
+    public bool Outline => Layers.Any(l => !l.Diffuse.HasPixels);
 
     public int IndexOf(string name)
     {
