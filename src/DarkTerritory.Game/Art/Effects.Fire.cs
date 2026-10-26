@@ -228,7 +228,7 @@ public sealed partial class Effects
     public void CarSmoke(MeshBuilder mesh, Vector3 o, Vector3 r, Vector3 u, Vector3 b, Sim.Train.CarShape shape, Burning fire, float speed, double t, int seed)
     {
         float amount = fire.Smoke;
-        if (amount < 0.02f && fire.Hot <= 0 || _smoke < 0)
+        if (amount < 0.02f && fire.Hot <= 0 && fire.Burn <= 0 || _smoke < 0)
             return;
         float half = (float)shape.HalfLength, wide = (float)shape.HalfWidth, roof = (float)shape.RoofHeight;
         Vector3 L(float x, float y, float z) => o + r * x + u * y + b * z;
@@ -260,7 +260,8 @@ public sealed partial class Effects
                 grey += Palette.FurnaceOrange * 0.28f * fire.Burn * MathF.Max(0, 1 - s * 2.5f);
             mesh.Billboard(at, size, h * 6.28f + age * 0.3f, new Vector4(grey * (0.85f + 0.3f * h3), a), _smoke, FxBlend.Alpha, (int)(s * 15.99f), 4);
         }
-        float hot = fire.Hot;
+        // (A burning car told no hottest cell has its intensity as the hottest.)
+        float hot = fire.Hot > 0 ? fire.Hot : fire.Burn;
         if (hot <= 0)
             return;
         // Note 1041 (the visual tell audit, note 1037: 15 s in, a fire on the farthest car showed nothing outside at 60 m):
