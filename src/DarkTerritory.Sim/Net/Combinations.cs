@@ -254,7 +254,10 @@ public static class Combinations
             if (kinds.Contains(EnemyKind.TrackDoll))
                 needs.Add((EnemyKind.TrackDoll, Coaling));
             // A coaling tower only for a kind that asks for one; the rest want a yard to work.
-            var at = stops.FirstOrDefault(f => needs.All(n => n.Ok(f)) && (Spur(f) || needs.Count > 0)) ?? stops.FirstOrDefault(Spur);
+            // With none that has all of it, the stop with a spur that has the most (deadLines:2's Switchyard for the Grumbler and
+            // the Freight Beetle: crates, if no crane).
+            var at = stops.FirstOrDefault(f => needs.All(n => n.Ok(f)) && (Spur(f) || needs.Count > 0))
+                ?? stops.Where(Spur).OrderByDescending(f => needs.Count(n => n.Ok(f))).FirstOrDefault();
             if (at is not null)
             {
                 var unstaged = needs.Where(n => !n.Ok(at)).Select(n => n.Kind.ToString()).ToList();
