@@ -642,6 +642,21 @@
   // The forge (note 697): the blacksmith's, beside the engine in every town's yard. Its board is lettered to read from the
   // cab (the art's); this is what it says read close to.
   "forge": { "title": "the blacksmith's forge", "text": "A board over the forge, lettered by hand in white: BLACKSMITH. TRAIN UPGRADES. FITTED BEFORE THE GATE. Under it, smaller: NO CREDIT. NOT EVEN FOR YOU." },
+  // The buyer's stall (note 1027): beside the forge, its board lettered to read from the train.
+  // What the buyer says of a find brought to them: what they paid ({price} scrip for the {find}), or, with the find still in
+  // the crew's hands, that the night's tally paid for it already (a find stowed aboard as the train came home).
+  "buyerSays": {
+    "paid": [
+      "{price} for the {find}. On the counter. Count it if you like.",
+      "The {find}. {price}, and I'm being kind. Don't tell the clerk.",
+      "{price}. That's what a {find} is worth inside the walls. Outside it's worth nothing at all."
+    ],
+    "tallied": [
+      "The clerk's paid you for that one already. I can read a tally sheet.",
+      "That came home in your car. The company's paid for it. I don't buy the company's things."
+    ]
+  },
+  "buyerStall": { "title": "the buyer's stall", "text": "A board over the counter, lettered by hand in white: BUYER. FINDS BOUGHT. Under it, smaller: CASH SCRIP. NO QUESTIONS. SOME ANSWERS." },
   "roles": {
     "gatekeeper": { "title": "gatekeeper", "lines": [
       "Gate opens when your wheels turn. Not before. Not for anyone. Not for anyone who asks nicely, either.",
@@ -681,6 +696,13 @@
       "I can make her stop faster, shoot faster, burn longer. I can't make her come back.",
       "Somebody asked me for chairs on the front. Chairs. And a grill. I did it. It's the best work I've done.",
       "The clerk reads out what I fit, every night. I've never heard him sound impressed. I live in hope." ] },
+    "buyer": { "title": "buyer", "lines": [
+      "Bring me what you find out there and I'll pay you for it here. The clerk pays better. The clerk wants it in your car.",
+      "Watches, clocks, the good spoons. Whatever the dead kept in a drawer. I don't ask whose.",
+      "I pay in scrip, on the counter, in front of you. The clerk pays at the gate, after. Some crews like to see it.",
+      "Knock it about and I pay less. Everyone does. The thing remembers being dropped.",
+      "Had a crew sell me a comb. A comb. Paid them for it. It's still on the shelf. Nobody wants a stranger's comb."
+      ] },
     "fitter": { "title": "fitter", "lines": [
       "Your boiler's sound. Sound as anything round here. Don't let it sit at the red.",
       "The engineering kit lives in the fitter's locker. If it's not there, it's somewhere worse.",
@@ -932,7 +954,11 @@
     "boarded": ["Nailed shut from the outside. A name and a date in whitewash on the door.", "The windows are boarded from inside. Somebody was still in there when they did it.",
       "Boarded up, a cross painted on the boards. Under the cross, smaller: SORRY.", "Shut and boarded. On the step, a child's shoe, left out as if for somebody to come back for it."],
     "burnt": ["Burnt to the sills. The chimney's standing, and somebody's hung a wreath on it.", "Burnt out. The stove's still there in the ashes, its door open. Inside the stove, a doll's head."],
-    "open": ["Empty. The door's open. Inside, the table's laid for five.", "Empty, the door off its hinges. On every wall, the same word, small, in pencil: HERE."]
+    "open": ["Empty. The door's open. Inside, the table's laid for five.", "Empty, the door off its hinges. On every wall, the same word, small, in pencil: HERE."],
+    // A boarded house left as it was inside (note 1022, towns.json floors.boarded): its door's boards prised off.
+    "prised": ["Boarded up, but the boards over the door have been prised off and leant against the wall, the nails still in them. Inside it's dark, and the table's laid.",
+      "Boarded shut once. Somebody's had the door's boards off since, from the inside: the nails are bent outward.",
+      "The boards hang off the door by a nail each. On the step, a lamp, cold, left for whoever goes in next."]
   },
 
   // Threads that run through the whole world, a scrap or two in each town (App. F.1: "some interactions give a scrap of
@@ -1004,8 +1030,12 @@
       "Locked. Through the window, a whole shelf of engineering kits, every one labelled with a crew's name."]
   },
 
-  // Inside an open house: what else there is to look at, and the stair door (the upstairs isn't for the crew).
+  // Inside an open house: what else there is to look at, and the stair door (a house of one storey and a half: its upstairs
+  // is in the roof, and isn't for the crew), or the stairs up to the bedrooms (note 1022, a house of two storeys).
   "rooms": {
+    "flight": ["The stairs up. A lamp's lit at the top, and the boards up there creak when nobody's on them.",
+      "The stairs. Halfway up, a child's drawing pinned to the wall: the house, and under it, drawn just as carefully, another house, upside down.",
+      "The stairs up to the bedrooms. Every bed up there is made. On one, somebody's slept on top of the covers in their boots."],
     "stairs": ["The stair door's shut. Upstairs, someone walks to the end of the room, stops, and walks back.",
       "The stair door's bolted on this side. Something on the other side has been trying it for a long time.",
       "The stair door won't open. From up the stairs, a child's voice: not yet."],
@@ -1207,6 +1237,10 @@
       "Prices are up for your crew. The council's fine for the yard comes out of my forge too, and I'm not paying it for you.",
       "I'll fit your train. Same work, dearer. Call it what the houses by the yard cost.",
       "Half the town says I shouldn't serve you. The other half says charge you double. I've split the difference."
+    ],
+    "buyer": [
+      "I'll take what you bring. I'll pay you less for it. The yard's houses are on your account, and I'm the one who's paying.",
+      "Your crew's finds are worth less in {town} this week. Not to me. To the people who buy them off me."
     ]
   }
 }

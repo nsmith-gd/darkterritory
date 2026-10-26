@@ -128,6 +128,10 @@
     // E.3's extras and water (note 373): the stowed dead (up to extraDolls) and the loose things aboard (up to extraItems), those
     // nearest the crew, go into the wreck with no shot of their own; a body under water is pushed up at buoyancy times gravity
     // and slowed at waterDrag a second, so it comes up and floats (E.3: "bodies get buoyancy and drag"). Cars sink.
-    "extraDolls": 8, "extraItems": 40, "buoyancy": 1.3, "waterDrag": 3
+    "extraDolls": 8, "extraItems": 40, "buoyancy": 1.3, "waterDrag": 3,
+    // E.11's checks of the finished film (note 1032; FilmTests, dt wreck --film): "no particle rests inside a solid by more
+    // than 2 cm at the end of any substep" (restInside, m), and E.4 O3's camera "at least 1 m above terrain and water"
+    // (groundClearance, m; the planner holds its candidates to the same 1 m).
+    "restInside": 0.02, "groundClearance": 1
   }
 }

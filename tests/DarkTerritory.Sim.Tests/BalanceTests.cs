@@ -98,4 +98,48 @@ public class BalanceTests
         var report = Balance.Judge([Night(1, true, 1) with { SlackOver = 500, QuietShare = 0.9 }], T);
         Assert.DoesNotContain(report.Checks, c => c.Name.StartsWith('P'));
     }
+
+    static readonly Dictionary<string, double> Shares = new() { ["kill"] = 0.40, ["split"] = 0.25, ["trust"] = 0.20, ["cargo"] = 0.15 };
+
+    static BalanceRow Spent(double kill, double split, double trust, double cargo) => Night(4, true, 3) with
+    {
+        SpentByWant = new Dictionary<string, double> { ["kill"] = kill, ["split"] = split, ["trust"] = trust, ["cargo"] = cargo },
+    };
+
+    [Fact]
+    public void WantBalanceIsTheSweepsSpendAgainstEachWantsShare()
+    {
+        // App. B.10 "Want balance: generated runs land near the target shares" (note 1032), over the whole sweep's spend.
+        var near = Balance.Judge([Spent(30, 30, 20, 20), Spent(50, 20, 20, 10)], T, Shares);
+        var check = Assert.Single(near.Checks, c => c.Name.StartsWith("want balance"));
+        Assert.True(check.Pass, check.Detail);
+        Assert.Matches(@"kill 40\s?% \(of 40\s?%\)", check.Detail);
+        // Kill taking two-thirds of the spend is off its share by far more than the tolerance.
+        var kills = Balance.Judge([Spent(70, 10, 10, 10), Spent(60, 10, 10, 20)], T, Shares);
+        Assert.False(Assert.Single(kills.Checks, c => c.Name.StartsWith("want balance")).Pass);
+        Assert.False(kills.Pass);
+        // Too little spent to have shares, or no targets: not judged.
+        Assert.DoesNotContain(Balance.Judge([Spent(10, 0, 0, 0)], T, Shares).Checks, c => c.Name.StartsWith("want balance"));
+        Assert.DoesNotContain(Balance.Judge([Spent(70, 10, 10, 10)], T).Checks, c => c.Name.StartsWith("want balance"));
+    }
+
+    [Fact]
+    public void DeepIsJudgedAgainstLocalOnlyAtMatchedCrewAndCars()
+    {
+        // App. B.10 "Tier progression: Deep territory is meaningfully harder than Local at matched crew and length" (note 1032).
+        BalanceRow At(RouteTier tier, bool delivered, int punishes, int crew = 4, int cars = 6) => Night(crew, delivered, punishes, cars: cars, tier: tier);
+        var harder = Balance.Judge([At(RouteTier.Local, true, 2), At(RouteTier.Local, true, 4), At(RouteTier.DeepTerritory, true, 6),
+            At(RouteTier.DeepTerritory, false, 9)], T);
+        var check = Assert.Single(harder.Checks, c => c.Name.StartsWith("deepTerritory harder"));
+        Assert.True(check.Pass, check.Detail);
+        Assert.Equal("deepTerritory harder than local (crew 4, 6 cars)", check.Name);
+        // Deep getting home more often, or its threats landing little more than Local's, isn't harder.
+        Assert.False(Assert.Single(Balance.Judge([At(RouteTier.Local, false, 2), At(RouteTier.DeepTerritory, true, 9)], T).Checks,
+            c => c.Name.StartsWith("deepTerritory")).Pass);
+        Assert.False(Assert.Single(Balance.Judge([At(RouteTier.Local, true, 4), At(RouteTier.DeepTerritory, true, 4)], T).Checks,
+            c => c.Name.StartsWith("deepTerritory")).Pass);
+        // Unmatched (another crew size or train) isn't compared at all.
+        Assert.DoesNotContain(Balance.Judge([At(RouteTier.Local, true, 2, crew: 2), At(RouteTier.DeepTerritory, true, 9, crew: 8)], T).Checks,
+            c => c.Name.StartsWith("deepTerritory"));
+    }
 }

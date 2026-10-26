@@ -1131,6 +1131,10 @@ public sealed partial class World
         Train.Ladders = [.. Town.Ladders, .. Arrival?.Ladders ?? []];
         if (Arrival is not null)
             Train.Walls.Add(Arrival.Walls);
+        // Note 1022: their houses' floors: the cellars, the hatches' and the windows' ladders.
+        foreach (var town in (Towns.Town?[])[Town, Arrival])
+            if (town?.Floors() is var (cellars, ladders, hatches))
+                Train.Walls.AddFloors(cellars, ladders, hatches);
         StandGates();
         // A town type's ground laid over the land (note 692): its terraces, benches, decks and water are what's stood on.
         Town.Lay(Train.Line);
@@ -1795,8 +1799,10 @@ public sealed partial class World
         bool atLock = kit && DoorInReach(s) is { } lockedDoor && Train.Walls!.Locked(lockedDoor.Key);
         // Note 730: a find or a toy in hand at a village's well goes down it on a press of Use, not onto the ground.
         bool welling = Authority && WellDropAct(s, intent, playerId);
+        // Note 1027: a find in hand at the town's buyer is sold on a press of Use, not put down.
+        bool selling = Authority && SellAct(s, intent, playerId);
         bool handsTookIt = Authority && Bodies.Handle(ref s, intent, playerId, Train, Hand,
-            keep: kit && (breaching || atLock || CrewActions.AtTheRupture(s, Train, Hand)) || charging || welling || sitting || angling || grilling,
+            keep: kit && (breaching || atLock || CrewActions.AtTheRupture(s, Train, Hand)) || charging || welling || selling || sitting || angling || grilling,
             lever: lever, fetch: fetch, patient: patient);
         Fishing(s, intent, playerId, angling);
         if (charging && gunTuning is not null)

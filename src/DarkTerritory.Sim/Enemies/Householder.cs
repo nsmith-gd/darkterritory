@@ -60,6 +60,9 @@ public sealed class Householder(int id) : Enemy(id)
         var toDoor = door is { } d ? (d.At - middle) with { Y = 0 } : house.Ex;
         toDoor = toDoor.Length > 1e-6 ? toDoor.Normalized : house.Ex;
         var chair = middle - toDoor * 0.6;
+        // (A house with floors, note 1023: at its table on the ground floor's boards.)
+        if (StopWalls.Storeyed(house))
+            chair = chair with { Y = StopWalls.FloorY(house, 0) };
         double yaw = HouseWays.Yaw(toDoor);
         return new Householder(id) { Attached = Loose, Local = chair, _chair = chair, _chairYaw = yaw, Lateral = yaw, Extra = -1, Extra2 = house.Index, Health = t.Health };
     }

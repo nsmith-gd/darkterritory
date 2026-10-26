@@ -195,10 +195,13 @@ public sealed partial class StopWalls
     /// room from the first. Never in the doorway.
     /// </summary>
     /// <summary>Where a container's find lies inside its open house, in its own frame (<see cref="InsideLocal(StopBuilding, ContainerKind, int, int)"/>; on its floor and in its slot, note 1005).</summary>
-    public static (double X, double Y) InsideLocal(StopBuilding b, StopContainer c) => InsideLocal(b, c.Kind, Storeyed(b) ? c.Slot : c.Index, c.Level);
+    public static (double X, double Y) InsideLocal(StopBuilding b, StopContainer c) => InsideLocal(b, c.Kind, Slotted(b, c) ? c.Slot : c.Index, c.Level);
+
+    /// <summary>Whether a container's place is by its slot on its floor (a house with floors', note 1005; a house of parts' other floors', note 1022).</summary>
+    static bool Slotted(StopBuilding b, StopContainer c) => Storeyed(b) || PartFloored(b) && c.Level != 0;
 
     /// <summary>What a container's kept in in its open house (<see cref="Kept(StopBuilding, ContainerKind, int, int)"/>; on its floor and in its slot, note 1005).</summary>
-    public static (double X, double Y, double FaceX, double FaceY) Kept(StopBuilding b, StopContainer c) => Kept(b, c.Kind, Storeyed(b) ? c.Slot : c.Index, c.Level);
+    public static (double X, double Y, double FaceX, double FaceY) Kept(StopBuilding b, StopContainer c) => Kept(b, c.Kind, Slotted(b, c) ? c.Slot : c.Index, c.Level);
 
     /// <param name="index">The container's index (in a house of floors, its <see cref="StopContainer.Slot"/>).</param>
     /// <param name="level">Which floor it's on (note 1005; <see cref="StopContainer.Level"/>).</param>
@@ -209,6 +212,11 @@ public sealed partial class StopWalls
         if (Storeyed(b))
         {
             var k = KeptStoreyed(b, kind, index, level);
+            return (k.FindX, k.FindY);
+        }
+        if (PartFloored(b) && level != 0)
+        {
+            var k = KeptPart(b, index, level);
             return (k.FindX, k.FindY);
         }
         if (Composite(b))
@@ -249,6 +257,11 @@ public sealed partial class StopWalls
         if (Storeyed(b))
         {
             var k = KeptStoreyed(b, kind, index, level);
+            return (k.X, k.Y, k.FaceX, k.FaceY);
+        }
+        if (PartFloored(b) && level != 0)
+        {
+            var k = KeptPart(b, index, level);
             return (k.X, k.Y, k.FaceX, k.FaceY);
         }
         if (Composite(b))
@@ -634,7 +647,7 @@ public sealed partial class StopWalls
                     ? Shelled(stop, i) ? Shell(stop, i, t).Select(w => (w.Part.X, w.Part.Y, w.Part.Length / 2, w.Part.Width / 2, w.Top))
                         .Concat(Benches(stop, i).Select(x => (x.X, x.Y, x.HalfX, x.HalfY, t.TopM))).Concat(Van(stop, i)) : []
                     : b.Open
-                        ? OpenWalls(b).Concat(Furniture(b, stop.Containers.Where(c => c.Building == index)).Select(x => (x.X, x.Y, x.HalfX, x.HalfY)))
+                        ? OpenWalls(b).Concat(Furniture(b, stop.Containers.Where(c => c.Building == index && c.Level == 0)).Select(x => (x.X, x.Y, x.HalfX, x.HalfY)))
                             .Concat(ClutterOf(stop, index).Where(x => x.Solid).Select(x => (x.X, x.Y, x.Box.HalfX, x.Box.HalfY)))
                             .Select(w => (w.X, w.Y, w.HalfX, w.HalfY, t.TopM))
                         // A well is its stone ring (WorldArt's, 0.9 m round), not its 5 m plot: note 730's well is walked up to.
@@ -653,6 +666,14 @@ public sealed partial class StopWalls
                 }
                 foreach (var (x, y, hx, hy, top) in boxes)
                     walls.Add(Placed(x, y, hx, hy, top));
+                // A house of parts with floors (note 1022): its floors' solids, its cellars and their ladders, over its middle's ground.
+                if (Walled(stop, i) && PartFloored(b))
+                {
+                    double ground = Run.StopWorld(line, f, b.Centre).Y;
+                    walls.AddParts(stop, i, owner, t,
+                        (x, y, hx, hy, lo, hi) => Placed(x, y, hx, hy, 0) with { Bottom = ground + lo, Top = ground + hi },
+                        (x, y, h) => Run.StopWorld(line, f, Plan.World(b, x, y)) with { Y = ground + h });
+                }
                 // Its doors (note 401): each a wall in its doorway that stands only while it's shut.
                 if (Walled(stop, i) && b.Open)
                     walls.AddHouse(fi, i, b, line, f, (x, y, hx, hy, key) => Placed(x, y, hx, hy, t.TopM) with { Door = key });

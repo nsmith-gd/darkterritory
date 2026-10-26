@@ -60,15 +60,16 @@ public sealed partial class StopHand
                 return GiveUpVillage(self, world, p);
             var kept = Lived(world);
             var next = run.HidingSpots
-                // (Not down a basement or up the stairs, note 1005: the bots keep to the ground floor; that's the crew's risk.)
-                .Where(h => h.Stop == _stopIndex && h.Container.Level == 0 && !run.Searched(h.Stop, h.Container.Index) && !_cantReach.Contains(h.Key)
+                // (Up the stairs and down a basement too, note 1023: crew.villageFloors.)
+                .Where(h => h.Stop == _stopIndex && (h.Container.Level == 0 || t.VillageFloors) && !run.Searched(h.Stop, h.Container.Index) && !_cantReach.Contains(h.Key)
                     && !calls.SpotClaimed(h.Key, member) && !InLived(world, kept, h.At))
                 .OrderBy(h => (Flat(h.At) - Flat(here)).Length).ThenBy(h => h.Key).FirstOrDefault();
             if (next.Seconds <= 0)
                 return GiveUpVillage(self, world, p);
             if ((Flat(next.At) - Flat(here)).Length > Reach(world, t))
                 return GiveUpVillage(self, world, p);
-            var path = FootPath.Plan(train, here, Front(next));
+            // (To a find on another floor, the way to its flight or its hatch on the ground floor: the rest is up or down.)
+            var path = FootPath.Plan(train, here, OnTheGroundFloor(train, Front(next)));
             if (path is null || FootPath.Length(here, path) > Reach(world, t) * 1.4)
             {
                 // Nowhere it can walk to from here (round the far side of a lake, say): try the next one next tick.
@@ -87,7 +88,9 @@ public sealed partial class StopHand
         if (run.Searched(spot.Stop, spot.Container.Index))
         {
             var find = world.Bodies.All.FirstOrDefault(b => b.Kind == Physics.BodyKind.Loot && b.Owner == spot.Key && b.Carrier < 0);
-            if (find is null || (Flat(Physics.Bodies.WorldCentre(find, train)) - Flat(here)).Length > 1.6)
+            // (On this floor: not one lying on the boards over our head, note 1023.)
+            if (find is null || (Flat(Physics.Bodies.WorldCentre(find, train)) - Flat(here)).Length > 1.6
+                || Math.Abs(Physics.Bodies.WorldCentre(find, train).Y - here.Y) > 1.5)
             {
                 // Nothing there (or someone's taken it): on to the next.
                 ReleaseSpot();
@@ -102,7 +105,7 @@ public sealed partial class StopHand
         }
         // There: face the spot and hold Use until it's searched.
         var front = Front(spot);
-        if ((Flat(here) - Flat(front)).Length < 0.45)
+        if ((Flat(here) - Flat(front)).Length < 0.45 && Math.Abs(front.Y - here.Y) < 1.5)
         {
             double yaw = DMath.Atan2(-(spot.At.X - here.X), -(spot.At.Z - here.Z));
             if (!Aligned(self, yaw))
@@ -154,7 +157,7 @@ public sealed partial class StopHand
         var t = Crew(world);
         var kept = Lived(world);
         return run.DawnIn >= t.VillageDawnSpare && (TownOrdered(_stopIndex) || calls.OutCount(member) < Math.Max(1, (int)Math.Ceiling(calls.CrateHands * t.VillageShare)))
-            && run.HidingSpots.Any(h => h.Stop == _stopIndex && h.Container.Level == 0 && !run.Searched(h.Stop, h.Container.Index) && !_cantReach.Contains(h.Key)
+            && run.HidingSpots.Any(h => h.Stop == _stopIndex && (h.Container.Level == 0 || t.VillageFloors) && !run.Searched(h.Stop, h.Container.Index) && !_cantReach.Contains(h.Key)
                 && !calls.SpotClaimed(h.Key, member) && (Flat(h.At) - Flat(here)).Length <= Reach(world, t) && !InLived(world, kept, h.At));
     }
 
@@ -258,9 +261,14 @@ public sealed partial class StopHand
     /// <summary>Where a crewmate stands to search a spot: just out in front of it, in the room.</summary>
     static Double3 Front(in HidingSpot h) => h.At + h.Facing * 0.45;
 
-    /// <summary>Along the planned way, a point at a time; a new way if it's stuck (a crewmate in the door, a car moved).</summary>
+    /// <summary>
+    /// Along the planned way, a point at a time; a new way if it's stuck (a crewmate in the door, a car moved). In a house with
+    /// floors (note 1023), first to the floor the goal's on (<see cref="Floors"/>).
+    /// </summary>
     PlayerIntent Follow(in PlayerState self, TrainOnLine train, Double3 goal)
     {
+        if (Floors(self, train, ref goal) is { } floors)
+            return floors;
         var here = PlayerMotor.WorldPosition(self, train);
         if ((Flat(here) - Flat(_lastAt)).Length < 0.02)
             _stuckTicks++;
@@ -288,6 +296,107 @@ public sealed partial class StopHand
             LookYaw = (float)Math.Clamp(turn, -0.5, 0.5),
             MoveZ = Math.Abs(turn) < 0.35 ? (float)Math.Clamp(to.Length * 1.5, 0.3, 1) : 0,
             Buttons = far && Math.Abs(turn) < 0.2 ? PlayerButtons.Run : PlayerButtons.None,
+        };
+    }
+
+    /// <summary>
+    /// Between a storeyed house's floors on foot (note 1023; #710's houses, note 1005), as a crewmate goes: up the flight
+    /// walking, down the hatch by its ladder (the ladder key beside it, down, off its foot), back up it and off over its top.
+    /// From the ground floor's boards toward another floor, <paramref name="goal"/> becomes the way's start there (the flight's
+    /// foot, beside the hatch's ladder) for the way round the walls to take it to, and null; on another floor already, or at
+    /// the way's start, the step (an intent). Null with <paramref name="goal"/> as it was where the floors aren't in the way.
+    /// </summary>
+    PlayerIntent? Floors(in PlayerState self, TrainOnLine train, ref Double3 goal)
+    {
+        if (train.Walls is not { } walls || self.Parent != PlayerState.World)
+            return null;
+        var here = PlayerMotor.WorldPosition(self, train);
+        int at = walls.StoreyedAt(here);
+        if (at < 0)
+            return null;
+        var h = walls.OpenHouseAt(at);
+        int want = walls.StoreyedAt(goal) == at ? StopWalls.LevelOf(h, goal.Y) : 0;
+        // On the hatch's ladder: on down it to the basement, or up it and off over its top onto the boards.
+        if (self.Surface == Surface.Ladder)
+        {
+            Doing = want < 0 ? "down into the basement" : "up out of the basement";
+            return new PlayerIntent { MoveZ = want < 0 ? -1 : 1 };
+        }
+        if (self.Surface == Surface.Air)
+            return new PlayerIntent();
+        int level = StopWalls.LevelOf(h, here.Y);
+        var flight = StopWalls.Flight(h);
+        if (flight is var (foot, top) && StopWalls.OnFlight(h, here))
+            return Head(self, want >= 1 ? top : foot, want >= 1 ? "up the stairs" : "down the stairs");
+        if (level == want)
+            return level == 0 ? null : Head(self, goal, level < 0 ? "across the basement" : "across the upstairs");
+        var hatch = StopWalls.Hatchway(h);
+        switch (level)
+        {
+            case > 0:
+                {
+                    var (f, t) = flight!.Value;
+                    return (Flat(here) - Flat(t)).Length > OnTheWayAt ? Head(self, t, "to the top of the stairs") : Head(self, f, "down the stairs");
+                }
+            case < 0:
+                {
+                    // To the ladder's foot, and the ladder key there.
+                    var (_, f, _, _) = hatch!.Value;
+                    if ((Flat(here) - Flat(f)).Length > LadderFrom)
+                        return Head(self, f, "to the ladder up");
+                    Doing = "taking hold of the ladder up";
+                    return new PlayerIntent { Actions = PlayerActions.Ladder };
+                }
+            default:
+                if (want > 0)
+                {
+                    var (f, t) = flight!.Value;
+                    if ((Flat(here) - Flat(f)).Length > OnTheWayAt)
+                    {
+                        goal = f;
+                        return null;
+                    }
+                    return Head(self, t, "up the stairs");
+                }
+                else
+                {
+                    // Round the walls to beside the hatch (the way off its ladder's top), in to the ladder, the ladder key.
+                    var (t, _, inward, onto) = hatch!.Value;
+                    var beside = t + inward * onto;
+                    double off = (Flat(here) - Flat(t)).Length;
+                    if (off > onto + 0.35)
+                    {
+                        goal = beside;
+                        return null;
+                    }
+                    if (off > LadderFrom)
+                        return Head(self, t, "to the hatch");
+                    Doing = "taking hold of the ladder down";
+                    return new PlayerIntent { Actions = PlayerActions.Ladder };
+                }
+        }
+    }
+
+    /// <summary>How near a hatch's ladder (flat, m) a hand takes hold of it with the ladder key: inside player.json ladder.grabRange.</summary>
+    const double LadderFrom = 0.55;
+
+    /// <summary>How near the flight's foot or top (flat, m) a hand is at it, to go on up or down it.</summary>
+    const double OnTheWayAt = 0.3;
+
+    /// <summary>
+    /// Where on a house's ground floor the way to <paramref name="goal"/> starts (note 1023): the flight's foot for a goal
+    /// upstairs, beside the hatch's ladder for one in the basement; the goal itself anywhere else.
+    /// </summary>
+    static Double3 OnTheGroundFloor(TrainOnLine train, Double3 goal)
+    {
+        if (train.Walls is not { } walls || walls.StoreyedAt(goal) is not (var at and >= 0))
+            return goal;
+        var h = walls.OpenHouseAt(at);
+        return StopWalls.LevelOf(h, goal.Y) switch
+        {
+            > 0 => StopWalls.Flight(h)!.Value.Foot,
+            < 0 => StopWalls.Hatchway(h) is var (t, _, inward, onto) ? t + inward * onto : goal,
+            _ => goal,
         };
     }
 

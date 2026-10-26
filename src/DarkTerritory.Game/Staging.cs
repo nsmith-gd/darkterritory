@@ -151,6 +151,41 @@ public static partial class Staging
             return Ballast.Render.Camera.LookAt(front + town.Direction(fs, 0, -house.Side) * 18 + town.Direction(fs, 1, 0) * 10 + Double3.Up * 3,
                 front + Double3.Up * (where == "fires" ? 5 : 1.5), 62);
         }
+        // "fixture:kind" (note 1031): the town's first fixture of a kind not in a house (a haystack, a dory, a crane), from a
+        // dozen metres off across the line's way and a few up, the square side of it.
+        if (where.StartsWith("fixture:", StringComparison.Ordinal) && plan.Fixtures.Where(f => f.House < 0 && f.Kind == where[8..])
+            .OrderBy(f => Math.Abs(f.S - mid) + Math.Abs(f.D)).FirstOrDefault() is { } fixture)
+        {
+            var at = town.World(fixture.S, fixture.D);
+            int toward = fixture.D > 0 ? -1 : 1;
+            return Ballast.Render.Camera.LookAt(at + town.Direction(fixture.S, 0, toward) * 11 + town.Direction(fixture.S, 1, 0) * 6 + Double3.Up * 4,
+                at + Double3.Up * 1.8, 60);
+        }
+        // A glasshouse town's beds (note 1031): "beds" from over the corner of the nearest few to the square, their crops.
+        if (where == "beds" && plan.Districts.Where(x => x.Kind == Sim.Towns.DistrictKind.Plots)
+            .OrderBy(x => Math.Abs(x.Outline.Average(p => p.S) - mid) + Math.Abs(x.Outline.Average(p => p.D))).FirstOrDefault() is { } bed)
+        {
+            double bs = bed.Outline.Average(p => p.S), bd = bed.Outline.Average(p => p.D);
+            return Ballast.Render.Camera.LookAt(town.World(bs + 22, bd - Math.Sign(bd) * 14, 9), town.World(bs - 6, bd, 0), 62);
+        }
+        // A harbour's wharf (note 1031): "wharf" stood on it at one end, looking along its edge over the water, its traps
+        // and the piers' boats; "wharfover" from over the water off it, higher, the length of it.
+        if (where is "wharf" or "wharfover" && plan.Districts.FirstOrDefault(x => x.Kind == Sim.Towns.DistrictKind.Quarter && x.Id is "wharf" or "quay") is { } wharf)
+        {
+            double w0 = wharf.Outline.Min(p => p.S), w1 = wharf.Outline.Max(p => p.S), wd0 = wharf.Outline.Min(p => p.D), wd1 = wharf.Outline.Max(p => p.D);
+            var ground = Sim.Towns.TownGround.Of(plan);
+            double wm = (w0 + w1) / 2, edge = ground.Water(wm, wd1 + 2.5) is not null ? wd1 : wd0;
+            int sea = edge == wd1 ? 1 : -1;
+            // (Its end over the water: a harbour's wharf runs on past the basin's corner.)
+            while (w1 > w0 + 40 && ground.Water(w1 - 4, edge + sea * 2.5) is null)
+                w1 -= 2;
+            if (where == "wharf")
+                return Ballast.Render.Camera.LookAt(town.World(w1 - 4, edge - sea * 4, 2.4), town.World(w1 - 34, edge - sea * 0.5, 0.8), 64);
+            // Over the boat tied at a pier nearest the wharf's far end, from up the wharf and over the water.
+            var tied = plan.Fixtures.Where(f => f.Kind == "dory" && Math.Abs(f.D - edge) < 60 && f.S > w0 && f.S < w1).OrderByDescending(f => f.S).FirstOrDefault();
+            var (bs, bd) = tied is null ? (w1 - 40, edge + sea * 10) : (tied.S, tied.D);
+            return Ballast.Render.Camera.LookAt(town.World(bs + 13, bd - sea * 3, 9), town.World(bs, bd, -1), 60);
+        }
         // What stands between the houses (note 989): "between" a fish shed (the nearest the square's middle that has a stack
         // of traps by it, else any), from a few steps out in front of it and to one side; "betweenover" from higher and further
         // back over it, its neighbours round it.
@@ -367,6 +402,40 @@ public static partial class Staging
                 };
             }
         }
+        // The houses with floors (note 1022): up the flight from its foot, the bedrooms from the landing, the window that opens
+        // and the porch roof under it (from the bedroom, and from the yard), down the hatch into the cellar (a hand lamp's
+        // what you see by), a burnt house's floor burnt through, and a boarded house left as it was.
+        if (where is "stairs" or "upstairs" or "bedroom" or "porchroof" or "porchyard" or "downcellar" or "hatch" or "ashcellar" or "boarded" or "boardedup")
+        {
+            var floored = where switch
+            {
+                "downcellar" or "hatch" => plan.Houses.FirstOrDefault(h => h.Cellar && h.Layout is not null),
+                "ashcellar" => plan.Houses.FirstOrDefault(h => h.Cellar && h.Kind == Sim.Towns.HouseKind.Burnt),
+                "boarded" or "boardedup" => plan.Houses.FirstOrDefault(h => h.Left is not null && (where == "boarded" || h.Upstairs)),
+                _ => plan.Houses.FirstOrDefault(h => h.Upstairs && h.Layout is not null),
+            };
+            if (floored is not null)
+            {
+                var fh = floored;
+                Double3 In(double u, double v, double up) => town.InHouse(fh, u, v, up);
+                var (u0, u1, v0, v1) = Sim.Towns.TownFloors.Stair(fh);
+                double um = (u0 + u1) / 2, f1 = Sim.Towns.TownFloors.Storey, cellar = -Sim.Towns.TownFloors.Cellar, wu = Sim.Towns.TownFloors.WindowU(fh);
+                var (hu, hv, _, _) = Sim.Towns.TownFloors.Hatch(fh);
+                int k = -Sim.Towns.TownFloors.StairSide(fh);
+                return where switch
+                {
+                    "stairs" => Ballast.Render.Camera.LookAt(In(um + k * 1.1, v0 - 0.5, 1.6), In(um, v1, f1 + 0.6), 72),
+                    "upstairs" or "boardedup" => Ballast.Render.Camera.LookAt(In(um, v1 + 0.25, f1 + 1.6), In(k * fh.Width / 4, 0.8, f1 + 0.7), 80),
+                    "bedroom" => Ballast.Render.Camera.LookAt(In(k * 0.4, Sim.Towns.TownFloors.UpperPassV(fh) + 0.2, f1 + 1.6), In(k * (fh.Width / 2 - 0.8), 1.2, f1 + 0.5), 80),
+                    "porchroof" => Ballast.Render.Camera.LookAt(In(wu - k * 0.3, fh.Depth - 1.0, f1 + 1.65), In(wu, fh.Depth + 1.0, f1 + 0.3), 75),
+                    "porchyard" => Ballast.Render.Camera.LookAt(In(wu + k * 3, fh.Depth + 6, 1.7), In(wu, fh.Depth, f1 + 0.4), 70),
+                    "downcellar" => Ballast.Render.Camera.LookAt(In(hu + 0.3, hv - 0.9, cellar + 1.6), In(-hu, 0.4, cellar + 0.4), 85),
+                    "hatch" => Ballast.Render.Camera.LookAt(In(hu - k * 0.3, hv - 1.6, 1.65), In(hu, hv, -0.6), 75),
+                    "ashcellar" => Ballast.Render.Camera.LookAt(In(fh.Design.DoorU, 0.4, 2.4), In(hu, hv, -1.2), 75),
+                    _ => Ballast.Render.Camera.LookAt(In(fh.Left!.DoorU - k * 0.1, 0.35, 1.65), In(k * fh.Width / 2, fh.Depth - 0.6, 0.9), 75),
+                };
+            }
+        }
         // The houses (note 281): the first open one, its front, its kitchen from the door, its parlour through the partition.
         // (party: Nicki's house, note 571, from her door; partyside, from the street.)
         var home = (where is "party" or "partyside" or "nicki" ? plan.Houses.FirstOrDefault(h => h.Party) : null)
@@ -408,6 +477,11 @@ public static partial class Staging
                 Ballast.Render.Camera.LookAt(town.World(smith.S + 7, side * 2.6, 1.7), town.World(smith.S - 0.5, smith.D + side * 1.6, 1.9), 66),
             "smithyfront" when plan.People.FirstOrDefault(p => p.Role == "blacksmith") is { } atForge =>
                 Ballast.Render.Camera.LookAt(town.World(atForge.S + 1.2, side * 3.2, 1.7), town.World(atForge.S - 0.4, atForge.D + side * 2.2, 1.7), 72),
+            // Note 1027: the buyer at their stall beside the forge, from the line, and close to, as the crew comes up with a find.
+            "buyer" when plan.People.FirstOrDefault(p => p.Role == "buyer") is { } buyer =>
+                Ballast.Render.Camera.LookAt(town.World(buyer.S + 7, side * 2.6, 1.7), town.World(buyer.S - 0.5, buyer.D + side * 1.6, 1.9), 66),
+            "buyerfront" when plan.People.FirstOrDefault(p => p.Role == "buyer") is { } atStall =>
+                Ballast.Render.Camera.LookAt(town.World(atStall.S + 1.2, side * 3.2, 1.7), town.World(atStall.S - 0.4, atStall.D + side * 2.2, 1.7), 72),
             "gate" => Ballast.Render.Camera.LookAt(town.World(plan.People[0].S + 2.5, plan.People[0].D + 1.6, 1.7), town.World(plan.People[0].S - 30, side * 8, 1.5), 65),
             "centre" => Ballast.Render.Camera.LookAt(town.World(centre.S + 5, centre.D - side * 5, 1.8), town.World(centre.S, centre.D, 1.2), 60),
             "street" => Ballast.Render.Camera.LookAt(town.World(mid + 18, -side * 6, 2.2), town.World(mid - 10, side * 18, 2.0), 70),

@@ -1,0 +1,13 @@
+// `dt moments` (queue #256, note 1034): what each kind of moment in a night is worth when a reel is cut from it. A developer's
+// yardstick, not a design number: nothing in the game reads it.
+{
+  // The incident report's facts (C.9; IncidentKind, camelCase) that are a moment, each worth this.
+  "incidents": { "death": 5, "derailed": 10, "stranded": 7, "carLost": 4, "rescue": 6, "punished": 4 },
+  // A grab broken (a friend prised them off, a blow, they struggled free): grabBroken, and latePerSecond more for each second
+  // it held them first, at most lateMost more ("a grab broken late").
+  "grabBroken": 4, "latePerSecond": 1, "lateMost": 4,
+  // Someone on foot leftBehindM (m) from every car with the train going at over leftGoing m/s: left behind.
+  "leftBehind": 6, "leftBehindM": 60, "leftGoing": 3,
+  // A reel's moments are at least this far apart (s), so one fight isn't the whole reel.
+  "apart": 20
+}

@@ -374,6 +374,13 @@ public sealed partial class WorldArt
                 mesh.PointLights.Add(new PointLight(Vector3.Transform(new Vector3(0, 1.3f, (float)f.SolidD - 0.8f), m), Palette.FurnaceOrange * 2.4f, 9));
                 mesh.PointLights.Add(new PointLight(Vector3.Transform(new Vector3(0, 1.9f, -(float)f.SolidD - 0.5f), m), Palette.LampAmber * 1.2f, 6));
             }
+            // The buyer's stall (note 1027): its lantern, and a light on its board.
+            if (f.Kind == "buyerstall")
+            {
+                var lamp = Vector3.Transform(SquareKit.MarketLamp, m);
+                mesh.PointLights.Add(new PointLight(lamp, Palette.LampAmber * 1.2f, 7));
+                mesh.Billboard(lamp, 0.5f, 0, new Vector4(Palette.LampAmber * 0.4f, 1), -1, FxBlend.Additive);
+            }
             if (f.Kind == "lamps")
                 mesh.PointLights.Add(new PointLight(Vector3.Transform(new Vector3(0, 1.8f, -0.6f), m), Palette.LampAmber * 0.4f, 4));
             // The night market's lights (note 825), each lighting its counter and the ground in front: each stall's own, a
@@ -609,6 +616,9 @@ public sealed partial class WorldArt
         // windows dark keeps it low).
         if (h.Kind == HouseKind.Lived)
             Porch(mesh, h.Design.Hull ? Matrix4x4.CreateTranslation(0, MaritimeKit.HullLift, 0) * m : m, h, lit);
+        // Its cellar (note 1022), a dark room under the boards: lit by little but a hand lamp.
+        if (h.Cellar && far < 60)
+            mesh.Rooms.Add(MaritimeKit.CellarRoom(h, m));
         if (h.Layout is null)
             return;
         // An open house's lamps inside, and the light out of its open door onto the step.

@@ -38,6 +38,8 @@ public sealed record TownTuning
     public SmithyTuning? Smithy { get; init; }
     /// <summary>A town's standing with the crew (towns.json <c>standing</c>; GDD §3.1 "A town remembers", note 1024).</summary>
     public StandingTuning Standing { get; init; } = new();
+    /// <summary>The buyer in the square, who pays for finds (towns.json <c>buyer</c>; GDD §3.1, note 1027). Unset or off, a town has none.</summary>
+    public BuyerTuning? Buyer { get; init; }
     public required int[] Quirks { get; init; }
     public required int[] Notices { get; init; }
     /// <summary>How many of the board's notices are the town's own (its culture's <c>board</c>; note 669).</summary>
@@ -65,6 +67,23 @@ public sealed record TownTuning
     public RoundTuning Rounds { get; init; } = new();
     /// <summary>The town types (note 692): see <see cref="FormTuning"/>.</summary>
     public FormTuning Forms { get; init; } = new();
+    /// <summary>Note 1022: the houses with floors (towns.json <c>floors</c>): see <see cref="FloorsTuning"/>.</summary>
+    public FloorsTuning Floors { get; init; } = new();
+}
+
+/// <summary>
+/// The towns' houses with floors (towns.json <c>floors</c>; queue #725, note 1022): the share of the open houses of two
+/// storeys with an upstairs, of the open houses with a cellar, of the burnt with theirs, and of the boarded left as they
+/// were inside (and at most how many a town), their floors at the same shares. Field docs live in towns.json.
+/// </summary>
+public sealed record FloorsTuning
+{
+    public bool Enabled { get; init; }
+    public double Upstairs { get; init; }
+    public double Cellar { get; init; }
+    public double BurntCellar { get; init; }
+    public double Boarded { get; init; }
+    public int BoardedMost { get; init; }
 }
 
 /// <summary>
@@ -385,6 +404,10 @@ public sealed record TownWriting
     public required Dictionary<string, TownRole> Roles { get; init; }
     /// <summary>The forge (note 697): its name, and what its board says read close to.</summary>
     public TownText? Forge { get; init; }
+    /// <summary>The buyer's stall (note 1027): its name, and what its board says read close to.</summary>
+    public TownText? BuyerStall { get; init; }
+    /// <summary>What the buyer says of a sale (note 1027): what they paid ({price}, {find}), or that the tally paid for it.</summary>
+    public BuyerSays? BuyerSays { get; init; }
     public required TownThread[] Threads { get; init; }
     public required TownText[] Notices { get; init; }
     /// <summary>The night market's stalls (note 825), each its name and what's on it, dealt with the town's trade's own stalls.</summary>
@@ -438,6 +461,15 @@ public sealed record TownBroughtIn
     public string[] Wary { get; init; } = [];
     public string[] Door { get; init; } = [];
     public string[] Smith { get; init; } = [];
+    /// <summary>Note 1027: the buyer's word on what they'll pay the crew now.</summary>
+    public string[] Buyer { get; init; } = [];
+}
+
+/// <summary>What the buyer says of a find brought to them (world/towns.json <c>buyerSays</c>; note 1027).</summary>
+public sealed record BuyerSays
+{
+    public string[] Paid { get; init; } = [];
+    public string[] Tallied { get; init; } = [];
 }
 
 /// <summary>
@@ -462,6 +494,34 @@ public sealed record TownText(string Title, string Text);
 /// catalogue (note 904).
 /// </summary>
 public sealed record SmithyTuning(double FromGate = -18, double Out = 8.5, double Stand = 2.2);
+
+/// <summary>
+/// The buyer in the square (towns.json <c>buyer</c>; GDD §3.1's "turning loot into scrip in the town itself"; ARCHITECTURE §8
+/// note 1027): their stall <see cref="FromGate"/> m along the line from the gate and <see cref="Out"/> m out on the town's side,
+/// beside the blacksmith's forge, the buyer <see cref="Stand"/> m in front of it. A find in hand, Use pressed within
+/// <see cref="Reach"/> m of them, is sold: <see cref="Pays"/> of the tally's price for it, rounded to fives, and in a town cold
+/// to the crew (note 1024) (1 − <see cref="Colder"/> × how cold) of that. Field docs live in that file.
+/// </summary>
+public sealed record BuyerTuning
+{
+    public bool Enabled { get; init; } = true;
+    public double FromGate { get; init; } = -26;
+    public double Out { get; init; } = 8.5;
+    public double Stand { get; init; } = 2.2;
+    public double Reach { get; init; } = 2.5;
+    public double Pays { get; init; } = 0.8;
+    public double Colder { get; init; } = 0.5;
+
+    /// <summary>
+    /// What the buyer pays for a find the tally would pay <paramref name="worth"/> for, in a town <paramref name="cold"/> to
+    /// the crew (0 to 1, <see cref="StandingTuning.Of"/>): rounded to fives, never under five. The same on every machine.
+    /// </summary>
+    public double Price(double worth, double cold)
+    {
+        double paid = worth * Pays * (1 - Colder * Math.Clamp(cold, 0, 1));
+        return Math.Max(Stops.LootTuning.LeastWorth, Math.Round(paid / Stops.LootTuning.LeastWorth) * Stops.LootTuning.LeastWorth);
+    }
+}
 
 /// <summary>What bringing a creature into a town costs the crew there (GDD §3.1 "A town remembers"; note 1024).</summary>
 public enum StandingMode : byte

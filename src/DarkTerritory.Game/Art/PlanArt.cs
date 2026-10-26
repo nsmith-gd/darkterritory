@@ -371,6 +371,7 @@ public sealed partial class WorldArt
         {
             "fir" => Piece($"fir-{v}-{form}", () => NovaKit.Conifer(_look, v, 12, 0.46f, form)),
             "birch" => Piece($"birch-{v % 3}", () => NovaKit.Birch(_look, v % 3)),
+            "maple" => Piece($"maple-{v % 3}", () => NovaKit.RedMaple(_look, v % 3)),
             "pine" => Piece($"pine-{v}", () => WorldKit.Pine(_look, v, 12)),
             "tamarack" => Piece($"tamarack-{v}-{form}", () => NovaKit.Conifer(_look, v, 12, 0.26f, form)),
             _ when near => Piece($"spruce3d-{v}-{form}", () => WorldKit.Spruce(_look, v, 12, form)),
@@ -468,7 +469,7 @@ public sealed partial class WorldArt
             float scale = height / 12;
             if (dead)
                 (m, _) = Place(along, offset, yaw, scale = height / (piece.Name.StartsWith("ghost") ? 8 + variant * 2.5f : 10) * 0.9f, 0.15f);
-            if (kind == "birch" && !dead)
+            if (kind is "birch" or "maple" && !dead)
                 (m, _) = Place(along, offset, yaw, scale = height / 11, 0.1f);
             // Leant, about its foot (where the Sim's wall stands): a few degrees, any way.
             if (lean.Angle > 0)

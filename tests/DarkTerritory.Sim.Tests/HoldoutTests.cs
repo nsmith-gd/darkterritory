@@ -790,6 +790,52 @@ public class HoldoutTests
     }
 
     [Fact]
+    public void AcrossRandomDeathsBreakOutsAndRecoveriesTheWalletNeverBeatsNoDeaths()
+    {
+        // D.14 "No farming: across randomised death and recovery sequences, the wallet never ends higher than with the same run
+        // and no deaths" (note 1032): someone dies, may be broken out of the halt's Lockup and die again, the one who broke
+        // them out may die too, and any of the bodies may be brought aboard. Seeded, so the same sequences every run.
+        var clean = new Night(AHalt, engineFrom: -300);
+        clean.Add(alive: true);
+        clean.Step(0.2);
+        double none = Deliver(clean).Net;
+        var rng = new Random(1032);
+        for (int trial = 0; trial < 8; trial++)
+        {
+            var n = new Night(AHalt, engineFrom: -300);
+            int living = n.Add(alive: true), dead = n.Add(alive: false);
+            n.Step(0.2);
+            var h = n.Here.Single();
+            bool brokenOut = rng.Next(2) == 0, rescuerDies = rng.Next(3) == 0;
+            if (brokenOut)
+            {
+                n.Stand(living, h.Door);
+                n.Hold(living, PlayerButtons.Use);
+                n.Step(h.Breach(H).Seconds + 0.2);
+                n.Hold(living, default);
+                Assert.True(n[dead].Alive, $"trial {trial}: not freed");
+                n[dead] = n[dead] with { Health = 0, Death = DeathCause.Mauled };
+                n.Step(0.2);
+            }
+            if (rescuerDies)
+            {
+                n[living] = n[living] with { Health = 0, Death = DeathCause.Eaten };
+                n.Step(0.2);
+            }
+            var bodies = n.World.Bodies.All.Where(b => b.Kind == BodyKind.Ragdoll).ToList();
+            var car = n.Train.Vehicles.First(v => v.Kind == VehicleKind.Cargo).Id;
+            foreach (var body in bodies.Where(_ => rng.Next(2) == 0))
+                body.Parent = car;
+            var report = Deliver(n);
+            int deaths = 1 + (brokenOut ? 1 : 0) + (rescuerDies ? 1 : 0);
+            string what = $"trial {trial}: {deaths} deaths ({(brokenOut ? "broken out and died again" : "left in the Lockup")}{(rescuerDies ? ", the rescuer too" : "")}), {report.BodiesHome} bodies home";
+            Assert.Equal(deaths, report.Deaths);
+            Assert.InRange(report.BodiesHome, 0, report.Deaths);
+            Assert.True(report.Net < none, $"{what}: {report.Net} against {none} with none");
+        }
+    }
+
+    [Fact]
     public void ADropOutsBodyCostsNothingAndRefundsNothing()
     {
         var n = new Night(AHalt, engineFrom: -300);

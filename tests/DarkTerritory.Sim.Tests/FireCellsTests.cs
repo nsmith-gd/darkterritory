@@ -1,6 +1,7 @@
 using Ballast;
 using DarkTerritory.Sim.Enemies;
 using DarkTerritory.Sim.Player;
+using DarkTerritory.Sim.Train;
 using Xunit;
 
 namespace DarkTerritory.Sim.Tests;
@@ -34,6 +35,62 @@ public class FireCellsTests
         Assert.True(two.Out && two.Seconds <= 10, two.ToString());
         Assert.True(two.Seconds <= one.Seconds * 0.8, $"two: {two.Seconds:0.0} s, one: {one.Seconds:0.0} s");
         Assert.True(two.Health > 50, two.ToString());
+    }
+
+    /// <summary>
+    /// Spec B.11's "Left alone (goods)" row timed again on the 3.5 m cells (note 1032; it was measured on note 267's 1.5 m
+    /// cells): a fire set on car 2's floor and left alone, on a 5-car train running at 8 m/s.
+    /// </summary>
+    [Fact]
+    public void LeftAloneAGoodsCarBurnsOnTheSpecsClock()
+    {
+        // Measured 24 / 47 / 51 / 68 s and burnt out at 181 s, all 16 cells charred (B.11's row).
+        var goods = LeftAlone(CargoKind.Goods);
+        Assert.True(goods.Alight is >= 20 and <= 30, goods.ToString());
+        Assert.True(goods.Roof is >= 40 and <= 55, goods.ToString());
+        Assert.True(goods.Half is >= 44 and <= 60, goods.ToString());
+        Assert.True(goods.NextCar is >= 58 and <= 80, goods.ToString());
+        Assert.True(goods.BurntOut is >= 150 and <= 220, goods.ToString());
+        Assert.Equal(goods.Cells, goods.Charred);
+        // B.9: coal and chemicals run ahead of it at every step.
+        foreach (var cargo in new[] { CargoKind.Coal, CargoKind.Chemicals })
+        {
+            var faster = LeftAlone(cargo);
+            Assert.True(faster.Alight <= goods.Alight && faster.Half <= goods.Half && faster.NextCar <= goods.NextCar, $"{cargo}: {faster}; goods: {goods}");
+        }
+    }
+
+    internal record Clock(double Alight, double Roof, double Half, double NextCar, double BurntOut, int Charred, int Cells);
+
+    /// <summary>
+    /// The seconds from the fire's being set to: alight (a cell at <c>burnFrom</c>), the roof caught (a roof cell at it), half
+    /// the car alight at once, the next car taken, and the car burnt out (its fire gone); and the cells it charred.
+    /// </summary>
+    internal static Clock LeftAlone(CargoKind cargo, double most = 600)
+    {
+        var n = new Night(5, speed: 8);
+        var t = Tuning.Enemies.CarFire;
+        n.Train.Vehicles[2].Cargo = cargo;
+        var fire = (CarFire)n.World.AddEnemy(id => CarFire.In(id, n.Train, 2, 0, t, FireCause.Set));
+        var grid = FireGrid.Of(n.Train, 2, t.CellSize)!;
+        double alight = double.NaN, roof = double.NaN, half = double.NaN, next = double.NaN, burnt = double.NaN;
+        for (int i = 1; i <= most * SimConstants.TickRate && double.IsNaN(burnt); i++)
+        {
+            n.Run(SimConstants.TickSeconds);
+            double now = i * SimConstants.TickSeconds;
+            var heat = fire.Heat;
+            if (double.IsNaN(alight) && heat.Any(h => h >= t.BurnFrom))
+                alight = now;
+            if (double.IsNaN(roof) && Enumerable.Range(0, Math.Min(grid.Count, heat.Length)).Any(c => grid.Face[c] == FireFace.Ceiling && heat[c] >= t.BurnFrom))
+                roof = now;
+            if (double.IsNaN(half) && heat.Count(h => h >= t.BurnFrom) * 2 >= grid.Count)
+                half = now;
+            if (double.IsNaN(next) && n.World.ActiveEnemies.OfType<CarFire>().Any(e => e.Attached != 2 && !e.Gone))
+                next = now;
+            if (fire.Gone)
+                burnt = now;
+        }
+        return new(alight, roof, half, next, burnt, n.Train.Vehicles[2].Char.Count(c => c > 0), grid.Count);
     }
 
     internal record Result(int Cells, bool Out, double Seconds, int Health, double Charge);

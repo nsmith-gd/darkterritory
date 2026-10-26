@@ -8,6 +8,8 @@ static class WreckCommands
 {
     public static object Run(string content, string[] args)
     {
+        if (args.Contains("--film"))
+            return Film(content, args);
         double speed = Opt(args, "--speed", 22);
         int cars = (int)Opt(args, "--cars", 6);
         var tuning = DataFile.Load<WreckTuning>(Path.Combine(content, WreckTuning.File));
@@ -54,6 +56,72 @@ static class WreckCommands
             }),
             timeline,
         };
+    }
+
+    /// <summary>
+    /// dt wreck --film [--crews 1,4,8] [--speeds 8,20,30] [--cars 6] [--straight]: GDD v1.4 App. E.11's checks of the film
+    /// (note 1032), for each crew size at each speed: a crew spread down the train (the cab, then the roofs), derailed, the
+    /// film recorded with every particle watched at the end of every substep ("no interpenetration": none more than
+    /// restInside, 2 cm, inside a solid) and every finished shot's camera checked ("clean camera", E.4 O3 and O4). The
+    /// verdict's in "pass"; FilmTests holds a few of these.
+    /// </summary>
+    static object Film(string content, string[] args)
+    {
+        var tuning = DataFile.Load<WreckTuning>(Path.Combine(content, WreckTuning.File));
+        var trainTuning = DataFile.Load<TrainTuning>(Path.Combine(content, TrainTuning.File));
+        var player = DataFile.Load<DarkTerritory.Sim.Player.PlayerTuning>(Path.Combine(content, DarkTerritory.Sim.Player.PlayerTuning.File));
+        int cars = (int)Opt(args, "--cars", 6);
+        var crews = Str(args, "--crews", "1,2,4,6,8").Split(',').Select(int.Parse).ToList();
+        var speeds = Str(args, "--speeds", "8,14,20,26,30").Split(',').Select(x => double.Parse(x, System.Globalization.CultureInfo.InvariantCulture)).ToList();
+        var rows = new List<object>();
+        bool pass = true;
+        foreach (int crew in crews)
+            foreach (double speed in speeds)
+            {
+                var line = args.Contains("--straight") ? new RailLine(new LineDefinition("wreck", [new TrackSegment(5000)]))
+                    : new RailLine(new LineDefinition("wreck", [new TrackSegment(2000), new TrackSegment(600, 1 / 300.0), new TrackSegment(2000)]));
+                var train = new TrainOnLine(new TrainDynamics(Consist.Uniform(trainTuning, cars, 1)), line, 2250);
+                train.Dynamics.Velocity = speed;
+                train.RefreshFrames();
+                var world = new World(train) { WreckTuning = tuning };
+                world.EnableBodies();
+                world.BeginTick();
+                // As FilmTests' crew, apart: the cab, then a roof each down the train, 3 m back and forth, a round further back past it.
+                for (int i = 0; i < crew; i++)
+                {
+                    var s = i == 0 ? DarkTerritory.Sim.Player.PlayerMotor.SpawnInCab(train, player)
+                        : DarkTerritory.Sim.Player.PlayerMotor.SpawnOnRoof(train, 1 + i % cars, (i % 3 - 1) * 3.0 + i / cars * 1.5, player);
+                    world.CrewAct(ref s, default, i);
+                }
+                world.Derail("dt wreck --film");
+                var start = world.Film!;
+                double Ground(double x, double z)
+                {
+                    double hint = start.Along;
+                    return DarkTerritory.Sim.Player.PlayerMotor.GroundAt(new Double3(x, 0, z), train.Line, ref hint);
+                }
+                var probe = new FilmProbe();
+                var recording = WreckFilm.Record(tuning, start, Ground, probe: probe);
+                var film = WreckFilm.Shoot(tuning, start, Ground, recording);
+                var faults = film.CameraFaults(Ground);
+                bool ok = probe.Over == 0 && faults.Count == 0;
+                pass &= ok;
+                rows.Add(new
+                {
+                    crew,
+                    speed,
+                    pass = ok,
+                    interpenetration = new { over = probe.Over, inside = probe.Inside, seen = probe.Seen, deepest = Math.Round(probe.Deepest, 4), at = Math.Round(probe.At, 3), what = probe.What },
+                    camera = faults,
+                });
+            }
+        return new { restInside = tuning.Film.RestInside, lensClearance = tuning.Film.LensClearance, pass, rows };
+    }
+
+    static string Str(string[] args, string name, string fallback)
+    {
+        int i = Array.IndexOf(args, name);
+        return i >= 0 && i + 1 < args.Length ? args[i + 1] : fallback;
     }
 
     static double Opt(string[] args, string name, double fallback)

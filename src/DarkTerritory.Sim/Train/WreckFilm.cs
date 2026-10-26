@@ -47,7 +47,7 @@ public sealed record FilmTuning(
     double SpinMin = 0, double SurviveHits = 2, double MostHits = 3, double CertainDeathSpeed = 16, double GiveUpSeconds = 2.4, double Muscle = 0.25, double Reach = 0.06,
     double FirstPersonRate = 0.4, double FirstPersonAfter = 0.8, double FirstPersonMin = 1.5, double FirstPersonMax = 6,
     double ShotFill = 0.45, double FovMin = 22, double FovMax = 60, double TaskHold = 0.4,
-    int ExtraDolls = 8, int ExtraItems = 40, double Buoyancy = 1.3, double WaterDrag = 3)
+    int ExtraDolls = 8, int ExtraItems = 40, double Buoyancy = 1.3, double WaterDrag = 3, double RestInside = 0.02, double GroundClearance = 1)
 {
     /// <summary>
     /// Real seconds into a player's first-person beat that their death lands, for a death <paramref name="recorded"/> seconds
@@ -110,6 +110,41 @@ public sealed record FilmStart(ulong Seed, IReadOnlyList<FilmCar> Cars, IReadOnl
 /// stays where it was in its car and goes wherever the car goes (<see cref="WreckFilm.Riding"/>).</param>
 public sealed record FilmExtra(BodyKind Kind, IReadOnlyList<Double3> Joints, Double3 Velocity, int Inside, int Owner = -1, CargoKind Cargo = CargoKind.None,
     bool Rides = false);
+
+/// <summary>
+/// GDD v1.4 App. E.11 "No interpenetration: no particle rests inside a solid by more than 2 cm at the end of any substep"
+/// (note 1032): what <see cref="WreckFilm.Record"/> saw, given one. Each particle (the crew's, the stowed dead's, the
+/// things thrown) at the end of each substep, against the stage's own solids (the ground, the cars, a car's walls round
+/// whoever's inside it, the guns): how far it is inside, as the collider would push it out. Watching changes nothing.
+/// </summary>
+public sealed class FilmProbe
+{
+    /// <summary>The deepest any particle ended a substep inside a solid (m), when (recorded seconds), and which.</summary>
+    public double Deepest { get; private set; }
+    public double At { get; private set; }
+    public string What { get; private set; } = "";
+    /// <summary>Particle-substeps seen, those that ended inside a solid at all, and those more than <see cref="FilmTuning.RestInside"/> inside.</summary>
+    public long Seen { get; private set; }
+    public int Inside { get; private set; }
+    public int Over { get; private set; }
+
+    internal void Saw(int particles) => Seen += particles;
+
+    internal void See(double depth, double at, double limit, Func<string> what)
+    {
+        Inside++;
+        if (depth > limit)
+            Over++;
+        if (depth > Deepest)
+            (Deepest, At, What) = (depth, at, what());
+    }
+}
+
+/// <summary>
+/// GDD v1.4 App. E.11 "Clean camera: no camera sweep touches a collider, and nothing enters lens clearance" (note 1032): a
+/// finished shot's camera, <paramref name="Real"/> seconds in, where it broke a rule, and by how much (m).
+/// </summary>
+public sealed record FilmCameraFault(int Shot, ShotKind Kind, int Subject, double Real, string What, double Metres);
 
 /// <summary>
 /// One recorded instant: every car's pose, every ragdoll's 11 joints, the cars' hits and the bodies' landings that made a
@@ -336,7 +371,9 @@ public sealed class WreckFilm
     /// them dies in it. Deterministic (DMath, seeded): the host reads the deaths from it on the derail tick, and every
     /// client that shoots the film from the same start records the same frames.
     /// </summary>
-    public static FilmRecording Record(WreckTuning wt, FilmStart start, Func<double, double, double> ground, Func<double, double, double?>? water = null)
+    /// <param name="probe">E.11's interpenetration check (note 1032): each particle at the end of each substep, seen; none, nothing.</param>
+    public static FilmRecording Record(WreckTuning wt, FilmStart start, Func<double, double, double> ground, Func<double, double, double?>? water = null,
+        FilmProbe? probe = null)
     {
         var t = wt.Film;
         var cars = start.Cars.Select(c => new WreckBody
@@ -435,6 +472,33 @@ public sealed class WreckFilm
                         Float(d.Body, water, wt.Gravity, t, h);
                     foreach (var item in items)
                         Float(item.Ball.Body, water, wt.Gravity, t, h);
+                }
+                if (probe is not null)
+                {
+                    double at = (i - 1) * Dt + (s + 1) * h;
+                    void Look(Doll d, string who)
+                    {
+                        var ps = d.Body.Particles;
+                        probe.Saw(ps.Length);
+                        for (int j = 0; j < ps.Length; j++)
+                            if (stage.Touch(ps[j].Position, ps[j].Radius, d, probe: true) is { } hit)
+                            {
+                                var q = ps[j];
+                                double depth = (hit.Position - q.Position).Length;
+                                // Which solid: the ground's push is straight up to its surface; anything else is a car (its
+                                // box, its walls round whoever's inside it, its gun).
+                                bool earth = Math.Abs(ground(q.Position.X, q.Position.Z) + q.Radius - q.Position.Y - depth) < 1e-9;
+                                probe.See(depth, at, t.RestInside, () => $"{who}'s joint {j} in {(earth ? "the ground" : d.Inside >= 0 ? "a car (inside one)" : "a car")}");
+                            }
+                    }
+                    for (int k = 0; k < dolls.Count; k++)
+                        Look(dolls[k], $"player {start.Players[k].Id}");
+                    for (int k = 0; k < dead.Count; k++)
+                        Look(dead[k], $"stowed dead {k}");
+                    foreach (var load in loads.Where(l => !l.Held))
+                        Look(load.Ball, $"what player {start.Players[load.DollIndex].Id} carried");
+                    foreach (var item in items)
+                        Look(item.Ball, $"extra {item.DollIndex} ({extras[item.DollIndex].Kind})");
                 }
             }
             double now = i * Dt;
@@ -798,7 +862,8 @@ public sealed class WreckFilm
             }
         }
 
-        public Contact? Touch(Double3 p, double r, Doll d)
+        /// <param name="probe">Only looking (E.11's check, note 1032): what it would touch, nothing about the doll changed.</param>
+        public Contact? Touch(Double3 p, double r, Doll d, bool probe = false)
         {
             Contact? best = null;
             double deepest = 0;
@@ -850,8 +915,11 @@ public sealed class WreckFilm
                 // The surface's own motion this substep, at the contact: a moving car carries what it touches.
                 (best, deepest) = (new Contact(world, normal, world - _before[i].ToWorld(h.Position)), depth);
             }
-            d.OnCar |= byCar;
-            d.Squeezed |= fromAbove;
+            if (!probe)
+            {
+                d.OnCar |= byCar;
+                d.Squeezed |= fromAbove;
+            }
             return best;
         }
 
@@ -1240,6 +1308,70 @@ public sealed class WreckFilm
 
     static Double3 ToWorld((Double3 Origin, Double3 Right, Double3 Up, Double3 Back) pose, Double3 local) =>
         pose.Origin + pose.Right * local.X + pose.Up * local.Y + pose.Back * local.Z;
+
+    /// <summary>
+    /// GDD v1.4 App. E.11 "Clean camera" (note 1032): every finished shot's camera, a recorded frame at a time, as the game
+    /// moves it (<c>DerailSequence.FilmCamera</c>: held or dollying, rigged to a car for someone inside one). E.4 O3: the
+    /// camera's sphere touches no car, and it stays <see cref="FilmTuning.GroundClearance"/> over the ground; O4: no car,
+    /// body (the subject's too) or debris (the stowed dead, what's carried or thrown) within the lens clearance. The cause
+    /// card has no camera. (O5's distance to the subject is the planner's to choose by, not E.11's.)
+    /// </summary>
+    public IReadOnlyList<FilmCameraFault> CameraFaults(Func<double, double, double> ground)
+    {
+        var faults = new List<FilmCameraFault>();
+        var t = Tuning;
+        for (int s = 0; s < Shots.Count; s++)
+        {
+            var shot = Shots[s];
+            if (shot.Kind == ShotKind.Cause)
+                continue;
+            int subject = shot.Kind == ShotKind.Player ? Start.Players.ToList().FindIndex(p => p.Id == shot.Subject) : -1;
+            int steps = Math.Max(1, (int)Math.Ceiling(shot.Real * Rate));
+            // The worst of each rule over the shot, so a shot that breaks one says where it broke it most.
+            var worst = new Dictionary<string, (double Metres, double Real)>();
+            void Fault(string what, double metres, double real)
+            {
+                if (!worst.TryGetValue(what, out var w) || metres > w.Metres)
+                    worst[what] = (metres, real);
+            }
+            for (int k = 0; k <= steps; k++)
+            {
+                double real = shot.Real * k / steps, u = shot.Real > 0 ? k / (double)steps : 0;
+                double recorded = shot.At(real);
+                var eye = Double3.Lerp(shot.Camera, shot.CameraTo, u);
+                if (subject >= 0)
+                    eye = CameraAt(shot, recorded, eye);
+                var (a, b, w) = At(recorded);
+                double under = ground(eye.X, eye.Z) + t.GroundClearance - eye.Y;
+                if (under > 0)
+                    Fault($"under {t.GroundClearance} m over the ground", under, real);
+                for (int c = 0; c < Start.Cars.Count && c < a.Cars.Count; c++)
+                {
+                    var pose = (Double3.Lerp(a.Cars[c].Origin, b.Cars[c].Origin, w), a.Cars[c].Right, a.Cars[c].Up, a.Cars[c].Back);
+                    var l = ToLocal(pose, eye);
+                    var car = Start.Cars[c];
+                    var outside = new Double3(Math.Max(0, Math.Abs(l.X) - car.HalfWidth), l.Y < 0 ? -l.Y : Math.Max(0, l.Y - car.Height),
+                        Math.Max(0, Math.Abs(l.Z) - car.HalfLength));
+                    double gap = outside.Length;
+                    if (gap < t.CameraRadius)
+                        Fault($"into car {car.Vehicle}", t.CameraRadius - gap, real);
+                    else if (gap < t.LensClearance)
+                        Fault($"car {car.Vehicle} in the lens clearance", t.LensClearance - gap, real);
+                }
+                for (int d = 0; d < a.Ragdolls.Count; d++)
+                {
+                    double nearest = a.Ragdolls[d].Select((j, i) => (Double3.Lerp(j, b.Ragdolls[d][i], w) - eye).Length).Min();
+                    if (nearest < t.LensClearance)
+                        Fault($"{(d == subject ? "the subject" : $"player {Start.Players[d].Id}")} in the lens clearance", t.LensClearance - nearest, real);
+                }
+                var debris = (a.Dead ?? []).SelectMany(x => x).Concat((a.Loads ?? []).Select(x => x.At)).Concat((a.Items ?? []).Select(x => x.At));
+                if (debris.Select(p => (p - eye).Length).DefaultIfEmpty(double.PositiveInfinity).Min() is var near && near < t.LensClearance)
+                    Fault("debris in the lens clearance", t.LensClearance - near, real);
+            }
+            faults.AddRange(worst.Select(x => new FilmCameraFault(s, shot.Kind, shot.Subject, Math.Round(x.Value.Real, 2), x.Key, Math.Round(x.Value.Metres, 3))));
+        }
+        return faults;
+    }
 
     /// <summary>Where a shot's camera is at <paramref name="recorded"/>: rigged to its car (<see cref="FilmShot.Rig"/>), or held.</summary>
     public Double3 CameraAt(FilmShot shot, double recorded, Double3 held)

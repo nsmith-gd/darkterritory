@@ -127,7 +127,9 @@ public sealed partial class WorldArt
                         return FormWayTexture(town.Plan.Form);
             if (g.Water(s, d) is not null)
                 return "ground_mud";
-            return g.Bed(s, d) == 0 ? "ground_mud" : FormTopTexture(town.Plan.Form);
+            if (town.Plan.Districts.Any(x => Paved(x) && x.Holds(s, d)))
+                return FormPavingTexture(town.Plan.Form);
+            return g.Bed(s, d) == 0 ? FormBaseTexture(town.Plan.Form) : FormTopTexture(town.Plan.Form);
         }
         // Past the wall, FormLand's grid: the land a cell's corners stand at, the town's easing into the night's.
         var terrain = (line.Conditions is Sim.Net.HazardConditions h ? h.Inner : line.Conditions) is PlanConditions pc ? pc.Terrain : null;
@@ -148,18 +150,62 @@ public sealed partial class WorldArt
     }
 
     /// <summary>A town type's terraces' and benches' tops (note 692): the quarry's granite, the tidewater's setts, the harbour's
-    /// heath, the dykeland's marsh, mud elsewhere.</summary>
+    /// heath, the dykeland's marsh; and each other form's own (note 1031): the furnace's slag, a glasshouse town's and a timber
+    /// town's dark loam, the high towns' heath, the crag's lichened rock.</summary>
     static string FormTopTexture(string form) => form switch
     {
-        "quarry" => "granite_lichen",
+        "quarry" or "crag" => "granite_lichen",
         "tidewater" => "cobbles",
-        "harbour" => "ground_heath",
+        "harbour" or "highline" or "salt" => "ground_heath",
         "dykeland" => "marsh",
+        "furnace" => "slag",
+        "glasshouse" or "timber" => "ground_forest",
         _ => "ground_mud",
     };
 
-    /// <summary>A town type's ways on the ground (note 692): a harbour's and a tidewater town's paved, the rest beaten strips.</summary>
-    static string FormWayTexture(string form) => form is "tidewater" or "harbour" ? "cobbles" : "ballast";
+    /// <summary>
+    /// A town type's ground at the yard's level (note 1031: each form's own, not the one mud): the harbour's and the salt
+    /// town's shingle, the dykeland's red Fundy clay, the quarry's and the high line's chippings, the drowned borough's mud,
+    /// the glasshouse town's loam, the furnace's slag, the timber town's sawdust and needles, the crag's bare rock.
+    /// </summary>
+    static string FormBaseTexture(string form) => form switch
+    {
+        "harbour" or "salt" => "shore_shingle",
+        "dykeland" => "ground_red_clay",
+        "quarry" or "highline" => "ballast",
+        "glasshouse" => "ground_forest",
+        "furnace" => "slag",
+        "timber" => "ground_needles",
+        "crag" => "granite_lichen",
+        _ => "ground_mud",
+    };
+
+    /// <summary>
+    /// A town type's quarters paved (note 1031; note 692's handoff, "town paving under the forms' quarters"): the wharves,
+    /// quays and the cranes' and founders' yards in granite setts, the drowned borough's wharves and the furnace's and the
+    /// crag's in cobbles, a timber town's yards in planks, the dykeland's dyke and mounds the grass they're turfed with.
+    /// </summary>
+    static string FormPavingTexture(string form) => form switch
+    {
+        "tidewater" or "furnace" or "crag" => "cobbles",
+        "timber" => "wood_floor",
+        "dykeland" => "ground_grass",
+        _ => "stone_block",
+    };
+
+    /// <summary>Whether a district is one of a town type's paved quarters (inside its wall, not the walled town's own).</summary>
+    static bool Paved(Sim.Towns.TownDistrict x) => x.Kind == Sim.Towns.DistrictKind.Quarter && !x.Outside && x.Id.Length > 0;
+
+    /// <summary>A town type's ways on the ground (note 692): a harbour's and a tidewater town's paved, the rest beaten strips;
+    /// the dykeland's the red clay, a timber town's rutted mud, the furnace's slag (note 1031).</summary>
+    static string FormWayTexture(string form) => form switch
+    {
+        "tidewater" or "harbour" or "crag" => "cobbles",
+        "dykeland" => "ground_red_clay",
+        "timber" => "ground_mud",
+        "furnace" => "slag",
+        _ => "ballast",
+    };
 
     /// <summary>The land a town type shapes past its wall (note 692), by a <see cref="LandGrid"/> cell's steepness, whether
     /// it's under the town's water, and its mean height over the town's yard.</summary>

@@ -216,12 +216,22 @@ public sealed record StopCrewTuning
     /// that stop: it's made, whatever the reckoning, unless it's late for the dawn. False: stopped short of and set back.
     /// </summary>
     public bool CrewsStops { get; init; } = true;
+    /// <summary>
+    /// Note 1028: a bot crew clears a yard's blocked siding (level-design D.1, D.2) the night has time for: in for its derelicts,
+    /// out past the points, and put away on a free road further up the yard. False: worked round, as before.
+    /// </summary>
+    public bool ClearSidings { get; init; } = true;
     /// <summary>Note 326: the share of the crate hands that go to search the village's houses once the crates are in (0: none).</summary>
     public double VillageShare { get; init; }
     /// <summary>How far from the train a hiding spot may be for a hand to go to it (m).</summary>
     public double VillageReach { get; init; } = 150;
     /// <summary>Nobody goes to the village with less of the night than this left (s).</summary>
     public double VillageDawnSpare { get; init; } = 900;
+    /// <summary>
+    /// Note 1023: a hand searches a house's upstairs and basement too (up the flight, down the hatch's ladder, and back up
+    /// with the find); false, the ground floor only (note 1005's bots).
+    /// </summary>
+    public bool VillageFloors { get; init; } = true;
     /// <summary>
     /// Note 934: a driver bot stands this long at each halt on the night's line (an abandoned village's on the main line) that
     /// the night has time for (0: drives past them, as before).
@@ -243,6 +253,13 @@ public sealed record StopCrewTuning
     public double ShelterOverTrain { get; init; } = 2;
     /// <summary>Note 935: a bot driving runs in to a stop's hold no faster than a stop at this from where it is (m/s²; 0: the brake's curve).</summary>
     public double ApproachEase { get; init; }
+    /// <summary>Note 1031: how far along a town's streets from its square a bot hand strolls between nights (m; 0: it stays aboard).</summary>
+    public double TownStroll { get; init; }
+    /// <summary>Among how many of the streets nearest the square the bots share themselves out.</summary>
+    public int TownStreets { get; init; } = 2;
+    /// <summary>The most a leg of its stroll takes before it stops where it is (s), and how long it stands looking round (s).</summary>
+    public double TownLegSeconds { get; init; } = 45;
+    public double TownLinger { get; init; } = 12;
 }
 
 /// <summary>The grain elevator's spout (GDD §18 "one spout, one car at a time"; spec D.2 gravity chute). Field docs in facilities.json.</summary>

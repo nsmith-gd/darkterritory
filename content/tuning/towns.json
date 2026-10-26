@@ -115,6 +115,13 @@
   // run.json departShortOfGateM), "out" m off the line on the town's side; the smith "stand" m in front of it. Use pressed on
   // them opens the catalogue (campaign.json upgrades; note 904: talking to him is buying from him).
   "smithy": { "fromGate": -18, "out": 8.5, "stand": 2.2 },
+  // The buyer in the square (GDD §3.1's "turning loot into scrip in the town itself"; note 1027; the director's ask
+  // nathaniel3-gdd-town-buyer still open, so on by default behind "enabled": false is the night's tally alone, as before).
+  // Their stall stands "fromGate" m along the line from the gate and "out" m off it on the town's side, beside the forge;
+  // the buyer "stand" m in front of it, facing the line. A find in hand, Use pressed within "reach" m of them, is sold, for
+  // "pays" of what the night's tally pays for it (under 1, so the tally stays the better deal), rounded to fives; in a town
+  // cold to the crew ("standing" above), (1 - "colder" x how cold) of that. A find the tally has paid for is never bought.
+  "buyer": { "enabled": true, "fromGate": -26, "out": 8.5, "stand": 2.2, "reach": 2.5, "pays": 0.8, "colder": 0.5 },
   // A town's standing with the crew (GDD §3.1 "A town remembers"; note 1024; the director's ask on note 949, question 2, still
   // open: these are the default till it's answered). Each creature ridden in through its gate makes the town "perCreature"
   // percent colder to the crew (up to "most"), easing "easePerNight" a night settled, wherever the crew is; kept per town in
@@ -170,7 +177,10 @@
     },
     "shedTraps": 0.6, "rocks": 0.5, "open": 0.35, "hung": 0.5,
     "fences": 0.5, "fenceGap": 0.4, "fenceRun": [4, 12], "broken": 0.3,
-    "step": 4.5, "line": 12, "street": 1.5, "front": 6, "things": 1.0, "places": 3, "wall": 4, "people": 2 },
+    "step": 4.5, "line": 12, "street": 1.5, "front": 6, "things": 1.0, "places": 3, "wall": 4, "people": 2,
+    // Lobster traps along a wharf's or a quay's edge over the water (maritime-rules §4, note 1031): a stack every so many m
+    // along it, share of them kept, in m back from the edge; clear m from what stands and the ways, piers m from a pier's foot.
+    "wharf": { "every": [1.5, 4.5], "share": 0.6, "in": 0.8, "clear": 0.3, "piers": 2.5, "look": 2.5 } },
 
   // Households that argue (note 971; docs/design/townsfolk.md, "Not yet": "a lapsed lodger in a zealous house could say so"):
   // a house whose two most at odds on one of lines' traits are gap or more apart (traits run -1..1) has that trait's quarrel,
@@ -286,5 +296,15 @@
       "salt":       { "length": 540, "left": 150, "right": 150, "lot": [6.5, 9.5], "lotDepth": 7,  "setback": 0.6, "waterLevel": -0.6, "waterDepth": 0.5, "terraceLevel": 0, "margin": 110, "packed": true },
       "crag":       { "length": 560, "left": 160, "right": 160, "lot": [6.5, 9.5], "lotDepth": 7,  "setback": 0.6, "waterLevel": -3.0, "waterDepth": 1.6, "terraceLevel": 16, "rise": 12, "margin": 190, "roll": 5, "packed": true }
     }
-  }
+  },
+
+  // The houses with floors (queue #725, ARCHITECTURE §8 note 1022; the director, 23 Oct 2026, docs/playtest/2026-10-23.md
+  // line 36: "more complex houses that have multiple levels, including basements. Those basements should get pretty dark";
+  // #710's villages carried to the towns, note 1005). Of the open houses (their household at home), those of two storeys
+  // have an upstairs at "upstairs" (up a flight in the parlour: the bedrooms, lamplit, and a window onto the porch roof
+  // out the back), and any has a cellar at "cellar" (down a hatch's ladder, dark). A burnt house keeps its cellar at
+  // "burntCellar" (its floor burnt through over it). Of the boarded houses, "boarded" are left as they were inside, their
+  // door's boards prised off, no more than "boardedMost" a town (the nearest the square first), their floors at the
+  // open houses' shares. First readings: every open house that can has an upstairs, most a cellar.
+  "floors": { "enabled": true, "upstairs": 1.0, "cellar": 0.8, "burntCellar": 0.6, "boarded": 0.25, "boardedMost": 2 }
 }
