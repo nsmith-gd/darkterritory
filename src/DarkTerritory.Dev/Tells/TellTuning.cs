@@ -12,6 +12,8 @@ public sealed record TellTuning
     public int Height { get; init; } = 360;
     public double Fov { get; init; } = 65;
     public double Settle { get; init; } = 1;
+    /// <summary>The device memory its renderer fits its material textures to (MiB): under the device's, they're halved.</summary>
+    public int TextureBudgetMiB { get; init; } = 1536;
     /// <summary>The lightness step (L*) a pixel must differ by to show the creature.</summary>
     public double Jnd { get; init; } = 3;
     /// <summary>The floor a tell must clear: pixels showing it (at 720p), and the brightest tenth's step (L*).</summary>

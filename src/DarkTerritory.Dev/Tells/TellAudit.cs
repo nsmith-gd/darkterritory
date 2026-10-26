@@ -1,3 +1,4 @@
+using System.Runtime;
 using Ballast;
 using Ballast.Render;
 using DarkTerritory.Dev.Gym;
@@ -66,13 +67,28 @@ public static class TellAudit
                 // train moved and put back, the stop left; the caller's idle clock), so a tell measured alone and after
                 // others differed, and the Moose couldn't come after the Track Doll.
                 var gym = CreatureGym.Of(gymTuning, content);
-                using var night = NetPlaySession.HostGame(content, gym.Setup(), port: null, bots: 0, listed: false);
-                var host = night.Host!;
-                gym.Begin(host);
-                byte you = (byte)night.PlayerId;
-                Step(night, gym, host, 2.5);
-                shot ??= new WorldShot(content, host.World.Route, tuning.Width, tuning.Height) { Forgetful = true };
-                tells.Add(Shoot(tuning, name, tell, kind, night, gym, host, you, shot, nights, scale, output, frames));
+                var night = NetPlaySession.HostGame(content, gym.Setup(), port: null, bots: 0, listed: false);
+                try
+                {
+                    var host = night.Host!;
+                    gym.Begin(host);
+                    byte you = (byte)night.PlayerId;
+                    Step(night, gym, host, 2.5);
+                    // Its material textures on a budget of their own (tells.json textureBudgetMiB): halved, they measure the
+                    // same at the audit's 640x360, in a third of the device memory.
+                    shot ??= new WorldShot(content, host.World.Route, tuning.Width, tuning.Height,
+                        new GpuLimits(int.MaxValue, int.MaxValue, ulong.MaxValue, (ulong)tuning.TextureBudgetMiB << 20))
+                    { Forgetful = true };
+                    tells.Add(Shoot(tuning, name, tell, kind, night, gym, host, you, shot, nights, scale, output, frames));
+                }
+                finally
+                {
+                    night.Dispose();
+                }
+                // Each night's garbage (and its frames' scenes) collected before the next is hosted: on a CI runner the audit ran
+                // beside the other test projects and took the machine past its memory (note 1043).
+                GCSettings.LargeObjectHeapCompactionMode = GCLargeObjectHeapCompactionMode.CompactOnce;
+                GC.Collect();
             }
         }
         finally

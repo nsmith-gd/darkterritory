@@ -10,6 +10,10 @@
   "width": 640,
   "height": 360,
   "fov": 65,
+  // The device memory (MiB) its renderer fits the material textures to (note 1043): under a GPU's own, the arrays are halved
+  // (256/512/1024 px). At the audit's 640x360 they measure the same as the full ones (the fast four within 8 px and 0.3 L*),
+  // in a third of the device memory (on lavapipe, the process's own), which a CI runner beside the other tests needs.
+  "textureBudgetMiB": 1536,
   // Seconds stepped after the call before the shot (it has arrived and settled into its pose).
   "settle": 1.0,
   // A pixel shows the creature when its lightness differs by at least `jnd` L* (a just-noticeable step for a dark-adapted

@@ -27,11 +27,12 @@ public sealed class WorldShot : IDisposable
     readonly Overlay _overlay = new();
     GreyboxScene _scene;
 
-    public WorldShot(string content, Sim.Route.Route? route, int width = 1280, int height = 720)
+    /// <param name="limits">The GPU held to these (a smaller texture budget: the visual tell audit's, note 1043); null for the device's own.</param>
+    public WorldShot(string content, Sim.Route.Route? route, int width = 1280, int height = 720, GpuLimits? limits = null)
     {
         Width = width;
         Height = height;
-        _gpu = new GpuContext("dt replay");
+        _gpu = new GpuContext("dt replay", limits: limits);
         _renderer = new GreyboxRenderer(_gpu, width, height);
         _look = Look.Load(content);
         _look.Dress(_renderer);
