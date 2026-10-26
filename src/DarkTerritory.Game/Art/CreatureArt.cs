@@ -325,6 +325,9 @@ public sealed partial class CreatureArt
 
     // The Stoker's own fire, in its mouth and its splits: the sick green of a fire with it in (GreyboxScene.FireColour).
     static readonly Vector3 StokerFire = new(0.35f, 0.6f, 0.22f);
+    int? _sparkLayer;
+    // The effects' spark (fx_spark), for the Stoker's haze while it boards.
+    int SparkLayer => _sparkLayer ??= Look.Layer("fx_spark");
     // A Cinder Hound's own light (note 337): its cracks' ember, redder than a firebox, and how far it reaches.
     static readonly Vector3 HoundEmber = new Vector3(1.0f, 0.38f, 0.12f) * 2.4f;
     const float HoundLightRange = 4.2f;
@@ -491,10 +494,12 @@ public sealed partial class CreatureArt
         ["passenger"] = 0.35f,
     };
 
-    sealed class Entry(Model model, MaterialLook[] looks)
+    sealed class Entry(Model model, MaterialLook[] looks, MaterialLook[]? lifted = null)
     {
         public Model Model { get; } = model;
         public MaterialLook[] Looks { get; } = looks;
+        /// <summary>Its looks lightened for the dark (<see cref="Lifted"/>; note 1042), drawn unless it's a watcher's dark shape.</summary>
+        public MaterialLook[] Lit { get; } = lifted ?? looks;
         public MaterialLook[] Scratch { get; } = new MaterialLook[looks.Length];
         public Pose Pose { get; } = new(model.Skeleton.Count);
         /// <summary>The distance copy (&lt;name&gt;.lod1.glb), its joints renumbered to this model's: posed by this one's palette.</summary>
@@ -536,9 +541,11 @@ public sealed partial class CreatureArt
             var (model, authored, far) = figure;
             float wear = WearOf.GetValueOrDefault(name, 0.5f);
             bool person = Person(name);
-            _models[name] = new Entry(model, [.. model.Materials.Select(m => Resolve(m, wear, person))])
+            _models[name] = new Entry(model, [.. model.Materials.Select(m => Resolve(m, wear, person))],
+                [.. model.Materials.Select(m => Lifted(name, m, Resolve(m, wear, person)))])
             {
-                Lod = far is null ? null : new Entry(far, [.. far.Materials.Select(m => Resolve(m, wear, person))]),
+                Lod = far is null ? null : new Entry(far, [.. far.Materials.Select(m => Resolve(m, wear, person))],
+                    [.. far.Materials.Select(m => Lifted(name, m, Resolve(m, wear, person)))]),
                 // (The Waker's drawn thirty times his size: his distance copy from thirty times as far, note 679.)
                 LodFrom = (authored ? look.Tuning.CreatureLodMetres : look.Tuning.ClusteredLodMetres) * (name == "waker" ? WakerGait.Scale : 1),
             };
@@ -719,6 +726,21 @@ public sealed partial class CreatureArt
         }
     }
 
+    /// <summary>
+    /// A dark creature kept seeable on dark ground (systems-spec A.4a; note 1042; look.json darkCreatures): its baked
+    /// atlas's surfaces lighter by <c>lift</c> (ash, not lit: the lights and eyes left as they are), and its eyes' shine
+    /// raised to <c>eyeShine</c>, catching what light there is.
+    /// </summary>
+    MaterialLook Lifted(string name, ModelMaterial m, MaterialLook look)
+    {
+        var dark = Look.Tuning.DarkCreatures;
+        if (m.Emissive <= 0 && m.Glow <= 0 && dark.Lift.TryGetValue(name, out var lift))
+            look = look with { Colour = look.Colour * lift };
+        if (m.Name.Contains("eye", StringComparison.Ordinal) && dark.EyeShine.TryGetValue(name, out var shine))
+            look = look with { Emissive = Math.Max(look.Emissive, shine) };
+        return look;
+    }
+
     MaterialLook Resolve(ModelMaterial m, float wear, bool person = false)
     {
         int layer = string.IsNullOrEmpty(m.Texture) ? -1 : Look.Layer(m.Texture);
@@ -787,8 +809,9 @@ public sealed partial class CreatureArt
         var mats = m.Model.Materials;
         for (int i = 0; i < mats.Length; i++)
         {
-            m.Scratch[i] = adjust is null ? m.Looks[i] : adjust(mats[i], m.Looks[i]);
-            // (A watcher's shape, CreatureArt.Watching: the whole of it dark.)
+            // (A watcher's shape, CreatureArt.Watching: the whole of it dark, as baked, its eyes the tell.)
+            var look = _shade < 1 ? m.Looks[i] : m.Lit[i];
+            m.Scratch[i] = adjust is null ? look : adjust(mats[i], look);
             if (_shade < 1)
                 m.Scratch[i] = m.Scratch[i] with { Colour = m.Scratch[i].Colour * _shade, Emissive = m.Scratch[i].Emissive * _shade };
         }
@@ -3239,11 +3262,17 @@ public sealed partial class CreatureArt
             case EnemyKind.Stoker when e is Sim.Enemies.Stoker { Boarding: true } && _models.ContainsKey("stoker"):
                 {
                     // Boarding at the tender (note 263): crouched on the coal and creeping across the footplate to the fire
-                    // door, facing it (the engine's −Z), lit by its own sick glow: the telegraph, in the open.
+                    // door, facing it (the engine's −Z), lit by its own sick glow: the telegraph, in the open (look.json
+                    // darkCreatures stokerBoard*: seen from the cab against the black tender, note 1042).
+                    var dark = Look.Tuning.DarkCreatures;
                     if (Draw(mesh, "stoker", "peer", e.PhaseSeconds, true, model, seed: 13))
                     {
                         float flicker = 0.8f + 0.2f * (float)Math.Sin(e.PhaseSeconds * 17.0);
-                        mesh.PointLights.Add(new PointLight(Vector3.Transform(new Vector3(0, 0.4f, 0), model), StokerFire * flicker * 1.6f, 2.2f));
+                        var over = Vector3.Transform(new Vector3(0, dark.StokerBoardLift, 0), model);
+                        mesh.PointLights.Add(new PointLight(over, StokerFire * flicker * dark.StokerBoardGlow, dark.StokerBoardReach));
+                        // Its glow seen over the tender's rim when the coal hides it (note 1042): a sick-green haze about it.
+                        if (dark.StokerBoardHalo > 0 && SparkLayer >= 0)
+                            mesh.Billboard(over, dark.StokerBoardHalo, 0, new Vector4(StokerFire, dark.StokerBoardHaloAlpha * flicker), SparkLayer, FxBlend.Additive, 0, 2);
                     }
                     return true;
                 }
