@@ -34,22 +34,24 @@
   },
   // Each tell: how far off a crewmate has to see it to answer it (m), where they'd be looking from, how high on the
   // creature to aim (m over where it stands), and what the tell is. Distances cite the creature's own number where it has
-  // one (enemies.json); the rest are the distance its answer needs (the gym's notes: brake, run, call it out).
+  // one (enemies.json); the rest are the distance its answer needs (the gym's notes: brake, run, call it out). "settle":
+  // its own seconds before the shot (a fire taking hold; the hotbox glows only after enemies.json hotbox knockSeconds).
+  // "hidden": why it's out of sight on purpose until it acts: drawn and measured, never counted a failure.
   "tells": {
     "cinderHound":   { "warnM": 40, "from": ["roof", "foot"], "aim": 0.6, "what": "the pack running up behind, eyes and embers" },
     "sootChildren":  { "warnM": 20, "from": ["foot"], "aim": 1.0, "what": "a child in the dark beyond the stop; the eyes are the tell" },
-    "dragger":       { "warnM": 12, "from": ["roof"], "aim": 0.0, "what": "a limb at the roof's edge lip" },
+    "dragger":       { "warnM": 12, "from": ["roof"], "aim": 0.0, "what": "a limb at the roof's edge lip", "hidden": "under the roof's edge until the limb comes up; its scrape is the tell (A.4)" },
     "stoker":        { "warnM": 15, "from": ["cab", "roof"], "aim": 0.8, "what": "a sooted shape coming over the tender" },
     "climber":       { "warnM": 15, "from": ["gap", "roof"], "aim": 0.8, "what": "pale things pacing a coupling gap" },
-    "gaunt":         { "warnM": 30, "from": ["foot"], "aim": 1.8, "what": "the tall thin figure, standing where it wasn't" },
-    "carFire":       { "warnM": 60, "from": ["roof", "foot"], "aim": 2.0, "what": "a car alight" },
-    "passenger":     { "warnM": 10, "from": ["roof"], "aim": 1.0, "what": "someone aboard who isn't crew" },
+    "gaunt":         { "warnM": 30, "from": ["foot"], "aim": 1.8, "what": "the tall thin figure, standing where it wasn't", "hidden": "asleep in its roost; its house kept dark is the tell (look.json interiors)" },
+    "carFire":       { "warnM": 60, "from": ["roof", "foot"], "aim": 2.0, "what": "a car alight", "settle": 15 },
+    "passenger":     { "warnM": 10, "from": ["roof"], "aim": 1.0, "what": "someone aboard who isn't crew", "hidden": "inside its car, among the crew: seen only from in there" },
     "follower":      { "warnM": 8,  "from": ["foot"], "aim": 1.4, "what": "a lump on a friend's back, seen by the others" },
     "trackDoll":     { "warnM": 60, "from": ["cab"], "aim": 0.4, "what": "a doll on the rail in the headlamp" },
     "carHugger":     { "warnM": 30, "from": ["roof", "foot"], "aim": 1.0, "what": "a mass under the line clamping the last car" },
-    "whistler":      { "warnM": 12, "from": ["roof", "gap"], "aim": 1.2, "what": "a shape waiting in a coupling gap" },
+    "whistler":      { "warnM": 12, "from": ["gap"], "aim": 1.2, "what": "a shape waiting in a coupling gap" },
     "tippyToesie":   { "warnM": 6,  "from": ["foot"], "aim": 1.0, "what": "something right behind you when you turn" },
-    "fireFlies":     { "warnM": 20, "from": ["roof", "foot"], "aim": 0.0, "what": "a swarm round a lit car's lamp" },
+    "fireFlies":     { "warnM": 20, "from": ["roof", "foot"], "aim": 0.0, "what": "a swarm round a lit car's lamp", "settle": 4 },
     "ribbit":        { "warnM": 25, "from": ["foot"], "aim": 0.4, "what": "a pack coming out of the warren, throats swelling" },
     "grumbler":      { "warnM": 20, "from": ["foot"], "aim": 0.6, "what": "a hunched gnawer at the castings" },
     "choir":         { "warnM": 40, "from": ["roof"], "aim": 3.0, "what": "pale ghosts gathering over the train" },
@@ -63,18 +65,18 @@
     "knotter":       { "warnM": 15, "from": ["foot", "roof"], "aim": 0.8, "what": "rope coiled at the couplings" },
     // enemies.json freightBeetle.notice (25 m).
     "freightBeetle": { "warnM": 25, "from": ["foot"], "aim": 0.8, "what": "a shell pushing a car down the yard" },
-    "hotbox":        { "warnM": 20, "from": ["roof", "foot"], "aim": 0.5, "what": "a truck's axlebox glowing and smoking" },
+    "hotbox":        { "warnM": 20, "from": ["roof", "foot"], "aim": 0.5, "what": "a truck's axlebox glowing and smoking", "settle": 120 },
     "pickers":       { "warnM": 30, "from": ["foot"], "aim": 1.0, "what": "thin figures carrying things off" },
     "mouseMoose":    { "warnM": 20, "from": ["foot"], "aim": 0.6, "what": "a small antlered thing at the yard's edge" },
     "bruin":         { "warnM": 25, "from": ["foot"], "aim": 1.0, "what": "a bear's bulk turning to face you" },
     "tapper":        { "warnM": 15, "from": ["foot"], "aim": 1.0, "what": "a figure tapping at the wheels" },
-    "lodger":        { "warnM": 8,  "from": ["foot"], "aim": 1.0, "what": "something hidden in a house's room" },
+    "lodger":        { "warnM": 8,  "from": ["foot"], "aim": 1.0, "what": "something hidden in a house's room", "hidden": "hidden in a room until it shrieks; the shriek is the tell" },
     "householder":   { "warnM": 10, "from": ["foot"], "aim": 1.2, "what": "the figure at the table who doesn't belong" },
     "hollowHouse":   { "warnM": 30, "from": ["foot"], "aim": 3.0, "what": "a house sinking, its windows dark" },
     "hanger":        { "warnM": 8,  "from": ["foot"], "aim": 2.2, "what": "something hanging from a ceiling" },
-    "waker":         { "warnM": 200, "from": ["roof"], "aim": 20, "what": "the hills getting up behind the train" }
+    "waker":         { "warnM": 200, "from": ["roof"], "aim": 20, "what": "the hills getting up behind the train", "hidden": "lies as a hill until the stir; the sky's bruise behind the train is its warning (look.json dawn.stir)" }
   },
   // The test's few (DarkTerritory.Dev.Tests TellAuditTests): one of each way a tell is seen (a body coming at you on the
-  // ground, the train's own creatures at the gap, a pack low in the grass, overhead).
-  "fast": ["moose", "climber", "ribbit", "gannet"]
+  // ground, a pack low in the grass, overhead, a mass at the train's end).
+  "fast": ["moose", "ribbit", "gannet", "carHugger"]
 }

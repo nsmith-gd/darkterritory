@@ -27,14 +27,17 @@ public static class TellAudit
 
     /// <summary>A tell: where the gym put it, what it is, and its frames; <paramref name="Staged"/> false when it couldn't be
     /// called (<paramref name="Why"/>).</summary>
-    public sealed record Tell(string Kind, string What, double WarnM, bool Staged, string? Why, IReadOnlyList<Frame> Frames, string? Sheet)
+    /// <param name="ByDesign">Why it's hidden on purpose until it acts (tells.json <c>hidden</c>): measured, never failing.</param>
+    public sealed record Tell(string Kind, string What, double WarnM, bool Staged, string? Why, IReadOnlyList<Frame> Frames, string? Sheet,
+        string? ByDesign = null)
     {
         /// <summary>Its frames that can't be seen, as "condition/from".</summary>
         public IEnumerable<string> Unseen => Frames.Where(f => !f.Seen).Select(f => $"{f.Condition}/{f.From}");
     }
 
     public sealed record Report(string Route, int Width, int Height, double MinPixels, double MinContrast, double Jnd,
-        IReadOnlyList<Tell> Tells, int Frames, int Unseen, IReadOnlyList<string> Failing, IReadOnlyList<string> NotStaged, string? Table);
+        IReadOnlyList<Tell> Tells, int Frames, int Unseen, IReadOnlyList<string> Failing, IReadOnlyList<string> NotStaged,
+        IReadOnlyList<string> ByDesign, string? Table);
 
     /// <param name="only">The tells to audit (tells.json's names); null for all of them.</param>
     /// <param name="conditions">The nights to draw them in; null for tells.json's.</param>
@@ -68,7 +71,7 @@ public static class TellAudit
             host.Stand(you, Fresh(host, you));
             Step(night, gym, host, 0.2);
             var called = gym.Call(host, you, kind);
-            Step(night, gym, host, tuning.Settle);
+            Step(night, gym, host, tell.Settle ?? tuning.Settle);
             // The Choir gathers before it comes: its ghosts are what came.
             var ids = kind == EnemyKind.Choir
                 ? [.. host.World.ActiveEnemies.Where(e => e.Kind == EnemyKind.Choir && !e.Gone).Select(e => e.Id)]
@@ -87,7 +90,15 @@ public static class TellAudit
             var tiles = new List<(byte[] Pixels, bool Seen)>();
             foreach (var from in tell.From)
             {
-                var camera = Eye(tuning, tell, from, at, me, train.Line, subject.LineDistance);
+                // From the crew's side first; where that frame doesn't have it at all (a wall, a building, the car between),
+                // from its other sides at the same distance: the audit is of the creature, not of where the gym stood it.
+                var camera = Eye(tuning, tell, from, at, me, train.Line, subject.LineDistance, 0);
+                foreach (double turn in (double[])[90, -90, 180])
+                {
+                    if (Measure(shot.Render(host.World, crew, camera), shot.Render(host.World, crew, camera, drawn: e => !ids.Contains(e.Id)), tuning.Jnd).Mean > 0)
+                        break;
+                    camera = Eye(tuning, tell, from, at, me, train.Line, subject.LineDistance, turn);
+                }
                 foreach (var c in nights)
                 {
                     var weather = tuning.Conditions[c];
@@ -115,13 +126,14 @@ public static class TellAudit
                 }
             }
             string? sheet = output is null ? null : Sheet(Path.Combine(output, $"{name}.png"), tiles, tuning.Width, tuning.Height, nights.Count);
-            tells.Add(new Tell(name, tell.What, tell.WarnM, true, null, list, sheet));
+            tells.Add(new Tell(name, tell.What, tell.WarnM, true, null, list, sheet, tell.Hidden));
         }
         host.World.Clear();
-        var failing = tells.Where(t => t.Staged && t.Unseen.Any()).Select(t => $"{t.Kind}: {string.Join(", ", t.Unseen)}").ToList();
+        var failing = tells.Where(t => t.Staged && t.ByDesign is null && t.Unseen.Any()).Select(t => $"{t.Kind}: {string.Join(", ", t.Unseen)}").ToList();
         var report = new Report(gymTuning.Route, tuning.Width, tuning.Height, tuning.MinPixels, tuning.MinContrast, tuning.Jnd, tells,
-            tells.Sum(t => t.Frames.Count), tells.Sum(t => t.Frames.Count(f => !f.Seen)), failing,
-            [.. tells.Where(t => !t.Staged).Select(t => $"{t.Kind}: {t.Why}")], null);
+            tells.Sum(t => t.Frames.Count), tells.Sum(t => t.ByDesign is null ? t.Frames.Count(f => !f.Seen) : 0), failing,
+            [.. tells.Where(t => !t.Staged).Select(t => $"{t.Kind}: {t.Why}")],
+            [.. tells.Where(t => t.ByDesign is not null).Select(t => $"{t.Kind}: {t.ByDesign}")], null);
         if (output is null)
             return report;
         string table = Path.Combine(output, "tells.md");
@@ -133,10 +145,12 @@ public static class TellAudit
     /// The crewmate's eye: <see cref="TellTuning.Entry.WarnM"/> from the creature, toward where the crew are (the caller in the
     /// cab), at the viewpoint's height over the ground under it, looking at the tell's height on the creature.
     /// </summary>
-    static Camera Eye(TellTuning tuning, TellTuning.Entry tell, string from, Double3 at, Double3 crew, RailLine line, double along)
+    static Camera Eye(TellTuning tuning, TellTuning.Entry tell, string from, Double3 at, Double3 crew, RailLine line, double along, double turn)
     {
         var toward = (crew - at) with { Y = 0 };
         var way = toward.Length > 0.5 ? toward.Normalized : Double3.Cross(line.Sample(along).Tangent, Double3.Up).Normalized;
+        double a = turn * Math.PI / 180;
+        way = new Double3(way.X * Math.Cos(a) - way.Z * Math.Sin(a), 0, way.X * Math.Sin(a) + way.Z * Math.Cos(a));
         var spot = at + way * tell.WarnM;
         double hint = along;
         spot = spot with { Y = PlayerMotor.GroundAt(spot, line, ref hint) + tuning.Viewpoints[from] };
@@ -251,7 +265,7 @@ public static class TellAudit
                 continue;
             }
             foreach (var from in t.Frames.Select(f => f.From).Distinct())
-                w.AppendLine($"| {t.Kind} ({t.WarnM} m) | {from} | {string.Join(" | ", nights.Select(n => t.Frames.FirstOrDefault(f => f.From == from && f.Condition == n) is { } f
+                w.AppendLine($"| {t.Kind} ({t.WarnM} m){(t.ByDesign is null ? "" : $" *hidden by design: {t.ByDesign}*")} | {from} | {string.Join(" | ", nights.Select(n => t.Frames.FirstOrDefault(f => f.From == from && f.Condition == n) is { } f
                     ? f.Pixels == 0 && f.Mean == 0 ? "**hidden**" : $"{(f.Seen ? "" : "**")}{f.Pixels} px, {f.Contrast} L*{(f.Seen ? "" : "**")}" : "—"))} |");
         }
         return w.ToString();

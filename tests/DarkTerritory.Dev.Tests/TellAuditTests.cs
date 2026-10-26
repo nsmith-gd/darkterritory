@@ -15,7 +15,9 @@ public class TellAuditTests
     public void TheFastTellsAreSeenAtTheirWarningDistanceInEveryNight()
     {
         var tuning = TellTuning.Load(Content);
-        var report = TellAudit.Run(Content, tuning.Fast, output: null);
+        TellAudit.Report report;
+        try { report = TellAudit.Run(Content, tuning.Fast, output: null); }
+        catch (Ballast.Render.GpuUnavailableException e) { Assert.Skip($"no Vulkan: {e.Message}"); throw; }
         Assert.Empty(report.NotStaged);
         Assert.All(report.Tells, t => Assert.Equal(tuning.Tells[t.Kind].From.Length * tuning.Conditions.Count, t.Frames.Count));
         Assert.Empty(report.Failing);
