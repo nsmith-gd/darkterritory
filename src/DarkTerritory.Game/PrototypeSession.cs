@@ -119,7 +119,8 @@ public sealed class PrototypeSession : IPlaySession
             if (e.Kind == EnemyKind.Mourners && World.ActiveEnemies.OfType<Sim.Enemies.Mourner>().FirstOrDefault(m => m.Id == e.EnemyId) is { } one
                 && (int)one.Extra2 != one.Id)
                 continue;
-            if (Cue(e, e.Kind == EnemyKind.Gannet ? World.ActiveEnemies.OfType<Sim.Enemies.Gannet>().FirstOrDefault(g => g.Id == e.EnemyId)?.Mode : null) is { } cue)
+            if (Cue(e, e.Kind == EnemyKind.Gannet ? World.ActiveEnemies.OfType<Sim.Enemies.Gannet>().FirstOrDefault(g => g.Id == e.EnemyId)?.Mode : null,
+                    e.Kind == EnemyKind.TowerJaw ? World.ActiveEnemies.OfType<Sim.Enemies.TowerJaw>().FirstOrDefault(j => j.Id == e.EnemyId)?.Mode : null) is { } cue)
                 _cues.Add((ElapsedSeconds, cue));
         }
         foreach (var sign in World.Lineside?.ReadThisTick ?? [])
@@ -264,12 +265,16 @@ public sealed class PrototypeSession : IPlaySession
     /// <summary>
     /// The Gannet's cues by what it's doing (note 340; docs/design/creatures/gannet.md §5), where one spine phase means two
     /// things: its ALERT is the hang over a walker (the calls stop) or the start of its bank; its TELEGRAPH the fold (break
-    /// your stride) or the bank for whoever hit it (get inside). The rest are the kind's own (<see cref="Cue(in EnemyEvent)"/>).
+    /// your stride) or the bank for whoever hit it (get inside). Tower Jaw's TELEGRAPH (note 1045) is its rear at a crewmate
+    /// or, still at its gnawing, the groan of the structure's last seconds; its COMMIT the lunge, or the fall. The rest are
+    /// the kind's own (<see cref="Cue(in EnemyEvent)"/>).
     /// </summary>
-    public static string? Cue(in EnemyEvent e, Sim.Enemies.GannetMode? gannet) => (e.To, gannet) switch
+    public static string? Cue(in EnemyEvent e, Sim.Enemies.GannetMode? gannet, Sim.Enemies.TowerJawMode? jaw = null) => (e.To, gannet, jaw) switch
     {
-        (SpinePhase.Alert, Sim.Enemies.GannetMode.Bank) => null,
-        (SpinePhase.Telegraph, Sim.Enemies.GannetMode.Bank) => "it's coming for whoever hit it: get inside",
+        (SpinePhase.Alert, Sim.Enemies.GannetMode.Bank, _) => null,
+        (SpinePhase.Telegraph, Sim.Enemies.GannetMode.Bank, _) => "it's coming for whoever hit it: get inside",
+        (SpinePhase.Telegraph, _, Sim.Enemies.TowerJawMode.Gnaw) => "the tower groans and leans over the line: get clear of it",
+        (SpinePhase.Commit, _, Sim.Enemies.TowerJawMode.Gnaw) => null,
         _ => Cue(e),
     };
 

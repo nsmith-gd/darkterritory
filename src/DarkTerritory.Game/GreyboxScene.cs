@@ -3035,6 +3035,7 @@ public sealed partial class GreyboxScene
             // the nearer of its two lanterns (Art/SceneArt), round its flame.
             if (e.Kind == EnemyKind.FireFlies && creatures is not null && f.Shape.Interior is { } lit)
             {
+                creatures.FireFlyRoom = lit;
                 var near = Art.SceneArt.LampPositions(lit).MinBy(p => Math.Abs(p.Z - local.Z));
                 local = new Double3(near.X, near.Y, near.Z);
             }
@@ -3760,7 +3761,13 @@ public sealed partial class GreyboxScene
     /// keeps no record of a fire that's out; the car it gutted does, so the scene remembers it (presentation only: a
     /// client that joins after sees the car's scars, not its smoke). <see cref="StagedBurnt"/> stages one for a still.
     /// </summary>
-    readonly Dictionary<int, (double Peak, double Last, double Burn, bool Alight)> _burns = new();
+    readonly Dictionary<int, (double Peak, double Last, double Burn, bool Alight, double Hot)> _burns = new();
+
+    /// <summary>
+    /// Forgets the car fires it's seen (note 1041): a still drawn without a fire that's burning (the visual tell audit's frame
+    /// without its tell, note 1037) mustn't draw its car's smoke from what the frame before it saw.
+    /// </summary>
+    public void ForgetFires() => _burns.Clear();
 
     /// <summary>For a still frame (<c>dt screenshot --burnt car,s</c>): that car gutted by a fire that went out s seconds ago.</summary>
     public (int Car, double Since)? StagedBurnt { get; set; }
@@ -3768,24 +3775,30 @@ public sealed partial class GreyboxScene
     void Fires(int cars)
     {
         if (StagedBurnt is { } staged && !_burns.ContainsKey(staged.Car))
-            _burns[staged.Car] = (1, Time - staged.Since, 0, false);
+            _burns[staged.Car] = (1, Time - staged.Since, 0, false, 0);
         foreach (var e in Enemies ?? [])
             if (e.Kind == EnemyKind.CarFire && !e.Gone && e.Attached >= 0 && e.Attached < cars)
             {
                 double peak = _burns.TryGetValue(e.Attached, out var was) ? Math.Max(was.Peak, e.Extra) : e.Extra;
-                _burns[e.Attached] = (peak, Time, e.Extra, e.Phase == SpinePhase.Punish);
+                _burns[e.Attached] = (peak, Time, e.Extra, e.Phase == SpinePhase.Punish, Hottest(e));
             }
         // A car cut loose burning (note 458): its fire's gone from the sim, and it burns on as it rolls away (Riding).
         foreach (var (_, (body, _)) in _riding)
             if (body.Kind == EnemyKind.CarFire && body.Attached >= 0 && body.Attached < cars && Adrift(body.Attached))
             {
                 double peak = _burns.TryGetValue(body.Attached, out var was) ? Math.Max(was.Peak, body.Extra) : body.Extra;
-                _burns[body.Attached] = (peak, Time, body.Extra, body.Phase == SpinePhase.Punish);
+                _burns[body.Attached] = (peak, Time, body.Extra, body.Phase == SpinePhase.Punish, Hottest(body));
             }
         // Clocks run backwards across a reload or a fresh run: forget what was.
         foreach (var car in _burns.Keys.Where(k => _burns[k].Last > Time + 1).ToList())
             _burns.Remove(car);
     }
+
+    /// <summary>
+    /// A fire's hottest cell (note 1041): the sim's intensity is the mean over the car's cells (one cell alight is a
+    /// sixteenth of it), so seen from outside it's the hottest that says how bad it is where it's burning.
+    /// </summary>
+    static double Hottest(Enemy e) => e is Sim.Enemies.CarFire { Heat.Length: > 0 } fire ? fire.Heat.Max() : e.Extra;
 
     /// <summary>A car's fire, burning (this frame) or out (and how long since), or null if it's never burned.</summary>
     Art.Effects.Burning? Burnt(int car)
@@ -3794,7 +3807,8 @@ public sealed partial class GreyboxScene
             return null;
         double since = Math.Max(0, Time - f.Last);
         bool now = since < 0.5;
-        return new Art.Effects.Burning(now ? (float)f.Burn : 0, now && f.Alight, now ? 0 : (float)since, (float)Math.Clamp(f.Peak, 0, 1));
+        return new Art.Effects.Burning(now ? (float)f.Burn : 0, now && f.Alight, now ? 0 : (float)since, (float)Math.Clamp(f.Peak, 0, 1),
+            now ? (float)Math.Clamp(f.Hot, 0, 1) : 0);
     }
     readonly Dictionary<int, double> _caughtAt = new();
     double _speed;
@@ -5332,7 +5346,7 @@ public sealed partial class GreyboxScene
                     tagged |= 1u << b.Locker;
         if (Look is not null && Look.Art.Car(mesh, frame, eye, vehicle, Emergency, Tick, CutEnds(frame.Index), burnt?.Char ?? 0, utility, openLockers, Handrails,
             dark: frame.Shape.Cab is null && (CarDark(frame.Index) || frame.Index >= (Vehicles?.Count ?? int.MaxValue) - LampsOut), taggedLockers: tagged, paint: Livery,
-            failing: StageOf(vehicle), ruptured: Ruptured))
+            failing: StageOf(vehicle), ruptured: Ruptured, fire: burnt?.Hot ?? 0))
         {
             if (engine)
                 Look.Art.Gear(mesh, frame, eye, _travelled, Emergency ? 0.06f : 1);

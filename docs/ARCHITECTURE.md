@@ -1199,6 +1199,11 @@ written here instead is moved out by `tools/coord/notes.py split`; the Coordinat
 - [1038. The social test measured, `dt social` (n1-S3, nathaniel1's Token Budget Manager's worker; queue #255, carried on from W1's claim of 9 Oct,…](notes/1038.md)
 - [1039. Corruption seen growing on the train: black, wet and veined at the couplings, under the cars and in the tender, where boarders came on, a…](notes/1039.md)
 - [1040. A corrupted human's voice on the crew's radio (n1-R2, nathaniel1's Token Budget Manager's worker; queue #729; GDD Part Eleven q4; note 1026…](notes/1040.md)
+- [1041. Lit tells lit enough: a car fire seen from outside from its first cell alight, and the Fire Flies seen at 20 m (n1-E1, nathaniel1's Token…](notes/1041.md)
+- [1042. Dark creatures kept seeable on dark ground (n1-D1, nathaniel1's Token Budget Manager's worker; queue #740; note 1037 ranks 3-7;…](notes/1042.md)
 - [1043. The visual tell audit's staging gaps: `dt tells` stands every creature (n1-G1, nathaniel1's Token Budget Manager's worker; queue #742; note…](notes/1043.md)
 - [1048. Want balance off its shares: a terrain read that zeroed the menu, and a night that rolls a want out (Rook, nathaniel2's Token Budget…](notes/1048.md)
+- [1044. A review rubric (`REVIEW.md`) and the cross-model review (n1-W2, nathaniel1's Token Budget Manager's worker; queue #259, carried on from…](notes/1044.md)
+- [1045. Tower Jaw's fall is a punish (Ines, the Token Budget Manager's worker, nathaniel3; queue #743; note 1036's finding; GDD App. A.1, A.9,…](notes/1045.md)
+- [1050. The GDD against the game a third time: what it still promises that isn't built (n1-A5, nathaniel1's Token Budget Manager's worker; queue…](notes/1050.md)
 <!-- end of the notes index -->
