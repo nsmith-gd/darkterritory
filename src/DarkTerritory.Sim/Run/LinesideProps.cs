@@ -28,7 +28,7 @@ public readonly record struct LinesideProp(LinesideKind Kind, double Along, doub
 {
     /// <summary>
     /// Its trunk's radius at the ground, or a rock's across, or a pole's: the art's pieces' own (WorldKit.Boughs 0.015 h for
-    /// the pine, NovaKit.Conifer 0.018 h for the spruce, fir and tamarack, NovaKit.Birch 0.13 m at 11 m, NovaKit.GhostSpruce
+    /// the pine, NovaKit.Conifer 0.018 h for the spruce, fir and tamarack, NovaKit.Birch 0.13 m at 11 m, NovaKit.RedMaple 0.2 m at 11 m, NovaKit.GhostSpruce
     /// 0.16 m; a corrupted tree's 0.024 h a metre up, tools/models/recipes/corrupted_trees.py's R; WorldKit.Rock a lump
     /// about 1 across and 0.85 deep at size 1; WorldKit.Pole 0.14 m at its foot).
     /// </summary>
@@ -39,7 +39,7 @@ public readonly record struct LinesideProp(LinesideKind Kind, double Along, doub
         LinesideKind.Piece => 0,
         _ when Corrupted => Math.Clamp(Height * 0.024, 0.1, 0.55),
         _ when Dead => Math.Clamp(Height * 0.014, 0.1, 0.3),
-        _ => Math.Clamp(Height * Species switch { "pine" => 0.015, "birch" => 0.012, _ => 0.018 }, 0.08, 0.45),
+        _ => Math.Clamp(Height * Species switch { "pine" => 0.015, "birch" => 0.012, "maple" => 0.016, _ => 0.018 }, 0.08, 0.45),
     };
 }
 
@@ -298,6 +298,8 @@ public sealed partial class LinesideProps
         foreach (var p in Roads(from, to, reach))
             yield return p;
         foreach (var p in Shores(from, to, reach))
+            yield return p;
+        foreach (var p in Mudflats(from, to, reach))
             yield return p;
         foreach (var p in Blocks(from, to, reach))
             yield return p;

@@ -176,6 +176,11 @@ static class LineGenCommands
             treesPerKmByBiome = props.Where(p => p.Kind == DarkTerritory.Sim.Run.LinesideKind.Tree).GroupBy(p => DarkTerritory.Game.Art.WorldArt.BiomeAt(route, p.Along) ?? "?")
                 .ToDictionary(g => g.Key, g => g.Count()),
             species = props.Where(p => p.Kind == DarkTerritory.Sim.Run.LinesideKind.Tree).GroupBy(p => p.Dead && p.Species != "apple" ? "dead" : p.Species).ToDictionary(g => g.Key, g => g.Count()),
+            // The living trees of a kind nearest the line (along, out), to point a camera at: `--species maple` (note 1031).
+            nearestTrees = Str(args, "--species", "") is { Length: > 0 } kind
+                ? props.Where(p => p.Kind == DarkTerritory.Sim.Run.LinesideKind.Tree && !p.Dead && !p.Corrupted && p.Species == kind).OrderBy(p => Math.Abs(p.Lateral)).Take(5)
+                    .Select(p => new[] { Math.Round(p.Along, 1), Math.Round(p.Lateral, 1), Math.Round(p.Height, 1) })
+                : null,
             rocks = props.Where(p => p.Kind == DarkTerritory.Sim.Run.LinesideKind.Rock).GroupBy(p => p.Species).ToDictionary(g => g.Key, g => g.Count()),
             pieces = props.Where(p => p.Kind == DarkTerritory.Sim.Run.LinesideKind.Piece).GroupBy(p => p.Species).OrderBy(g => g.Key, StringComparer.Ordinal)
                 .ToDictionary(g => g.Key, g => new

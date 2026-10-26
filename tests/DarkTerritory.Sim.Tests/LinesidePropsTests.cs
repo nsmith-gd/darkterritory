@@ -398,7 +398,8 @@ public class LinesidePropsTests
         // burying ground its stones and its fence's runs, open between its rows (note 797); a wharf its deck, the traps on it and
         // its steps up from the shore, each a step's rise over the last (note 817).
         var seen = new HashSet<string>();
-        foreach (var spec in new[] { "local:4", "deadLines:49", "deepTerritory:2", "local:1", "deadLines:3", "local:2" })
+        // (frontier:44 for its dyke's shore: the boats on the mud, note 1031.)
+        foreach (var spec in new[] { "local:4", "deadLines:49", "deepTerritory:2", "local:1", "deadLines:3", "local:2", "frontier:44" })
         {
             var (route, train, side, _) = Night(spec);
             foreach (var p in side.Props(0, train.Line.Length).Where(p => p.Kind == LinesideKind.Piece))

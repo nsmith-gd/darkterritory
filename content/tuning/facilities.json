@@ -407,6 +407,15 @@
     // and its basement too, up the flight and down the hatch's ladder, and bring the find back up and out; false, they keep
     // to the ground floor (note 1005).
     "villageFloors": true,
+    // Note 1031 (level-design T.4: "the bots in its streets"; note 692's handoff: "they work the yard, not the streets"): a
+    // bot hand off duty in a town (the crew delivered, or at the gate while someone playing is out in the town, note 995)
+    // gets down and walks it, out along one of the townStreets streets nearest the square, up to townStroll m from its
+    // middle, a leg at most townLegSeconds (s), then stands looking round townLinger (s) and goes on. When it's over (the
+    // one playing back aboard) it walks back to the train's side and boards. Not in the spec: the towns' life, not a rule.
+    "townStroll": 60,
+    "townStreets": 2,
+    "townLegSeconds": 45,
+    "townLinger": 12,
     // Note 934 (found under #609, note 895: the bot driver never stopped at a halt, so no bot night stood at one): a driver
     // bot stands haltStandSeconds at each halt on the line (an abandoned village's on the main line, the route card's "halt"
     // rows) with at least haltAllowance (s) of the night in hand past the run home, before going on. 0: it drives past them,
