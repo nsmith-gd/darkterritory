@@ -10,7 +10,8 @@ namespace DarkTerritory.Sim.Tests;
 /// </summary>
 public class WantHoldTests
 {
-    static readonly DirectorTuning D = Tuning.Enemies.Director;
+    // The floor's off in content (note 1048: it's the night's chances' to say which kinds a night has); these hold it on.
+    static readonly DirectorTuning D = Tuning.Enemies.Director with { WantHold = Tuning.Enemies.Director.WantHold with { Floor = 2 } };
 
     static string WantOf(string key) => Director.WantOf(Kind(key)).ToString().ToLowerInvariant();
 
@@ -23,7 +24,8 @@ public class WantHoldTests
     [Fact]
     public void EveryNightHasEachWantsFloorOfKindsAboutAndOneRulelessForTheFill()
     {
-        Assert.True(D.WantHold.Floor > 0);
+        Assert.Equal(0, Tuning.Enemies.Director.WantHold.Floor);
+        Assert.True(Tuning.Enemies.Director.WantHold.Fill);
         var free = D.Curve.Kinds.Where(k => k.Value > 0).Select(k => k.Key).ToList();
         for (ulong seed = 1; seed <= 200; seed++)
             foreach (var (tier, crew) in new[] { (RouteTier.Local, 2), (RouteTier.DeepTerritory, 4) })
