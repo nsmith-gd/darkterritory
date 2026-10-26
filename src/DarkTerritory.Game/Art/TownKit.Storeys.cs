@@ -152,17 +152,18 @@ public static partial class TownKit
             }
         }
 
-        // Boarded windows on each floor (none in the back door's end on the ground floor), and the roof over all.
+        // Windows on each floor (none in the back door's end on the ground floor), and the roof over all: the ground floor's
+        // working ones (note 1053) round their openings in the shell, as high as the sim has them over its boards.
         int back = StopWalls.BackEnd(b);
         foreach (int level in b.Upstairs ? new[] { 0, 1 } : [0])
         {
-            float lift = LevelLift(b, level);
+            float lift = level == 0 ? (float)StopWalls.LevelAt(b, 0) : LevelLift(b, level);
             BoardedWindows(k, b, (x, y, wx, wy, y0, y1) =>
             {
                 if (level == 0 && Math.Abs(x - back * b.Length / 2) < 0.4)
                     return;
                 box(x, y, wx, wy, y0 + lift, y1 + lift);
-            });
+            }, working: level == 0);
         }
         Gabled(k, 0, 0, (float)b.Width, (float)b.Length, true, eaves);
     }

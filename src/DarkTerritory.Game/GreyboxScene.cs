@@ -637,6 +637,9 @@ public sealed partial class GreyboxScene
             // The houses' doors (note 401): hanging open into the room, or shut in the doorway.
             if (Walls is { HouseDoors.Count: > 0 } doored)
                 HouseDoors(mesh, line, Route, doored, eye);
+            // And their windows' shutters (note 1053): swung back against the wall outside, or shut over the opening.
+            if (Walls is { HouseWindows.Count: > 0 } windowed)
+                HouseWindows(mesh, line, Route, windowed, eye);
             // Each Holdout's way in, shut or broken open (App. D.7): its door, lock or barricade by its state.
             if (Holdouts is not null && Look is not null)
                 Look.Art.World.Entrances(mesh, line, Route, Holdouts, eye, (float)ValleyDepth, Time);

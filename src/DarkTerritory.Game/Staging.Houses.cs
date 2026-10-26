@@ -10,14 +10,16 @@ namespace DarkTerritory.Game;
 /// <summary>
 /// G1's house creatures staged in a generated night's open house (notes 584–586; GreyboxScene.Houses): the Hanger in the
 /// roof space over its strands, and on someone (<c>hanger</c>, <c>hangergrab</c>); a Hollow House sinking and come down
-/// (<c>hollowhouse</c>, <c>hollowcollapse</c>); the Householder's house kept, its table set (<c>householderhouse</c>).
+/// (<c>hollowhouse</c>, <c>hollowcollapse</c>); the Householder's house kept, its table set (<c>householderhouse</c>); and its
+/// windows (note 1053): one open, its shutter swung back, beside one shut, from outside (<c>window</c>) and out through an open
+/// one from inside (<c>windowin</c>).
 /// </summary>
 public static partial class Staging
 {
     public const int HangerId = 5860, HollowHouseId = 5850, HouseholderHouseId = 5840;
 
     /// <summary>The views that stage a house creature.</summary>
-    public static bool IsHouseView(string view) => view is "hanger" or "hangergrab" or "hollowhouse" or "hollowcollapse" or "householderhouse";
+    public static bool IsHouseView(string view) => view is "hanger" or "hangergrab" or "hollowhouse" or "hollowcollapse" or "householderhouse" or "window" or "windowin";
 
     /// <summary>
     /// The house the views stage in: the night's first plain open house (one room, no back room, one door), at least 5 m by
@@ -85,6 +87,22 @@ public static partial class Staging
                     }
                     else
                         camera = Camera.LookAt(In(1.8, 0, 1.6), Mid(inside ? 2.9 : 2.1), 80);
+                    break;
+                }
+            case "window" or "windowin":
+                {
+                    // The house's windows along its longest run with two (a side wall), the camera at the first: from outside,
+                    // back and off to one side, both in frame, the other shut; from inside, a step in, looking out through it.
+                    var windows = walls.HouseWindows.Where(w => w.House == house.Index).OrderByDescending(w => w.Key).ToList();
+                    var w0 = windows.GroupBy(w => (Math.Round(w.Out.X, 3), Math.Round(w.Out.Z, 3))).OrderByDescending(g => g.Count()).First().First();
+                    foreach (var w in windows.Where(w => w.Key != w0.Key && Math.Abs(Double3.Dot(w.Out, w0.Out) - 1) < 1e-3))
+                        walls.SetShut(w.Key, true);
+                    var aside = Double3.Cross(Double3.Up, w0.Out);
+                    // (At its own floor's height: a raised house's is up its plinth, note 1005.)
+                    var sill = w0.At + Double3.Up * (Sim.Run.StopWalls.HouseWindowSill + 0.5);
+                    camera = view == "window"
+                        ? Camera.LookAt(sill + w0.Out * 4.2 - aside * 1.6 + Double3.Up * 0.2, sill - aside * 1.4, 60)
+                        : Camera.LookAt(w0.At - w0.Out * 2.6 + aside * 0.4 + Double3.Up * 1.6, w0.At + w0.Out * 6 + Double3.Up * 0.9, 62);
                     break;
                 }
             case "hollowhouse" or "hollowcollapse":

@@ -33,7 +33,8 @@ A house like the others, that rumbles when you're in it.
 STILL     waiting
 RUMBLE    someone inside 1.5 s → the ground rumbles under it for 3 s (the telegraph)
           └ nobody inside when it ends → still again
-SHUT      its doors slam shut one every 0.35 s, and are held shut
+SHUT      its doors slam shut one every 0.35 s, then its windows (note 1053), and are held shut
+          └ a window not yet slammed is climbed out of (walk into it)
 SINK      it sinks 2.4 m over 3 s
 COLLAPSE  it comes down on whoever's still inside (a crush: a structure coming down kills, as a fall does)
 SETTLED   it stays as it fell, sunk and shut
@@ -42,7 +43,7 @@ SETTLED   it stays as it fell, sunk and shut
 ## 4. How it sounds and looks
 
 - **The rumble** (the tell): a low groan through the floor, grit falling from the ceiling, the house shaking.
-- **Shut:** doors slamming one after another. **Sink:** timber screaming, earth heaving round its base.
+- **Shut:** doors slamming one after another, then the windows' shutters. **Sink:** timber screaming, earth heaving round its base.
 - **Collapse:** the roof and walls coming down, and every voice inside cut off.
 
 ## 5. First-pass numbers (`enemies.json` `hollowHouse`)
@@ -56,10 +57,13 @@ SETTLED   it stays as it fell, sunk and shut
 ## 6. What the harness verifies
 
 `HouseCreatureTests`: someone still inside when the rumble ends and the doors shut, it sinks and comes down on them, and
-it stays as it fell; out before the rumble ends and it's still again, its door open.
+it stays as it fell; out before the rumble ends and it's still again, its door open. `HouseWindowTests` (note 1053): its
+windows slam after its door, one every `shutEvery`, and a crewmate at the last one climbs out before it slams and lives.
 
 ## 7. Decisions (G1's calls, for the director)
 
 1. **The kill is a crush, not a grab**: the house holds everyone inside at once, so it kills as a falling structure does.
-2. **Its doors are the houses' own** (note 401); its windows aren't shut yet (the open houses' windows are openings in the
-   art, not the sim). Asked of the art.
+2. **Its doors and windows are the houses' own** (notes 401, 1053). The windows slam after the doors on the same
+   `shutEvery`, so a house with more windows takes longer to shut and gives more time to get out (the GDD's "a crewmate can
+   still get out through a door or a window while they slam"). A one-door house with three windows is shut 1.05 s after the
+   rumble ends instead of at once.
