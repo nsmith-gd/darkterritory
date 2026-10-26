@@ -47,7 +47,7 @@ public sealed record FilmTuning(
     double SpinMin = 0, double SurviveHits = 2, double MostHits = 3, double CertainDeathSpeed = 16, double GiveUpSeconds = 2.4, double Muscle = 0.25, double Reach = 0.06,
     double FirstPersonRate = 0.4, double FirstPersonAfter = 0.8, double FirstPersonMin = 1.5, double FirstPersonMax = 6,
     double ShotFill = 0.45, double FovMin = 22, double FovMax = 60, double TaskHold = 0.4,
-    int ExtraDolls = 8, int ExtraItems = 40, double Buoyancy = 1.3, double WaterDrag = 3, double RestInside = 0.02, double GroundClearance = 1)
+    int ExtraDolls = 8, int ExtraItems = 40, double Buoyancy = 1.3, double WaterDrag = 3, double RestInside = 0.02, double GroundClearance = 1, bool Flatten = true)
 {
     /// <summary>
     /// Real seconds into a player's first-person beat that their death lands, for a death <paramref name="recorded"/> seconds
@@ -128,13 +128,26 @@ public sealed class FilmProbe
     public int Inside { get; private set; }
     public int Over { get; private set; }
 
+    /// <summary>The ten deepest past the limit, deepest first (note 1035: where to look).</summary>
+    public IReadOnlyList<(double Depth, double At, string What)> Worst => _worst;
+    readonly List<(double Depth, double At, string What)> _worst = [];
+
     internal void Saw(int particles) => Seen += particles;
 
     internal void See(double depth, double at, double limit, Func<string> what)
     {
         Inside++;
         if (depth > limit)
+        {
             Over++;
+            if (_worst.Count < 10 || depth > _worst[^1].Depth)
+            {
+                _worst.Add((depth, at, what()));
+                _worst.Sort((a, b) => b.Depth.CompareTo(a.Depth));
+                if (_worst.Count > 10)
+                    _worst.RemoveAt(10);
+            }
+        }
         if (depth > Deepest)
             (Deepest, At, What) = (depth, at, what());
     }
@@ -473,6 +486,14 @@ public sealed class WreckFilm
                     foreach (var item in items)
                         Float(item.Ball.Body, water, wt.Gravity, t, h);
                 }
+                // E.11 "no particle rests inside a solid ... at the end of any substep" (note 1035): the pile and the loads moved
+                // after the bodies met the stage, and a body pinned under a car can't be out of both it and the ground.
+                foreach (var d in everyone)
+                    stage.Settle(d, t.Flatten);
+                foreach (var load in loads.Where(l => !l.Held))
+                    stage.Settle(load.Ball, t.Flatten);
+                foreach (var item in items)
+                    stage.Settle(item.Ball, t.Flatten);
                 if (probe is not null)
                 {
                     double at = (i - 1) * Dt + (s + 1) * h;
@@ -488,7 +509,7 @@ public sealed class WreckFilm
                                 // Which solid: the ground's push is straight up to its surface; anything else is a car (its
                                 // box, its walls round whoever's inside it, its gun).
                                 bool earth = Math.Abs(ground(q.Position.X, q.Position.Z) + q.Radius - q.Position.Y - depth) < 1e-9;
-                                probe.See(depth, at, t.RestInside, () => $"{who}'s joint {j} in {(earth ? "the ground" : d.Inside >= 0 ? "a car (inside one)" : "a car")}");
+                                probe.See(depth, at, t.RestInside, () => $"{who}'s joint {j} in {(earth ? "the ground" : d.Inside >= 0 ? "a car (inside one)" : hit.Normal.Y < -0.3 ? "a car (under it)" : "a car")}");
                             }
                     }
                     for (int k = 0; k < dolls.Count; k++)
@@ -861,6 +882,39 @@ public sealed class WreckFilm
                 _before[i] = Pose.Between(cars[i], u0);
             }
         }
+
+        /// <summary>
+        /// The end of a substep (note 1035; E.11 "no particle rests inside a solid by more than 2 cm at the end of any
+        /// substep"): each of a body's joints still inside a solid (the pile pushed it there, or a load, or a car came down on
+        /// it as it lay asleep) is set back on its surface, moved with its history so its velocity's kept, a few times over for
+        /// a corner. One that still can't get clear of them is pinned between two (E.3: "one that comes down on a body pins it,
+        /// which crushes it. Nothing is pushed out to somewhere safe"): with <paramref name="flatten"/> (wreck.json
+        /// <c>film.flatten</c>) it's crushed by as much as it's still in, where it is, for the rest of the film.
+        /// </summary>
+        public void Settle(Doll d, bool flatten)
+        {
+            // Asleep too: a car can still come down on a body lying still.
+            var ps = d.Body.Particles;
+            for (int j = 0; j < ps.Length; j++)
+            {
+                ref var q = ref ps[j];
+                for (int k = 0; k < SettleTries && Touch(q.Position, q.Radius, d, probe: true) is { } hit; k++)
+                {
+                    double depth = (hit.Position - q.Position).Length;
+                    if (flatten && k >= SettleTries / 2)
+                        q.Radius = Math.Max(0, q.Radius - depth);
+                    else
+                    {
+                        var move = hit.Position - q.Position;
+                        q.Position += move;
+                        q.Previous += move;
+                    }
+                }
+            }
+        }
+
+        /// <summary>Push-outs a joint gets at a substep's end before it counts as pinned (half of them), and crushes.</summary>
+        const int SettleTries = 8;
 
         /// <param name="probe">Only looking (E.11's check, note 1032): what it would touch, nothing about the doll changed.</param>
         public Contact? Touch(Double3 p, double r, Doll d, bool probe = false)
@@ -1483,7 +1537,7 @@ public sealed class WreckFilm
                         double az = a * DMath.PI / 4, e = el * DMath.PI / 180;
                         var dir = new Double3(DMath.Cos(az) * DMath.Cos(e), DMath.Sin(e), DMath.Sin(az) * DMath.Cos(e));
                         var eye = subject + dir * r;
-                        if (!Clear(t, frames, doll, f0, f1, f => EyeAt(eye, f), ground))
+                        if (!Clear(t, start.Cars, frames, doll, f0, f1, f => EyeAt(eye, f), ground))
                             continue;
                         var flat = (dir with { Y = 0 }).Normalized;
                         double across = vel.Length > 0.5 ? 1 - Math.Abs(Double3.Dot(vel.Normalized, dir * -1)) : 0.5;
@@ -1553,27 +1607,39 @@ public sealed class WreckFilm
         /// within the lens clearance, the subject at least the minimum away and seen (two of head, chest and pelvis by
         /// rays the ground doesn't cut; cars fade, O2).
         /// </summary>
-        static bool Clear(FilmTuning t, IReadOnlyList<FilmFrame> frames, int doll, int f0, int f1, Func<int, Double3> eyeAt, Func<double, double, double> ground)
+        /// <remarks>
+        /// Every recorded frame of the shot, each car by its own box and every joint of every body (note 1035: it was every
+        /// third frame, the cars all a cargo car's size and only the others' chests, and a car or a crewmate came through the
+        /// lens clearance between them, E.11's "clean camera"). The finished shot is held to the same by
+        /// <see cref="CameraFaults"/>.
+        /// </remarks>
+        static bool Clear(FilmTuning t, IReadOnlyList<FilmCar> cars, IReadOnlyList<FilmFrame> frames, int doll, int f0, int f1, Func<int, Double3> eyeAt,
+            Func<double, double, double> ground)
         {
-            for (int f = f0; f <= f1; f += 3)
+            for (int f = f0; f <= f1; f++)
             {
                 var eye = eyeAt(f);
-                if (eye.Y < ground(eye.X, eye.Z) + 1)
+                if (eye.Y < ground(eye.X, eye.Z) + t.GroundClearance)
                     return false;
                 var frame = frames[f];
                 var joints = frame.Ragdolls[doll];
                 if ((joints[1] - eye).Length < t.MinDistance)
                     return false;
-                foreach (var (o, right, up, back) in frame.Cars)
+                for (int c = 0; c < frame.Cars.Count && c < cars.Count; c++)
                 {
+                    var (o, right, up, back) = frame.Cars[c];
                     var d = eye - o;
                     double x = Math.Abs(Double3.Dot(d, right)), y = Double3.Dot(d, up), z = Math.Abs(Double3.Dot(d, back));
-                    var outside = new Double3(Math.Max(0, x - 1.6), y < 0 ? -y : Math.Max(0, y - 4.2), Math.Max(0, z - 7.5));
+                    var outside = new Double3(Math.Max(0, x - cars[c].HalfWidth), y < 0 ? -y : Math.Max(0, y - cars[c].Height), Math.Max(0, z - cars[c].HalfLength));
                     if (outside.Length < t.LensClearance + t.CameraRadius)
                         return false;
                 }
-                for (int other = 0; other < frame.Ragdolls.Count; other++)
-                    if (other != doll && (frame.Ragdolls[other][1] - eye).Length < t.LensClearance)
+                foreach (var body in frame.Ragdolls)
+                    foreach (var j in body)
+                        if ((j - eye).Length < t.LensClearance + t.CameraRadius)
+                            return false;
+                foreach (var j in (frame.Dead ?? []).SelectMany(x => x).Concat((frame.Loads ?? []).Select(x => x.At)).Concat((frame.Items ?? []).Select(x => x.At)))
+                    if ((j - eye).Length < t.LensClearance + t.CameraRadius)
                         return false;
                 int seen = 0;
                 foreach (int j in new[] { 0, 1, 2 })
