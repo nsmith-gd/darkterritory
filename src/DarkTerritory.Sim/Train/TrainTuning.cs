@@ -164,6 +164,12 @@ public sealed record CompositionTuning
     /// <summary>What its bar pours.</summary>
     public DiningTuning Dining { get; init; } = new();
     /// <summary>
+    /// The roof gangplanks (note 1052; upgrades.md §7.3): how many couplings, from the cab back, have a plate over them (the
+    /// cars behind them carry it). 0 as built; the campaign's <c>roofGangplanks</c> sets it (effect <c>gangplanks</c>).
+    /// </summary>
+    public int Gangplanks { get; init; }
+    public GangplankTuning Gangplank { get; init; } = new();
+    /// <summary>
     /// The train's dressing (note 701): the silly and the fun bought from the blacksmith that are only things on the train to
     /// see (fuzzy dice, flames, the hubcaps, the tiny caboose...), by campaign.json's ids (effect <c>dress:&lt;id&gt;</c>). The
     /// art draws each; none changes the sim but by its own effect beside it.
@@ -345,12 +351,24 @@ public sealed record KitTuning
     public int Fusees { get; init; }
     public int FuseesEach { get; init; } = 4;
     public FuseeTuning Fusee { get; init; } = new();
+    /// <summary>
+    /// The stretcher (note 1052; upgrades.md §7.3): anyone carrying a body climbs a ladder with it, at
+    /// <see cref="StretcherTuning.Climb"/>, not only the last one alive (D.9). The campaign sets it (effect <c>stretcher</c>).
+    /// </summary>
+    public bool Stretcher { get; init; }
+    public StretcherTuning StretcherCarry { get; init; } = new();
     /// <summary>The crew lockers in the kit's car (ARCHITECTURE §8 note 173). Unset, the car has none.</summary>
     public LockerTuning? Lockers { get; init; }
 }
 
 /// <summary>The communication cord's bell (train.json <c>kit.cordBell</c>, note 1052). Field docs live in that file.</summary>
 public sealed record CordBellTuning(double Every = 3, int Strokes = 9, double StrokeSeconds = 0.55, double ShowSeconds = 8);
+
+/// <summary>The stretcher (train.json <c>kit.stretcherCarry</c>, note 1052). Field docs live in that file.</summary>
+public sealed record StretcherTuning(double Climb = 0.8);
+
+/// <summary>A roof gangplank (train.json <c>composition.gangplank</c>, note 1052). Field docs live in that file.</summary>
+public sealed record GangplankTuning(double Width = 0.8, double Thickness = 0.06, double Overlap = 0.3, double Tread = 0.2, double TreadDepth = 0.35);
 
 /// <summary>A fusee struck and dropped (train.json <c>kit.fusee</c>, note 1052). Field docs live in that file.</summary>
 public sealed record FuseeTuning(double BurnSeconds = 180, double Every = 1);

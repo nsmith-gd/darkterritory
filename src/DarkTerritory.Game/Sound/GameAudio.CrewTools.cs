@@ -20,7 +20,7 @@ public sealed partial class GameAudio
     int _cordStrokes;
     double _cordNext;
     bool? _telltaleWas;
-    readonly HashSet<int> _fuseesSeen = [];
+    readonly HashSet<int> _fuseesSeen = [], _stretcherUp = [];
 
     void CrewToolSounds(World world)
     {
@@ -63,6 +63,16 @@ public sealed partial class GameAudio
             if (b.Charge > 0 && Hold("up-fusee.burn", b.Id, at, occlusion) is { } burn)
                 burn.Volume = (float)Math.Clamp(b.Charge / 0.03, 0, 1);
         }
+        // The stretcher (note 1052): a body taken onto a ladder on it, its poles and canvas creaking as the weight comes on.
+        if (kit.Stretcher)
+            foreach (var (id, st) in CrewStates)
+            {
+                bool climbing = st.Alive && st.Surface == Surface.Ladder && st.Has(PlayerFlags.SoloCarry);
+                if (climbing && _stretcherUp.Add(id))
+                    Cue("up-tells.stretcher", PlayerMotor.WorldPosition(st, train) + Double3.Up * 1.2, OccludedAt(train, st.Parent, st.Position));
+                else if (!climbing)
+                    _stretcherUp.Remove(id);
+            }
         if (_fuseesSeen.Count > 64)
             _fuseesSeen.RemoveWhere(id => !world.Bodies.All.Any(b => b.Id == id));
     }
@@ -75,5 +85,6 @@ public sealed partial class GameAudio
         _cordStrokes = 0;
         _telltaleWas = null;
         _fuseesSeen.Clear();
+        _stretcherUp.Clear();
     }
 }

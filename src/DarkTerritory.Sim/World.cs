@@ -245,6 +245,7 @@ public sealed partial class World
         counts["cordPulls"] = CordPulls;
         counts["telltaleOut"] = TelltaleOuts;
         counts["fusees"] = FuseesStruck;
+        counts["stretchered"] = Stretchered;
         return counts;
     }
     /// <summary>The fires each Cinder Hound pack has lit tonight, by its pack (note 915: a feeding pack sated).</summary>
@@ -1907,7 +1908,12 @@ public sealed partial class World
             // Playing the instrument in your hands (note 700): every machine hears you, in time with the band.
             s.Flags = Bodies.Playing(playerId) && s.Alive ? s.Flags | PlayerFlags.Playing : s.Flags & ~PlayerFlags.Playing;
             // D.9's solo remainer: the last one alive, with a body, may still climb (slowly).
-            bool solo = s.Alive && Bodies.CarriedBy(playerId) is { Kind: Physics.BodyKind.Ragdoll } && LastCrew.Count(c => c.State.Alive && c.Id != playerId) == 0;
+            // Note 1052: or anyone with the stretcher fitted (upgrades.md §7.3: "carry a body at walking pace, and up a ladder").
+            bool body = s.Alive && Bodies.CarriedBy(playerId) is { Kind: Physics.BodyKind.Ragdoll };
+            bool stretcher = body && Train.Dynamics.Tuning.Kit.Stretcher;
+            bool solo = body && (stretcher || LastCrew.Count(c => c.State.Alive && c.Id != playerId) == 0);
+            if (stretcher && s.Surface == Surface.Ladder && Bodies.CarriedBy(playerId) is { } stretchered)
+                _stretchered.Add(stretchered.Id);
             s.Flags = solo ? s.Flags | PlayerFlags.SoloCarry : s.Flags & ~PlayerFlags.SoloCarry;
             bool repairKit = Bodies.CarriedBy(playerId) is { Kind: Physics.BodyKind.RepairKit };
             s.Flags = repairKit ? s.Flags | PlayerFlags.RepairKit : s.Flags & ~PlayerFlags.RepairKit;

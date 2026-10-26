@@ -26,6 +26,11 @@ public sealed partial class World
     readonly HashSet<int> _cordWas = [], _fuseeFireWas = [];
     readonly Dictionary<int, uint> _cordPulledAt = [], _fuseeStruckAt = [];
     bool _telltaleWas = true;
+    // The bodies carried up a ladder on the stretcher tonight (note 1052), by their id.
+    readonly SortedSet<int> _stretchered = [];
+
+    /// <summary>Host (note 1052): the bodies carried up or down a ladder on the stretcher tonight, for the clerk.</summary>
+    public int Stretchered => _stretchered.Count;
 
     /// <summary>
     /// The last pull of the communication cord (note 1052): the host's, on the world record, so every machine's cab bell

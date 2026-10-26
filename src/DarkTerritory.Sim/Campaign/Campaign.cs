@@ -683,6 +683,9 @@ public static class Campaign
                     // The crew's tools (note 1052; upgrades.md §7.3): the communication cord and the end-of-train telltale.
                     "cord" => l with { Train = l.Train with { Kit = l.Train.Kit with { Cord = l.Train.Kit.Cord || k > 0 } } },
                     "telltale" => l with { Train = l.Train with { Kit = l.Train.Kit with { Telltale = l.Train.Kit.Telltale || k > 0 } } },
+                    // The stretcher (anyone carries a body up a ladder) and the roof gangplanks (k couplings from the cab back).
+                    "stretcher" => l with { Train = l.Train with { Kit = l.Train.Kit with { Stretcher = l.Train.Kit.Stretcher || k > 0 } } },
+                    "gangplanks" => Fit(l, c => c with { Gangplanks = Math.Max(c.Gangplanks, (int)Math.Round(k)) }),
                     "radios" => l with { Train = l.Train with { Kit = l.Train.Kit with { Radios = l.Train.Kit.Radios + (int)Math.Round(k) } } },
                     "accel" => l with { Train = l.Train with { Performance = [.. l.Train.Performance.Select(r => r with { Accel = r.Accel * k })] } },
                     "reload" => l with { Combat = l.Combat with { Guns = l.Combat.Guns with { ReloadStepSeconds = l.Combat.Guns.ReloadStepSeconds * k } } },
