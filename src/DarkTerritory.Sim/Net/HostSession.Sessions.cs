@@ -295,4 +295,39 @@ public sealed partial class HostSession
             _transport.Send(peer, _writer.Written, Delivery.ReliableOrdered);
         }
     }
+
+    // ---- A joiner buys at the forge (GDD §3.1, §11; note 1054) ----
+
+    readonly List<ForgeOrder> _orders = [];
+
+    /// <summary>
+    /// The joiners' orders at the blacksmith since the last take, in the order they came in (note 1054). The crew's scrip isn't
+    /// the session's (it's the host machine's campaign), so the game buys each in turn and answers it with
+    /// <see cref="AnswerOrder"/>: two orders for the last of something are bought first come, and the second refused.
+    /// </summary>
+    public IReadOnlyList<ForgeOrder> TakeOrders()
+    {
+        if (_orders.Count == 0)
+            return [];
+        var taken = _orders.ToList();
+        _orders.Clear();
+        return taken;
+    }
+
+    /// <summary>Answers a joiner's order (note 1054), to that joiner only. False if they're not aboard any more.</summary>
+    public bool AnswerOrder(byte to, OrderAnswer answer)
+    {
+        if (_crew.Find(c => c.Id == to) is not { } c || _bots.Contains(to))
+            return false;
+        Messages.WriteOrderAnswer(_writer, answer);
+        _transport.Send(c.Peer, _writer.Written, Delivery.ReliableOrdered);
+        return true;
+    }
+
+    /// <summary>A crewmate's Order (note 1054): kept for the game to buy. A bot's isn't (bots don't shop; it'd be the host's own machine).</summary>
+    void Ordered(Crew from, ForgeOrder order)
+    {
+        if (!_bots.Contains(from.Id))
+            _orders.Add(order);
+    }
 }

@@ -141,6 +141,8 @@ return args switch
     // dt harness stability: GDD §34's desync and crash detection across 2–8 clients (note 1032); exits 1 on either.
     ["harness", "stability", ..] => AuditCommands.Stability(content, args),
     ["harness", ..] => Print(RunHarness(args)),
+    // dt forge order [--joiners 2] [--ids a,b] [--scrip n]: joiners order at the blacksmith, the host buys (note 1054).
+    ["forge", "order", ..] => Print(ForgeCommands.Order(content, args)),
     ["wreck", ..] => Print(WreckCommands.Run(content, args)),
     ["trailer", ..] => Print(TrailerCommands.Run(content, args)),
     // dt film: the whole derailment (first person, replay, the film's cut, the cause card) as the app plays it, every frame
@@ -5254,6 +5256,9 @@ static int Usage()
                      an OpenXR session end to end (Monado's simulated headset works headless) and both eyes as a PNG
           campaign new|show|slots|buy car|kit|powder|lamp|extinguisher|sell|<upgrade>|sim|play [--slot 1..3] [--saves dir] [--contract i] [--seed n]
                      the campaign between nights (spec E, F): the board, purchases, F.4's progression check, a bot night settled
+          forge order [--joiners 2] [--ids tenderCapacity,radioRange] [--scrip 900] [--route tier:seed]
+                     a joiner buys at the forge (note 1054): joiners order at once over loopback, the host buys from the crew's
+                     scrip in the order they came; each answer, the scrip charged, and whether the yard's hosted again to fit it
           online check                             are Steam and EOS reachable from here (signed-in user, or what's missing)
           audio opera [--check]
                      the derailment's music (GDD v1.4 App. E.6): our own CC0 recordings into content/audio/music, the manifest, CREDITS.md

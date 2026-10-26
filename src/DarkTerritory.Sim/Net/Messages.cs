@@ -146,7 +146,9 @@ public static class Protocol
     //     words said back by the Brakeman, played flat on the radio), and the report's IncidentKind.Heard.
     // 94: the crew's tools (note 1052): the body kinds Fusees (27, the fusees left in the ninth field) and Fusee (28, its burn
     //     left, 0..1, there); the world record's last pull of the communication cord (the car, who, the tick: fields 36-38).
-    public const int Version = 94;
+    // 95: a joiner buys at the forge (note 1054): Order, a joiner's word to the host's blacksmith (buy this, or done), and
+    //     OrderAnswer, the host's purchase or refusal back to that joiner, in the words the host's own menu would say.
+    public const int Version = 95;
 }
 
 public enum MessageType : byte
@@ -225,7 +227,28 @@ public enum MessageType : byte
     Paints = 26,
     /// <summary>Client → host, reliable: the paint this player puts on their mask (note 731). The host takes it only in the yard.</summary>
     Paint = 27,
+    /// <summary>
+    /// Client → host, reliable (note 1054): this joiner, at the blacksmith, orders an upgrade (its id), or is done ordering.
+    /// Intent only: the host buys it from the crew's scrip (GDD §11) or refuses, and answers with an <see cref="OrderAnswer"/>.
+    /// </summary>
+    Order = 28,
+    /// <summary>
+    /// Host → the joiner who ordered, reliable (note 1054): bought or refused, the words the host's menu says, and the crew's
+    /// scrip after it and whether the crew owns the upgrade, for the joiner's catalogue.
+    /// </summary>
+    OrderAnswer = 29,
 }
+
+/// <summary>A joiner's order at the forge as the host reads it (note 1054): from whom, which upgrade, or that they're done.</summary>
+public readonly record struct ForgeOrder(byte From, string Id, bool Done);
+
+/// <summary>
+/// The host's answer to a joiner's order (note 1054): the upgrade, whether it was bought, what the host's own menu would say
+/// to it (bought or why not), the crew's scrip as it now stands, and whether the crew owns the upgrade now (a livery chosen
+/// again is owned still, and goes on last; a developer build's free shelves can take one off). Not the whole list of
+/// upgrades: a crew that owns most of the catalogue would not fit one datagram.
+/// </summary>
+public sealed record OrderAnswer(string Id, bool Ok, string Words, double Scrip, bool Owned);
 
 /// <summary>Why the host turned a joiner away (note 254).</summary>
 public enum RefusalReason : byte
@@ -817,6 +840,43 @@ public static class Messages
     {
         w.Reset();
         w.U8((byte)MessageType.Kicked);
+    }
+
+    /// <summary>A joiner's order at the forge (note 1054): an upgrade's id, or done (no id).</summary>
+    public static void WriteOrder(NetWriter w, string id, bool done)
+    {
+        w.Reset();
+        w.U8((byte)MessageType.Order);
+        w.Bool(done);
+        w.Str(done ? "" : id);
+    }
+
+    /// <summary>Reads an Order after its type byte.</summary>
+    public static ForgeOrder ReadOrder(ref NetReader r, byte from)
+    {
+        bool done = r.Bool();
+        return new(from, r.Str(), done);
+    }
+
+    public static void WriteOrderAnswer(NetWriter w, OrderAnswer a)
+    {
+        w.Reset();
+        w.U8((byte)MessageType.OrderAnswer);
+        w.Str(a.Id);
+        w.Bool(a.Ok);
+        w.Str(a.Words);
+        w.F64(a.Scrip);
+        w.Bool(a.Owned);
+    }
+
+    /// <summary>Reads an OrderAnswer after its type byte.</summary>
+    public static OrderAnswer ReadOrderAnswer(ref NetReader r)
+    {
+        string id = r.Str();
+        bool ok = r.Bool();
+        string words = r.Str();
+        double scrip = r.F64();
+        return new(id, ok, words, scrip, r.Bool());
     }
 
     public static void WriteMischief(NetWriter w, bool on)

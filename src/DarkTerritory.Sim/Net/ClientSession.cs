@@ -205,6 +205,23 @@ public sealed class ClientSession
     }
 
     /// <summary>
+    /// Note 1054: at the blacksmith, order upgrade <paramref name="id"/> (or, <paramref name="done"/>, say the ordering's done).
+    /// Intent only: the host buys it from the crew's scrip or refuses, and its <see cref="OrderAnswer"/> comes back.
+    /// </summary>
+    public void Order(string id, bool done = false)
+    {
+        if (PlayerId is null)
+            return;
+        Messages.WriteOrder(_writer, id, done);
+        _transport.Send(PeerId.Host, _writer.Written, Delivery.ReliableOrdered);
+    }
+
+    readonly Queue<OrderAnswer> _orderAnswers = new();
+
+    /// <summary>The host's next answer to this player's orders at the forge (note 1054), oldest first, or null.</summary>
+    public OrderAnswer? TakeOrderAnswer() => _orderAnswers.TryDequeue(out var a) ? a : null;
+
+    /// <summary>
     /// Note 254: the player's quitting on purpose. Tells the host, so their place frees now rather than being held for a
     /// rejoin (note 253), then hangs up (the session's done: don't step it again). If the word's lost on the way, the host
     /// holds the place as for any drop.
@@ -467,6 +484,9 @@ public sealed class ClientSession
                     break;
                 case MessageType.Kicked:
                     Kicked = true;
+                    break;
+                case MessageType.OrderAnswer:
+                    _orderAnswers.Enqueue(Messages.ReadOrderAnswer(ref r));
                     break;
                 case MessageType.Mischief:
                     World.CrewMischief = r.Bool();
