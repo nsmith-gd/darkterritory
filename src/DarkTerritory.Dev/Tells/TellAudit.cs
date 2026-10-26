@@ -48,101 +48,37 @@ public static class TellAudit
     {
         var tuning = TellTuning.Load(content);
         var gymTuning = GymTuning.Load(content) with { Lamps = new GymTuning.LampsTuning { Count = 0 } };
-        var gym = CreatureGym.Of(gymTuning, content);
-        var setup = gym.Setup();
-        using var night = NetPlaySession.HostGame(content, setup, port: null, bots: 0, listed: false);
-        var host = night.Host!;
-        gym.Begin(host);
-        byte you = (byte)night.PlayerId;
-        Step(night, gym, host, 2);
-        using var shot = new WorldShot(content, host.World.Route, tuning.Width, tuning.Height) { Forgetful = true };
+        WorldShot? shot = null;
         if (output is not null)
             Directory.CreateDirectory(output);
-        // Those staged on a moving train last (note 1043): put back where it stood, the night still isn't as it was (the stop
-        // left and come back to), and the Moose and Tippy Toesie called after it couldn't come.
-        var names = (only ?? [.. tuning.Tells.Keys]).OrderBy(n => tuning.Tells.TryGetValue(n, out var e) && e.Moving > 0).ToList();
+        var names = only ?? [.. tuning.Tells.Keys];
         var nights = conditions ?? [.. tuning.Conditions.Keys];
         double scale = 720.0 * 720.0 / ((double)tuning.Height * tuning.Height);
         var tells = new List<Tell>();
-        foreach (var name in names)
+        try
         {
-            if (!tuning.Tells.TryGetValue(name, out var tell))
-                throw new ArgumentException($"no tell '{name}' in {TellTuning.File} (tells: {string.Join(", ", tuning.Tells.Keys)})");
-            var kind = EnemyNames.Parse(name) ?? throw new ArgumentException($"'{name}' is no enemy kind");
-            host.World.Clear();
-            Step(night, gym, host, 0.5);
-            var train = host.World.Train;
-            // Where the train stood: a tell staged on a moving train (tells.json "moving") puts it back after.
-            var (home, track) = (train.Dynamics.Distance, train.Dynamics.Path);
-            host.Stand(you, Stage(host, you, kind));
-            // Tippy Toesie comes out only for whoever's already stood still and alone its idleSeconds: hidden, it waits at the
-            // line's start, and the night lets it go from there the next tick.
-            Step(night, gym, host, kind == EnemyKind.TippyToesie && host.World.Enemies is { } et ? et.TippyToesie.IdleSeconds + 0.2 : 0.2);
-            var called = gym.Call(host, you, kind);
-            Prime(host, you, tell, called.Ids);
-            Step(night, gym, host, tell.Settle ?? tuning.Settle, tell.Moving, () => Ready(host, you, kind, tell, called.Ids));
-            // The Choir gathers before it comes: its ghosts are what came.
-            var ids = kind == EnemyKind.Choir
-                ? [.. host.World.ActiveEnemies.Where(e => e.Kind == EnemyKind.Choir && !e.Gone).Select(e => e.Id)]
-                : called.Ids.Where(id => host.World.ActiveEnemies.Any(e => e.Id == id && !e.Gone)).ToList();
-            var subject = host.World.ActiveEnemies.FirstOrDefault(e => ids.Contains(e.Id) && e is not TippyToesie { Hidden: true });
-            if (!called.Came || subject is null)
+            foreach (var name in names)
             {
-                Home(train, home, track);
-                tells.Add(new Tell(name, tell.What, tell.WarnM, false, called.Came ? "came and went before the shot" : called.Where, [], null));
-                continue;
+                if (!tuning.Tells.TryGetValue(name, out var tell))
+                    throw new ArgumentException($"no tell '{name}' in {TellTuning.File} (tells: {string.Join(", ", tuning.Tells.Keys)})");
+                var kind = EnemyNames.Parse(name) ?? throw new ArgumentException($"'{name}' is no enemy kind");
+                // A night of its own for each tell (note 1043): one tell's staging left the night changed for the next (the
+                // train moved and put back, the stop left; the caller's idle clock), so a tell measured alone and after
+                // others differed, and the Moose couldn't come after the Track Doll.
+                var gym = CreatureGym.Of(gymTuning, content);
+                using var night = NetPlaySession.HostGame(content, gym.Setup(), port: null, bots: 0, listed: false);
+                var host = night.Host!;
+                gym.Begin(host);
+                byte you = (byte)night.PlayerId;
+                Step(night, gym, host, 2.5);
+                shot ??= new WorldShot(content, host.World.Route, tuning.Width, tuning.Height) { Forgetful = true };
+                tells.Add(Shoot(tuning, name, tell, kind, night, gym, host, you, shot, nights, scale, output, frames));
             }
-            var me = PlayerMotor.WorldPosition(host.Players.First(p => p.Id == you).State, train);
-            var at = subject.WorldPosition(train);
-            var crew = host.Players.ToList();
-            var list = new List<Frame>();
-            var tiles = new List<(byte[] Pixels, bool Seen)>();
-            foreach (var from in tell.From)
-            {
-                // From the crew's side first; where that frame doesn't have it at all (a wall, a building, the car between),
-                // from its other sides at the same distance: the audit is of the creature, not of where the gym stood it.
-                var camera = Eye(tuning, tell, from, at, Toward(subject, me, train), train, subject.LineDistance, 0);
-                foreach (double turn in (double[])[90, -90, 180])
-                {
-                    if (Measure(shot.Render(host.World, crew, camera), shot.Render(host.World, crew, camera, drawn: e => !ids.Contains(e.Id)), tuning.Jnd).Mean > 0)
-                        break;
-                    camera = Eye(tuning, tell, from, at, Toward(subject, me, train), train, subject.LineDistance, turn);
-                }
-                foreach (var c in nights)
-                {
-                    var weather = tuning.Conditions[c];
-                    var lit = LampsOut(host.World, weather.LampsOut);
-                    FrameLighting Grade(FrameLighting l)
-                    {
-                        if (weather.FogDensity > 0)
-                            l.FogDensity = (float)weather.FogDensity;
-                        if (weather.Wet)
-                            l.Wetness = 1;
-                        if (weather.LampsOut)
-                            l.LampRange = 0.01f;
-                        return l;
-                    }
-                    var with = shot.Render(host.World, crew, camera, grade: Grade);
-                    var without = shot.Render(host.World, crew, camera, drawn: e => !ids.Contains(e.Id), grade: Grade);
-                    LampsOut(host.World, false, lit);
-                    var (pixels, contrast, mean) = Measure(with, without, tuning.Jnd);
-                    bool seen = pixels * scale >= tuning.MinPixels && contrast >= tuning.MinContrast;
-                    string? path = null;
-                    if (output is not null && frames)
-                    {
-                        shot.Save(path = Path.Combine(output, $"{name}-{from}-{c}.png"), with);
-                        // And the frame without it, so what was measured can be seen to be the creature.
-                        shot.Save(Path.Combine(output, $"{name}-{from}-{c}-without.png"), without);
-                    }
-                    list.Add(new Frame(c, from, Math.Round(pixels * scale), Math.Round(contrast, 1), Math.Round(mean, 1), seen, path));
-                    tiles.Add((with, seen));
-                }
-            }
-            Home(train, home, track);
-            string? sheet = output is null ? null : Sheet(Path.Combine(output, $"{name}.png"), tiles, tuning.Width, tuning.Height, nights.Count);
-            tells.Add(new Tell(name, tell.What, tell.WarnM, true, null, list, sheet, tell.Hidden));
         }
-        host.World.Clear();
+        finally
+        {
+            shot?.Dispose();
+        }
         var failing = tells.Where(t => t.Staged && t.ByDesign is null && t.Unseen.Any()).Select(t => $"{t.Kind}: {string.Join(", ", t.Unseen)}").ToList();
         var report = new Report(gymTuning.Route, tuning.Width, tuning.Height, tuning.MinPixels, tuning.MinContrast, tuning.Jnd, tells,
             tells.Sum(t => t.Frames.Count), tells.Sum(t => t.ByDesign is null ? t.Frames.Count(f => !f.Seen) : 0), failing,
@@ -153,6 +89,84 @@ public static class TellAudit
         string table = Path.Combine(output, "tells.md");
         File.WriteAllText(table, Table(report, nights));
         return report with { Table = Path.GetFullPath(table) };
+    }
+
+    /// <summary>One tell staged on its night (<see cref="Stage"/>, <see cref="Prime"/>, <see cref="Ready"/>) and drawn from each of its viewpoints in each night's weather.</summary>
+    static Tell Shoot(TellTuning tuning, string name, TellTuning.Entry tell, EnemyKind kind, NetPlaySession night, CreatureGym gym, HostSession host, byte you,
+        WorldShot shot, IReadOnlyList<string> nights, double scale, string? output, bool frames)
+    {
+        var train = host.World.Train;
+        host.Stand(you, Stage(host, you, kind));
+        // Tippy Toesie comes out only for whoever's already stood still and alone its idleSeconds: hidden, it waits at the
+        // line's start, and the night lets it go from there the next tick.
+        Step(night, gym, host, kind == EnemyKind.TippyToesie && host.World.Enemies is { } et ? et.TippyToesie.IdleSeconds + 0.2 : 0.2);
+        var called = gym.Call(host, you, kind);
+        Prime(host, you, tell, called.Ids);
+        Step(night, gym, host, tell.Settle ?? tuning.Settle, tell.Moving, () => Ready(host, you, kind, tell, called.Ids));
+        // The Choir gathers before it comes: its ghosts are what came.
+        var ids = kind == EnemyKind.Choir
+            ? [.. host.World.ActiveEnemies.Where(e => e.Kind == EnemyKind.Choir && !e.Gone).Select(e => e.Id)]
+            : called.Ids.Where(id => host.World.ActiveEnemies.Any(e => e.Id == id && !e.Gone)).ToList();
+        var subject = host.World.ActiveEnemies.FirstOrDefault(e => ids.Contains(e.Id) && e is not TippyToesie { Hidden: true });
+        if (!called.Came || subject is null)
+        {
+            return new Tell(name, tell.What, tell.WarnM, false, called.Came ? "came and went before the shot" : called.Where, [], null);
+        }
+        var me = PlayerMotor.WorldPosition(host.Players.First(p => p.Id == you).State, train);
+        var at = subject.WorldPosition(train);
+        var crew = host.Players.ToList();
+        var list = new List<Frame>();
+        var tiles = new List<(byte[] Pixels, bool Seen)>();
+        foreach (var from in tell.From)
+        {
+            // From the crew's side first; where that frame doesn't have it at all (a wall, a building, the car between),
+            // from its other sides at the same distance: the audit is of the creature, not of where the gym stood it.
+            // The Stoker from the cab is from the caller's own eyes there, at the firebox (note 1043; n1-D1's note 1042: from 15 m
+            // out ahead of the engine, the cab's back wall hid the tender it comes over).
+            bool own = from == "cab" && subject is Stoker;
+            // (Their own body isn't drawn in their own eyes, as the app draws you.)
+            byte? hide = own ? you : null;
+            var camera = own
+                ? Camera.LookAt(me + Double3.Up * tuning.Viewpoints["foot"], at + Double3.Up * tell.Aim, (float)tuning.Fov)
+                : Eye(tuning, tell, from, at, Toward(subject, me, train), train, subject.LineDistance, 0);
+            foreach (double turn in (double[])[90, -90, 180])
+            {
+                if (Measure(shot.Render(host.World, crew, camera, hide), shot.Render(host.World, crew, camera, hide, drawn: e => !ids.Contains(e.Id)), tuning.Jnd).Mean > 0)
+                    break;
+                camera = Eye(tuning, tell, from, at, Toward(subject, me, train), train, subject.LineDistance, turn);
+            }
+            foreach (var c in nights)
+            {
+                var weather = tuning.Conditions[c];
+                var lit = LampsOut(host.World, weather.LampsOut);
+                FrameLighting Grade(FrameLighting l)
+                {
+                    if (weather.FogDensity > 0)
+                        l.FogDensity = (float)weather.FogDensity;
+                    if (weather.Wet)
+                        l.Wetness = 1;
+                    if (weather.LampsOut)
+                        l.LampRange = 0.01f;
+                    return l;
+                }
+                var with = shot.Render(host.World, crew, camera, hide, grade: Grade);
+                var without = shot.Render(host.World, crew, camera, hide, drawn: e => !ids.Contains(e.Id), grade: Grade);
+                LampsOut(host.World, false, lit);
+                var (pixels, contrast, mean) = Measure(with, without, tuning.Jnd);
+                bool seen = pixels * scale >= tuning.MinPixels && contrast >= tuning.MinContrast;
+                string? path = null;
+                if (output is not null && frames)
+                {
+                    shot.Save(path = Path.Combine(output, $"{name}-{from}-{c}.png"), with);
+                    // And the frame without it, so what was measured can be seen to be the creature.
+                    shot.Save(Path.Combine(output, $"{name}-{from}-{c}-without.png"), without);
+                }
+                list.Add(new Frame(c, from, Math.Round(pixels * scale), Math.Round(contrast, 1), Math.Round(mean, 1), seen, path));
+                tiles.Add((with, seen));
+            }
+        }
+        string? sheet = output is null ? null : Sheet(Path.Combine(output, $"{name}.png"), tiles, tuning.Width, tuning.Height, nights.Count);
+        return new Tell(name, tell.What, tell.WarnM, true, null, list, sheet, tell.Hidden);
     }
 
     /// <summary>
@@ -402,17 +416,6 @@ public static class TellAudit
                 Yaw = Math.Atan2(-away.X, -away.Z),
             });
         }
-    }
-
-    /// <summary>The train put back where it stood, standing, after a tell staged on it moving.</summary>
-    static void Home(TrainOnLine train, double distance, int path)
-    {
-        if (train.Dynamics.Distance == distance && train.Dynamics.Speed == 0)
-            return;
-        train.Dynamics.Path = path;
-        train.Dynamics.Distance = distance;
-        train.Dynamics.Velocity = 0;
-        train.RefreshFrames();
     }
 
     /// <summary>
