@@ -57,4 +57,54 @@ public class SocialTests
         var nights = SocialTest.Judge(EnemyKind.Gaunt, null, null, [Night(1, 0, 0, new SocialGrab(9, null, "killed")), Night(2, 0, 0)], t);
         Assert.Equal(("unmeasured", "pass", "unmeasured"), (nights.Two.Result, nights.Act.Result, nights.Blame.Result));
     }
+
+    [Fact]
+    public void ThePassengerIsJudgedByTheCarLost()
+    {
+        // Note 1051 (note 1050 Q3's default): its grab is the uncoupling, held till the car's gone (a 600 s window), so
+        // criterion 3 asks whether alone the car goes no sooner than actMinSeconds and with a friend it's kept.
+        var t = DataFile.Load<SocialTuning>(Path.Combine(Content, SocialTuning.File));
+        Assert.Contains("Passenger", t.CarLost);
+        GrabCheck Check(int crew, bool freed, double held) => new("Passenger", crew, true, freed, held, 600, freed ? "broken off" : "", "");
+        var lostLate = SocialTest.Judge(EnemyKind.Passenger, Check(1, false, 43), Check(2, true, 1.5), [], t);
+        Assert.Equal("pass", lostLate.Act.Result);
+        Assert.Contains("car lost", lostLate.Act.Why);
+        Assert.Equal("fail", SocialTest.Judge(EnemyKind.Passenger, Check(1, false, 4), Check(2, true, 1.5), [], t).Act.Result);
+        Assert.Equal("fail", SocialTest.Judge(EnemyKind.Passenger, Check(1, false, 43), Check(2, false, 43), [], t).Act.Result);
+        // Anyone else is still judged by the window.
+        Assert.Equal("fail", SocialTest.Judge(EnemyKind.Gaunt, Check(1, false, 43) with { Kind = "Gaunt" }, Check(2, true, 1.5) with { Kind = "Gaunt" }, [], t).Act.Result);
+    }
+
+    [Fact]
+    public void TheChoirsStagedCrewSingInTime()
+    {
+        // Note 1051 (Q3's default): the staged crew sing at the Choir, everyone on the same song, which counts as singing.
+        var t = DataFile.Load<SocialTuning>(Path.Combine(Content, SocialTuning.File));
+        Assert.Contains("Choir", t.Sung);
+        var p = DataFile.Load<Sim.Player.PlayerTuning>(Path.Combine(Content, Sim.Player.PlayerTuning.File)).Voices.Singing;
+        int window = (int)(p.WindowSeconds * Sim.SimConstants.TickRate);
+        var song = Enumerable.Range(0, window).Select(i => t.Song.At(i * Sim.SimConstants.TickSeconds)).ToArray();
+        Assert.True(Sim.Player.Singing.InTime(song, song, p));
+        var (alone, paired) = SocialTest.Staged(SocialTest.Content(Content), EnemyKind.Choir, t);
+        Assert.True(alone?.Grabbed);
+        Assert.True(paired?.Grabbed);
+    }
+
+    [Fact]
+    public void TheFlagsAreShownBothWays()
+    {
+        // Note 1051: each creature flag (off in the game) on for a run, or shown on beside a run with it off.
+        Assert.Equal(8, SocialTest.Content(Content, ["knotter.tautHold"]).Enemies.Knotter.HoldSeconds);
+        Assert.True(SocialTest.Content(Content, ["whistler.carry"]).Enemies.Whistler.Carry.On);
+        Assert.Throws<ArgumentException>(() => SocialTest.Content(Content, ["knotter.nope"]));
+        var t = DataFile.Load<SocialTuning>(Path.Combine(Content, SocialTuning.File)) with { Creatures = ["Knotter"], Seconds = 5, Seeds = 1, Crews = [1] };
+        var off = SocialTest.Run(Content, t, parallel: 1);
+        Assert.Equal("fail", Assert.Single(off.Rows).Act.Result);
+        var shown = Assert.Single(off.Flagged);
+        Assert.Equal(("knotter.tautHold", "pass"), (shown.Flag, shown.Act.Result));
+        var on = SocialTest.Run(Content, t with { Flags = ["knotter.tautHold"] }, parallel: 1);
+        Assert.Equal("pass", Assert.Single(on.Rows).Act.Result);
+        Assert.Empty(on.Flagged);
+        Assert.Equal(["knotter.tautHold"], on.FlagsOn);
+    }
 }

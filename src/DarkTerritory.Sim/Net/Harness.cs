@@ -108,6 +108,8 @@ public sealed record HarnessOptions
     public double InsistEvery { get; init; } = 10;
     /// <summary>With <see cref="Insist"/>: the kinds sent only when their own rule would have them (<see cref="World.InsistByRule"/>, note 1036).</summary>
     public IReadOnlySet<EnemyKind>? InsistByRule { get; init; }
+    /// <summary>With <see cref="Insist"/>: an insisted Stoker boards at the tender (<see cref="World.InsistStokerBoards"/>, note 1051).</summary>
+    public bool InsistStokerBoards { get; init; }
     /// <summary>
     /// With <see cref="Insist"/>: the look-out's errand (note 212), the last walker's (or with none, the gunner's: note 222), to the Gaunt, Ribbits or a Dragger
     /// insisted on. Null: the crew keep to their posts.
@@ -462,6 +464,7 @@ public static class Harness
             host.World.Insist = insist;
             host.World.InsistEvery = o.InsistEvery;
             host.World.InsistByRule = o.InsistByRule;
+            host.World.InsistStokerBoards = o.InsistStokerBoards;
         }
         if (o.Hazards is { LampsOut: true })
         {

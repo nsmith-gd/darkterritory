@@ -265,6 +265,25 @@ public sealed record WhistlerTuning
     public double Health { get; init; } = 3;
     public double StopWeight { get; init; } = 0.3;
     public int MinCars { get; init; } = 2;
+    /// <summary>Note 1051: on, the whole carry (the run and the nest) takes <see cref="SocialWindow.Seconds"/> (GDD §20's 8–20 s).</summary>
+    public SocialWindow Carry { get; init; } = new() { Seconds = 20 };
+
+    /// <summary>
+    /// How long a carry holds before it kills, given its run to the nest (s): the run and <see cref="NestSeconds"/>; with
+    /// <see cref="Carry"/> on, its seconds, the nest's wait shortened to fit, and none when the run alone is longer (eaten on
+    /// arrival: it never kills short of its nest).
+    /// </summary>
+    public double CarrySeconds(double run) => Carry.On ? Math.Max(run, Carry.Seconds) : run + NestSeconds;
+}
+
+/// <summary>
+/// Note 1051 (queue #750; the director's questions of note 1050, Q1 and Q2): a grab's window held to GDD §20's 8–20 s for a
+/// friend to act, behind its flag, off until the director answers. Field docs live in enemies.json.
+/// </summary>
+public sealed record SocialWindow
+{
+    public bool On { get; init; }
+    public double Seconds { get; init; }
 }
 
 /// <summary>Tippy Toesie (v1.1 App. A.5, B.5). Field docs live in enemies.json.</summary>
@@ -942,6 +961,8 @@ public sealed record DirectorTuning(
     public string[] Roster { get; init; } = [];
     /// <summary>App. B.1 "want balance": each want's target share of the budget (kill, split, trust, cargo).</summary>
     public Dictionary<string, double> WantShares { get; init; } = new();
+    /// <summary>App. B.1 want balance held to its shares (enemies.json director.wantHold; note 1048).</summary>
+    public WantHoldTuning WantHold { get; init; } = new();
     /// <summary>App. B.1 hard caps: corrupted humans, at most this many at a time.</summary>
     public int MaxCorrupted { get; init; } = 1;
     /// <summary>GDD v1.4 App. D.11, the dead's creature vote (enemies.json director.vote; note 180).</summary>
@@ -963,6 +984,20 @@ public sealed record DirectorTuning(
 /// each kind's night (its chance and its cap) and the night's variety hold for them as for the rest. Mirror of enemies.json
 /// <c>director.curve</c>; field docs live there.
 /// </summary>
+/// <summary>
+/// App. B.1 want balance held to its shares (note 1048). <see cref="Floor"/>: each want with a share has this many of its kinds
+/// about tonight, brought back from the night's chances as the night's floor brings kinds back (note 868); 0, none.
+/// <see cref="Fill"/>: pressed, with everything the rules let in now of wants already over their shares (and
+/// <see cref="FillFrom"/> spent tonight), the pressure spends on the night's curve's rule-less of the wants under theirs
+/// instead, as its fill does when no rule is met. Both off: the shares only weigh what the rules let in.
+/// </summary>
+public sealed record WantHoldTuning
+{
+    public int Floor { get; init; }
+    public bool Fill { get; init; }
+    public double FillFrom { get; init; }
+}
+
 public sealed record CurveTuning
 {
     public int Power { get; init; } = 1;
@@ -1774,6 +1809,10 @@ public sealed record KnotterTuning
     public double SlipPerSecond { get; init; } = 0.45;
     public double CoilSeconds { get; init; } = 1.5;
     public double Health { get; init; } = 8;
+    /// <summary>Note 1051: on, the coil holds <see cref="SocialWindow.Seconds"/> before it pulls under (GDD §20's 8–20 s).</summary>
+    public SocialWindow TautHold { get; init; } = new() { Seconds = 8 };
+    /// <summary>How long a slip's coil holds before it pulls under: <see cref="TautHold"/>'s with it on, else <see cref="CoilSeconds"/>.</summary>
+    public double HoldSeconds => TautHold.On ? TautHold.Seconds : CoilSeconds;
     public Dictionary<string, double> TierWeights { get; init; } = new() { ["local"] = 1, ["frontier"] = 1.5, ["deadLines"] = 2, ["deepTerritory"] = 2.5 };
 }
 
