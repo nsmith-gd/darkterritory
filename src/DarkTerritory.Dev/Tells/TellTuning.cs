@@ -12,6 +12,8 @@ public sealed record TellTuning
     public int Height { get; init; } = 360;
     public double Fov { get; init; } = 65;
     public double Settle { get; init; } = 1;
+    /// <summary>The device memory its renderer fits its material textures to (MiB): under the device's, they're halved.</summary>
+    public int TextureBudgetMiB { get; init; } = 1536;
     /// <summary>The lightness step (L*) a pixel must differ by to show the creature.</summary>
     public double Jnd { get; init; } = 3;
     /// <summary>The floor a tell must clear: pixels showing it (at 720p), and the brightest tenth's step (L*).</summary>
@@ -30,8 +32,11 @@ public sealed record TellTuning
     /// <param name="WarnM">How far off it has to be seen to be answered (m).</param>
     /// <param name="Aim">Where on it to look (m over where it stands).</param>
     /// <param name="Hidden">Why it's hidden on purpose until it acts: measured and shown, never a failure.</param>
-    /// <param name="Settle">Its own seconds after the call before the shot (a fire taking hold), over the audit's.</param>
-    public sealed record Entry(double WarnM = 30, string[]? From = null, double Aim = 1, string What = "", string? Hidden = null, double? Settle = null)
+    /// <param name="Settle">Its own seconds after the call before the shot (a fire taking hold), over the audit's; for those the
+    /// audit waits on (the Choir's ghosts, the Track Doll near, Hotbox glowing), the most it waits.</param>
+    /// <param name="Moving">The train held at this speed (m/s) from the call to the shot (0: standing, as the gym stands it).</param>
+    public sealed record Entry(double WarnM = 30, string[]? From = null, double Aim = 1, string What = "", string? Hidden = null, double? Settle = null,
+        double Moving = 0)
     {
         public string[] From { get; init; } = From ?? ["foot"];
     }

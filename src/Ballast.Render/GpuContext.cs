@@ -100,8 +100,10 @@ public sealed unsafe class GpuContext : IDisposable
     /// <param name="instanceExtensions">Extra instance extensions, e.g. what SDL needs for a window surface.</param>
     /// <param name="createSurface">Creates the window surface once the instance exists; enables presentation.</param>
     /// <param name="factory">Makes the instance and device instead (a VR runtime); null for plain Vulkan.</param>
+    /// <param name="limits">This context held to these limits too, as <see cref="LimitsOverride"/> holds every context (the visual
+    /// tell audit's smaller texture budget, note 1043, without holding the rest of the process to it).</param>
     public GpuContext(string appName = "Ballast", IReadOnlyList<string>? instanceExtensions = null, Func<VkInstance, VkSurfaceKHR>? createSurface = null,
-        IVulkanFactory? factory = null)
+        IVulkanFactory? factory = null, GpuLimits? limits = null)
     {
         if (vkInitialize() != VkResult.Success)
             throw new GpuUnavailableException("Vulkan loader not found (install a GPU driver, or mesa-vulkan-drivers for software rendering)");
@@ -152,6 +154,8 @@ public sealed unsafe class GpuContext : IDisposable
         Limits = ReadLimits(InstanceApi, PhysicalDevice, props, mem);
         if (LimitsOverride is { } small)
             Limits = Limits.Within(small);
+        if (limits is not null)
+            Limits = Limits.Within(limits);
 
         float priority = 1;
         var queueInfo = new VkDeviceQueueCreateInfo { queueFamilyIndex = QueueFamily, queueCount = 1, pQueuePriorities = &priority };
