@@ -68,6 +68,13 @@ public static class ArtCatalog
         list.Add(new("flare-pistol", SmallProp, () => PropKit.FlarePistol(look)));
         list.Add(new("flare-pistol-held", SmallProp, () => PropKit.FlarePistolHeld(look)));
         list.Add(new("flare", SmallProp, () => PropKit.Flare(look)));
+        // The crew's tools (note 1052): a box of fusees and one burning; the cord's line along a car and its gong in the cab;
+        // the end-of-train telltale's lamp.
+        list.Add(new("fusee-box", SmallProp, () => PropKit.FuseeBox(look)));
+        list.Add(new("fusee", SmallProp, () => PropKit.Fusee(look)));
+        list.Add(new("cord-line", SmallProp, () => TrainKit.CordLine(look, (float)(2 * cargo.HalfLength - 0.5))));
+        list.Add(new("cord-gong", SmallProp, () => TrainKit.CordGong(look)));
+        list.Add(new("telltale-lamp", SmallProp, () => TrainKit.TelltaleLamp(look)));
         // The voice's fittings (note 720): the speaking tube's horn and its pipe down to the floor, and the whistle codes' card.
         list.Add(new("speaking-tube", SmallProp, () => VoiceKit.TubeEnd(look, (float)SpeakingTube.MouthHeight + 0.1f)));
         list.Add(new("whistle-card", MediumProp, () => VoiceKit.WhistleCard(look, "WHISTLE CODES",

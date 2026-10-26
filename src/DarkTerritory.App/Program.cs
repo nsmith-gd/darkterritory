@@ -1168,6 +1168,7 @@ CampaignState? Play(IPlaySession session, CampaignState? campaign)
         Band = session.World.BandTuning,
         // The whimsies (note 715): Gerald and the gnomes, the canary, the gramophone, as the host has them.
         WhimsyNow = () => session.World.Whimsy,
+        TelltaleNow = () => DarkTerritory.Sim.Train.Telltale.Lit(session.World.Train),
         // The engine's name on its plates (note 714), the host's campaign's.
         EngineName = (session as NetPlaySession)?.Setup.EngineName,
         Words = DataFile.Load<DarkTerritory.Game.DressWords>(Path.Combine(content, DarkTerritory.Game.DressWords.File)),
@@ -2076,6 +2077,9 @@ CampaignState? Play(IPlaySession session, CampaignState? campaign)
         // The dark answering a draw (note 287): eyes at the lamp's edge.
         scene.Answer = session.World.Answer;
         scene.AnswerShowSeconds = session.World.Director?.Tuning.Draw.ShowSeconds ?? 7;
+        // Note 1056: the nights' crew photos pinned on the big cab's photo rail.
+        scene.Rail = crewMemory.RailPhotos();
+        (scene.RailCells, scene.RailGlow) = (Hud.Remembering.Rail.Cells, Hud.Remembering.Rail.Glow);
         // Watched afoot (note 327): eyes toward what lives at the stop.
         scene.Watcher = session.World.Watcher;
         // The night's odd things at the stops (note 730): a new night's are its own.

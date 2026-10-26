@@ -111,7 +111,7 @@ public static class Controls
         Control.RouteCard => "The route card, a page a press, then away",
         Control.Chase => "The chase view; dead, the next of the dead's views",
         Control.Swing => "Swing the tool you carry",
-        Control.Whistle => "The whistle cord, in the cab",
+        Control.Whistle => "The whistle cord in the cab; the communication cord in a car",
         Control.CarLamp => "The lamp in the car you're in",
         Control.Uncouple => "Cut a coupling (held, looking down at the coupler)",
         Control.Ladder => "Grab the nearest ladder",

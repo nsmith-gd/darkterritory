@@ -1,0 +1,17 @@
+// The end-of-train telltale going out (note 1052; upgrades.md §7.3: "a lamp in the cab that goes out when the train parts
+// behind it"): its relay dropping out on the backhead, a dry double click and the little lamp's filament ticking as it
+// cools. Small and close: a thing the cab hears and the van doesn't. Not an alarm (spec A.4): the lamp's dark is the tell,
+// this is the sound of it happening. Tier 3, train state. A synth definition; a recorded take can replace it through the
+// audio checklist (AU1's).
+{
+  "tier": 3, "duration": 0.5, "maxInstances": 2, "minDistance": 1.5, "maxDistance": 18, "rolloff": 1.2, "gainDb": 0,
+  "layers": [
+    // The relay's armature let go, and its back-stop.
+    { "source": "noise", "gain": 0.8, "filters": [{ "type": "bandPass", "frequency": 3200, "q": 3 }], "envelope": [[0, 1], [0.008, 0]] },
+    { "source": "noise", "gain": 0.55, "delay": 0.045, "filters": [{ "type": "bandPass", "frequency": 2400, "q": 3 }], "envelope": [[0, 1], [0.01, 0]] },
+    // The relay's body: a short low knock under the clicks, kept over 150 Hz.
+    { "source": "sine", "frequency": 340, "gain": 0.3, "envelope": [[0, 0], [0.002, 1], [0.05, 0]] },
+    // The filament's tick as it cools.
+    { "source": "noise", "gain": 0.12, "delay": 0.2, "filters": [{ "type": "highPass", "frequency": 5000 }], "envelope": [[0, 1], [0.004, 0]] }
+  ]
+}

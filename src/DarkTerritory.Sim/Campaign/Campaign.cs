@@ -39,28 +39,31 @@ public sealed record StoresTuning(StoreItem Powder, StoreItem Lamps, StoreItem E
 {
     /// <summary>A flare pistol and <see cref="StoreItem.Each"/> flares (note 871); unset, the fortress sells none.</summary>
     public StoreItem? Flares { get; init; }
+    /// <summary>A box of <see cref="StoreItem.Each"/> fusees (note 1052; upgrades.md §7.3); unset, the fortress sells none.</summary>
+    public StoreItem? Fusees { get; init; }
 }
 
 /// <summary>campaign.json <c>sellCar</c>: what a car taken off brings back (a share of what it cost), and the fewest a consist keeps.</summary>
 public sealed record SellCarTuning(double Share, int Fewest);
 
 /// <summary>What the fortress's stores sell for a night (note 182).</summary>
-public enum StoreKind : byte { Powder, Lamp, Extinguisher, Flare }
+public enum StoreKind : byte { Powder, Lamp, Extinguisher, Flare, Fusee }
 
 /// <summary>
 /// The stores bought for the coming night (GDD §9): crates of powder and shot (each <see cref="StoreItem.Each"/> rounds more a
 /// gun), spare lamps and spare extinguishers in the guard van. Issued for the night: settling it spends them.
 /// </summary>
-public sealed record Stores(int Powder = 0, int Lamps = 0, int Extinguishers = 0, int Flares = 0)
+public sealed record Stores(int Powder = 0, int Lamps = 0, int Extinguishers = 0, int Flares = 0, int Fusees = 0)
 {
     public int Of(StoreKind kind) => kind switch
     {
         StoreKind.Powder => Powder,
         StoreKind.Lamp => Lamps,
         StoreKind.Flare => Flares,
+        StoreKind.Fusee => Fusees,
         _ => Extinguishers,
     };
-    public bool Any => Powder > 0 || Lamps > 0 || Extinguishers > 0 || Flares > 0;
+    public bool Any => Powder > 0 || Lamps > 0 || Extinguishers > 0 || Flares > 0 || Fusees > 0;
 }
 
 public sealed record CarCostTuning(double Base, double Growth, int FromCar);
@@ -419,6 +422,7 @@ public static class Campaign
             StoreKind.Powder => (st.Powder, "crate of powder and shot"),
             StoreKind.Lamp => (st.Lamps, "spare lamp"),
             StoreKind.Flare => (st.Flares, "flare pistol"),
+            StoreKind.Fusee => (st.Fusees, "box of fusees"),
             _ => (st.Extinguishers, "spare extinguisher"),
         };
         if (item is null)
@@ -435,6 +439,7 @@ public static class Campaign
             StoreKind.Powder => s.Stores with { Powder = s.Stores.Powder + 1 },
             StoreKind.Lamp => s.Stores with { Lamps = s.Stores.Lamps + 1 },
             StoreKind.Flare => s.Stores with { Flares = s.Stores.Flares + 1 },
+            StoreKind.Fusee => s.Stores with { Fusees = s.Stores.Fusees + 1 },
             _ => s.Stores with { Extinguishers = s.Stores.Extinguishers + 1 },
         };
         return new(s with { Stores = stores, Scrip = s.Scrip - item.Cost }, null);
@@ -478,6 +483,9 @@ public static class Campaign
                     // Note 871: each flare pistol bought comes loaded with its flares.
                     FlarePistols = l.Train.Kit.FlarePistols + stores.Flares,
                     FlareShots = st.Flares?.Each ?? l.Train.Kit.FlareShots,
+                    // Note 1052: each box of fusees with its fusees.
+                    Fusees = l.Train.Kit.Fusees + stores.Fusees,
+                    FuseesEach = st.Fusees?.Each ?? l.Train.Kit.FuseesEach,
                 },
             },
         };
@@ -672,6 +680,9 @@ public static class Campaign
                     "boardUp" => l with { Train = l.Train with { Breach = l.Train.Breach with { BoardSeconds = l.Train.Breach.BoardSeconds * k } } },
                     // The speaking tubes (note 978): a horn in every car, joined to its neighbours'.
                     "speakingTubes" => l with { Train = l.Train with { Kit = l.Train.Kit with { SpeakingTubes = l.Train.Kit.SpeakingTubes || k > 0 } } },
+                    // The crew's tools (note 1052; upgrades.md §7.3): the communication cord and the end-of-train telltale.
+                    "cord" => l with { Train = l.Train with { Kit = l.Train.Kit with { Cord = l.Train.Kit.Cord || k > 0 } } },
+                    "telltale" => l with { Train = l.Train with { Kit = l.Train.Kit with { Telltale = l.Train.Kit.Telltale || k > 0 } } },
                     "radios" => l with { Train = l.Train with { Kit = l.Train.Kit with { Radios = l.Train.Kit.Radios + (int)Math.Round(k) } } },
                     "accel" => l with { Train = l.Train with { Performance = [.. l.Train.Performance.Select(r => r with { Accel = r.Accel * k })] } },
                     "reload" => l with { Combat = l.Combat with { Guns = l.Combat.Guns with { ReloadStepSeconds = l.Combat.Guns.ReloadStepSeconds * k } } },

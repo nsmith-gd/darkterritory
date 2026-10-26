@@ -142,6 +142,52 @@ public static class PropKit
         return k.Build("prop-flare");
     }
 
+    /// <summary>
+    /// A box of fusees from the stores (note 1052): a waxed card box in the railway's red, its lid back and the fusees' ends in
+    /// a row out of it, each a red stick with its striker cap. Its middle at (0, 0, 0), lying as it's set down.
+    /// </summary>
+    public static MeshAsset FuseeBox(Look? look)
+    {
+        var k = new Kit(look, 1055);
+        k.Use("dress_paint", new Vector3(0.62f, 0.1f, 0.07f), 0.6f, 0.05f);
+        k.Box(new Vector3(-0.09f, -0.06f, -0.14f), new Vector3(0.09f, 0.02f, 0.14f));
+        k.Use("dress_paint", new Vector3(0.88f, 0.84f, 0.72f), 0.7f, 0);
+        DressKit.Letter(k, "FUSEES", new Vector3(0.091f, 0.0f, DressKit.Width("FUSEES", 0.012f) / 2), -Vector3.UnitZ, -Vector3.UnitY, 0.012f);
+        // The lid back on its hinge, and the fusees' ends in the box.
+        k.Use("dress_paint", new Vector3(0.55f, 0.09f, 0.06f), 0.6f, 0.05f);
+        k.Quad(new Vector3(-0.09f, 0.02f, -0.14f), new Vector3(-0.09f, 0.02f, 0.14f), new Vector3(-0.15f, 0.1f, 0.14f), new Vector3(-0.15f, 0.1f, -0.14f), twoSided: true);
+        for (int i = 0; i < 4; i++)
+        {
+            float x = -0.06f + 0.04f * i;
+            k.Use("dress_paint", new Vector3(0.78f, 0.12f, 0.08f), 0.5f, 0.1f);
+            k.Cylinder(new Vector3(x, 0.035f, -0.11f), new Vector3(x, 0.035f, 0.08f), 0.016f, 6);
+            k.Use("rust_heavy", new Vector3(0.3f, 0.26f, 0.22f), 0.6f, 0.2f);
+            k.Cylinder(new Vector3(x, 0.035f, 0.08f), new Vector3(x, 0.035f, 0.11f), 0.017f, 6);
+        }
+        return k.Build("prop-fusee-box");
+    }
+
+    /// <summary>
+    /// A fusee struck and dropped (note 1052): a road flare, a red paper stick a forearm long lying along Z on the ground under
+    /// its middle, its wire stand pricked into the dirt, the burning end at −Z (its fire and smoke are the scene's).
+    /// </summary>
+    public static MeshAsset Fusee(Look? look)
+    {
+        var k = new Kit(look, 1056);
+        k.Use("dress_paint", new Vector3(0.78f, 0.1f, 0.07f), 0.5f, 0.1f);
+        k.Cylinder(new Vector3(0, -0.12f, -0.14f), new Vector3(0, -0.11f, 0.16f), 0.017f, 8);
+        // The burnt end, black and slaggy back from the flame.
+        k.Use("rust_heavy", new Vector3(0.08f, 0.07f, 0.06f), 0.8f, 0);
+        k.Cylinder(new Vector3(0, -0.12f, -0.17f), new Vector3(0, -0.12f, -0.14f), 0.019f, 8);
+        // The stand's wire, down into the ground from the far end.
+        k.Use("rust_heavy", new Vector3(0.3f, 0.28f, 0.26f), 0.5f, 0.6f);
+        k.Rod(new Vector3(0, -0.11f, 0.16f), new Vector3(0, -0.15f, 0.2f), 0.003f);
+        return k.Build("prop-fusee");
+    }
+
+    /// <summary>Where a lying fusee's flame is over its body's middle: its burning end.</summary>
+    public static readonly Vector3 FuseeFlame = new(0, -0.11f, -0.18f);
+
     /// <summary>A sausage off the BBQ deck's grill (note 698), in its bun.</summary>
     public static MeshAsset Sausage(Look? look)
     {
