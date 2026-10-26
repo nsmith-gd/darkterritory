@@ -35,5 +35,25 @@
 
   // The crew's own numbers: a living crewmate is split up when no other living one is within splitM (voice's reach,
   // balance.json shared.nearMetres).
-  "splitM": 26
+  "splitM": 26,
+
+  // Note 1051 (queue #750; the director's question of note 1050 Q3, its default meanwhile: the test changes, not the game).
+  // carLost: creatures whose criterion 3 is judged by the car lost, not a kill's window. The Passenger's grab is the car's
+  // uncoupling, held till the car's gone: it passes if alone the car goes no sooner than actMinSeconds after the grab, and
+  // with a friend it's kept. sung: creatures whose staged grab has the crew singing (the Choir: its answer is singing
+  // together, note 720, which the bots never do), everyone on the same song: a voice of level ± swing, a beat every
+  // beatSeconds (in time with a friend, player.json voices.singing counts it as singing).
+  "carLost": ["Passenger"],
+  "sung": ["Choir"],
+  "song": { "level": 110, "swing": 50, "beatSeconds": 1.2 },
+
+  // Note 1051: on the bot nights an insisted Stoker boards at the tender and crosses the footplate (boardSeconds), as the
+  // heat brings one (note 263), instead of going straight into the firebox. Straight in, every one is a runaway whoever's in
+  // the cab, so its nights couldn't tell one crewmate from two; crossing, a crewmate at the firebox can club it off.
+  "stokerBoards": false,
+
+  // Note 1051: the creature flags on for the whole run (`dt social --flags knotter.tautHold,whistler.carry`): the Knotter's
+  // 8 s taut hold and the Whistler's 20 s carry, built off for the director's answers (note 1050 Q1, Q2). Whichever of them
+  // is off and its creature measured is also shown on, staged (social.md's "With the flags").
+  "flags": []
 }

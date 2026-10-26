@@ -302,59 +302,110 @@ public static partial class TownKit
     }
 
     /// <summary>
-    /// An open house's windows, boarded over (GDD §30's dead settlements; the Wiki's "white trim still shows round windows
-    /// boarded over with raw planks"): along each run of its outside wall with no door, one or two, as fit a window's width and a
-    /// pier either side, each a white trim frame with a black pane behind three raw planks nailed across it, ragged, and the
-    /// planks' backs on the inside face. Art only: the wall's as solid behind them as anywhere (StopWalls).
+    /// An open house's windows (GDD §30's dead settlements; the Wiki's "white trim still shows round windows boarded over with
+    /// raw planks"): along each run of its outside wall with no door, one or two, as fit a window's width and a pier either side
+    /// (StopWalls.WindowsOf), each a white trim frame. Upstairs, and with <paramref name="working"/> false, boarded over: a black
+    /// pane behind three raw planks nailed across it, ragged, and the planks' backs on the inside face, the wall as solid behind
+    /// them as anywhere. The ground floor's working windows (note 1053, StopWalls.GroundWindows) are their openings through the
+    /// wall, the trim round them: their shutters are the scene's, swung by the sim's state (GreyboxScene.HouseWindows).
     /// </summary>
     /// <param name="box">A box in the house's frame: middle, half sizes, bottom and top over the floor.</param>
-    static void BoardedWindows(Kit k, Sim.Stops.StopBuilding b, Action<double, double, double, double, float, float> box)
+    static void BoardedWindows(Kit k, Sim.Stops.StopBuilding b, Action<double, double, double, double, float, float> box, bool working = false)
     {
-        const float Sill = 0.95f, High = 1.1f, Half = 0.44f, TrimW = 0.07f;
+        const float Half = (float)Sim.Run.StopWalls.WindowHalf, TrimW = 0.07f;
+        // Sill and head as the frame has them (0.15 m under the ground): the sim's over the floor (StopWalls.HouseWindowSill).
+        const float Sill = (float)Sim.Run.StopWalls.HouseWindowSill + FrameUnder, High = (float)(Sim.Run.StopWalls.HouseWindowHead - Sim.Run.StopWalls.HouseWindowSill);
         double t = Sim.Run.StopWalls.WallThickness;
-        var o = Sim.Run.StopWalls.Outline(b);
+        var works = working ? Sim.Run.StopWalls.GroundWindows(b).ToHashSet() : [];
         int n = 0;
-        for (int i = 0; i < o.Runs.Count; i++)
+        foreach (var window in Sim.Run.StopWalls.WindowsOf(b))
         {
-            var r = o.Runs[i];
-            if (r.Inner || o.Doors.Contains(i))
-                continue;
-            // One or two, as fit, a pier of about 1 m either side and between, spread evenly along the run.
-            int count = Math.Min(2, (int)((r.Length - 1.0) / (2 * Half + 1.6)));
-            for (int w = 0; w < count; w++)
+            var r = window.Run;
+            double along = window.Along;
+            int seed = b.Variant * 31 + n++ * 7;
+            bool open = works.Contains(window);
+            // Outside: the frame proud of the wall's face, the pane black behind, the planks across it. Inside: the planks' backs.
+            foreach (int face in new[] { 1, -1 })
             {
-                double along = r.A + r.Length * (w + 1) / (count + 1);
-                int seed = b.Variant * 31 + n++ * 7;
-                // Outside: the frame proud of the wall's face, the pane black behind, the planks across it. Inside: the planks' backs.
-                foreach (int face in new[] { 1, -1 })
+                double at = face > 0 ? r.At + r.Out * 0.02 : r.At - r.Out * (t + 0.02);
+                void Across(double a0, double a1, float y0, float y1, double depth) =>
+                    box(r.AlongX ? (a0 + a1) / 2 : at + r.Out * face * depth, r.AlongX ? at + r.Out * face * depth : (a0 + a1) / 2,
+                        r.AlongX ? (a1 - a0) / 2 : 0.02, r.AlongX ? 0.02 : (a1 - a0) / 2, y0, y1);
+                if (face > 0)
                 {
-                    double at = face > 0 ? r.At + r.Out * 0.02 : r.At - r.Out * (t + 0.02);
-                    void Across(double a0, double a1, float y0, float y1, double depth) =>
-                        box(r.AlongX ? (a0 + a1) / 2 : at + r.Out * face * depth, r.AlongX ? at + r.Out * face * depth : (a0 + a1) / 2,
-                            r.AlongX ? (a1 - a0) / 2 : 0.02, r.AlongX ? 0.02 : (a1 - a0) / 2, y0, y1);
-                    if (face > 0)
+                    if (!open)
                     {
                         k.Use("glass_dirty", Palette.SootBlack, 0.4f, 0.4f, tile: 1);
                         Across(along - Half, along + Half, Sill, Sill + High, -0.01);
-                        k.Use("clapboard", new Vector3(0.62f, 0.6f, 0.55f), 0.9f, 0.05f, tile: 3);
-                        Across(along - Half - TrimW, along - Half, Sill - TrimW, Sill + High + TrimW, 0.01);
-                        Across(along + Half, along + Half + TrimW, Sill - TrimW, Sill + High + TrimW, 0.01);
-                        Across(along - Half - TrimW, along + Half + TrimW, Sill + High, Sill + High + TrimW, 0.01);
-                        Across(along - Half - TrimW - 0.04, along + Half + TrimW + 0.04, Sill - TrimW - 0.03f, Sill, 0.02);
                     }
-                    // Three planks, each a little longer one side than the other and off level, as they were nailed up in a hurry.
-                    k.Use("wood_grey", new Vector3(0.42f, 0.34f, 0.24f) * (face > 0 ? 1 : 0.7f), 0.85f, 0.03f, tile: 1);
-                    for (int p = 0; p < 3; p++)
-                    {
-                        int h = (seed + p * 13) % 7;
-                        float y = Sill + 0.18f + p * 0.36f + (h - 3) * 0.012f;
-                        double left = along - Half - 0.06 - (h % 3) * 0.04, right = along + Half + 0.06 + ((h + 1) % 3) * 0.04;
-                        Across(left, right, y - 0.08f, y + 0.08f, 0.04);
-                    }
+                    k.Use("clapboard", new Vector3(0.62f, 0.6f, 0.55f), 0.9f, 0.05f, tile: 3);
+                    Across(along - Half - TrimW, along - Half, Sill - TrimW, Sill + High + TrimW, 0.01);
+                    Across(along + Half, along + Half + TrimW, Sill - TrimW, Sill + High + TrimW, 0.01);
+                    Across(along - Half - TrimW, along + Half + TrimW, Sill + High, Sill + High + TrimW, 0.01);
+                    Across(along - Half - TrimW - 0.04, along + Half + TrimW + 0.04, Sill - TrimW - 0.03f, Sill, 0.02);
+                }
+                if (open)
+                    continue;
+                // Three planks, each a little longer one side than the other and off level, as they were nailed up in a hurry.
+                k.Use("wood_grey", new Vector3(0.42f, 0.34f, 0.24f) * (face > 0 ? 1 : 0.7f), 0.85f, 0.03f, tile: 1);
+                for (int p = 0; p < 3; p++)
+                {
+                    int h = (seed + p * 13) % 7;
+                    float y = Sill + 0.18f + p * 0.36f + (h - 3) * 0.012f;
+                    double left = along - Half - 0.06 - (h % 3) * 0.04, right = along + Half + 0.06 + ((h + 1) % 3) * 0.04;
+                    Across(left, right, y - 0.08f, y + 0.08f, 0.04);
                 }
             }
         }
     }
+
+    /// <summary>
+    /// A working window's shutter (note 1053), in its own frame: x across from its hinge at 0 to its free edge at
+    /// <paramref name="width"/> (with <paramref name="mirror"/>, the hinge at <paramref name="width"/>), y up from its sill at 0
+    /// to <paramref name="height"/>, z through it, its outside out along +z, <see cref="ShutterThick"/> either side of z = 0.
+    /// Shut, it's the boarded window the houses always had: dark boards upright, three raw planks nailed across them ragged; the
+    /// strap hinges rusted iron. The scene hangs it on the opening's outside and swings it (GreyboxScene.HouseWindows).
+    /// </summary>
+    public static MeshAsset Shutter(Look? look, float width, float height, bool mirror, int seed)
+    {
+        var k = new Kit(look, 65);
+        const float T = ShutterThick;
+        float X(float a) => mirror ? width - a : a;
+        void At(float a, float y, float z, float hx, float hy, float hz) => k.BoxAt(new Vector3(X(a), y, z), new Vector3(hx, hy, hz));
+        void Upright(float a, float y, float z, float hx, float hy, float hz) =>
+            k.With(Matrix4x4.CreateRotationZ(MathF.PI / 2) * Kit.At(X(a), y, z), () => k.BoxAt(Vector3.Zero, new Vector3(hy, hx, hz)));
+        // The boards behind, weathered near black.
+        k.Use("wood_grey", new Vector3(0.16f, 0.13f, 0.1f), 0.9f, 0.02f, tile: 1);
+        int boards = 4;
+        for (int i = 0; i < boards; i++)
+        {
+            float a0 = width * i / boards, a1 = width * (i + 1) / boards;
+            Upright((a0 + a1) / 2, height / 2, 0, (a1 - a0) / 2 - 0.003f, height / 2 - (i % 2) * 0.006f, T);
+        }
+        // The planks across, outside and in.
+        foreach (float face in new[] { 1f, -1f })
+        {
+            k.Use("wood_grey", new Vector3(0.42f, 0.34f, 0.24f) * (face > 0 ? 1 : 0.7f), 0.85f, 0.03f, tile: 1);
+            for (int p = 0; p < 3; p++)
+            {
+                int h = (seed + p * 13) % 7;
+                float y = 0.18f + p * 0.36f + (h - 3) * 0.012f;
+                float left = -0.02f - (h % 3) * 0.02f, right = width + 0.02f + ((h + 1) % 3) * 0.02f;
+                At((left + right) / 2, y, face * (T + 0.015f), (right - left) / 2, 0.08f, 0.015f);
+            }
+        }
+        // Strap hinges on the outside, from the hinge's edge.
+        k.Use("rust_heavy", Palette.IronGrey, 0.9f, 0.3f, tile: 1);
+        foreach (float y in new[] { 0.12f, height - 0.12f })
+        {
+            At(width * 0.3f, y, T + 0.034f, width * 0.3f, 0.018f, 0.004f);
+            k.Cylinder(new Vector3(X(0.01f), y - 0.05f, T + 0.006f), new Vector3(X(0.01f), y + 0.05f, T + 0.006f), 0.01f, 6);
+        }
+        return k.Build("house-shutter");
+    }
+
+    /// <summary>Half a working window's shutter's thickness (m): its boards'.</summary>
+    public const float ShutterThick = 0.015f;
 
     /// <summary>
     /// The tints over the boards' own colour a house's dresser and sideboard wear (note 760): their doors' worn milk paint, a
@@ -715,9 +766,12 @@ public static partial class TownKit
                     if (!cellars || !floored.Any(p => InPart(p, (x0 + x1) / 2, (y0 + y1) / 2)))
                         Box((x0 + x1) / 2, (y0 + y1) / 2, (x1 - x0) / 2, (y1 - y0) / 2, -0.4f, Floor);
             k.Use("plaster_ruin", Palette.BlueGrey, 0.9f, 0.05f, tile: 2);
+            // (Its working windows cut through them, note 1053: the sim's own cut, in the frame's heights.)
+            var openings = Sim.Run.StopWalls.WindowOpenings(b, FrameUnder).ToList();
             foreach (var (x, y, wx, wy) in Sim.Run.StopWalls.OpenWalls(b))
             {
-                Box(x, y, wx, wy, -0.4f, H);
+                foreach (var p in Sim.Run.StopWalls.Cut((x, y, wx, wy), openings, -0.4, H))
+                    Box(p.X, p.Y, p.HalfX, p.HalfY, (float)p.Bottom, (float)p.Top);
                 // Over a part with an upstairs, on up to its eaves: as much of the wall as is that part's.
                 foreach (var p in upParts)
                 {
@@ -764,7 +818,7 @@ public static partial class TownKit
                 // hung in the middle of the room.)
                 Box(0, fy * (hy - t / 2), door, t / 2, Lintel, H);
 
-            BoardedWindows(k, b, Box);
+            BoardedWindows(k, b, Box, working: true);
 
             // A gabled roof over each part, its ridge along the part's longer side (a plain house's along its axis).
             if (outline is null)

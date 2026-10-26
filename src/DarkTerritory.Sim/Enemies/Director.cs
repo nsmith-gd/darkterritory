@@ -857,12 +857,8 @@ public sealed class Director
             }
         // Under a generated line's terrain tags the enemies that belong there come more often (linegen plan §15.1).
         if (context is not null)
-        {
             for (int i = 0; i < options.Count; i++)
-                foreach (var tag in tags)
-                    if (context.Affinity.GetValueOrDefault(tag)?.GetValueOrDefault(Name(options[i].Kind)) is { } w)
-                        options[i] = (options[i].Kind, options[i].Weight * w);
-        }
+                options[i] = (options[i].Kind, options[i].Weight * context.AffinityOf(tags, Name(options[i].Kind)));
         // The first threat answers its draw (note 287): what that draw calls comes on more (the whistle the Whistler, a lamp the
         // Fire Flies, the cargo the Car Hugger).
         if (draw.Enabled && First is null
@@ -874,6 +870,20 @@ public sealed class Director
         // its situational rule, at its free weight, charged and paced as any spend.
         options.RemoveAll(o => Refused(o.Kind, world, active));
         bool fill = false;
+        // App. B.1 want balance held (note 1048): pressed, and everything the rules let in now is of a want over its share; the
+        // rule-less of the wants under theirs come instead, as the fill below. None of those open: the rules' as they are.
+        if (options.Count > 0 && _t.WantHold.Fill && _spent >= _t.WantHold.FillFrom && (due || !_t.Curve.FillPressed) && _t.WantShares.Count > 0
+            && world.Enemies is { } wt && options.All(o => OverShare(WantOf(o.Kind))))
+        {
+            var under = FreeOptions(world, wt, holding, active, withBound: false);
+            under.RemoveAll(o => OverShare(WantOf(o.Kind))
+                || Cost(o.Kind) > (due ? Math.Max(available - Reserve(world, s, o.Kind), _t.PacedCost) : available - Reserve(world, s, o.Kind)));
+            if (under.Count > 0)
+            {
+                options = under;
+                fill = true;
+            }
+        }
         if (options.Count == 0 && _t.Curve.Fill && (due || !_t.Curve.FillPressed) && world.Enemies is { } ft)
         {
             options = FreeOptions(world, ft, holding, active, withBound: false);
@@ -1055,34 +1065,57 @@ public sealed class Director
         // Every kind the director sends counts: those nightChance doesn't name are about every night.
         var sends = Spawns.Rules.Select(r => Key(r.Kind)).ToHashSet();
         int residents = Math.Min(st.Split(st.Count(tier, crew)).Waiting, st.Residents.Length);
-        var dice = about;
-        void Back(Func<string, bool> which, Func<int> missing)
+        BringBack(ref about, rolled, st.Residents.Contains, () => residents - st.Residents.Count(r => !_outTonight.Contains(r)));
+        BringBack(ref about, rolled, sends.Contains, () => st.FloorKinds - sends.Count(k => !_outTonight.Contains(k)));
+        // App. B.1 want balance (note 1048): the shares are spent on what's about, and the chances can leave a want with
+        // nothing (Local seed 1 rolled out every cargo kind but the Fire Flies). Each want with a share has wantHold.floor of
+        // its kinds about tonight, brought back as above, after the floor's own (so its draws are as they were). Never one
+        // whose chance the director set by hand (the rare kinds' trial, note 915): the Passenger stays at its 30 %.
+        if (tuning.WantHold.Floor > 0)
         {
-            while (missing() > 0)
+            var wantOf = Spawns.Rules.Select(r => r.Kind).Distinct()
+                .Where(k => !(tuning.NightChanceTrial.On && tuning.NightChanceTrial.Chances.ContainsKey(Key(k)) && _outTonight.Contains(Key(k))))
+                .ToDictionary(Key, k => WantOf(k).ToString().ToLowerInvariant());
+            // And, for the fill (wantHold.fill), one of its rule-less (curve.kinds) about, if it has any.
+            var free = tuning.Curve.Kinds.Where(k => k.Value > 0).Select(k => k.Key).ToHashSet();
+            foreach (var want in tuning.WantShares.Where(w => w.Value > 0).Select(w => w.Key).Order(StringComparer.Ordinal))
             {
-                // A chance of 0 is the director's "never": not brought back.
-                var pool = rolled.Where(r => r.Chance > 0 && _outTonight.Contains(r.Name) && which(r.Name)).ToList();
-                double total = pool.Sum(r => r.Chance);
-                if (pool.Count == 0 || total <= 0)
-                    return;
-                double pick = dice.NextDouble() * total;
-                var back = pool[^1].Name;
-                foreach (var r in pool)
-                {
-                    if (pick < r.Chance)
-                    {
-                        back = r.Name;
-                        break;
-                    }
-                    pick -= r.Chance;
-                }
-                _outTonight.Remove(back);
-                FloorBrought.Add(back);
+                BringBack(ref about, rolled, k => wantOf.GetValueOrDefault(k) == want,
+                    () => tuning.WantHold.Floor - wantOf.Count(k => k.Value == want && !_outTonight.Contains(k.Key)));
+                if (tuning.WantHold.Fill)
+                    BringBack(ref about, rolled, k => free.Contains(k) && wantOf.GetValueOrDefault(k) == want,
+                        () => free.Any(k => wantOf.GetValueOrDefault(k) == want && !_outTonight.Contains(k)) ? 0 : 1);
             }
         }
-        Back(st.Residents.Contains, () => residents - st.Residents.Count(r => !_outTonight.Contains(r)));
-        Back(sends.Contains, () => st.FloorKinds - sends.Count(k => !_outTonight.Contains(k)));
-        about = dice;
+    }
+
+    /// <summary>
+    /// Brings kinds back from out tonight (note 868) while <paramref name="missing"/> says so: of those rolled out that
+    /// <paramref name="which"/> takes (but those at a chance of 0, the director's "never"), each drawn by its chance on the
+    /// night's roll's stream.
+    /// </summary>
+    void BringBack(ref Pcg32 dice, List<(string Name, double Chance)> rolled, Func<string, bool> which, Func<int> missing)
+    {
+        while (missing() > 0)
+        {
+            var pool = rolled.Where(r => r.Chance > 0 && _outTonight.Contains(r.Name) && which(r.Name)).ToList();
+            double total = pool.Sum(r => r.Chance);
+            if (pool.Count == 0 || total <= 0)
+                return;
+            double pick = dice.NextDouble() * total;
+            var back = pool[^1].Name;
+            foreach (var r in pool)
+            {
+                if (pick < r.Chance)
+                {
+                    back = r.Name;
+                    break;
+                }
+                pick -= r.Chance;
+            }
+            _outTonight.Remove(back);
+            FloorBrought.Add(back);
+        }
     }
 
     /// <summary>The kinds the night's floor brought back from out tonight (note 868), in the order it did.</summary>
@@ -2277,6 +2310,13 @@ public sealed class Director
     }
 
     readonly Dictionary<string, double> _spentByWant = new();
+
+    /// <summary>The want has had more than its share (App. B.1 v1.1) of what's been spent tonight.</summary>
+    bool OverShare(Want want)
+    {
+        string key = want.ToString().ToLowerInvariant();
+        return _spent > 0 && _spentByWant.GetValueOrDefault(key) / _spent > _t.WantShares.GetValueOrDefault(key, 0.25) / _t.WantShares.Values.Sum();
+    }
 
     /// <summary>The night's draws (note 287), host-side: the World credits each act as it's made, and <see cref="Listen"/> the rest.</summary>
     public DrawLedger Draws { get; } = new();
