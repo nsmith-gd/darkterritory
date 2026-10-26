@@ -1665,11 +1665,23 @@ public sealed class WreckFilm
             double d = Math.Min(150, extent * 2.2);
             var eye = centre + dir * d + Double3.Up * (d * 0.6);
             eye = eye with { Y = Math.Max(eye.Y, ground(eye.X, eye.Z) + 3) };
-            // E.4 O11 (note 1055): in a tunnel, the wide's camera is in the bore, not up in the hill: in toward the middle of it
-            // until it's clear of the rock.
+            // E.4 O11 (note 1055): in a tunnel (rock over the wreck), the wide looks down the bore at it from along the line, not
+            // at the hill from over it; elsewhere, a camera that's come down into the rock is brought in toward the middle.
             if (lot.World is { } world)
+            {
+                if (world.InRock(centre + Double3.Up * 12))
+                {
+                    var back = (frame.Cars[0].Back with { Y = 0 }).Length > 1e-6 ? (frame.Cars[0].Back with { Y = 0 }).Normalized : new Double3(0, 0, 1);
+                    // Down the bore from whichever end is clear (of the rock and anything standing; the dollies' 10% either way too).
+                    bool Clear(Double3 e) => world.Touch(e, 0.5) is null && world.Touch(e + (e - centre) * 0.1, 0.5) is null && world.Touch(e - (e - centre) * 0.1, 0.5) is null;
+                    var tries = from far in new[] { Math.Min(60, extent * 1.5), 40, 25, 15 }
+                                from way in new[] { 1.0, -1.0 }
+                                select world.Hold(centre + back * (way * far) + Double3.Up * 3, 0.5);
+                    eye = tries.FirstOrDefault(Clear, world.Hold(centre + back * Math.Min(60, extent * 1.5) + Double3.Up * 3, 0.5));
+                }
                 for (int k = 1; k <= 20 && world.InRock(eye); k++)
                     eye = Double3.Lerp(centre + dir * d + Double3.Up * (d * 0.6), centre + Double3.Up * 2, k / 20.0);
+            }
             return (eye, centre);
         }
 
