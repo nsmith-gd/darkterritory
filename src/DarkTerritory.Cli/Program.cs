@@ -746,6 +746,8 @@ object CampaignCommand(string content, string verb, string[] args)
         // Note 1024: how cold each town is to the crew (percent), and what the forge here asks over its list price.
         standing = s.Standing,
         dearer = DarkTerritory.Sim.Campaign.Campaign.Dearer(s, standing),
+        // Note 1039: the corruption grown on the train (the cars from the engine, the couplings behind each), and the scrape.
+        growth = s.Growth is { } g ? new { cars = g.Cars, couplings = g.Couplings, scrape = DarkTerritory.Sim.Campaign.Campaign.ScrapeCost(t, s, standing) } : null,
         underway = s.Current?.Route,
         autosave = s.Checkpoint is { } c ? $"left facility {c.Facility} at {c.Seconds / 60:0.0} min" : null,
         s.History,
@@ -778,6 +780,8 @@ object CampaignCommand(string content, string verb, string[] args)
                     // Note 871: the flare pistol, from the Frontier tier.
                     "flare" => DarkTerritory.Sim.Campaign.Campaign.BuyStores(t, s, DarkTerritory.Sim.Campaign.StoreKind.Flare),
                     "sell" => DarkTerritory.Sim.Campaign.Campaign.SellCar(t, s),
+                    // Note 1039: the blacksmith scrapes the train's growth off.
+                    "scrape" => DarkTerritory.Sim.Campaign.Campaign.Scrape(t, s, standing),
                     _ => DarkTerritory.Sim.Campaign.Campaign.BuyUpgrade(t, s, what, standing),
                 };
                 if (p.Ok)
@@ -2427,6 +2431,8 @@ static object Screenshot(TrainTuning t, string content, string[] args)
         // mask (note 731); the views masks, maskface and sigil have the anchor.
         CrewSigil = Str(args, "--sigil", view is "masks" or "maskface" or "maskside" or "sigil" ? "anchor" : "") is { Length: > 0 } sigil
             ? int.TryParse(sigil, out int sigilNumber) ? sigilNumber : Array.IndexOf(look?.Tuning.MaskStencils ?? [], sigil) + 1 : 0,
+        // --growth 0.8 (or a spec, 0,40,12/20,0; note 1039): the train's corruption, grown over that much.
+        Growth = Str(args, "--growth", "") is { Length: > 0 } grow ? DarkTerritory.Sim.Campaign.TrainGrowth.Dev(grow, train.Vehicles.Count) : null,
         Oddities = oddities,
         Crew = horseplay is { } hc ? hc.Crew
             // The handcar views (note 729): two pumping at its handle, or two lifting it down off the van.

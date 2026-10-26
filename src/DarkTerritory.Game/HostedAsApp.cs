@@ -47,6 +47,8 @@ public static class HostedAsApp
             Night = s.Runs + 1,
             // Note 731: the crew's sigil, on the engine's side and every mask.
             Sigil = s.Sigil,
+            // Note 1039: the corruption grown on the train, where the creatures got on.
+            Growth = s.Growth is { Any: true } g ? g.Spec : null,
         };
 
     /// <summary>The harness's arguments for <paramref name="setup"/>'s night with <paramref name="bots"/> bots, for up to
