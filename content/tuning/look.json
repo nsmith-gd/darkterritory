@@ -337,7 +337,7 @@
   // "stokerBoardHaloAlpha", flickering with the light; 0: none), what's seen over the rim from the cab when the coal hides
   // the shape: its telegraph in the open.
   "darkCreatures": {
-    "lift": { "soot_child": 2.5, "picker": 3.0, "climber": 5.0 },
+    "lift": { "soot_child": 4.0, "picker": 3.0, "climber": 5.0 },
     "eyeShine": { "climber": 1.0 },
     "stokerBoardGlow": 2.4,
     "stokerBoardReach": 2.6,
