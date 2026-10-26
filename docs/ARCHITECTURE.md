@@ -1195,4 +1195,5 @@ written here instead is moved out by `tools/coord/notes.py split`; the Coordinat
 - [1037. The visual tell audit, `dt tells` (n1-V1, nathaniel1's Token Budget Manager's worker; queue #262, after W1's stale claim, note 1026;…](notes/1037.md)
 - [1038. The social test measured, `dt social` (n1-S3, nathaniel1's Token Budget Manager's worker; queue #255, carried on from W1's claim of 9 Oct,…](notes/1038.md)
 - [1040. A corrupted human's voice on the crew's radio (n1-R2, nathaniel1's Token Budget Manager's worker; queue #729; GDD Part Eleven q4; note 1026…](notes/1040.md)
+- [1042. Dark creatures kept seeable on dark ground (n1-D1, nathaniel1's Token Budget Manager's worker; queue #740; note 1037 ranks 3-7;…](notes/1042.md)
 <!-- end of the notes index -->

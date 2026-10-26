@@ -120,7 +120,10 @@ public static class TellAudit
                     bool seen = pixels * scale >= tuning.MinPixels && contrast >= tuning.MinContrast;
                     string? path = null;
                     if (output is not null && frames)
+                    {
                         shot.Save(path = Path.Combine(output, $"{name}-{from}-{c}.png"), with);
+                        shot.Save(Path.Combine(output, $"{name}-{from}-{c}-diff.png"), Difference(with, without, tuning.Jnd));
+                    }
                     list.Add(new Frame(c, from, Math.Round(pixels * scale), Math.Round(contrast, 1), Math.Round(mean, 1), seen, path));
                     tiles.Add((with, seen));
                 }
@@ -188,6 +191,25 @@ public static class TellAudit
     }
 
     static readonly double[] Linear = [.. Enumerable.Range(0, 256).Select(i => i / 255.0 is var c && c <= 0.04045 ? c / 12.92 : Math.Pow((c + 0.055) / 1.055, 2.4))];
+
+    /// <summary>
+    /// Where the creature's frame differs from the frame without it, for looking (note 1042): each pixel's step in L*, white
+    /// at 20 or more, red where it's under <paramref name="jnd"/> (changed, but not enough to count), black where unchanged.
+    /// </summary>
+    static byte[] Difference(byte[] with, byte[] without, double jnd)
+    {
+        var d = new byte[with.Length];
+        for (int i = 0; i < with.Length; i += 4)
+        {
+            d[i + 3] = 255;
+            if (with[i] == without[i] && with[i + 1] == without[i + 1] && with[i + 2] == without[i + 2])
+                continue;
+            double step = Math.Abs(L(with, i) - L(without, i));
+            byte v = (byte)Math.Clamp(step / 20 * 255, 0, 255);
+            (d[i], d[i + 1], d[i + 2]) = step < jnd ? ((byte)96, (byte)0, (byte)0) : (v, v, v);
+        }
+        return d;
+    }
 
     /// <summary>
     /// How the creature's frame differs from the frame without it: the pixels a step of <paramref name="jnd"/> L* or more apart,
