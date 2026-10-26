@@ -140,16 +140,19 @@ for k in range(24):
                 shape=lambda i, j, an, p, fr, k=k: Vector(p) + fr[0] * 0.006 * math.sin(i * 2.4 + k) * abs(math.cos(an)))
 
 # Inside the bell, seen through its membrane: four horseshoe organs round the crown, as a moon jelly's are, dim and
-# blood-dark, and the gut's knot under them (solid: the screen-door membrane shows them, face on, as shapes in it).
+# blood-dark, and the gut's knot among them (solid: the screen-door membrane shows them, face on, as shapes in it).
 organs = kit.part("organs")
 for k in range(4):
     a = math.radians(45 + 90 * k)
-    c = Vector((math.sin(a) * 0.105, math.cos(a) * 0.105, BC.z + 0.015))
+    c = Vector((math.sin(a) * 0.165, math.cos(a) * 0.165, BC.z + 0.015))
     arc = [c + Vector((math.sin(a + t) * 0.055, math.cos(a + t) * 0.055, -0.012 * math.cos(t))) for t in [math.radians(d) for d in range(-150, 151, 30)]]
     organs.tube(arc, [0.011 + 0.004 * math.sin(math.pi * i / (len(arc) - 1)) for i in range(len(arc))], 5, ORGAN, "bell",
                 ref=(0, 0, 1), cap0=True, cap1=True)
-organs.blob(BC + Vector((0, 0, -0.04)), (0.055, 0.055, 0.04), 10, 6, ORGAN, "bell",
-            shape=lambda i, j, a, th, p: Vector(p) + (Vector(p) - BC).normalized() * 0.008 * math.sin(a * 5 + th * 3))
+# The gut's knot is the bell's dark core (note 1046): big enough that the bell reads dark in the middle and pale at its
+# frilled rim, so in fog (pale on pale) it's still a shape, as it is against the night. Up in the crown, over the
+# underside's cup (whose top is BC.z - 0.03), the horseshoes lobed round its edge.
+organs.blob(BC + Vector((0, 0, 0.065)), (0.15, 0.15, 0.085), 10, 6, ORGAN, "bell",
+            shape=lambda i, j, a, th, p: Vector(p) + (Vector(p) - BC).normalized() * 0.012 * math.sin(a * 5 + th * 3))
 
 # --- the mouth: a child's lips held open in an O, small blunt teeth, the dark of the throat --------------------------
 mouth = kit.part("mouth")
