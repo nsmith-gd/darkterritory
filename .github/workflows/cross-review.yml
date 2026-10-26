@@ -1,0 +1,76 @@
+# The cross-model review (queue #259, note 1044): a second model reads each pull request's diff against REVIEW.md and
+# keeps one summary comment on it up to date. Advisory only:
+# - it does nothing (a notice on the run) until the repository has the ANTHROPIC_API_KEY secret;
+# - it never fails: the job is continue-on-error and the script exits 0, so it can't block a merge (don't make it required);
+# - it can read the code and write a PR comment, nothing else;
+# - a fork's pull request is skipped (GitHub gives it no secrets on `pull_request` anyway), and the reviewer and the rubric
+#   are checked out from the base branch, never the PR's head, so a pull request can't rewrite its own reviewer.
+name: Cross-model review
+on:
+  pull_request:
+    types: [opened, synchronize, reopened, ready_for_review]
+# A newer push to the same PR replaces the review under way.
+concurrency:
+  group: cross-review-${{ github.event.pull_request.number }}
+  cancel-in-progress: true
+permissions:
+  contents: read
+  pull-requests: write
+jobs:
+  review:
+    if: github.event.pull_request.draft == false && github.event.pull_request.head.repo.full_name == github.repository
+    runs-on: ubuntu-latest
+    timeout-minutes: 20
+    continue-on-error: true
+    env:
+      ANTHROPIC_API_KEY: ${{ secrets.ANTHROPIC_API_KEY }}
+      CROSS_REVIEW_MODEL: ${{ vars.CROSS_REVIEW_MODEL }}
+      GH_TOKEN: ${{ github.token }}
+      PR: ${{ github.event.pull_request.number }}
+      TITLE: ${{ github.event.pull_request.title }}
+      BODY: ${{ github.event.pull_request.body }}
+    steps:
+      - name: Switched on?
+        id: on
+        run: |
+          if [ -z "$ANTHROPIC_API_KEY" ]; then
+            echo "::notice::Cross-model review is off: the repository has no ANTHROPIC_API_KEY secret (note 1044)."
+            echo "on=false" >> "$GITHUB_OUTPUT"
+          else
+            echo "on=true" >> "$GITHUB_OUTPUT"
+          fi
+      - uses: actions/checkout@v4
+        if: steps.on.outputs.on == 'true'
+        with:
+          ref: ${{ github.event.pull_request.base.sha }}
+          sparse-checkout: |
+            REVIEW.md
+            tools/review/cross_model.py
+          sparse-checkout-cone-mode: false
+          persist-credentials: false
+      - uses: actions/setup-python@v5
+        if: steps.on.outputs.on == 'true'
+        with:
+          python-version: '3.12'
+      - name: Review
+        if: steps.on.outputs.on == 'true'
+        run: |
+          pip install -q 'anthropic==2.3.0'
+          printf '%s' "$BODY" > body.md
+          # GitHub won't give a diff past 300 files or 20,000 lines; that's said in the comment, not passed over.
+          if gh pr diff "$PR" --repo "$GITHUB_REPOSITORY" > pr.diff 2> diff.err; then
+            python3 tools/review/cross_model.py --diff pr.diff --rubric REVIEW.md --title "$TITLE" --body-file body.md > comment.md
+          else
+            cat diff.err
+            python3 tools/review/cross_model.py --no-diff "$(head -c 300 diff.err)" > comment.md
+          fi
+      - name: Post or update the one comment
+        if: steps.on.outputs.on == 'true'
+        run: |
+          id=$(gh api "repos/$GITHUB_REPOSITORY/issues/$PR/comments" --paginate \
+                 --jq '.[] | select(.body | startswith("<!-- cross-model-review -->")) | .id' | tail -1)
+          if [ -n "$id" ]; then
+            gh api -X PATCH "repos/$GITHUB_REPOSITORY/issues/comments/$id" -F body=@comment.md > /dev/null
+          else
+            gh pr comment "$PR" --repo "$GITHUB_REPOSITORY" --body-file comment.md
+          fi
