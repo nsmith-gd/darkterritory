@@ -13,6 +13,7 @@ namespace DarkTerritory.Game.Tests;
 /// look as the game draws them, the room reads, not black. Each measured on frontier:7, from where `dt screenshot --cottage`
 /// and `--barn` stand (their 1280x720 means were 5.6 and 4.6 out of 255 before, about 11 and 27 after).
 /// </summary>
+[Collection(GpuCollection.Name)]
 public class InteriorLightTests
 {
     static readonly string Content = DataFile.FindContentRoot();

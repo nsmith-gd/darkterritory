@@ -14,6 +14,7 @@ namespace DarkTerritory.Game.Tests;
 /// with the other GPU tests running alongside. Untextured, every material samples the one white layer, by both paths
 /// alike. `dt vr check` draws the dressed scene by both (note 221).
 /// </summary>
+[Collection(GpuCollection.Name)]
 public class MultiviewTests
 {
     static readonly string Content = DataFile.FindContentRoot();
