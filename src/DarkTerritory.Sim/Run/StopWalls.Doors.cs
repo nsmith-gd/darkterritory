@@ -98,34 +98,45 @@ public sealed partial class StopWalls
     /// <summary>Every open house's door.</summary>
     public IReadOnlyList<HouseDoor> HouseDoors => _doors;
 
-    /// <summary>Whether a door's shut.</summary>
+    /// <summary>Whether a door's shut, or a window (note 1053).</summary>
     public bool Shut(int key) => _shut.Contains(key);
 
-    /// <summary>The doors shut, in key order (for the wire).</summary>
+    /// <summary>The doors shut and the windows (negative keys, note 1053), in key order (for the wire).</summary>
     public IEnumerable<int> ShutDoors => _shut.Order();
 
-    /// <summary>Shuts or opens a door (the host's crew act). True if that changed it. Opened, a locked door's lock is gone (note 719).</summary>
+    /// <summary>
+    /// Shuts or opens a door or a window (note 1053; the host's crew act). True if that changed it. Opened, a locked door's lock
+    /// is gone (note 719); a barred window (<see cref="Barred"/>) doesn't open.
+    /// </summary>
     public bool SetShut(int key, bool shut)
     {
+        if (!shut && Barred(key))
+            return false;
         if (!shut)
             _locked.Remove(key);
-        if (!_doors.Any(d => d.Key == key) || (shut ? !_shut.Add(key) : !_shut.Remove(key)))
+        if (!Known(key) || (shut ? !_shut.Add(key) : !_shut.Remove(key)))
             return false;
         Seal();
         return true;
     }
 
+    /// <summary>Whether a key's one of these walls' doors' or windows'.</summary>
+    bool Known(int key) => IsWindow(key) ? _windows.Any(w => w.Key == key) : _doors.Any(d => d.Key == key);
+
     /// <summary>
     /// Note 719 (the jackpot house): these doors shut and locked, as every machine builds the walls (<see cref="Run.LockedDoors"/>).
     /// A held Use doesn't open a locked door; the wrench does (<see cref="World"/>'s door act), and then it's a door like any other.
+    /// Its windows are shut too, and barred while it's locked (note 1053).
     /// </summary>
     public void Lock(IEnumerable<int> keys)
     {
         foreach (int key in keys)
-            if (_doors.Any(d => d.Key == key))
+            if (_doors.FirstOrDefault(d => d.Key == key) is { Key: not 0 } door)
             {
                 _locked.Add(key);
                 _shut.Add(key);
+                foreach (var w in _windows.Where(w => w.House == door.House))
+                    _shut.Add(w.Key);
             }
         Seal();
     }
@@ -159,10 +170,13 @@ public sealed partial class StopWalls
     /// <summary>Whether open house <paramref name="house"/> (its index) is locked up: a door of it locked (note 719).</summary>
     public bool LockedHouse(int house) => _locked.Count > 0 && _doors.Any(d => d.House == house && Locked(d.Key));
 
-    /// <summary>Client side: the host's doors shut. A locked door seen open was unlocked (note 719): its lock's gone here too.</summary>
+    /// <summary>
+    /// Client side: the host's doors shut, and its windows (note 1053). A locked door seen open was unlocked (note 719): its lock's
+    /// gone here too. (A key not known here, a window to a build without them, is let be.)
+    /// </summary>
     public void MirrorShut(IEnumerable<int> shut)
     {
-        var now = shut.Where(k => _doors.Any(d => d.Key == k)).ToHashSet();
+        var now = shut.Where(Known).ToHashSet();
         if (now.SetEquals(_shut))
             return;
         _shut.Clear();
@@ -271,6 +285,7 @@ public sealed partial class StopWalls
         _gatesOpen = from._gatesOpen;
         _towers = from._towers;
         _doors = from._doors;
+        _windows = from._windows;
         _houses = from._houses;
         _sealed = from._sealed;
     }

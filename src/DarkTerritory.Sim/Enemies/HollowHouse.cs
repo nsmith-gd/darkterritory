@@ -14,8 +14,9 @@ public enum HollowMode : byte { Still, Rumble, Shut, Sink, Collapse, Settled }
 /// The way to counter it really should just be awareness of the house and awareness of the surroundings";
 /// docs/design/creatures/hollow-house.md). The house is the creature. Someone inside a moment and the ground rumbles under it
 /// (the tell); if anyone's still inside when the rumble ends, its doors slam shut one after another, quickly, held shut, and
-/// it sinks and comes down on whoever's inside (a crush: a structure coming down kills, as a fall does). Nobody inside by
-/// then and it settles still again. Rule: know the house you're in.
+/// it sinks and comes down on whoever's inside (a crush: a structure coming down kills, as a fall does). Its windows slam after
+/// its doors (note 1053; GDD App. F.5: "a crewmate can still get out through a door or a window while they slam"): one
+/// still open is climbed out of. Nobody inside by then and it settles still again. Rule: know the house you're in.
 /// </summary>
 /// <remarks>
 /// One to a house. <see cref="Enemy.Local"/> is the house's middle, on its floor; <see cref="Enemy.Extra2"/> the house (an
@@ -59,7 +60,9 @@ public sealed class HollowHouse(int id) : Enemy(id)
         if (ctx.Train.Walls is not { } walls)
             return;
         var inside = ctx.LivingCrew().Where(c => walls.InHouse(House, c.World + Double3.Up * 0.5)).OrderBy(c => c.Player.Id).ToList();
-        var doors = walls.HouseDoors.Where(d => d.House == House).OrderBy(d => d.Key).Select(d => d.Key).ToList();
+        // Its doors, then its windows (note 1053): the slam goes round the house, the doors first.
+        var doors = walls.HouseDoors.Where(d => d.House == House).OrderBy(d => d.Key).Select(d => d.Key)
+            .Concat(walls.HouseWindows.Where(w => w.House == House).OrderByDescending(w => w.Key).Select(w => w.Key)).ToList();
         switch (Mode)
         {
             case HollowMode.Still:
@@ -86,7 +89,7 @@ public sealed class HollowHouse(int id) : Enemy(id)
                 return;
             case HollowMode.Shut:
                 {
-                    // One door after another, quickly; held shut.
+                    // One door after another, quickly, then each window; held shut. One still open is a way out (GDD App. F.5).
                     int shut = Math.Min(doors.Count, (int)(_modeSeconds / t.ShutEvery) + 1);
                     for (int i = 0; i < shut; i++)
                         walls.SetShut(doors[i], true);

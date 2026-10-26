@@ -2862,10 +2862,14 @@ public static partial class Hud
             return world.Run.SearchProgress(spot) is > 0 and < 1 and var searched
                 ? $"SEARCHING THE {SpotName(spot.Container.Kind)} ({searched * 100:0}%)"
                 : $"SEARCH THE {SpotName(spot.Container.Kind)} : HOLD [E]";
-        // An open house's door (note 401), empty-handed, as the hands and the search leave it.
+        // An open house's door (note 401), empty-handed, as the hands and the search leave it; or its window (note 1053), open
+        // climbed through by walking into it, and a jackpot house's barred till its lock's picked.
         if (world.Bodies.CarriedBy(s.PlayerId) is null && world.DoorInReach(p) is { } door)
             // A jackpot house's locked door (note 719): the wrench picks it, held, and how far it's got.
-            return train.Walls!.Locked(door.Key)
+            return Sim.Run.StopWalls.IsWindow(door.Key)
+                ? train.Walls!.Barred(door.Key) ? "WINDOW BARRED : THE DOOR'S LOCKED"
+                : train.Walls.Shut(door.Key) ? "OPEN THE WINDOW : HOLD [E]" : "SHUT THE WINDOW : HOLD [E]   CLIMB THROUGH : WALK INTO IT"
+                : train.Walls!.Locked(door.Key)
                 ? train.Walls.Picking(door.Key) is > 0 and var picked ? $"PICKING THE LOCK ({picked * 100:0}%)"
                     : Repairs.WrenchInHand(p) ? "PICK THE LOCK : HOLD [E]" : "LOCKED : THE WRENCH OPENS IT"
                 : train.Walls.Shut(door.Key) ? "OPEN THE DOOR : HOLD [E]" : "SHUT THE DOOR : HOLD [E]";
