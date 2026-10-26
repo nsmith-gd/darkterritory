@@ -1,6 +1,5 @@
 using System.Numerics;
 using Ballast;
-using Ballast.Assets;
 using Ballast.Render;
 using DarkTerritory.Sim.Enemies;
 
@@ -35,19 +34,6 @@ public sealed partial class CreatureArt
         (_pickerMode, _lodgerMode, _householderMode, _mouseMooseMode, _bruinMode, _tapperMode) = (null, null, null, null, null, null);
         (_closeMode, _closeHalf) = (null, 6);
     }
-
-    /// <summary>
-    /// The Freight Beetle lit as the look's figures are (note 1046): a rim of the night's air round its silhouette (look.json
-    /// post figureRim), so its plated back stands off a dark wall behind it as the old freight paint catching the sky, not a
-    /// light of its own; the shader's grime kept off it too (its own is baked).
-    /// </summary>
-    static MaterialLook BeetleRim(ModelMaterial m, MaterialLook l) => l with { Figure = true, Emissive = MathF.Max(l.Emissive, BeetleBreath) };
-
-    /// <summary>
-    /// And lit a breath of its own (an emissive share), as the crew's armbands are (BuildMarks): its old paint found in the moonlight
-    /// against a dark wall, without glowing like a lamp (note 1046).
-    /// </summary>
-    const float BeetleBreath = 0.04f;
 
     /// <summary>The live enemy's mode and pace for its draw; the basis it's drawn at (Tower Jaw set back of its jaws).</summary>
     Matrix4x4 OutsideIn(Enemy e, in Matrix4x4 model, float pace)
@@ -119,7 +105,7 @@ public sealed partial class CreatureArt
                     // telegraph); heaving it on in slow strides; reared back off it when someone's at its head.
                     var mode = _beetleMode ?? BeetleModeOf(phase);
                     var (clip, at, loop) = BeetleClip(mode, since, _outsidePace);
-                    return Draw(mesh, "freight_beetle", clip, at, loop, model, seed: 366, adjust: BeetleRim);
+                    return Draw(mesh, "freight_beetle", clip, at, loop, model, seed: 366);
                 }
             case EnemyKind.TowerJaw when _models.ContainsKey("tower_jaw"):
                 {
