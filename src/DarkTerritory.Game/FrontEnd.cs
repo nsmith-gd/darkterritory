@@ -131,9 +131,14 @@ public enum Screen { Title, Slots, Fortress, Upgrades, QuickNight, Join, Setting
 /// <summary>
 /// The blacksmith's catalogue, open over the yard (ARCHITECTURE §8 note 697): who's selling, the crew's campaign as it stands
 /// (its scrip, its cars, what's fitted), and whether this player pays (the host owns the campaign and its wallet, spec E;
-/// otherwise <paramref name="Payer"/> is who to ask).
+/// otherwise <paramref name="Payer"/> is who to ask). A joiner's shop (note 1054) can buy too: its choices go to the host as
+/// orders, and the host's answers come back to it.
 /// </summary>
-public sealed record SmithyShop(string Smith, CampaignState State, bool CanBuy, string? Payer = null);
+public sealed record SmithyShop(string Smith, CampaignState State, bool CanBuy, string? Payer = null)
+{
+    /// <summary>A joiner's shop has ordered something since it opened (note 1054): shut, it tells the host it's done.</summary>
+    public bool Ordered { get; init; }
+}
 
 /// <summary>A mod laid over the game (note 323), as the MODS screen lists it: the app's scan of what's installed.</summary>
 public sealed record InstalledMod(string Name, string Version, string? Description);
@@ -243,6 +248,14 @@ public sealed class FrontEnd
     /// The host's purchase at the forge (note 697): the app buys it on its own campaign, saves it, and fits it before the gate.
     /// </summary>
     public Func<string, Purchase>? SmithyBuy { get; set; }
+    /// <summary>
+    /// A joiner's order at the forge (note 1054): the upgrade's id, sent to the host as intent. The host buys it from the crew's
+    /// scrip or refuses, and its answer comes back through <see cref="SmithyAnswered"/>. Null on the host (it buys with
+    /// <see cref="SmithyBuy"/>) and off a session.
+    /// </summary>
+    public Action<string>? SmithyOrder { get; set; }
+    /// <summary>A joiner's shop shut after ordering (note 1054): the host fits what it bought, as for its own purchases.</summary>
+    public Action? SmithyDone { get; set; }
     /// <summary>The host's word to the blacksmith to scrape the train clean (note 1039): the campaign's, saved at once. Null on a joiner.</summary>
     public Func<Purchase>? SmithyScrape { get; set; }
 
@@ -888,6 +901,8 @@ public sealed class FrontEnd
     {
         if (Night is null)
             return;
+        if (Smithy is { Ordered: true })
+            SmithyDone?.Invoke();
         Opened();
         Night = null;
         Smithy = null;
@@ -1992,6 +2007,14 @@ public sealed class FrontEnd
     {
         var list = CatalogueEntries(shop.State, u => () =>
         {
+            // Note 1054: a joiner orders it of the host, who pays from the crew's scrip; the answer's words are the host's.
+            if (shop.CanBuy && SmithyBuy is null && SmithyOrder is { } order && Smithy is { } open)
+            {
+                order(u.Id);
+                Smithy = open with { Ordered = true };
+                Message = $"{u.Name}: ordered. {shop.Payer ?? "The host"} pays from the crew's scrip.";
+                return null;
+            }
             if (!shop.CanBuy || SmithyBuy is not { } buy)
             {
                 Message = $"The host keeps the crew's scrip: ask {shop.Payer ?? "them"} to buy it.";
@@ -2001,8 +2024,7 @@ public sealed class FrontEnd
             var p = buy(u.Id);
             if (p.Ok)
                 Smithy = shop with { State = p.State };
-            Message = !p.Ok ? p.Refused : had && !p.State.Upgrades.Contains(u.Id) ? $"{u.Name}: taken off before the gate."
-                : had ? $"{u.Name}: painted before the gate." : $"{u.Name}: fitted before the gate.";
+            Message = SmithyWords(u.Name, had, p, u.Id);
             return null;
         }, free: SmithyFree);
         if (Purse(shop.State, SmithyFree) is { } purse)
@@ -2017,6 +2039,30 @@ public sealed class FrontEnd
             list.Add(scrape);
         list.Add(new(new("DONE", "Back to the yard."), () => { CloseNight(); return null; }, Back: true));
         return list;
+    }
+
+    /// <summary>
+    /// What the blacksmith's catalogue says to a choice of upgrade <paramref name="id"/> (named <paramref name="name"/>), owned
+    /// before it or not: why not, or fitted, painted (a livery chosen again), or taken off (a developer build's free shelves).
+    /// The host's menu says it, and a joiner whose order the host answered is shown the same words (note 1054).
+    /// </summary>
+    public static string SmithyWords(string name, bool had, Purchase p, string id) =>
+        !p.Ok ? p.Refused! : had && !p.State.Upgrades.Contains(id) ? $"{name}: taken off before the gate."
+        : had ? $"{name}: painted before the gate." : $"{name}: fitted before the gate.";
+
+    /// <summary>
+    /// The host's answer to this joiner's order (note 1054): its words, and, bought, the shop's scrip and shelves as the host
+    /// now has them. Shut by then, nothing's shown: the refit (or the night going on) says it.
+    /// </summary>
+    public void SmithyAnswered(Sim.Net.OrderAnswer a)
+    {
+        if (Smithy is not { } shop)
+            return;
+        Message = a.Words;
+        if (!a.Ok)
+            return;
+        var without = shop.State.Upgrades.Where(x => x != a.Id);
+        Smithy = shop with { State = shop.State with { Scrip = a.Scrip, Upgrades = a.Owned ? [.. without, a.Id] : [.. without] } };
     }
 
     /// <summary>
