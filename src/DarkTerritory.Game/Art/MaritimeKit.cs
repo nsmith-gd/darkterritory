@@ -1777,6 +1777,69 @@ public static partial class MaritimeKit
         return k.Build($"haystack-{variant}");
     }
 
+    /// <summary>
+    /// An aboiteau's gate (maritime-rules §4, note 1057; the Acadian sluice through a dyke: a timber box under the bank, its
+    /// clapper shut by the tide coming in and swung open by the fresh water going out), on the dyke's seaward toe, its front
+    /// to −Z: the plank headwall against the bank, wings out either side, the box's mouth with its clapper hung from the top
+    /// and stood a hand open on the water draining out, iron straps for hinges, and the wet channel cut out across the marsh.
+    /// </summary>
+    public static MeshAsset AboiteauGate(Look? look, int variant)
+    {
+        var k = new Kit(look, 9600 + variant);
+        k.Use("wood_sleeper", Palette.DeepBrown, 0.9f, 0.05f, tile: 1);
+        k.Tint = variant == 1 ? new Vector3(0.75f, 0.72f, 0.7f) : Vector3.One;
+        k.Box(new Vector3(-1.6f, -0.4f, 0), new Vector3(1.6f, 1.7f, 0.3f), Kit.Faces.All & ~Kit.Faces.NegY);
+        foreach (float side in new[] { -1f, 1f })
+            k.With(Matrix4x4.CreateRotationY(side * 0.4f) * Kit.At(side * 1.6f, 0, 0), () =>
+                k.Box(new Vector3(side > 0 ? -0.25f : 0, -0.4f, -1.8f), new Vector3(side > 0 ? 0 : 0.25f, 1.25f, 0), Kit.Faces.All & ~Kit.Faces.NegY));
+        // The box's mouth, out from the headwall, black inside.
+        k.Box(new Vector3(-0.7f, 1.1f, -0.6f), new Vector3(0.7f, 1.25f, 0), Kit.Faces.All);
+        foreach (float x in new[] { -0.7f, 0.55f })
+            k.Box(new Vector3(x, -0.1f, -0.6f), new Vector3(x + 0.15f, 1.1f, 0), Kit.Faces.Sides);
+        k.Use("paint_black", Palette.SootBlack, 0.9f, 0, tile: 1);
+        k.Box(new Vector3(-0.55f, -0.1f, -0.05f), new Vector3(0.55f, 1.1f, 0), Kit.Faces.NegZ);
+        // The clapper, hung from the top of the mouth, a hand open.
+        k.Use("wood_grey", Palette.DeepBrown, 0.9f, 0.05f, tile: 1);
+        k.With(Matrix4x4.CreateRotationX(-0.12f - variant * 0.05f) * Kit.At(0, 1.2f, -0.62f), () =>
+        {
+            k.Box(new Vector3(-0.62f, -1.25f, -0.08f), new Vector3(0.62f, 0, 0), Kit.Faces.All);
+            k.Use("rust_heavy", Palette.RustRed, 0.8f, 0.3f, tile: 1);
+            foreach (float x in new[] { -0.35f, 0.35f })
+                k.Box(new Vector3(x - 0.05f, -0.9f, -0.11f), new Vector3(x + 0.05f, 0.08f, -0.07f), Kit.Faces.All);
+        });
+        // The channel out across the marsh, wet mud.
+        k.Use("ground_mud", Palette.DeepBrown, 0.6f, 0.4f, tile: 1);
+        k.Tint = new Vector3(0.55f, 0.45f, 0.4f);
+        k.Quad(new Vector3(-0.8f, 0.03f, -0.6f), new Vector3(-1.2f, 0.03f, -4.5f), new Vector3(1.2f, 0.03f, -4.5f), new Vector3(0.8f, 0.03f, -0.6f));
+        return k.Build($"aboiteau-gate-{variant}");
+    }
+
+    /// <summary>
+    /// An aboiteau's intake (note 1057), on the dyke's landward toe where the fields' ditch comes to it, its front to −Z: a
+    /// lower headwall, the box's open mouth, and over it the sluice gate on its frame, its board wound half up by the wheel
+    /// on its screw.
+    /// </summary>
+    public static MeshAsset AboiteauIntake(Look? look, int variant)
+    {
+        var k = new Kit(look, 9620 + variant);
+        k.Use("wood_sleeper", Palette.DeepBrown, 0.9f, 0.05f, tile: 1);
+        k.Tint = variant == 1 ? new Vector3(0.75f, 0.72f, 0.7f) : Vector3.One;
+        k.Box(new Vector3(-1.3f, -0.4f, 0), new Vector3(1.3f, 1.2f, 0.3f), Kit.Faces.All & ~Kit.Faces.NegY);
+        k.Use("paint_black", Palette.SootBlack, 0.9f, 0, tile: 1);
+        k.Box(new Vector3(-0.5f, -0.1f, -0.02f), new Vector3(0.5f, 0.8f, 0), Kit.Faces.NegZ);
+        // The gate's frame: two posts and a head beam, the board in its grooves wound half up.
+        k.Use("wood_grey", Palette.DeepBrown, 0.9f, 0.05f, tile: 1);
+        foreach (float x in new[] { -0.7f, 0.55f })
+            k.Box(new Vector3(x, -0.3f, -0.35f), new Vector3(x + 0.15f, 2.4f, -0.2f), Kit.Faces.Sides | Kit.Faces.PosY);
+        k.Box(new Vector3(-0.75f, 2.4f, -0.37f), new Vector3(0.75f, 2.6f, -0.18f), Kit.Faces.All);
+        k.Box(new Vector3(-0.55f, 0.5f + variant * 0.2f, -0.33f), new Vector3(0.55f, 1.6f + variant * 0.2f, -0.24f), Kit.Faces.All);
+        // The screw up through the head beam, and its wheel.
+        k.Use("rust_heavy", Palette.RustRed, 0.8f, 0.3f, tile: 1);
+        k.Cylinder(new Vector3(0, 1.6f + variant * 0.2f, -0.28f), new Vector3(0, 3.0f, -0.28f), 0.03f, 5, caps: false);
+        k.Cylinder(new Vector3(0, 3.0f, -0.28f), new Vector3(0, 3.06f, -0.28f), 0.32f, 10);
+        return k.Build($"aboiteau-intake-{variant}");
+    }
+
     /// <summary>The afloat dory's hull, its bow to −Z, its waterline at 0.</summary>
     static void Hull(Kit k, int variant)
     {

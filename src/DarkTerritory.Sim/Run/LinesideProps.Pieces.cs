@@ -270,6 +270,45 @@ public sealed partial class LinesideProps
         }
     }
 
+    /// <summary>
+    /// The aboiteaux (maritime-rules.md §4, note 1057; the Acadians' sluices, the fields' ditches let out through the dyke and
+    /// the tide kept off them): along a dyke shore, one every <see cref="AboiteauEvery"/> m or so, its gate on the dyke's
+    /// seaward toe facing the marsh and its intake on the landward toe facing the fields, the box between them under the
+    /// bank, so its crest is walked over. A stream of its own a stretch, so nothing else moves.
+    /// </summary>
+    IEnumerable<LinesideProp> Aboiteaux(double from, double to, double reach)
+    {
+        var dr = _plan.Rules.Terrain.Dykes;
+        double half = dr.CrestM / 2 + dr.HeightM / dr.SideSlope;
+        foreach (var sh in _plan.Shores)
+        {
+            if (sh.Kind != ShoreKind.Dyke || sh.S1 <= from || sh.S0 >= to)
+                continue;
+            for (double s = Math.Ceiling(Math.Max(from, sh.S0 + ShoreEndsM) / AboiteauEvery) * AboiteauEvery; s < Math.Min(sh.S1 - ShoreEndsM, to); s += AboiteauEvery)
+            {
+                var rng = Streams.Rng(_seed, "lineside-aboiteau", sh.Id, (long)Math.Round(s / AboiteauEvery));
+                double at = rng.NextDouble(), chance = rng.NextDouble();
+                int variant = Variant("aboiteauGate", rng.NextDouble());
+                double along = s + (at - 0.5) * AboiteauEvery * 0.5;
+                if (chance > AboiteauChance || !Clear(along))
+                    continue;
+                double seaward = sh.Side > 0 ? Math.PI / 2 : -Math.PI / 2;
+                double outer = sh.Side * (sh.DykeM + half + 0.4), inner = sh.Side * (sh.DykeM - half - 0.4);
+                var gate = PieceOf("aboiteauGate", along, outer, seaward, 1, 0.3, variant, GroundAt(along, outer));
+                var intake = PieceOf("aboiteauIntake", along, inner, seaward + Math.PI, 1, 0.3, variant, GroundAt(along, inner));
+                // Both, or neither: half a sluice is nothing.
+                if (Free(along, outer) && Free(along, inner) && Within(gate, reach) && Within(intake, reach))
+                {
+                    yield return gate;
+                    yield return intake;
+                }
+            }
+        }
+    }
+
+    /// <summary>How far apart the aboiteaux are along a dyke (m), and the share of those places that have one.</summary>
+    const double AboiteauEvery = 260, AboiteauChance = 0.8;
+
     /// <summary>How often a 20 m cell of mudflat has a boat on it, and how far out across the flat it lies at most (of its width).</summary>
     const double MudBoats = 0.09, MudBoatOut = 0.4;
 

@@ -143,8 +143,24 @@ public sealed partial class WorldArt
         /// beside and its laterals, its shore and its rim's bank with them. Out there the columns are 30-50 m apart, wider
         /// than many a lake's shore is long, so the land couldn't follow its shoreline and the water's edge stood over it.
         /// </summary>
-        public IReadOnlyList<LakeBand> LakeBands => _lakeBands ??= [.. Plan.Lakes.Select(Band).OfType<LakeBand>()];
+        /// <remarks>
+        /// And a dyke's bank (note 1057): 11 m across its toes, out 40-90 m where the columns are 15-22 m apart, it was drawn
+        /// a smear from the fields to the marsh, over an aboiteau's gate at its seaward toe; its own band of finer columns from
+        /// a little short of its landward toe to a little past its seaward one draws it as the Sim's terrain has it.
+        /// </remarks>
+        public IReadOnlyList<LakeBand> LakeBands => _lakeBands ??= [.. Plan.Lakes.Select(Band).OfType<LakeBand>(), .. Plan.Shores.Where(sh => sh.Kind == ShoreKind.Dyke).Select(Dyke)];
         LakeBand[]? _lakeBands;
+
+        LakeBand Dyke(PlanShore sh)
+        {
+            var dr = Plan.Rules.Terrain.Dykes;
+            double half = dr.CrestM / 2 + dr.HeightM / dr.SideSlope + DykeBandPad;
+            double a = sh.Side * (sh.DykeM - half), b = sh.Side * (sh.DykeM + half);
+            return new LakeBand(sh.S0, sh.S1, (float)Math.Min(a, b), (float)Math.Max(a, b));
+        }
+
+        /// <summary>How far past a dyke's toes its band of finer land reaches (m).</summary>
+        const double DykeBandPad = 6;
 
         LakeBand? Band(PlanLake lake)
         {
