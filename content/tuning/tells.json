@@ -89,6 +89,7 @@
   },
   // The test's few (DarkTerritory.Dev.Tests TellAuditTests): one of each way a tell is seen (a body coming at you on the
   // ground, a pack low in the grass, overhead, a mass at the train's end), and the dark ones made seeable on dark ground
-  // (note 1042; look.json darkCreatures): the Soot Child, the Pickers, the Climbers.
+  // (note 1042; look.json darkCreatures): the Soot Child, the Pickers, the Climbers. The Stoker boarding the tender is seen
+  // from the cab and the roof (note 1049) but is left to `dt tells`: its two viewpoints add ~20 s to a run already over 3 min.
   "fast": ["moose", "ribbit", "gannet", "carHugger", "sootChildren", "pickers", "climber"]
 }

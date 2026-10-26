@@ -335,7 +335,7 @@
   // over that many m), "stokerBoardLift" m over its feet: up out of the coal, so it lights the tender's rim and the cab's
   // back rather than the coal it crouches in. "stokerBoardHalo": a sick-green haze that many m across about it (alpha
   // "stokerBoardHaloAlpha", flickering with the light; 0: none), what's seen over the rim from the cab when the coal hides
-  // the shape: its telegraph in the open.
+  // the shape: its telegraph in the open. "stokerGreenFireOutside": below.
   "darkCreatures": {
     "lift": { "soot_child": 4.0, "picker": 3.0, "climber": 5.0 },
     "eyeShine": { "climber": 1.0 },
@@ -343,7 +343,11 @@
     "stokerBoardReach": 2.6,
     "stokerBoardLift": 1.0,
     "stokerBoardHalo": 2.5,
-    "stokerBoardHaloAlpha": 0.5
+    "stokerBoardHaloAlpha": 0.5,
+    // The cab's fire burns sick green with a Stoker in it (App. A.5's FEED: "wrong-coloured glow"); out on the tender and
+    // the footplate, boarding or leaving, it's still the fire's orange and the Stoker's own glow is the tell (A.5's BOARD:
+    // "a sick glow there"). true: green from the moment one boards, as before note 1049.
+    "stokerGreenFireOutside": false
   },
   "speedFeel": {
     // The view widens by up to "widen" degrees, at "fullAt" m/s, eased by (speed / fullAt) ^ "ease" (under 1: felt early).
