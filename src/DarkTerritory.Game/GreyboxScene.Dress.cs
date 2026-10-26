@@ -33,6 +33,12 @@ public sealed partial class GreyboxScene
     // The whole train's frames this build (the whimsies are placed by the train's length).
     IReadOnlyList<CarFrame> _frames = [];
 
+    /// <summary>
+    /// The end-of-train telltale (note 1052): lit, out, or none fitted (<see cref="Sim.Train.Telltale.Lit"/> on this machine's
+    /// train). Unset, lit when it's fitted.
+    /// </summary>
+    public Func<bool?>? TelltaleNow { get; set; }
+
     /// <summary>The whimsies' state (note 715): this machine's copy of the host's, read as the scene's built.</summary>
     public Func<WhimsyState>? WhimsyNow { get; set; }
 
@@ -54,6 +60,7 @@ public sealed partial class GreyboxScene
         var shape = frame.Shape;
         Lining(mesh, frame, m);
         Whimsies(mesh, frame, m);
+        CrewTools(mesh, frame, m, eye);
         if (frame.Index == 0 && Dressed("nameplate") && shape.Cab is { } plated)
         {
             // Under the cab's side windows, both sides, read from outside (the plate faces +X; the left one turned about).
@@ -186,6 +193,81 @@ public sealed partial class GreyboxScene
     /// them, the canary in its cage in car one (on its back when it's dead), the gramophone in the guard van (its record
     /// turning while it plays), the calliope's pipes on the boiler.
     /// </summary>
+    /// <summary>
+    /// The crew's tools (note 1052): the communication cord along every car's right-hand side and over each coupling to the car
+    /// ahead, and on the engine back to the cab, where its gong hangs; the telltale's lamp at the end of the dials, lit or out.
+    /// </summary>
+    void CrewTools(MeshBuilder mesh, in CarFrame frame, Matrix4x4 m, Double3 eye)
+    {
+        var art = Look!.Art;
+        var shape = frame.Shape;
+        if (frame.Index == 0 && shape.Cab is { } cab)
+        {
+            if (Dressed("commCord"))
+            {
+                mesh.Append(art.Piece("cord-gong", () => Art.TrainKit.CordGong(Look)), Matrix4x4.CreateTranslation(Art.TrainKit.CordGongAt(shape)) * m);
+                // Along the engine's right side from its back end to the cab, out of the way at the eaves' height.
+                var (front, back) = EngineCordRun(shape, cab);
+                Span(mesh, Vector3.Transform(back, m), Vector3.Transform(front, m));
+            }
+            if (Dressed("trainTelltale"))
+            {
+                var at = Art.TrainKit.TelltaleLampAt(shape);
+                mesh.Append(art.Piece("telltale-lamp", () => Art.TrainKit.TelltaleLamp(Look)), Matrix4x4.CreateTranslation(at) * m);
+                // Its glass: lit, a steady green through the bullseye and a glow off it; out, dark red glass, nothing behind.
+                var glass = Vector3.Transform(at + Art.TrainKit.TelltaleGlass, m);
+                bool lit = TelltaleNow?.Invoke() ?? true;
+                if (lit)
+                {
+                    mesh.Billboard(glass, 0.07f, 0, new Vector4(new Vector3(0.45f, 1f, 0.55f) * 1.6f, 1), -1, FxBlend.Additive);
+                    mesh.Billboard(glass, 0.22f, 0, new Vector4(new Vector3(0.2f, 0.7f, 0.3f) * 0.35f, 1), -1, FxBlend.Additive);
+                }
+                else
+                    mesh.Billboard(glass, 0.06f, 0, new Vector4(0.12f, 0.02f, 0.02f, 0.9f), -1, FxBlend.Alpha);
+            }
+            return;
+        }
+        if (!Dressed("commCord") || frame.Index >= _frames.Count || shape.Cab is not null || IsHandcar(frame.Index))
+            return;
+        var (carFront, carBack) = Art.TrainKit.CordRun(shape);
+        float length = carBack.Z - carFront.Z;
+        mesh.Append(art.Piece($"cord-line-{length:0.0}", () => Art.TrainKit.CordLine(Look, length)),
+            Matrix4x4.CreateTranslation((carFront + carBack) / 2) * m);
+        // Over the coupling to the car ahead, where it's still coupled (close by): to its back end, or the engine's.
+        var ahead = _frames[frame.Index - 1];
+        var theirs = ahead.Index == 0 && ahead.Shape.Cab is { } aheadCab ? EngineCordRun(ahead.Shape, aheadCab).Back
+            : ahead.Shape.Cab is null ? Art.TrainKit.CordRun(ahead.Shape).Back : (Vector3?)null;
+        if (theirs is not { } end)
+            return;
+        var to = ahead.ToWorld(new Double3(end.X, end.Y, end.Z));
+        var from = frame.ToWorld(new Double3(carFront.X, carFront.Y, carFront.Z));
+        if ((to - from).Length < 4)
+            Span(mesh, V(from, eye), V(to, eye));
+    }
+
+    /// <summary>The cord along the engine's right side (its frame): from its back end to the cab's back wall, at a car's eaves.</summary>
+    (Vector3 Front, Vector3 Back) EngineCordRun(CarShape engine, Sim.Train.Box cab)
+    {
+        float x = (float)engine.HalfWidth + Art.TrainKit.CordOut, y = (float)cab.Max.Y - Art.TrainKit.CordBelowRoof;
+        return (new Vector3(x, y, (float)cab.Max.Z), new Vector3(x, y, (float)engine.HalfLength - 0.25f));
+    }
+
+    /// <summary>The cord from <paramref name="a"/> to <paramref name="b"/> (eye-relative world), its metre piece scaled along the run.</summary>
+    void Span(MeshBuilder mesh, Vector3 a, Vector3 b)
+    {
+        var run = b - a;
+        float length = run.Length();
+        if (length < 0.05f)
+            return;
+        var dir = run / length;
+        var side = Vector3.Cross(dir, Vector3.UnitY);
+        side = side.LengthSquared() < 1e-6 ? Vector3.UnitX : Vector3.Normalize(side);
+        var up = Vector3.Cross(side, dir);
+        var along = dir * length;
+        mesh.Append(Look!.Art.Piece("cord-span", () => Art.TrainKit.CordSpan(Look)),
+            new Matrix4x4(side.X, side.Y, side.Z, 0, up.X, up.Y, up.Z, 0, -along.X, -along.Y, -along.Z, 0, a.X, a.Y, a.Z, 1));
+    }
+
     void Whimsies(MeshBuilder mesh, in CarFrame frame, Matrix4x4 m)
     {
         var art = Look!.Art;

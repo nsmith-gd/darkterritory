@@ -1,0 +1,18 @@
+// A fusee struck (note 1052; upgrades.md §7.3: "red flares dropped on the line"): the striker cap scraped across the head, a
+// sputtering catch and the whoomp of it taking, then it's the burn's. Under the flare pistol's shot, and nothing like a
+// creature's tell (spec A.4): a hand's work. Tier 4, player actions. A synth definition; a recorded take can replace it
+// through the audio checklist (AU1's).
+{
+  "tier": 4, "duration": 0.9, "maxInstances": 4, "minDistance": 2, "maxDistance": 40, "gainDb": 0,
+  "layers": [
+    // The scrape: a rough mid band dragged quickly.
+    { "source": "noise", "gain": 0.7, "filters": [{ "type": "bandPass", "frequency": 1600, "q": 0.9 }],
+      "tremolo": { "rate": 42, "depth": 0.8, "jitter": 0.9 }, "envelope": [[0, 0], [0.01, 1], [0.12, 0.6], [0.16, 0]] },
+    // Catching: a sputter that swells as the composition lights.
+    { "source": "noise", "gain": 0.6, "delay": 0.12, "filters": [{ "type": "bandPass", "frequency": 2600, "q": 0.7 }],
+      "tremolo": { "rate": 18, "depth": 0.7, "jitter": 0.9 }, "envelope": [[0, 0], [0.05, 0.4], [0.25, 1], [0.75, 0]] },
+    // The whoomp of it taking, kept off the squish under 150 Hz.
+    { "source": "noise", "gain": 0.5, "delay": 0.18, "filters": [{ "type": "bandPass", "frequency": 420, "q": 0.8 }],
+      "envelope": [[0, 0], [0.03, 1], [0.3, 0]] }
+  ]
+}

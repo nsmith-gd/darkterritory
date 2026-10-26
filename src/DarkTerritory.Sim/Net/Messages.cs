@@ -144,9 +144,11 @@ public static class Protocol
     // 92: a facility's coaling tower and crane gantry down or cleared (note 1029), bits 11-14 of the Run record's site flags.
     // 93: a corrupted human on the radio (note 1040): a voice frame down may carry Mimic and Radio together (a crewmate's radio
     //     words said back by the Brakeman, played flat on the radio), and the report's IncidentKind.Heard.
-    // 94: a joiner buys at the forge (note 1054): Order, a joiner's word to the host's blacksmith (buy this, or done), and
+    // 94: the crew's tools (note 1052): the body kinds Fusees (27, the fusees left in the ninth field) and Fusee (28, its burn
+    //     left, 0..1, there); the world record's last pull of the communication cord (the car, who, the tick: fields 36-38).
+    // 95: a joiner buys at the forge (note 1054): Order, a joiner's word to the host's blacksmith (buy this, or done), and
     //     OrderAnswer, the host's purchase or refusal back to that joiner, in the words the host's own menu would say.
-    public const int Version = 94;
+    public const int Version = 95;
 }
 
 public enum MessageType : byte

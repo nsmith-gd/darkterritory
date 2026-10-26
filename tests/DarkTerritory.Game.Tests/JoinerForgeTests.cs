@@ -237,8 +237,8 @@ public class JoinerForgeTests
         Assert.Equal((byte)MessageType.OrderAnswer, r.U8());
         Assert.Equal(answer, Messages.ReadOrderAnswer(ref r));
         Assert.Equal(0, r.Remaining);
-        // Protocol 94 (REVIEW.md N3): the order and its answer are new messages.
-        Assert.Equal(94, Protocol.Version);
+        // Protocol 95 (REVIEW.md N3): the order and its answer are new messages.
+        Assert.Equal(95, Protocol.Version);
     }
 
     static Launch? Choose(FrontEnd m, string label)

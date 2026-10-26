@@ -478,6 +478,24 @@
     "radioBreakPerDamage": 0.006,
     "radioBreakOnGrab": 0,
     "radioMendSeconds": 8,
+    // The crew's tools (note 1052; docs/design/upgrades.md §7.3, the director, 14 Oct 2026 §8.2: "all of §7.3's"). Each a share
+    // of a trouble, never all of it (§2); the campaign fits them (campaign.json commCord, trainTelltale; stores.fusees).
+    // The communication cord: "a cord the length of the train: pulled anywhere, the cab's bell rings with the car's number"
+    // (§15, "half the crew can't hear the other half"). The whistle's key [H] aboard any car of the engine's rake pulls it (in
+    // the cab that key is still the whistle); the cab's bell strikes the car's number of times, `strokes` at most, and the
+    // HUD names the car for `showSeconds`. One pull a crewmate every `every` s. It's a bell in the cab, not a voice: it says
+    // which car and nothing more, and a car cut off the train has no cord to the cab.
+    "cord": false,
+    "cordBell": { "every": 3, "strokes": 9, "strokeSeconds": 0.55, "showSeconds": 8 },
+    // The end-of-train telltale (§7.3: "a lamp in the cab that goes out when the train parts behind it"; the Passenger, the
+    // Knotter, a coupling let go): lit while the train's tail (its last car) is coupled to the engine, out the moment it isn't,
+    // lit again once it is. It doesn't say where it parted, or stop it.
+    "telltale": false,
+    // Fusees (§7.3, stores: "red flares dropped on the line: the way back to the train glows for a few minutes"): a box of them
+    // in the guard van, each struck with Fire [LMB] in hand and dropped at the feet, burning red `burnSeconds` (a few minutes);
+    // one a crewmate every `every` s. How far each is seen and what it lights is senses.json "fusee": a light, so a creature
+    // that answers light answers it too. The stores set how many boxes and fusees (campaign.json stores.fusees).
+    "fusee": { "burnSeconds": 180, "every": 1 },
     // The band's instruments (note 700): band.json ids, each the blacksmith sold the crew (campaign.json, effect
     // "instrument:<id>"), stocked in the guard van. None until bought.
     "instruments": [],

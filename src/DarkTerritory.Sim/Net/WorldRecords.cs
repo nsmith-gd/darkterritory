@@ -127,7 +127,9 @@ public static class WorldRecords
                 world.Band.Tune + 1, world.Band.StartTick,
                 // The whimsies (note 715): Gerald and the gnomes taken, the canary, the calliope's note, the gramophone.
                 world.Whimsy.Taken, (long)world.Whimsy.Canary, world.Whimsy.CalliopeNote, world.Whimsy.Playing ? 1 : 0, world.Whimsy.Record,
-                world.Whimsy.WoundAt]));
+                world.Whimsy.WoundAt,
+                // The communication cord's last pull (note 1052): which car, whose hand, and the tick (0: none yet).
+                world.Cord.Car, world.Cord.By, world.Cord.Tick]));
         foreach (var e in world.ActiveEnemies)
             list.Add(new WireRecord(WireRecord.MakeKey(RecordKind.Enemy, e.Id),
             [
@@ -336,6 +338,8 @@ public static class WorldRecords
                 Physics.BodyKind.Extinguisher => Q(body.Charge, Hint),
                 // The flare pistol's flares left, and a flare's burn left (0..1) (note 871).
                 Physics.BodyKind.FlarePistol or Physics.BodyKind.Flare => Q(body.Charge, Hint),
+                // A box of fusees' fusees left, and a fusee's burn left (0..1) (note 1052).
+                Physics.BodyKind.Fusees or Physics.BodyKind.Fusee => Q(body.Charge, Hint),
                 Physics.BodyKind.Ragdoll or Physics.BodyKind.Tool => (long)body.Tools,
                 // Its noise, and 0x100 while it plays (note 728: a wound toy set down keeps playing where it lies).
                 Physics.BodyKind.Toy => (long)body.Noise + (body.Playing ? 0x100 : 0),
@@ -494,6 +498,7 @@ public static class WorldRecords
                     world.Whimsy = f.Length > 35
                         ? new WhimsyState((int)f[30], (CanaryMood)f[31], (int)f[32], f[33] != 0, (int)f[34], (uint)f[35])
                         : default;
+                    world.Cord = f.Length > 38 ? new CordPull((int)f[36], (int)f[37], (uint)f[38]) : default;
                     break;
                 case RecordKind.Enemy:
                     if (!world.Authority)
@@ -679,10 +684,12 @@ public static class WorldRecords
             Owner = (int)f[3],
             Yaw = D(f[5], Ang),
             PlacedByCarrier = (f[4] & 2) != 0,
-            Charge = (Physics.BodyKind)f[0] is Physics.BodyKind.Extinguisher or Physics.BodyKind.FlarePistol or Physics.BodyKind.Flare ? D(f[8], Hint) : 1,
+            Charge = (Physics.BodyKind)f[0] is Physics.BodyKind.Extinguisher or Physics.BodyKind.FlarePistol or Physics.BodyKind.Flare
+                or Physics.BodyKind.Fusees or Physics.BodyKind.Fusee ? D(f[8], Hint) : 1,
             Tools = (Physics.BodyKind)f[0] is Physics.BodyKind.Ragdoll or Physics.BodyKind.Tool ? (ulong)f[8] : 0,
             Cargo = (Physics.BodyKind)f[0] is Physics.BodyKind.Extinguisher or Physics.BodyKind.Ragdoll or Physics.BodyKind.Toy or Physics.BodyKind.Radio or Physics.BodyKind.Loot or Physics.BodyKind.Tool
-                or Physics.BodyKind.Instrument or Physics.BodyKind.Caboose or Physics.BodyKind.Lamp ? CargoKind.None : (CargoKind)f[8],
+                or Physics.BodyKind.Instrument or Physics.BodyKind.Caboose or Physics.BodyKind.Lamp or Physics.BodyKind.Fusees or Physics.BodyKind.Fusee
+                ? CargoKind.None : (CargoKind)f[8],
             Tipped = (Physics.BodyKind)f[0] is Physics.BodyKind.Caboose or Physics.BodyKind.Cat or Physics.BodyKind.Dog ? (sbyte)(f[8] - 1) : (sbyte)0,
             Instrument = (Physics.BodyKind)f[0] == Physics.BodyKind.Instrument ? (byte)f[8] : (byte)0,
             Noise = (Physics.BodyKind)f[0] == Physics.BodyKind.Toy ? (Physics.ToyNoise)(f[8] & 0xFF) : Physics.ToyNoise.None,

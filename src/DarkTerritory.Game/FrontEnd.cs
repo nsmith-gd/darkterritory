@@ -2155,7 +2155,7 @@ public sealed class FrontEnd
     };
 
     static string StoresLine(Stores st) => st.Any
-        ? $"Bought for tonight: {st.Powder} powder, {st.Lamps} lamps, {st.Extinguishers} extinguishers{(st.Flares > 0 ? $", {st.Flares} flare pistols" : "")}."
+        ? $"Bought for tonight: {st.Powder} powder, {st.Lamps} lamps, {st.Extinguishers} extinguishers{(st.Flares > 0 ? $", {st.Flares} flare pistols" : "")}{(st.Fusees > 0 ? $", {st.Fusees} boxes of fusees" : "")}."
         : "Powder and shot, spare lamps and extinguishers for tonight.";
 
     /// <summary>The departure's stores (GDD §9 "stock ... powder and shot, lamps, repair supplies"; note 182): for the coming night.</summary>
@@ -2182,6 +2182,14 @@ public sealed class FrontEnd
                     "A longer train first.", false), () => null));
             else
                 Row(StoreKind.Flare, flares, "FLARE PISTOL", $"Loaded with {flares.Each} flares. Each lights a village for a minute, and the Fire Flies follow it away from the train.");
+        }
+        // Note 1052: fusees (upgrades.md §7.3), both halves of the card: what they do and what they bring.
+        if (st.Fusees is { } fusees)
+        {
+            if (Campaign.TierFor(_campaign, s.Cars) < fusees.FromTier)
+                list.Add(new(new($"FUSEES: STOCKED FOR {Campaign.TierWords(fusees.FromTier).ToUpperInvariant()} WORK", "A longer train first.", false), () => null));
+            else
+                Row(StoreKind.Fusee, fusees, "BOX OF FUSEES", $"{fusees.Each} red road flares. Strike one and drop it, and the way back to the train glows for a few minutes. It's a light: what sees light sees it.");
         }
         list.Add(BackTo(Screen.Fortress));
         return list;

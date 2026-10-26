@@ -16,6 +16,8 @@ public sealed partial class SceneArt(Look look)
 
     /// <summary>A burning flare's light (note 871): a signal flare's red, hot enough to read as white at its head.</summary>
     public static readonly Vector3 FlareGlow = new(1f, 0.28f, 0.18f);
+    /// <summary>A fusee's red (note 1052): deeper than a flare's, a railway's red.</summary>
+    public static readonly Vector3 FuseeGlow = new(1f, 0.12f, 0.08f);
 
     public Look Look { get; } = look;
 
@@ -1021,6 +1023,9 @@ public sealed partial class SceneArt(Look look)
             // The flare pistol and a flare from it (note 871).
             Sim.Physics.BodyKind.FlarePistol => Piece("prop-flare-pistol", () => PropKit.FlarePistol(Look)),
             Sim.Physics.BodyKind.Flare => Piece("prop-flare", () => PropKit.Flare(Look)),
+            // A box of fusees and a fusee burning (note 1052).
+            Sim.Physics.BodyKind.Fusees => Piece("prop-fusee-box", () => PropKit.FuseeBox(Look)),
+            Sim.Physics.BodyKind.Fusee => Piece("prop-fusee", () => PropKit.Fusee(Look)),
             // The band's (note 700).
             Sim.Physics.BodyKind.Instrument when (InstrumentOf?.Invoke(b) ?? "fiddle") is var id => Piece($"prop-band-{id}", () => PropKit.Instrument(Look, id)),
             // The hand lamp: the sourced lantern (tools/models hand_lantern) where it's built.
@@ -1053,6 +1058,24 @@ public sealed partial class SceneArt(Look look)
             // (Its light is the scene's, GreyboxScene.FlareLight, so it can take the shadows as a lamp does.)
             mesh.Billboard(head, 0.6f * sputter, 0, new Vector4(new Vector3(1f, 0.9f, 0.85f) * sputter, 1), -1, FxBlend.Additive);
             mesh.Billboard(head + u * 0.4f, 2.4f * sputter * left, 0, new Vector4(FlareGlow * 0.35f * sputter, 1), -1, FxBlend.Additive);
+        }
+        // A fusee burning (note 1052): its flame at the burning end, a red so deep it's nearly the night's, and the pool of red
+        // it throws on the ground, the way back marked; guttering a little, and smaller as it burns down. Its light is the
+        // scene's (GreyboxScene.FlareLight takes the nearest of these too).
+        if (b.Kind == Sim.Physics.BodyKind.Fusee && b.Charge > 0)
+        {
+            float sputter = 0.8f + 0.2f * MathF.Sin((float)(time * 17) + b.Id) * MathF.Sin((float)(time * 5.3) + 3 * b.Id);
+            float left = 0.5f + 0.5f * (float)Math.Clamp(b.Charge, 0, 1);
+            var flame = Vector3.Transform(PropKit.FuseeFlame, m);
+            mesh.Billboard(flame, 0.22f * sputter, 0, new Vector4(new Vector3(1f, 0.55f, 0.45f) * sputter, 1), -1, FxBlend.Additive);
+            mesh.Billboard(flame + u * 0.15f, 1.3f * sputter * left, 0, new Vector4(FuseeGlow * 0.4f * sputter, 1), -1, FxBlend.Additive);
+            // Its smoke, lit red from under, rising off the flame.
+            for (int k = 0; k < 3; k++)
+            {
+                float rise = (float)((time * 0.4 + k / 3.0 + b.Id * 0.13) % 1.0);
+                mesh.Billboard(flame + u * (0.2f + rise * 1.4f), 0.25f + rise * 0.7f, rise,
+                    new Vector4(FuseeGlow * 0.12f * (1 - rise), 0.35f * (1 - rise)), -1, FxBlend.Alpha);
+            }
         }
         if (b.Kind == Sim.Physics.BodyKind.Lamp)
         {
