@@ -857,12 +857,8 @@ public sealed class Director
             }
         // Under a generated line's terrain tags the enemies that belong there come more often (linegen plan §15.1).
         if (context is not null)
-        {
             for (int i = 0; i < options.Count; i++)
-                foreach (var tag in tags)
-                    if (context.Affinity.GetValueOrDefault(tag)?.GetValueOrDefault(Name(options[i].Kind)) is { } w)
-                        options[i] = (options[i].Kind, options[i].Weight * w);
-        }
+                options[i] = (options[i].Kind, options[i].Weight * context.AffinityOf(tags, Name(options[i].Kind)));
         // The first threat answers its draw (note 287): what that draw calls comes on more (the whistle the Whistler, a lamp the
         // Fire Flies, the cargo the Car Hugger).
         if (draw.Enabled && First is null
