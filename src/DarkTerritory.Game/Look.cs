@@ -449,6 +449,7 @@ public sealed record DarkCreaturesTuning
     public float StokerBoardLift { get; init; } = 0.4f;
     public float StokerBoardHalo { get; init; }
     public float StokerBoardHaloAlpha { get; init; } = 0.5f;
+    public bool StokerGreenFireOutside { get; init; }
 }
 
 /// <summary>

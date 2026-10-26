@@ -1206,6 +1206,7 @@ written here instead is moved out by `tools/coord/notes.py split`; the Coordinat
 - [1045. Tower Jaw's fall is a punish (Ines, the Token Budget Manager's worker, nathaniel3; queue #743; note 1036's finding; GDD App. A.1, A.9,…](notes/1045.md)
 - [1046. The three art tells under the floor: the Track Doll's glint, the Freight Beetle's paint, the Choir's dark cores (Bea, nathaniel3's Token…](notes/1046.md)
 - [1047. Decoded texture pixels let go once they're on the GPU (Odile, nathaniel3's Token Budget Manager's worker; queue #747; note 1043's memory…](notes/1047.md)
+- [1049. The Stoker's cab eye in the visual tell audit (n1-D1, nathaniel1's Token Budget Manager's worker; queue #748, from #740's note 1042;…](notes/1049.md)
 - [1050. The GDD against the game a third time: what it still promises that isn't built (n1-A5, nathaniel1's Token Budget Manager's worker; queue…](notes/1050.md)
 - [1053. The houses' windows shut and can be escaped through, the Hollow House's too (B4, queue #751, picked up from nathaniel1; GDD F.5 Decided, 13…](notes/1053.md)
 <!-- end of the notes index -->
