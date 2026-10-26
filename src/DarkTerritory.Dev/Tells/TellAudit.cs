@@ -346,11 +346,11 @@ public static class TellAudit
     {
         var world = host.World;
         var called = world.ActiveEnemies.Where(e => ids.Contains(e.Id) && !e.Gone);
+        var me = PlayerMotor.WorldPosition(host.Players.First(p => p.Id == you).State, world.Train);
         return kind switch
         {
             EnemyKind.Choir => world.ActiveEnemies.Any(e => e.Kind == EnemyKind.Choir && !e.Gone),
-            EnemyKind.TrackDoll => called.Any(e => ((e.WorldPosition(world.Train) - PlayerMotor.WorldPosition(host.Players.First(p => p.Id == you).State, world.Train))
-                with { Y = 0 }).Length <= tell.WarnM),
+            EnemyKind.TrackDoll => called.Any(e => ((e.WorldPosition(world.Train) - me) with { Y = 0 }).Length <= tell.WarnM),
             EnemyKind.Hotbox => called.OfType<Hotbox>().Any(h => h.Mode == HotboxMode.Glow),
             EnemyKind.Tapper => called.OfType<Tapper>().Any(t => t.Mode == TapperMode.Tap),
             _ => false,
