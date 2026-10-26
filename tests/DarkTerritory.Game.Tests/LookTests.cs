@@ -122,6 +122,76 @@ public class LookTests
         Assert.True(layers <= GreyboxRenderer.LayerTable, $"{layers} layers; the frame's tables cover {GreyboxRenderer.LayerTable}");
     }
 
+    /// <summary>A few layers' pixels, the first a hero's (wider than the arrays), each image's weak reference kept in <paramref name="made"/>.</summary>
+    static List<MaterialLayer> Painted(List<WeakReference<Image>> made)
+    {
+        Image Kept(Image i)
+        {
+            made.Add(new WeakReference<Image>(i));
+            return i;
+        }
+        return [.. new[] { ("hero", 128), ("plain", 32), ("other", 32) }.Select(l =>
+            new MaterialLayer(l.Item1, Kept(Image.Solid(l.Item2, 200, 90, 40)), Kept(Image.Solid(l.Item2, 20, 60, 0))))];
+    }
+
+    /// <summary>Outlined assets of <see cref="Painted"/>'s layers, counting each time their pixels are read again.</summary>
+    [System.Runtime.CompilerServices.MethodImpl(System.Runtime.CompilerServices.MethodImplOptions.NoInlining)]
+    static RenderAssets Outlined(List<WeakReference<Image>> made, int[] rereads) =>
+        new RenderAssets { LayerSize = 32, HeroSize = 128, BigHeroSize = 128, Layers = Painted(made) }.Outlined(() =>
+        {
+            rereads[0]++;
+            return Painted(made);
+        });
+
+    [Fact]
+    public void ARendererKeepsTheLayersNamesNotTheirPixels()
+    {
+        // Note 1047: decoded textures stayed in memory for the run once they were on the GPU (about a gigabyte and a quarter
+        // of the look's). Given outlines, a renderer reads the pixels only to upload them, a second renderer on the device
+        // shares that upload without reading them, a renderer on another device reads them again, and nothing holds them.
+        var made = new List<WeakReference<Image>>();
+        var rereads = new int[1];
+        var assets = Outlined(made, rereads);
+        Assert.True(assets.Outline);
+        Assert.Null(assets.Backdrop);
+        using var gpu = Gpu();
+        using (var first = new GreyboxRenderer(gpu, 16, 16))
+        using (var second = new GreyboxRenderer(gpu, 16, 16))
+        {
+            first.Load(assets);
+            Assert.Equal(1, rereads[0]);
+            second.Load(assets);
+            Assert.Equal(1, rereads[0]);
+            Assert.Equal(1, second.LayerOf("plain"));
+            Assert.Equal(["hero"], second.HeroLayers);
+            using var other = new GpuContext("look tests, another device");
+            using var elsewhere = new GreyboxRenderer(other, 16, 16);
+            elsewhere.Load(assets);
+            Assert.Equal(2, rereads[0]);
+            GC.Collect();
+            GC.WaitForPendingFinalizers();
+            GC.Collect();
+            Assert.All(made, m => Assert.False(m.TryGetTarget(out _), "a layer's pixels are still held after the upload"));
+        }
+        // Every renderer that held the upload gone, the next reads the pixels again.
+        using var again = new GreyboxRenderer(gpu, 16, 16);
+        again.Load(assets);
+        Assert.Equal(3, rereads[0]);
+    }
+
+    [Fact]
+    public void ALookDressedFromItsOutlinesDrawsTheSameFrame()
+    {
+        // The first dressing uploads the pixels it decoded; a renderer on another device reads them from disk again (note
+        // 1047). The two frames are the same, to the byte.
+        var look = Look.Load(Content);
+        using var gpu = Gpu();
+        var first = Inside(gpu, look, 1200);
+        using var other = new GpuContext("look tests, another device");
+        var again = Inside(other, look, 1200);
+        Assert.Equal(first, again);
+    }
+
     [Fact]
     public void TheGrimeRidesWithTheCar()
     {

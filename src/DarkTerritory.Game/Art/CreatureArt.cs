@@ -2471,6 +2471,20 @@ public sealed partial class CreatureArt
                             - Vector3.Normalize(Vector3.TransformNormal(Vector3.UnitZ, at)) * 0.07f;
                         mesh.Instances.Add(new MeshInstance(toy, held));
                     }
+                    // The lamp catching her glaze far down the line (note 1046; look.json trackDollGlint): her face alone is a few
+                    // pixels at 60 m and goes in the rain and fog, so a point of light off it, blooming a little in the haze. Only
+                    // in the lamp: with it out she isn't revealed till she's close (enemies.json trackDoll darkRevealDistance), and
+                    // close in it's her face's own sheen.
+                    var glint = Look.Tuning.TrackDollGlint;
+                    if (drawn && phase == SpinePhase.Telegraph && !aboard && HeadlampLit
+                        && SmoothStep(glint.From, glint.Full, dist) is var catchOf and > 0)
+                    {
+                        var face = BoneAt("track_doll", "head", at);
+                        face -= Vector3.Normalize(face) * 0.12f;
+                        float d = face.Length();
+                        mesh.Billboard(face, d * glint.Bloom, 0, new Vector4(glint.Tint, glint.BloomAlpha * catchOf), -1, FxBlend.Additive);
+                        mesh.Billboard(face, d * glint.Point, 0, new Vector4(glint.Tint, glint.PointAlpha * catchOf), -1, FxBlend.Additive);
+                    }
                     return drawn;
                 }
             case EnemyKind.Whistler when _models.ContainsKey("whistler"):
@@ -3115,6 +3129,9 @@ public sealed partial class CreatureArt
     /// <summary>The train's going by the Moose about to be drawn, within its trainPassAt (GreyboxScene sets it for each one):
     /// grazing, it takes the train for a rival, tossing its head and bellowing after it (moose.py trainPass). Used once.</summary>
     public bool TrainPassing { get; set; }
+
+    /// <summary>The engine's headlamp is lit (GreyboxScene sets it each frame): a revealed Track Doll's glaze catches it.</summary>
+    public bool HeadlampLit { get; set; } = true;
 
     /// <summary>The Moose's tuning, as the content has it (its tells' thresholds, its speeds).</summary>
     public Sim.Enemies.MooseTuning MooseTuning => _moose ??= DataFile.Load<Sim.Enemies.EnemyTuning>(Path.Combine(ContentRoot, Sim.Enemies.EnemyTuning.File)).Moose;
