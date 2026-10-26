@@ -57,6 +57,9 @@ public sealed class CreatureGym
     /// <summary>Loads gym.json; the gym's night is <see cref="Setup"/>.</summary>
     public static CreatureGym Load(string content) => new(GymTuning.Load(content), content);
 
+    /// <summary>The gym on numbers of its own (the visual tell audit's, note 1037: no lamps set down).</summary>
+    public static CreatureGym Of(GymTuning tuning, string content) => new(tuning, content);
+
     /// <summary>
     /// The gym's night: its line and train, standing at its stop (the first on the line of <see cref="GymTuning.Stop"/>'s
     /// kind; failing that the first with a village, then the first stop of any kind), the threats on.

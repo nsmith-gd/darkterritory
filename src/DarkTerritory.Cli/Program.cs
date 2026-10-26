@@ -51,6 +51,9 @@ return args switch
     // dt moments [--replay night.dtrec | --route r --bots n --seconds s] [--top 6] [--reel]: a night's clip-worthy moments scored, and a
     // short reel of the best (queue #256, note 1034).
     ["moments", ..] => MomentsCommands.Run(content, args),
+    // dt social [--only a,b] [--seconds s] [--seeds n] [--crews 1,2]: GDD §20's social test, criteria 2, 3 and 5 per creature from
+    // staged grabs and bot nights, and the crew's numbers -> out/social (queue #255, note 1038).
+    ["social", ..] => SocialCommands.Run(content, args),
     // dt feedback pull | list | show <id> | make: the director's notes from inside the game, and their moments (note 516).
     ["feedback", ..] => FeedbackCommands.Run(content, args),
     // dt review diff <before> <after>: a pull request's review packet, its shots and numbers against main's (note 517).
@@ -76,6 +79,13 @@ return args switch
     ["gym", ..] => Print(DarkTerritory.Dev.Gym.GymCheck.Run(content,
         Str(args, "--only", "") is { Length: > 0 } only ? DarkTerritory.Dev.Live.EnemyNames.ParseAll(only.Split(',')) : null,
         Opt(args, "--seconds", 6), args.Contains("--no-shots") ? null : Str(args, "--shots", "out/gym"))),
+    // dt tells [--only moose,gaunt] [--conditions clear,fog] [--out out/tells] [--frames]: the visual tell audit (systems-spec
+    // A.4a, note 1037), A.3's audio audit's twin: each creature called in the gym, seen from its warning distance in the clear,
+    // the dark, rain and fog; its pixels and contrast against tells.json's floor, a table and a contact sheet per tell.
+    ["tells", ..] => Print(DarkTerritory.Dev.Tells.TellAudit.Run(content,
+        Str(args, "--only", "") is { Length: > 0 } tellsOnly ? tellsOnly.Split(',') : null,
+        Str(args, "--conditions", "") is { Length: > 0 } nights ? nights.Split(',') : null,
+        Str(args, "--out", "out/tells"), args.Contains("--frames"))),
     // dt edition bake <name> --into <dir>: the base content with an edition (editions/<name>) baked in, as the demo build
     // ships it (T79). dt [--edition demo] edition: what the content in use is.
     ["edition", "bake", var name, ..] => Print(new { edition = name, content = Path.GetFullPath(Mods.Bake(baseContent, name, Str(args, "--into", $"out/editions/{name}"))) }),

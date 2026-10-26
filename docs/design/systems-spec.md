@@ -105,6 +105,17 @@ fire's crackle; the roof irons' chatter rocks in and out, not one rasp or a clat
 top (`sight.json` `roofWarning.roofOnly`), as the warning goes up and every 4 s while it's up.
 Three enemies are silent on purpose, and the Gaunt and the Passenger make silence itself the thing to listen for.
 
+## A.4a Visual tells (*added 26 Oct 2026, note 1037*)
+
+The twin of A.3 for the eye (GDD Part Eleven q6: "how do enemies stay silhouette-legible in heavy fog at distance?"). **A tell
+that can't be seen is a bug**, as a tell that can be drowned out is. `dt tells` calls each creature in the creature gym (note
+676), puts a crewmate's eye at the tell's warning distance from it (on foot, in a gap, at the cab window, on a roof) and
+draws the frame with it and without it in four nights: clear, dark (the headlamp and every car's lamp out), rain (wet, a Dead
+Lines night's thickest haze) and fog (Deep Territory's thickest, 60 m). What differs is what the creature puts on the
+screen. It is seen when at least **60 pixels** of a 1280x720 frame differ by a visible step (3 L*) and the brightest tenth of
+them by **6 L*** (`content/tuning/tells.json`; `TellAuditTests` holds a fast few in every night). The ranked list of the
+tells under the floor, and what fixing each takes, is note 1037.
+
 ## A.5 Proximity voice
 
 **Spec, because it is a mechanic:**
