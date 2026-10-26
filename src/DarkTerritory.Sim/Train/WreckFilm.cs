@@ -900,15 +900,17 @@ public sealed class WreckFilm
                 ref var q = ref ps[j];
                 for (int k = 0; k < SettleTries && Touch(q.Position, q.Radius, d, probe: true) is { } hit; k++)
                 {
-                    double depth = (hit.Position - q.Position).Length;
+                    var to = hit.Position;
+                    // Pinned: crushed by as much as it's still in, and set back on the surface at its new size (its middle
+                    // may be in the car that came down on it).
                     if (flatten && k >= SettleTries / 2)
-                        q.Radius = Math.Max(0, q.Radius - depth);
-                    else
                     {
-                        var move = hit.Position - q.Position;
-                        q.Position += move;
-                        q.Previous += move;
+                        q.Radius = Math.Max(0, q.Radius - (hit.Position - q.Position).Length);
+                        to = Touch(q.Position, q.Radius, d, probe: true)?.Position ?? q.Position;
                     }
+                    var move = to - q.Position;
+                    q.Position += move;
+                    q.Previous += move;
                 }
             }
         }
