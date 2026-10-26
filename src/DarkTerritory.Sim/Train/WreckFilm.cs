@@ -47,7 +47,7 @@ public sealed record FilmTuning(
     double SpinMin = 0, double SurviveHits = 2, double MostHits = 3, double CertainDeathSpeed = 16, double GiveUpSeconds = 2.4, double Muscle = 0.25, double Reach = 0.06,
     double FirstPersonRate = 0.4, double FirstPersonAfter = 0.8, double FirstPersonMin = 1.5, double FirstPersonMax = 6,
     double ShotFill = 0.45, double FovMin = 22, double FovMax = 60, double TaskHold = 0.4,
-    int ExtraDolls = 8, int ExtraItems = 40, double Buoyancy = 1.3, double WaterDrag = 3, double RestInside = 0.02, double GroundClearance = 1, bool Flatten = true)
+    int ExtraDolls = 8, int ExtraItems = 40, double Buoyancy = 1.3, double WaterDrag = 3, double RestInside = 0.02, double GroundClearance = 1, bool Flatten = true, bool WreckSubsteps = true, bool Unsink = true)
 {
     /// <summary>
     /// Real seconds into a player's first-person beat that their death lands, for a death <paramref name="recorded"/> seconds
@@ -131,6 +131,22 @@ public sealed class FilmProbe
     /// <summary>The ten deepest past the limit, deepest first (note 1035: where to look).</summary>
     public IReadOnlyList<(double Depth, double At, string What)> Worst => _worst;
     readonly List<(double Depth, double At, string What)> _worst = [];
+
+    /// <summary>
+    /// Solids it looks for that the film doesn't meet (note 1055): a recording made without the line's walls and a tunnel's
+    /// rock, checked against them all the same, to see what went through them.
+    /// </summary>
+    public WreckWorld? Unmet { get; init; }
+
+    /// <summary>The cars' corners and edges that ended a substep inside the world's solids (note 1055), and the deepest (m).</summary>
+    public int CarsInside { get; private set; }
+    public double CarDeepest { get; private set; }
+
+    internal void SawCar(double depth)
+    {
+        CarsInside++;
+        CarDeepest = Math.Max(CarDeepest, depth);
+    }
 
     internal void Saw(int particles) => Seen += particles;
 
@@ -355,11 +371,12 @@ public sealed class WreckFilm
     /// the recording already made from this start (the host's, from the derail tick), or null to make it.
     /// </summary>
     /// <param name="water">The water's surface over a point, if there's water there (note 373: bodies float); null, none anywhere.</param>
+    /// <param name="world">The line's walls and a tunnel's rock (note 1055): what it meets past the ground and the train; null, nothing.</param>
     public static WreckFilm Shoot(WreckTuning wt, FilmStart start, Func<double, double, double> ground, FilmRecording? recorded = null,
-        Func<double, double, double?>? water = null)
+        Func<double, double, double?>? water = null, WreckWorld? world = null)
     {
         var t = wt.Film;
-        var (frames, deaths) = recorded ?? Record(wt, start, ground, water);
+        var (frames, deaths) = recorded ?? Record(wt, start, ground, water, world: world);
         // E.5's peak, scored as before (the order: the biggest flight last), but its moment is the hit that kills them (App.
         // E.2 step 1, the director's decision of 5 Oct 2026): the shot, the bookmark and the opera's hit go where they die.
         var peaks = start.Players.Select((p, i) => (p.Id, (deaths[p.Id].At, Peak(frames, start.Cars, i, ground).Score))).ToDictionary(x => x.Id, x => x.Item2);
@@ -385,8 +402,9 @@ public sealed class WreckFilm
     /// client that shoots the film from the same start records the same frames.
     /// </summary>
     /// <param name="probe">E.11's interpenetration check (note 1032): each particle at the end of each substep, seen; none, nothing.</param>
+    /// <param name="world">The line's walls and a tunnel's rock (note 1055): the cars and the bodies meet them; null, nothing.</param>
     public static FilmRecording Record(WreckTuning wt, FilmStart start, Func<double, double, double> ground, Func<double, double, double?>? water = null,
-        FilmProbe? probe = null)
+        FilmProbe? probe = null, WreckWorld? world = null)
     {
         var t = wt.Film;
         var cars = start.Cars.Select(c => new WreckBody
@@ -408,7 +426,10 @@ public sealed class WreckFilm
             PrevUp = c.Up,
             PrevBack = c.Back,
         }).ToList();
-        var wreck = Wreck.FromStart(wt with { Substeps = t.Substeps }, cars, start.Links.Select(l => (l.A, l.B, l.Length)), ground, start.Seed);
+        var wreck = Wreck.FromStart(wt with { Substeps = t.Substeps }, cars, start.Links.Select(l => (l.A, l.B, l.Length)), ground, start.Seed, world);
+        if (t.WreckSubsteps)
+            wreck.Trail = [];
+        wreck.Unsink = t.WreckSubsteps && t.Unsink;
         var rng = new Pcg32(start.Seed, 0xF11);
         var engine = cars.Count > 0 ? cars[0].Centre : Double3.Zero;
         var dolls = start.Players.Select(p => Ragdoll(p, cars, start.Cars, ref rng, t, start.Speed)).ToList();
@@ -430,7 +451,7 @@ public sealed class WreckFilm
             else if (extras[e].Joints.Count > 0)
                 items.Add(Load.Loose(e, extras[e], new Pcg32(start.Seed, 0xE87A + (ulong)e), Dt / t.Substeps));
         var everyone = dead.Count == 0 ? dolls : [.. dolls, .. dead];
-        var stage = new Stage(cars, start.Cars, ground);
+        var stage = new Stage(cars, start.Cars, ground, world);
         var frames = new List<FilmFrame> { Frame(cars, dolls, [], [], loads, items, dead) };
         var deaths = new Dictionary<int, FilmDeath>();
         var gravity = new Double3(0, -wt.Gravity, 0);
@@ -438,6 +459,7 @@ public sealed class WreckFilm
         for (int i = 1; i <= t.Seconds * Rate; i++)
         {
             wreck.Step(Dt);
+            var trail = wreck.Trail;
             var impacts = wreck.Impacts.ToList();
             double h = Dt / t.Substeps;
             for (int s = 0; s < t.Substeps; s++)
@@ -445,7 +467,16 @@ public sealed class WreckFilm
                 // The cars where they are this substep, between where the wreck had them a frame ago and now: a car
                 // ploughing into somebody shoves them a substep at a time, and carries or throws them, rather than jumping
                 // a whole frame through them.
-                stage.At((s + 1.0) / t.Substeps, s / (double)t.Substeps);
+                if (trail is not null)
+                    stage.At(trail, s);
+                else
+                    stage.At((s + 1.0) / t.Substeps, s / (double)t.Substeps);
+                foreach (var d in everyone)
+                    stage.Gather(d, probe?.Unmet);
+                foreach (var load in loads)
+                    stage.Gather(load.Ball, probe?.Unmet);
+                foreach (var item in items)
+                    stage.Gather(item.Ball, probe?.Unmet);
                 foreach (var d in dolls)
                 {
                     if (d.Hold > 0)
@@ -502,14 +533,16 @@ public sealed class WreckFilm
                         var ps = d.Body.Particles;
                         probe.Saw(ps.Length);
                         for (int j = 0; j < ps.Length; j++)
-                            if (stage.Touch(ps[j].Position, ps[j].Radius, d, probe: true) is { } hit)
+                            if ((stage.Touch(ps[j].Position, ps[j].Radius, d, probe: true) ?? probe.Unmet?.Touch(ps[j].Position, ps[j].Radius, d.Near)) is { } hit)
                             {
                                 var q = ps[j];
                                 double depth = (hit.Position - q.Position).Length;
                                 // Which solid: the ground's push is straight up to its surface; anything else is a car (its
                                 // box, its walls round whoever's inside it, its gun).
                                 bool earth = Math.Abs(ground(q.Position.X, q.Position.Z) + q.Radius - q.Position.Y - depth) < 1e-9;
-                                probe.See(depth, at, t.RestInside, () => $"{who}'s joint {j} in {(earth ? "the ground" : d.Inside >= 0 ? "a car (inside one)" : hit.Normal.Y < -0.3 ? "a car (under it)" : "a car")}");
+                                bool solid = (stage.Solid(q.Position, q.Radius, d) ?? probe.Unmet?.Touch(q.Position, q.Radius, d.Near)) is { } w
+                                    && Math.Abs((w.Position - q.Position).Length - depth) < 1e-9;
+                                probe.See(depth, at, t.RestInside, () => $"{who}'s joint {j} in {(earth ? "the ground" : solid ? "the world (a wall, a tree, a tunnel's rock)" : d.Inside >= 0 ? "a car (inside one)" : hit.Normal.Y < -0.3 ? "a car (under it)" : "a car")}");
                             }
                     }
                     for (int k = 0; k < dolls.Count; k++)
@@ -520,6 +553,17 @@ public sealed class WreckFilm
                         Look(load.Ball, $"what player {start.Players[load.DollIndex].Id} carried");
                     foreach (var item in items)
                         Look(item.Ball, $"extra {item.DollIndex} ({extras[item.DollIndex].Kind})");
+                    // The cars against the world's solids (note 1055): their corners and the middles of their edges.
+                    if ((world ?? probe.Unmet) is { } solids && s == t.Substeps - 1)
+                        foreach (var car in cars)
+                            for (int x = -1; x <= 1; x++)
+                                for (int y = 0; y <= 1; y++)
+                                    for (int z = -1; z <= 1; z++)
+                                    {
+                                        var corner = car.ToWorld(new Double3(x * car.HalfWidth, y * car.Height, z * car.HalfLength));
+                                        if (solids.Touch(corner, 0) is { } into && (into.Position - corner).Length is var deep && deep > t.RestInside)
+                                            probe.SawCar(deep);
+                                    }
                 }
             }
             double now = i * Dt;
@@ -610,6 +654,8 @@ public sealed class WreckFilm
         public readonly Double3[] Hit = new Double3[3];
         public Double3 Whole;
         public bool OnCar, Squeezed;
+        /// <summary>The world's walls it can meet this substep (note 1055; <see cref="Stage.Gather"/>).</summary>
+        public WreckWorld.Near? Near;
         /// <summary>When its last landing was recorded, and its hardest hit (when, how hard).</summary>
         public double Landed = double.NegativeInfinity;
         /// <summary>Alive (braced, its muscles on) till the hit that kills it, and the hits it's taken so far.</summary>
@@ -869,11 +915,15 @@ public sealed class WreckFilm
     /// <summary>A mounted gun's pedestal under its pivot, down to the roof it stands on (0.9 m under the pivot: Guns.PivotHeight).</summary>
     public static readonly (Double3 Min, Double3 Max) GunPedestal = (new Double3(-0.35, -0.9, -0.35), new Double3(0.35, -0.3, 0.35));
 
-    sealed class Stage(List<WreckBody> cars, IReadOnlyList<FilmCar> starts, Func<double, double, double> ground)
+    sealed class Stage(List<WreckBody> cars, IReadOnlyList<FilmCar> starts, Func<double, double, double> ground, WreckWorld? solids)
     {
         readonly Pose[] _now = new Pose[cars.Count], _before = new Pose[cars.Count];
 
         /// <summary>The cars at <paramref name="u"/> of the way through this frame, and where they were the substep before.</summary>
+        /// <summary>
+        /// The cars where the wreck had them after <paramref name="s"/> substeps of this frame, and the substep before (note
+        /// 1055: on a line between a frame's ends, a car could pass through a tree it had been kept out of at every substep).
+        /// </summary>
         public void At(double u, double u0)
         {
             for (int i = 0; i < cars.Count; i++)
@@ -882,6 +932,33 @@ public sealed class WreckFilm
                 _before[i] = Pose.Between(cars[i], u0);
             }
         }
+
+        public void At(List<(Double3 Origin, Double3 Right, Double3 Up, Double3 Back)[]> trail, int s)
+        {
+            for (int i = 0; i < cars.Count; i++)
+            {
+                var (o, r, u, b) = trail[s][i];
+                _now[i] = new Pose(o, r, u, b);
+                _before[i] = s > 0 ? new Pose(trail[s - 1][i].Origin, trail[s - 1][i].Right, trail[s - 1][i].Up, trail[s - 1][i].Back)
+                    : new Pose(cars[i].PrevOrigin, cars[i].PrevRight, cars[i].PrevUp, cars[i].PrevBack);
+            }
+        }
+
+        /// <summary>The world's solids at a point (note 1055): the line's walls and a tunnel's rock, if it's in one.</summary>
+        public Contact? Solid(Double3 p, double r, Doll d) => solids?.Touch(p, r, d.Near);
+
+        /// <summary>
+        /// The world's walls a body can meet this substep, gathered once for all its joints (note 1055: a forest's cell holds
+        /// hundreds of trees): within <see cref="GatherM"/> of its middle. From the solids it meets, or else those only looked for.
+        /// </summary>
+        public void Gather(Doll d, WreckWorld? looked)
+        {
+            if ((solids ?? looked) is { } w)
+                d.Near = w.Around(d.Body.Centre, GatherM);
+        }
+
+        /// <summary>A body's reach from its middle (its limbs, a metre and a bit) and a substep's travel at the fling's cap, with room over.</summary>
+        const double GatherM = 3;
 
         /// <summary>
         /// The end of a substep (note 1035; E.11 "no particle rests inside a solid by more than 2 cm at the end of any
@@ -971,6 +1048,9 @@ public sealed class WreckFilm
                 // The surface's own motion this substep, at the contact: a moving car carries what it touches.
                 (best, deepest) = (new Contact(world, normal, world - _before[i].ToWorld(h.Position)), depth);
             }
+            // The line's walls (a tree, a boulder, a pole, a building) and a tunnel's rock (note 1055; E.3).
+            if (Solid(p, r, d) is { } s && (s.Position - p).Length > deepest)
+                best = s;
             if (!probe)
             {
                 d.OnCar |= byCar;

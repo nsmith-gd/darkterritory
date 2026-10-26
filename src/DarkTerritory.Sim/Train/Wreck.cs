@@ -139,6 +139,8 @@ public sealed class Wreck
 {
     readonly WreckTuning _t;
     readonly Func<double, double, double> _ground;
+    /// <summary>What it meets past the ground (note 1055): the line's walls and a tunnel's rock; none, nothing.</summary>
+    readonly WreckWorld? _world;
     readonly List<(int A, int B, bool Intact, double Length)> _links = [];
     Pcg32 _rng;
     double _still;
@@ -155,11 +157,12 @@ public sealed class Wreck
     /// <summary>This tick's big hits.</summary>
     public List<WreckImpact> Impacts { get; } = [];
 
-    Wreck(WreckTuning t, IReadOnlyList<WreckBody> bodies, Func<double, double, double> ground, ulong seed)
+    Wreck(WreckTuning t, IReadOnlyList<WreckBody> bodies, Func<double, double, double> ground, ulong seed, WreckWorld? world = null)
     {
         _t = t;
         Bodies = bodies;
         _ground = ground;
+        _world = world;
         _rng = new Pcg32(seed, 0x57EC);
         Seed = seed;
     }
@@ -169,9 +172,9 @@ public sealed class Wreck
     /// run at real time (the film does its own slow motion), so every machine that has the start shoots the same film.
     /// </summary>
     public static Wreck FromStart(WreckTuning t, IReadOnlyList<WreckBody> bodies, IEnumerable<(int A, int B, double Length)> links,
-        Func<double, double, double> ground, ulong seed)
+        Func<double, double, double> ground, ulong seed, WreckWorld? world = null)
     {
-        var w = new Wreck(t, bodies, ground, seed) { SlowMotion = false };
+        var w = new Wreck(t, bodies, ground, seed, world) { SlowMotion = false };
         foreach (var (a, b, length) in links)
             w._links.Add((a, b, true, length));
         return w;
@@ -196,7 +199,9 @@ public sealed class Wreck
     /// The train coming off the rails now. <paramref name="ground"/> is the land's height at (x, z); <paramref name="first"/>
     /// the vehicle that goes first (the engine, as a rule); <paramref name="outward"/> which way it's thrown (+1 to its right).
     /// </summary>
-    public static Wreck Begin(WreckTuning t, TrainOnLine train, Func<double, double, double> ground, ulong seed, int first = 0, int outward = 0)
+    /// <param name="world">What it meets past the ground (note 1055), the line's walls and a tunnel's rock; none, nothing.</param>
+    public static Wreck Begin(WreckTuning t, TrainOnLine train, Func<double, double, double> ground, ulong seed, int first = 0, int outward = 0,
+        WreckWorld? world = null)
     {
         var bodies = new List<WreckBody>();
         foreach (var f in train.Frames)
@@ -224,7 +229,7 @@ public sealed class Wreck
             (b.PrevOrigin, b.PrevRight, b.PrevUp, b.PrevBack) = (b.Origin, b.Right, b.Up, b.Back);
             bodies.Add(b);
         }
-        var w = new Wreck(t, bodies, ground, seed);
+        var w = new Wreck(t, bodies, ground, seed, world);
         foreach (var rake in train.Rakes)
         {
             if (train.Standing(rake))
@@ -265,6 +270,15 @@ public sealed class Wreck
         return w;
     }
 
+    /// <summary>
+    /// With a list here, each body's pose after each substep of the last <see cref="Step"/> (note 1055): the film's stage
+    /// puts the cars where the wreck had them, resolved against the world, not on a line between a frame's ends.
+    /// </summary>
+    public List<(Double3 Origin, Double3 Right, Double3 Up, Double3 Back)[]>? Trail { get; set; }
+
+    /// <summary>The film's (wreck.json <c>film.unsink</c>): its sink into the ground taken out after each substep's move, as well.</summary>
+    public bool Unsink { get; set; }
+
     /// <summary>A host's pose for a body (clients).</summary>
     public void Pose(int vehicle, Double3 origin, Double3 right, Double3 up, Double3 back, Double3 velocity)
     {
@@ -287,8 +301,12 @@ public sealed class Wreck
         double rate = SlowMotion && RealSeconds < _t.SlowSeconds ? _t.SlowRate : 1;
         RealSeconds += dt;
         double h = dt * rate / _t.Substeps;
+        Trail?.Clear();
         for (int s = 0; s < _t.Substeps; s++)
+        {
             Substep(h);
+            Trail?.Add([.. Bodies.Select(b => (b.Origin, b.Right, b.Up, b.Back))]);
+        }
         Seconds += dt * rate;
         bool still = Bodies.All(b => b.Velocity.Length < _t.SettleSpeed && b.Spin.Length < _t.SettleSpeed);
         _still = still ? _still + dt : 0;
@@ -311,8 +329,16 @@ public sealed class Wreck
         Cars();
         foreach (var b in Bodies)
             Ground(b);
+        if (_world is not null)
+            foreach (var b in Bodies)
+                Solids(b, _world);
         foreach (var b in Bodies)
             Integrate(b, h);
+        // With the film's stage on the wreck's own substeps (note 1055), what's under a car sees where it really is: the
+        // half of its sink into the ground the contact left is taken out after it's moved, its bounce and slide as they were.
+        if (Unsink)
+            foreach (var b in Bodies)
+                Unground(b);
     }
 
     /// <summary>A car's wheels come off: it slews and slides a little sideways as they drop.</summary>
@@ -409,6 +435,121 @@ public sealed class Wreck
         // Out of the ground: the deepest point back to its surface, a share at a time (steady, not a jump).
         if (deepest > 0)
             b.Origin += normal * (deepest * 0.5);
+    }
+
+    /// <summary>
+    /// GDD E.3's "tunnel bores, ... static props" (note 1055): a car meets the line's walls (a tree, a boulder, a pole, a
+    /// building) and a tunnel's rock as it meets another car, hard and with the car-on-car friction. Its hull's points
+    /// against them, and the walls' own corners against its box (a tree's trunk between two of its hull points still stops
+    /// its side); out of them a share at a time, as out of the ground.
+    /// </summary>
+    void Solids(WreckBody b, WreckWorld world)
+    {
+        double deepest = 0;
+        var push = Double3.Zero;
+        // Its walls gathered once (a forest's cell holds hundreds of trees): within its length of its middle, and a little.
+        var near = world.Around(b.Centre, b.HalfLength + b.Height);
+        foreach (var local in Hull(b))
+        {
+            var p = b.ToWorld(local);
+            if (world.Touch(p, 0, near) is not { } hit)
+                continue;
+            double pen = (hit.Position - p).Length;
+            Meet(b, p, hit.Normal);
+            if (pen > deepest)
+                (deepest, push) = (pen, hit.Normal);
+        }
+        foreach (var (foot, top) in WreckWorld.Uprights(near))
+        {
+            // Where the upright runs through the car (its middle there), and the car off it the way it lies from it, level: a
+            // trunk stands up through a car however the car's fallen, and it's never got off up or down it.
+            if (Through(b, foot, top) is not { } at)
+                continue;
+            var away = (b.Centre - at) with { Y = 0 };
+            away = away.Length > 1e-6 ? away.Normalized : (b.Right with { Y = 0 }).Length > 1e-6 ? (b.Right with { Y = 0 }).Normalized : new Double3(1, 0, 0);
+            double pen = Exit(b, at, away * -1);
+            Meet(b, at, away);
+            if (pen > deepest)
+                (deepest, push) = (pen, away);
+        }
+        // Out of it at once: rock and a tree don't give as the ground's settling does.
+        if (deepest > 0)
+            b.Origin += push * deepest;
+    }
+
+    /// <summary>The middle of the stretch of a line (<paramref name="a"/> to <paramref name="c"/>) inside a car's box, if any of it is.</summary>
+    static Double3? Through(WreckBody b, Double3 a, Double3 c)
+    {
+        var p = Local(b, a);
+        var d = Local(b, c) - p;
+        double[] lo = [-b.HalfWidth, 0, -b.HalfLength], hi = [b.HalfWidth, b.Height, b.HalfLength], o = [p.X, p.Y, p.Z], v = [d.X, d.Y, d.Z];
+        double t0 = 0, t1 = 1;
+        for (int k = 0; k < 3; k++)
+        {
+            if (Math.Abs(v[k]) < 1e-9)
+            {
+                if (o[k] <= lo[k] || o[k] >= hi[k])
+                    return null;
+                continue;
+            }
+            double ta = (lo[k] - o[k]) / v[k], tb = (hi[k] - o[k]) / v[k];
+            t0 = Math.Max(t0, Math.Min(ta, tb));
+            t1 = Math.Min(t1, Math.Max(ta, tb));
+            if (t0 >= t1)
+                return null;
+        }
+        return Double3.Lerp(a, c, (t0 + t1) / 2);
+    }
+
+    /// <summary>How far a point inside a car's box goes along <paramref name="dir"/> (world) before it's out of it.</summary>
+    static double Exit(WreckBody b, Double3 at, Double3 dir)
+    {
+        var p = Local(b, at);
+        var d = new Double3(Double3.Dot(dir, b.Right), Double3.Dot(dir, b.Up), Double3.Dot(dir, b.Back));
+        double[] lo = [-b.HalfWidth, 0, -b.HalfLength], hi = [b.HalfWidth, b.Height, b.HalfLength], o = [p.X, p.Y, p.Z], v = [d.X, d.Y, d.Z];
+        double exit = double.PositiveInfinity;
+        for (int k = 0; k < 3; k++)
+            if (Math.Abs(v[k]) > 1e-9)
+                exit = Math.Min(exit, ((v[k] > 0 ? hi[k] : lo[k]) - o[k]) / v[k]);
+        return double.IsFinite(exit) ? Math.Max(0, exit) : 0;
+    }
+
+    static Double3 Local(WreckBody b, Double3 world)
+    {
+        var d = world - b.Origin;
+        return new Double3(Double3.Dot(d, b.Right), Double3.Dot(d, b.Up), Double3.Dot(d, b.Back));
+    }
+
+    /// <summary>A car's point meeting something that doesn't move, pushed along <paramref name="n"/> (out of it): its bounce and its slide.</summary>
+    void Meet(WreckBody b, Double3 p, Double3 n)
+    {
+        var r = p - b.Centre;
+        double vn = Double3.Dot(b.PointVelocity(p), n);
+        if (vn >= 0)
+            return;
+        double k = 1 / b.Mass + Double3.Dot(n, Double3.Cross(b.InverseInertia(Double3.Cross(r, n)), r));
+        double jn = -(1 + _t.CarRestitution) * vn / k;
+        b.ApplyImpulse(n * jn, p);
+        if (-vn > 4)
+            Impacts.Add(new WreckImpact(p, -vn, true));
+        var vt = b.PointVelocity(p);
+        vt -= n * Double3.Dot(vt, n);
+        double speed = vt.Length;
+        if (speed > 1e-6)
+            Slide(b, p, r, vt * (1 / speed), speed, _t.CarFriction * jn);
+    }
+
+    /// <summary>A car's hull out of the ground where it's into it, its deepest point to the surface (position only).</summary>
+    void Unground(WreckBody b)
+    {
+        double deepest = 0;
+        foreach (var local in Hull(b))
+        {
+            var p = b.ToWorld(local);
+            deepest = Math.Max(deepest, _ground(p.X, p.Z) - p.Y);
+        }
+        if (deepest > 0)
+            b.Origin += Double3.Up * deepest;
     }
 
     /// <summary>Friction along one direction at a contact: stop the slide, or take <paramref name="most"/> off it.</summary>

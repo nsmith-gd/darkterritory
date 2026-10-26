@@ -93,11 +93,16 @@ static class FilmCommands
 
         // The night under way for --seconds (40), held at --speed so it's out of the fortress's yard and running when it
         // comes off (the replay shows the last few seconds of it), then off the rails.
-        for (int i = 0; i < Opt(args, "--seconds", 40) * SimConstants.TickRate; i++)
+        // --at tunnel|bridge|metres (note 1055): on until the engine's there instead (its first tunnel, its first bridge).
+        double offAt = Str(args, "--at", "") is { Length: > 0 } where && session.Route is { } line ? WreckCommands.At(line, where) : double.NaN;
+        for (int i = 0; double.IsNaN(offAt) ? i < Opt(args, "--seconds", 40) * SimConstants.TickRate
+            : hostWorld.Train.Dynamics.Distance < offAt && i < 900 * SimConstants.TickRate; i++)
         {
             hostWorld.Train.Dynamics.Velocity = Math.Min(speed, hostWorld.Train.Dynamics.Velocity + 2 * SimConstants.TickSeconds);
             Step();
         }
+        // Where it comes off, and after how long under way (note 1055: --seconds that long on a build without --at comes off there too).
+        double offM = hostWorld.Train.Dynamics.Distance, ranSeconds = session.Tick * tick;
         hostWorld.Train.Dynamics.Velocity = speed;
         hostWorld.Train.RefreshFrames();
         // --gunner: the last of the crew sat in a gun's seat (T112) as it comes off, to see them thrown out of it.
@@ -199,6 +204,8 @@ static class FilmCommands
         var (video, sheet, encodeError) = Encode(args, dir, fps, frame);
         return new
         {
+            offM = Math.Round(offM),
+            ranSeconds = Math.Round(ranSeconds, 2),
             frames = frame,
             fps,
             seconds = Math.Round(frame / (double)fps, 2),

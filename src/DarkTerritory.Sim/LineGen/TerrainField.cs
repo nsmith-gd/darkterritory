@@ -858,6 +858,46 @@ public sealed class TerrainField
     }
 
     /// <summary>
+    /// The derailment film's tunnel (GDD E.3; note 1055): unlike <see cref="Confine"/> (a crewmate down in the bore, held off
+    /// its walls), the whole of the rock round a bore. A point under the hill along a tunnel, from 2 m under its rail up, is
+    /// in the rock unless it's in the bore (within its half-width and under its crown, less the radius): it's put back into
+    /// the bore the shorter way, in off the wall or down off the crown. Out past its portals, or up on the hill, as it is.
+    /// </summary>
+    public Double3 Bore(Double3 p, double radius)
+    {
+        foreach (var n in Nearby(p.X, p.Z, _r.BoreHalfM + 4))
+        {
+            var e = _edges[n.Edge];
+            foreach (var st in e.Structures)
+            {
+                if (st.Type != StructureType.Tunnel || n.S < st.S0 || n.S > st.S1 || p.Y < n.Rail - 2 || p.Y >= Height(p.X, p.Z))
+                    continue;
+                double room = Math.Max(0, _r.BoreHalfM - radius), crown = n.Rail + Math.Max(0, _r.BoreCrownM - radius);
+                double side = Math.Abs(n.Lateral) - room, over = p.Y - crown;
+                if (side <= 0 && over <= 0)
+                    return p;
+                if (over > 0 && (side <= 0 || over < side))
+                    return p with { Y = crown };
+                var t = e.Line.Sample(n.S);
+                double rx = -t.Tangent.Z, rz = t.Tangent.X, norm = Math.Max(1e-9, Math.Sqrt(rx * rx + rz * rz));
+                double by = Math.Sign(n.Lateral) * room - n.Lateral;
+                return new Double3(p.X + rx / norm * by, Math.Min(p.Y, crown), p.Z + rz / norm * by);
+            }
+        }
+        return p;
+    }
+
+    /// <summary>Whether a tunnel's bore (its rock round it) is within <paramref name="reach"/> of a point, along and across (note 1055).</summary>
+    public bool NearBore(Double3 p, double reach)
+    {
+        foreach (var n in Nearby(p.X, p.Z, _r.BoreHalfM + 4 + reach))
+            foreach (var st in _edges[n.Edge].Structures)
+                if (st.Type == StructureType.Tunnel && n.S >= st.S0 - reach && n.S <= st.S1 + reach)
+                    return true;
+        return false;
+    }
+
+    /// <summary>
     /// Note 279: how far either side of the rail something running beside the train can be at <paramref name="s"/> on an
     /// edge (by its index): inside the bore in a tunnel, on the deck on a bridge (each less besideClearM), anywhere elsewhere.
     /// </summary>
