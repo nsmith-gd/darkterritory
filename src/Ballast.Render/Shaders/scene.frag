@@ -358,7 +358,10 @@ void main() {
     float ghostRim = -1.0;
     if (vWear < -0.5) {
         ghostRim = 1.0 - abs(dot(n, normalize(-vPos)));
-        if (mix(0.2, 1.0, pow(ghostRim, 1.4)) < bayer4(gl_FragCoord.xy))
+        // Far off it's the membrane's mass that reaches the eye, not its see-through: denser face on with distance, so a
+        // ghost 40 m off in fog is a shape round its dark core, not a few dithered dots (note 1046).
+        float faceOn = mix(0.2, 0.75, smoothstep(15.0, 45.0, length(vPos)));
+        if (mix(faceOn, 1.0, pow(ghostRim, 1.4)) < bayer4(gl_FragCoord.xy))
             discard;
     }
     if (!gl_FrontFacing)
