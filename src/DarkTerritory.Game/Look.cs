@@ -352,6 +352,23 @@ public sealed record LookTuning
     public SpeedFeelTuning SpeedFeel { get; init; } = new();
     public TipsyTuning Tipsy { get; init; } = new();
     public CargoOutsideTuning CargoOutside { get; init; } = new();
+    public TrainGrowthLook TrainGrowth { get; init; } = new();
+}
+
+/// <summary>
+/// Corruption grown on the train, as drawn and heard (GDD Part Eleven q8; note 1039). Mirror of look.json <c>trainGrowth</c>,
+/// where each field is documented.
+/// </summary>
+public sealed record TrainGrowthLook
+{
+    public double ShowFrom { get; init; } = 0.05;
+    public int Levels { get; init; } = 4;
+    public double CreakFrom { get; init; } = 0.5;
+    public double CreakSpeed { get; init; } = 9;
+    public double CreaksPerSecond { get; init; } = 0.8;
+
+    /// <summary>The step a spot grown <paramref name="g"/> is drawn at: 0 none, to <see cref="Levels"/> black all over.</summary>
+    public int Level(double g) => g < ShowFrom ? 0 : Math.Clamp((int)Math.Ceiling(g * Levels), 1, Levels);
 }
 
 /// <summary>

@@ -232,6 +232,8 @@ public sealed partial class GreyboxScene
     public IReadOnlyDictionary<int, Sim.Player.MaskPaint>? Paints { get; set; }
     /// <summary>The crew's sigil (note 731; World.CrewSigil): a stencil from 1, 0 none, on the engine's side and every mask.</summary>
     public int CrewSigil { get; set; }
+    /// <summary>The corruption grown on the train (note 1039; World.Growth): drawn by the train kit. Null, a clean train.</summary>
+    public Sim.Campaign.TrainGrowth? Growth { get; set; }
     /// <summary>Where cannonballs came down lately (World.Impacts, T121): each one's explosion, by <see cref="Tick"/>.</summary>
     public IReadOnlyList<Sim.Combat.CannonImpact>? Impacts { get; set; }
 
@@ -533,9 +535,12 @@ public sealed partial class GreyboxScene
         if (_wheelClock is { } then && Time > then && Time - then < 1 && !DriversLocked)
             _travelled += _speed * (Time - then);
         _wheelClock = Time;
-        // (And as the Choir comes, everyone's breath shows: the cold comes with it, App. A.7.)
         if (Look is not null)
+        {
             Look.Art.CrewSigil = CrewSigil;
+            Look.Art.Growth = Growth;
+        }
+        // (And as the Choir comes, everyone's breath shows: the cold comes with it, App. A.7.)
         if (Look is not null)
             Look.Art.Breath = Math.Max(Look.Tuning.Atmosphere.Cold.Breath(Cold),
                 ChoirGathering > ChoirFrostFrom ? (ChoirGathering - ChoirFrostFrom) / (1 - ChoirFrostFrom) : 0);

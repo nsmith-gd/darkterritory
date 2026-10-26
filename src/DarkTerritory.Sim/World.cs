@@ -457,6 +457,13 @@ public sealed partial class World
     /// </summary>
     public byte CrewSigil { get; set; }
 
+    /// <summary>
+    /// The corruption grown on the train (note 1039; GDD Part Eleven q8), from the campaign save: the train kit draws it at the
+    /// couplings, under the cars and in the tender, and a heavily grown car creaks wetly at speed. Every machine's world is
+    /// built with it (<c>SessionSetup.Growth</c>). Presentation only; null, a clean train.
+    /// </summary>
+    public Campaign.TrainGrowth? Growth { get; set; }
+
     /// <summary>The host's: the campaign's looks by player name, going into the night.</summary>
     public IReadOnlyDictionary<string, string> LooksByName { get; set; } = new Dictionary<string, string>();
     /// <summary>
@@ -3027,6 +3034,9 @@ public sealed partial class World
         foreach (var e in _enemies.ToList())
             if (!e.Gone)
                 e.Step(ctx);
+        // Note 1039: who's got onto a car, for the corruption the campaign grows where they came on.
+        if (Authority)
+            Run?.Boarders(_enemies, Train);
         // The world is solid (note 279): nothing loose in it stands in a building or a tunnel's lining, and what walks is on the land.
         Sim.Enemies.Solidity.Settle(_enemies, Train, t);
         FellTowers();
