@@ -30,8 +30,11 @@ public sealed record TellTuning
     /// <param name="WarnM">How far off it has to be seen to be answered (m).</param>
     /// <param name="Aim">Where on it to look (m over where it stands).</param>
     /// <param name="Hidden">Why it's hidden on purpose until it acts: measured and shown, never a failure.</param>
-    /// <param name="Settle">Its own seconds after the call before the shot (a fire taking hold), over the audit's.</param>
-    public sealed record Entry(double WarnM = 30, string[]? From = null, double Aim = 1, string What = "", string? Hidden = null, double? Settle = null)
+    /// <param name="Settle">Its own seconds after the call before the shot (a fire taking hold), over the audit's; for those the
+    /// audit waits on (the Choir's ghosts, the Track Doll near, Hotbox glowing), the most it waits.</param>
+    /// <param name="Moving">The train held at this speed (m/s) from the call to the shot (0: standing, as the gym stands it).</param>
+    public sealed record Entry(double WarnM = 30, string[]? From = null, double Aim = 1, string What = "", string? Hidden = null, double? Settle = null,
+        double Moving = 0)
     {
         public string[] From { get; init; } = From ?? ["foot"];
     }

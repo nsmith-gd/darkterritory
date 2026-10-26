@@ -23,6 +23,24 @@ public class TellAuditTests
         Assert.Empty(report.Failing);
     }
 
+    /// <summary>
+    /// Note 1043: what the gym's call alone couldn't stand (the Follower on a crewmate stepped down, the Track Doll ahead of a
+    /// moving train, the Choir's ghosts come, the Tapper behind a gunner, Hotbox glowing, the Freight Beetle seen on its track)
+    /// is staged, and is in its frame: something of it differs from the frame without it from every viewpoint. (Whether it's
+    /// seen enough is the audit's table, not this.)
+    /// </summary>
+    [Fact]
+    public void TheCreaturesTheGymCantStandAloneAreStagedAndInFrame()
+    {
+        string[] staged = ["follower", "trackDoll", "choir", "tapper", "hotbox", "freightBeetle"];
+        TellAudit.Report report;
+        try { report = TellAudit.Run(Content, staged, ["clear"], output: null); }
+        catch (Ballast.Render.GpuUnavailableException e) { Assert.Skip($"no Vulkan: {e.Message}"); throw; }
+        Assert.Empty(report.NotStaged);
+        Assert.Equal(staged.Length, report.Tells.Count);
+        Assert.All(report.Tells, t => Assert.All(t.Frames, f => Assert.True(f.Pixels > 0, $"{t.Kind} from {f.From}: nothing of it in the frame")));
+    }
+
     [Fact]
     public void AFrameWithoutTheCreatureMeasuresNothingAndAPaleBlobOnBlackMeasuresItsStep()
     {

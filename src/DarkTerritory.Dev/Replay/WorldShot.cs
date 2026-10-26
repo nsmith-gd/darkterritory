@@ -25,7 +25,7 @@ public sealed class WorldShot : IDisposable
     readonly Look _look;
     readonly MeshBuilder _mesh = new();
     readonly Overlay _overlay = new();
-    readonly GreyboxScene _scene;
+    GreyboxScene _scene;
 
     public WorldShot(string content, Sim.Route.Route? route, int width = 1280, int height = 720)
     {
@@ -42,6 +42,13 @@ public sealed class WorldShot : IDisposable
 
     public int Width { get; }
     public int Height { get; }
+
+    /// <summary>
+    /// Each frame drawn by a scene that's seen no frame before it (the visual tell audit's, note 1043). A scene remembers what it
+    /// drew: a creature missing from the next frame is seen going (the Track Doll vanishing, the Choir's ghosts swept off, a
+    /// death), so the audit's frame without a creature, drawn after the frame with it, still had it in it.
+    /// </summary>
+    public bool Forgetful { get; init; }
 
     /// <summary>A lighting of its own over the night's (the creature gym's, note 676), applied last.</summary>
     public Func<FrameLighting, FrameLighting>? Grade { get; init; }
@@ -99,6 +106,8 @@ public sealed class WorldShot : IDisposable
             lighting = own(lighting);
         if (grade is not null)
             lighting = grade(lighting);
+        if (Forgetful)
+            _scene = new GreyboxScene { Look = _look, Route = _scene.Route };
         var s = _scene;
         s.Signs = world.Lineside?.Signs;
         s.SignRange = world.Lineside?.Tuning.LampSignRange ?? 350;

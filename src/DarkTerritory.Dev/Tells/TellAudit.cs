@@ -9,6 +9,7 @@ using DarkTerritory.Sim.Enemies;
 using DarkTerritory.Sim.Net;
 using DarkTerritory.Sim.Player;
 using DarkTerritory.Sim.Rail;
+using DarkTerritory.Sim.Train;
 
 namespace DarkTerritory.Dev.Tells;
 
@@ -54,7 +55,7 @@ public static class TellAudit
         gym.Begin(host);
         byte you = (byte)night.PlayerId;
         Step(night, gym, host, 2);
-        using var shot = new WorldShot(content, host.World.Route, tuning.Width, tuning.Height);
+        using var shot = new WorldShot(content, host.World.Route, tuning.Width, tuning.Height) { Forgetful = true };
         if (output is not null)
             Directory.CreateDirectory(output);
         var names = only ?? [.. tuning.Tells.Keys];
@@ -68,10 +69,14 @@ public static class TellAudit
             var kind = EnemyNames.Parse(name) ?? throw new ArgumentException($"'{name}' is no enemy kind");
             host.World.Clear();
             Step(night, gym, host, 0.5);
-            host.Stand(you, Fresh(host, you));
+            var train = host.World.Train;
+            // Where the train stood: a tell staged on a moving train (tells.json "moving") puts it back after.
+            var (home, track) = (train.Dynamics.Distance, train.Dynamics.Path);
+            host.Stand(you, Stage(host, you, kind));
             Step(night, gym, host, 0.2);
             var called = gym.Call(host, you, kind);
-            Step(night, gym, host, tell.Settle ?? tuning.Settle);
+            Prime(host, you, tell, called.Ids);
+            Step(night, gym, host, tell.Settle ?? tuning.Settle, tell.Moving, () => Ready(host, you, kind, tell, called.Ids));
             // The Choir gathers before it comes: its ghosts are what came.
             var ids = kind == EnemyKind.Choir
                 ? [.. host.World.ActiveEnemies.Where(e => e.Kind == EnemyKind.Choir && !e.Gone).Select(e => e.Id)]
@@ -79,10 +84,10 @@ public static class TellAudit
             var subject = host.World.ActiveEnemies.FirstOrDefault(e => ids.Contains(e.Id) && e is not TippyToesie { Hidden: true });
             if (!called.Came || subject is null)
             {
+                Home(train, home, track);
                 tells.Add(new Tell(name, tell.What, tell.WarnM, false, called.Came ? "came and went before the shot" : called.Where, [], null));
                 continue;
             }
-            var train = host.World.Train;
             var me = PlayerMotor.WorldPosition(host.Players.First(p => p.Id == you).State, train);
             var at = subject.WorldPosition(train);
             var crew = host.Players.ToList();
@@ -92,12 +97,12 @@ public static class TellAudit
             {
                 // From the crew's side first; where that frame doesn't have it at all (a wall, a building, the car between),
                 // from its other sides at the same distance: the audit is of the creature, not of where the gym stood it.
-                var camera = Eye(tuning, tell, from, at, me, train.Line, subject.LineDistance, 0);
+                var camera = Eye(tuning, tell, from, at, Toward(subject, me, train), train, subject.LineDistance, 0);
                 foreach (double turn in (double[])[90, -90, 180])
                 {
                     if (Measure(shot.Render(host.World, crew, camera), shot.Render(host.World, crew, camera, drawn: e => !ids.Contains(e.Id)), tuning.Jnd).Mean > 0)
                         break;
-                    camera = Eye(tuning, tell, from, at, me, train.Line, subject.LineDistance, turn);
+                    camera = Eye(tuning, tell, from, at, Toward(subject, me, train), train, subject.LineDistance, turn);
                 }
                 foreach (var c in nights)
                 {
@@ -120,11 +125,16 @@ public static class TellAudit
                     bool seen = pixels * scale >= tuning.MinPixels && contrast >= tuning.MinContrast;
                     string? path = null;
                     if (output is not null && frames)
+                    {
                         shot.Save(path = Path.Combine(output, $"{name}-{from}-{c}.png"), with);
+                        // And the frame without it, so what was measured can be seen to be the creature.
+                        shot.Save(Path.Combine(output, $"{name}-{from}-{c}-without.png"), without);
+                    }
                     list.Add(new Frame(c, from, Math.Round(pixels * scale), Math.Round(contrast, 1), Math.Round(mean, 1), seen, path));
                     tiles.Add((with, seen));
                 }
             }
+            Home(train, home, track);
             string? sheet = output is null ? null : Sheet(Path.Combine(output, $"{name}.png"), tiles, tuning.Width, tuning.Height, nights.Count);
             tells.Add(new Tell(name, tell.What, tell.WarnM, true, null, list, sheet, tell.Hidden));
         }
@@ -142,20 +152,41 @@ public static class TellAudit
     }
 
     /// <summary>
-    /// The crewmate's eye: <see cref="TellTuning.Entry.WarnM"/> from the creature, toward where the crew are (the caller in the
-    /// cab), at the viewpoint's height over the ground under it, looking at the tell's height on the creature.
+    /// The crewmate's eye: <see cref="TellTuning.Entry.WarnM"/> from the creature, toward <paramref name="toward"/> (where the
+    /// crew are, the caller in the cab), at the viewpoint's height over the ground under it, looking at the tell's height on the
+    /// creature. The Track Doll's driver looks out of the cab's side window, past the engine's flank (<see cref="Toward"/>).
     /// </summary>
-    static Camera Eye(TellTuning tuning, TellTuning.Entry tell, string from, Double3 at, Double3 crew, RailLine line, double along, double turn)
+    static Camera Eye(TellTuning tuning, TellTuning.Entry tell, string from, Double3 at, (Double3 To, double Side) toward, TrainOnLine train, double along,
+        double turn)
     {
-        var toward = (crew - at) with { Y = 0 };
-        var way = toward.Length > 0.5 ? toward.Normalized : Double3.Cross(line.Sample(along).Tangent, Double3.Up).Normalized;
+        var line = train.Line;
+        var to = (toward.To - at) with { Y = 0 };
+        var way = to.Length > 0.5 ? to.Normalized : Double3.Cross(line.Sample(along).Tangent, Double3.Up).Normalized;
         double a = turn * Math.PI / 180;
         way = new Double3(way.X * Math.Cos(a) - way.Z * Math.Sin(a), 0, way.X * Math.Sin(a) + way.Z * Math.Cos(a));
-        var spot = at + way * tell.WarnM;
+        var spot = at + way * tell.WarnM + Double3.Cross(way, Double3.Up).Normalized * toward.Side;
         double hint = along;
         spot = spot with { Y = PlayerMotor.GroundAt(spot, line, ref hint) + tuning.Viewpoints[from] };
         return Camera.LookAt(spot, at + Double3.Up * tell.Aim, (float)tuning.Fov);
     }
+
+    /// <summary>
+    /// Which way from the creature the eye stands (note 1043): toward the crew, as the gym called it at them; the Freight Beetle's
+    /// from the way it's heading (on its track, the freight coming at you); the Track Doll's from the cab, out past the
+    /// engine's side (the driver at the side window, not inside the boiler); the Follower's from beside the cab, behind the
+    /// carrier walking out (it rides the caller: the others, who see it, are at the train); the Tapper's from the way it came
+    /// (up the train, past it: from the gunner's side the gun and the gunner are between); Hotbox's from the side of the car
+    /// it's in (from the other, the car's between: its truck is what's searched for, both sides).
+    /// </summary>
+    static (Double3 To, double Side) Toward(Enemy subject, Double3 crew, TrainOnLine train) => subject switch
+    {
+        FreightBeetle beetle => (beetle.Local + beetle.Facing * 10, 0),
+        TrackDoll => (crew, 1.9),
+        Follower => (crew - train.Frames[0].Right * 10, 0),
+        Tapper => (subject.WorldPosition(train) * 2 - crew, 0),
+        Hotbox h when h.Attached >= 0 && h.Attached < train.Frames.Count => (subject.WorldPosition(train) + train.Frames[h.Attached].Right * (h.Side * 10), 0),
+        _ => (crew, 0),
+    };
 
     /// <summary>The headlamp and every car's lamp put out (or put back as <paramref name="was"/> had them); what they were.</summary>
     static bool[] LampsOut(World world, bool @out, bool[]? was = null)
@@ -271,16 +302,117 @@ public static class TellAudit
         return w.ToString();
     }
 
-    static PlayerState Fresh(HostSession host, byte you)
+    /// <summary>
+    /// Where the caller stands before the call (note 1043): in the cab, as the gym stands them; stepped down onto the stop's
+    /// ground for the Follower (it rides only whoever's off the train, on a follower ground where the stop has one); seated at
+    /// a gun for the Tapper (it comes only behind a gunner).
+    /// </summary>
+    static PlayerState Stage(HostSession host, byte you, EnemyKind kind)
     {
         var was = host.Players.First(p => p.Id == you).State;
-        return PlayerMotor.SpawnInCab(host.World.Train, host.PlayerTuning) with { Placed = (byte)(was.Placed + 1) };
+        var train = host.World.Train;
+        var state = PlayerMotor.SpawnInCab(train, host.PlayerTuning);
+        if (kind == EnemyKind.Follower)
+        {
+            var cab = PlayerMotor.WorldPosition(state, train);
+            var ground = host.World.Enemies is { } t ? CreatureSites.Of(host.World, Sim.Stops.LairKind.FollowerGround, t.Sites.Around) : [];
+            // The nearest follower ground, else a step off the cab's side.
+            var spot = ground.Count > 0 ? ground.MinBy(g => (g.At - cab).Length).At : cab + train.Frames[0].Right * (train.Frames[0].Shape.HalfWidth + 3);
+            double hint = train.Dynamics.Distance;
+            train.Line.Nearest(spot, ref hint);
+            state = PlayerMotor.SpawnOnGround(spot, train.Line, hint, host.PlayerTuning);
+        }
+        else if (kind == EnemyKind.Tapper)
+        {
+            int car = Enumerable.Range(1, train.Vehicles.Count - 1).FirstOrDefault(i => Sim.Combat.Guns.Mount(train, i) is not null, -1);
+            if (car > 0 && Sim.Combat.Guns.Mount(train, car) is { } mount)
+            {
+                // On its roof just behind the breech (against its facing), in the seat: Guns.Sit keeps a gunner within its reach seated.
+                state = PlayerMotor.SpawnOnRoof(train, car, mount.Position.Z - mount.Facing.Z * 0.6, host.PlayerTuning);
+                state.Flags |= PlayerFlags.Seated;
+                state.Yaw = Sim.Combat.Guns.FacingYaw(mount);
+            }
+        }
+        return state with { Placed = (byte)(was.Placed + 1) };
     }
 
-    static void Step(NetPlaySession night, CreatureGym gym, HostSession host, double seconds)
+    /// <summary>
+    /// Whether the creature's in the pose its tell is of (note 1043), for those that come to it over time: the Choir's ghosts
+    /// come (it gathers first), the Track Doll is the tell's distance ahead of the cab on a moving train, Hotbox glows, the
+    /// Tapper's up on its knees behind the gunner, tapping (its telegraph; crawling up, it lies flat). The rest are as the gym
+    /// calls them.
+    /// </summary>
+    static bool Ready(HostSession host, byte you, EnemyKind kind, TellTuning.Entry tell, IReadOnlyList<int> ids)
+    {
+        var world = host.World;
+        var called = world.ActiveEnemies.Where(e => ids.Contains(e.Id) && !e.Gone);
+        return kind switch
+        {
+            EnemyKind.Choir => world.ActiveEnemies.Any(e => e.Kind == EnemyKind.Choir && !e.Gone),
+            EnemyKind.TrackDoll => called.Any(e => ((e.WorldPosition(world.Train) - PlayerMotor.WorldPosition(host.Players.First(p => p.Id == you).State, world.Train))
+                with { Y = 0 }).Length <= tell.WarnM),
+            EnemyKind.Hotbox => called.OfType<Hotbox>().Any(h => h.Mode == HotboxMode.Glow),
+            EnemyKind.Tapper => called.OfType<Tapper>().Any(t => t.Mode == TapperMode.Tap),
+            _ => false,
+        };
+    }
+
+    /// <summary>
+    /// What the gym's call can't give it (note 1043). Hotbox's heat, which comes only from its wheels turning: given it as if it
+    /// had fed its <c>knockSeconds</c> at its reference speed (90 s at 18 m/s is 1.6 km, and holding the gym's train at that the
+    /// whole way tipped a car on the way), so it glows as the train runs on. The Follower's carrier out beside the engine, the
+    /// tell's distance from someone standing at the cab's side, walking away from the train (the lump on their back toward
+    /// whoever's watching them go; the stop's follower ground, where it took them, is in the yard's shed).
+    /// </summary>
+    static void Prime(HostSession host, byte you, TellTuning.Entry entry, IReadOnlyList<int> ids)
+    {
+        var world = host.World;
+        if (world.Enemies is not { } t)
+            return;
+        var called = world.ActiveEnemies.Where(e => ids.Contains(e.Id) && !e.Gone).ToList();
+        foreach (var h in called.OfType<Hotbox>())
+            h.Restore(h.Phase, h.PhaseSeconds, h.Health, h.Attached, h.Local, h.LineDistance, h.Lateral, (double)HotboxMode.Knock, t.Hotbox.KnockSeconds, h.Extra2);
+        if (called.OfType<Follower>().Any())
+        {
+            var train = world.Train;
+            var cab = PlayerMotor.WorldPosition(PlayerMotor.SpawnInCab(train, host.PlayerTuning), train);
+            var away = train.Frames[0].Right;
+            var spot = cab + away * (train.Frames[0].Shape.HalfWidth + 2 + entry.WarnM);
+            double hint = train.Dynamics.Distance;
+            train.Line.Nearest(spot, ref hint);
+            var was = host.Players.First(p => p.Id == you).State;
+            host.Stand(you, PlayerMotor.SpawnOnGround(spot, train.Line, hint, host.PlayerTuning) with
+            {
+                Placed = (byte)(was.Placed + 1),
+                Yaw = Math.Atan2(-away.X, -away.Z),
+            });
+        }
+    }
+
+    /// <summary>The train put back where it stood, standing, after a tell staged on it moving.</summary>
+    static void Home(TrainOnLine train, double distance, int path)
+    {
+        if (train.Dynamics.Distance == distance && train.Dynamics.Speed == 0)
+            return;
+        train.Dynamics.Path = path;
+        train.Dynamics.Distance = distance;
+        train.Dynamics.Velocity = 0;
+        train.RefreshFrames();
+    }
+
+    /// <summary>
+    /// The night stepped <paramref name="seconds"/>, or until <paramref name="ready"/>: the shot is of it as it gets there.
+    /// <paramref name="moving"/>: the train held at that speed (m/s) the while, as a driver holds it (some creatures come to, or
+    /// stay on, only a train under way).
+    /// </summary>
+    static void Step(NetPlaySession night, CreatureGym gym, HostSession host, double seconds, double moving = 0, Func<bool>? ready = null)
     {
         for (int i = 0; i < (int)Math.Round(seconds * SimConstants.TickRate); i++)
         {
+            if (ready?.Invoke() == true)
+                return;
+            if (moving > 0)
+                host.World.Train.Dynamics.Velocity = moving;
             night.Step(default);
             gym.Step(host, host.Tick * SimConstants.TickSeconds);
         }
