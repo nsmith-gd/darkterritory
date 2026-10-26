@@ -174,13 +174,17 @@
     // cord to the cab. From Frontier: the longer trains are where the cab can't hear the van.
     { "id": "commCord", "name": "Communication cord", "size": "small", "costShare": 0.15, "fromTier": "frontier", "effect": { "cord": 1, "dress:commCord": 1 },
       "line": "A cord the length of the train. Pulled in any car, the cab's bell strikes that car's number. It says where, not why.",
-      "tally": "{cordPulls?Cord: pulled, #.|Cord: not pulled.}" },
+      // In the clerk's bank's words until the audio chat rebuilds it (tools/audio/clerk.py; note 1052). The line meant:
+      // "{cordPulls?Cord: pulled, #.|Cord: not pulled.}"; the bank needs: cord, pulled, not.
+      "tally": "{cordPulls?Rope: #.|Rope: dry.}" },
     // The end-of-train telltale (note 1052; upgrades.md §7.3: the Passenger, the Knotter, a coupling let go): a lamp on the
     // cab's backhead, lit while the train's last car is coupled to the engine, out the moment it isn't (train.json
     // kit.telltale). It says the train's parted, not where, and stops nothing. From Local: the Passenger is the first night's.
     { "id": "trainTelltale", "name": "End-of-train telltale", "size": "small", "costShare": 0.15, "effect": { "telltale": 1, "dress:trainTelltale": 1 },
       "line": "A lamp in the cab, wired to the last car. It goes out the moment the train parts behind you. It doesn't say where.",
-      "tally": "{telltaleOut?Telltale: out, #.|Telltale: lit all night.}" },
+      // In the clerk's bank's words until the audio chat rebuilds it (note 1052). The line meant:
+      // "{telltaleOut?Telltale: out, #.|Telltale: lit all night.}"; the bank needs: telltale, out, lit, all, night.
+      "tally": "{telltaleOut?Lamp parts: #.|Lamp parts: still up.}" },
     // The speaking tubes (note 978; upgrades.md §6, the director: "funny"): a brass horn in every car with a room, joined to the
     // next car's either way along the train as well as the cab's pipe to the guard van (note 720). Said into one, heard out of
     // the neighbours' horns, tinny (player.json voices.tube).

@@ -96,7 +96,7 @@ public class CrewToolsTests
         Assert.Equal(1, n.World.Cord.By);
         Assert.True(n.World.WhistleSeconds > 0);
         // The clerk reads the pulls.
-        Assert.Equal("Cord: pulled, 2.", Radio.Fill(Assert.Single(Campaign.Campaign.TallyLines(C, ["commCord"])), n.World.UpgradeCounts()));
+        Assert.Equal("Rope: 2.", Radio.Fill(Assert.Single(Campaign.Campaign.TallyLines(C, ["commCord"])), n.World.UpgradeCounts()));
     }
 
     [Fact]
@@ -107,7 +107,7 @@ public class CrewToolsTests
         bare.Crew[1] = PlayerMotor.SpawnOnRoof(bare.Train, 4, 0, P);
         Run(bare, 0.5, _ => Whistle);
         Assert.False(bare.World.Cord.Any);
-        Assert.Equal("Cord: not pulled.", Radio.Fill(Assert.Single(Campaign.Campaign.TallyLines(C, ["commCord"])), bare.World.UpgradeCounts()));
+        Assert.Equal("Rope: dry.", Radio.Fill(Assert.Single(Campaign.Campaign.TallyLines(C, ["commCord"])), bare.World.UpgradeCounts()));
         // Fitted, but car 4's been cut off behind car 3: the cord parted with it.
         var n = new Night(6, 0, trainTuning: With("commCord"));
         Assert.True(n.Train.Uncouple(3, Parting.Pin));
@@ -137,7 +137,7 @@ public class CrewToolsTests
         Assert.False(Telltale.Lit(n.Train));
         Run(n, 0.5);
         Assert.Equal(1, n.World.TelltaleOuts);
-        Assert.Equal("Telltale: out, 1.", Radio.Fill(Assert.Single(Campaign.Campaign.TallyLines(C, ["trainTelltale"])), n.World.UpgradeCounts()));
+        Assert.Equal("Lamp parts: 1.", Radio.Fill(Assert.Single(Campaign.Campaign.TallyLines(C, ["trainTelltale"])), n.World.UpgradeCounts()));
         // A parting further forward while it's out is the same lamp, out.
         Assert.True(n.Train.Uncouple(1, Parting.Pin));
         Run(n, 0.5);
@@ -145,7 +145,7 @@ public class CrewToolsTests
         // The clerk on a night nothing parted.
         var quiet = new Night(5, 0, trainTuning: With("trainTelltale"));
         Run(quiet, 0.5);
-        Assert.Equal("Telltale: lit all night.", Radio.Fill(Assert.Single(Campaign.Campaign.TallyLines(C, ["trainTelltale"])), quiet.World.UpgradeCounts()));
+        Assert.Equal("Lamp parts: still up.", Radio.Fill(Assert.Single(Campaign.Campaign.TallyLines(C, ["trainTelltale"])), quiet.World.UpgradeCounts()));
     }
 
     [Fact]
@@ -220,7 +220,7 @@ public class CrewToolsTests
         Assert.InRange(t.BurnSeconds, 120, 300);
         // The clerk reads the night's fusees after the upgrades.
         var report = new RunReport(RunEnd.Delivered, 100, 10, 3, 0, 1, 900, 10, 0, 0, 890, 3, 0) { Counts = n.World.UpgradeCounts() };
-        Assert.Contains("Fusees: struck, 1.", Radio.Tally(report, []));
+        Assert.Contains("Flames: 1.", Radio.Tally(report, []));
     }
 
     [Fact]
@@ -230,6 +230,6 @@ public class CrewToolsTests
         box.Charge = 0;
         Run(n, 0.5, _ => Fire);
         Assert.DoesNotContain(n.World.Bodies.All, b => b.Kind == BodyKind.Fusee);
-        Assert.DoesNotContain("Fusees", string.Join("\n", Radio.Tally(new RunReport(RunEnd.Delivered, 100, 10, 3, 0, 1, 900, 10, 0, 0, 890, 3, 0) { Counts = n.World.UpgradeCounts() }, [])));
+        Assert.DoesNotContain("Flames", string.Join("\n", Radio.Tally(new RunReport(RunEnd.Delivered, 100, 10, 3, 0, 1, 900, 10, 0, 0, 890, 3, 0) { Counts = n.World.UpgradeCounts() }, [])));
     }
 }
