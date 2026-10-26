@@ -111,8 +111,16 @@ static class WreckCommands
                     crew,
                     speed,
                     pass = ok,
-                    interpenetration = new { over = probe.Over, inside = probe.Inside, seen = probe.Seen, deepest = Math.Round(probe.Deepest, 4), at = Math.Round(probe.At, 3), what = probe.What,
-                        worst = probe.Worst.Select(w => new { depth = Math.Round(w.Depth, 4), at = Math.Round(w.At, 3), w.What }) },
+                    interpenetration = new
+                    {
+                        over = probe.Over,
+                        inside = probe.Inside,
+                        seen = probe.Seen,
+                        deepest = Math.Round(probe.Deepest, 4),
+                        at = Math.Round(probe.At, 3),
+                        what = probe.What,
+                        worst = probe.Worst.Select(w => new { depth = Math.Round(w.Depth, 4), at = Math.Round(w.At, 3), w.What })
+                    },
                     camera = faults,
                 });
             }
