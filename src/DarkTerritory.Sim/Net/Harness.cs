@@ -20,6 +20,12 @@ public sealed record HarnessOptions
     /// </summary>
     public int Talkers { get; init; }
     public bool TalkRadio { get; init; }
+    /// <summary>
+    /// Note 1040: the talkers in bursts, as people talk: each says <see cref="TalkFor"/> s at the start of every
+    /// <see cref="TalkEvery"/> s (0, all night), so what they said ends and grows old (the Brakeman on the radio says it back).
+    /// </summary>
+    public double TalkFor { get; init; }
+    public double TalkEvery { get; init; }
     /// <summary>One 20 ms Opus frame at the game's 24 kbit/s (ARCHITECTURE §6.3: ~60 bytes).</summary>
     public const int TalkFrameBytes = 60;
     /// <summary>
@@ -156,6 +162,23 @@ public sealed record RejoinReport(string Bot, int Was, int Back, double DroppedA
 public sealed record DawnReport(double LineAt, IReadOnlyList<string> AtLine, double TakenAt, double Short, double Speed, IReadOnlyList<string> AtTaking,
     double Closest = -1);
 
+/// <summary>
+/// Note 1040, with <c>brakeman.radio</c> on: whether a corrupted human spoke on the radio tonight, when (run seconds), in whose
+/// voice, how long, the frames the host sent and the crew's sets got, and the night's report's line naming it.
+/// </summary>
+public sealed record RadioVoiceReport(bool Said, double Seconds, string Voice, int Brakeman, double Length, long FramesSent, long FramesHeard, string Line)
+{
+    public static RadioVoiceReport Of(HostSession host, long heard)
+    {
+        var world = host.World;
+        if (world.RadioVoiceSaid is not { } said)
+            return new RadioVoiceReport(false, -1, "", -1, 0, host.RadioVoiceFramesSent, heard, "");
+        var line = Run.IncidentLog.Lines(world, 0, 0, _ => false).FirstOrDefault(l => l.Kind == Run.IncidentKind.Heard)?.Text ?? "";
+        return new RadioVoiceReport(true, Math.Round(said.Tick * SimConstants.TickSeconds, 1), Run.IncidentLog.NameOf(world, said.Voice), said.Brakeman,
+            Math.Round(said.Seconds, 2), host.RadioVoiceFramesSent, heard, line);
+    }
+}
+
 public sealed record CrewCapReport(int Cap, int Occupied, int Refusals, IReadOnlyList<string> Refused);
 
 /// <summary>Transports for the harness from elsewhere: the Sim doesn't reference platform code, so the CLI brings it.</summary>
@@ -193,6 +216,8 @@ public sealed record HarnessReport(int Ticks, double Seconds, string Link, doubl
     public long VoiceFramesHeard { get; init; }
     /// <summary>Note 956: voice frames the host didn't send a listener already hearing their fill, its upload strained.</summary>
     public long VoiceFramesHeldBack { get; init; }
+    /// <summary>Note 1040: the corrupted human on the radio, with <c>brakeman.radio</c> on (<c>dt harness --radio-voice</c>).</summary>
+    public RadioVoiceReport? RadioVoice { get; init; }
     /// <summary>What got through on the crew's voice, with <see cref="HarnessOptions.Voice"/> (note 186).</summary>
     public VoiceReport? Voice { get; init; }
     /// <summary>The jobs the train made as it ran (orchestrator.md §5.1), and how many got away from the crew; null without them.</summary>
@@ -469,7 +494,7 @@ public static class Harness
         var talkFrame = new byte[HarnessOptions.TalkFrameBytes];
         for (int i = 0; i < talkFrame.Length; i++)
             talkFrame[i] = (byte)(i * 37 + 11);
-        long voiceHeard = 0;
+        long voiceHeard = 0, radioVoiceHeard = 0;
         for (int i = 0; i < o.Bots; i++)
         {
             var transport = new CountingTransport(ClientTransport(i));
@@ -743,13 +768,16 @@ public static class Harness
             if (o.Talkers > 0)
             {
                 int frames = (int)((t + 1) * 50 / SimConstants.TickRate) - (int)(t * 50 / SimConstants.TickRate);
+                bool talking = o.TalkEvery <= 0 || t * SimConstants.TickSeconds % o.TalkEvery < o.TalkFor;
                 for (int k = 0; k < Math.Min(o.Talkers, clients.Count); k++)
-                    if (clients[k].Session.Connected)
+                    if (talking && clients[k].Session.Connected)
                         for (int f = 0; f < frames; f++)
                             clients[k].Session.SendVoice(talkSequence[k]++, o.TalkRadio, talkFrame);
                 foreach (var (session, _, _) in clients)
                 {
                     voiceHeard += session.VoiceFrames.Count;
+                    // Note 1040: a corrupted human's words on the radio, as each crewmate's set got them.
+                    radioVoiceHeard += session.VoiceFrames.Count(f => f.Path.HasFlag(VoicePath.Mimic | VoicePath.Radio));
                     session.VoiceFrames.Clear();
                 }
             }
@@ -890,6 +918,7 @@ public static class Harness
             VoiceFramesHeard = voiceHeard,
             VoiceFramesForwarded = host.VoiceFramesForwarded,
             VoiceFramesHeldBack = host.VoiceFramesHeldBack,
+            RadioVoice = host.World.Enemies?.Brakeman.Radio.On == true ? RadioVoiceReport.Of(host, radioVoiceHeard) : null,
             Wire = host.WireTally is { } tally && reports.Count > 0
                 ? tally.OrderByDescending(t => t.Value).ToDictionary(t => t.Key.ToString(), t => Math.Round(t.Value * 8.0 / 1000 / seconds / reports.Count, 2))
                 : null,

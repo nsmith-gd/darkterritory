@@ -234,6 +234,7 @@ public sealed partial class HostSession
         HoldoutEvents.AddRange(World.StepHoldouts([.. _crew.Select(c => ((int)c.Id, c.State))], (id, st) => _crew.First(c => c.Id == id).State = st));
         if (World.Run is not null)
             World.StepRun([.. _crew.Select(c => c.State)]);
+        SayOnRadio();
         Tick++;
         SendNamesAndReport();
 
@@ -1220,6 +1221,9 @@ public sealed partial class HostSession
         // nobody. Tunnels and mine spurs still kill it.
         radio |= speaker.State.Alive && speaker.State.Has(PlayerFlags.Held);
         radio &= World.Bodies.HasRadio(speaker.Id);
+        // Said on the radio, the corrupted can say it back (note 1040): their words, not a GRAB's keyed-open cries.
+        if (radio && speaker.State.Alive && !speaker.State.Has(PlayerFlags.Held))
+            World.RadioVoices.Hear(speaker.Id, opus, World.Tick);
         // GDD v1.4 App. D.7 Live Mic (note 179): waiting in a Holdout with it on, the dead speaker is heard from the Holdout on
         // the proximity layer by the living near it (8 m clear, 26 m cutoff), and on the dead channel as ever. It's never said
         // aloud in the world: nothing listening for talk (the meter, the Gaunt, the Soot Children) hears it.
@@ -1268,6 +1272,59 @@ public sealed partial class HostSession
             _bytesOut += _voiceWriter.Length;
             VoiceFramesForwarded++;
         }
+    }
+
+    Enemies.RadioVoicePlay? _radioPlay;
+    int _radioSent;
+    uint _radioTicks;
+    ushort _radioSequence;
+    /// <summary>Frames of a corrupted human's voice on the radio sent (note 1040), every listener's counted.</summary>
+    public long RadioVoiceFramesSent { get; private set; }
+
+    /// <summary>
+    /// Note 1040 (GDD Part Eleven q4): once a night at most, with <c>brakeman.radio</c> on, a hidden Brakeman far from everyone
+    /// says a crewmate's own radio words back on the radio channel (<see cref="Enemies.RadioVoice"/>). The frames go out at the voice's
+    /// own pace, as <see cref="VoicePath.Mimic"/> and <see cref="VoicePath.Radio"/> both, labelled with his id (the speaker byte
+    /// is the crewmate's, so a listener who's muted them hears nothing of it), to every living crewmate with a set whose radio
+    /// isn't dead where they are, the crewmate whose voice it is excepted.
+    /// </summary>
+    void SayOnRadio()
+    {
+        if (_radioPlay is null)
+        {
+            if (World.RadioVoiceSaid is not null)
+                return;
+            _radioPlay = Enemies.RadioVoice.Step(World, [.. _crew.Select(c => ((int)c.Id, c.State))], World.Bodies.HasRadio);
+            _radioSent = 0;
+            _radioTicks = 0;
+            if (_radioPlay is null)
+                return;
+        }
+        var play = _radioPlay;
+        // 50 frames a second at 30 ticks: 5 every 3 ticks.
+        int due = Math.Min(play.Frames.Count, (int)((_radioTicks + 1) * Enemies.RadioVoice.FramesPerSecond / SimConstants.TickRate));
+        _radioTicks++;
+        var route = Route ?? World.Route;
+        double reach = Train.Dynamics.Tuning.Kit.RadioReach;
+        Func<double, bool>? tunnel = route is null ? null : s => route.DeepInTunnel(s, reach);
+        Func<PlayerState, bool>? underground = World.Run is { } run ? s => run.Underground(s, Train, reach) : null;
+        for (; _radioSent < due; _radioSent++)
+        {
+            Messages.WriteVoiceDown(_voiceWriter, (byte)play.Voice, _radioSequence++, VoicePath.Mimic | VoicePath.Radio, play.Frames[_radioSent], source: play.Brakeman);
+            foreach (var listener in _crew)
+            {
+                // The radio's dead in a tunnel or down a mine spur for the listener as for anyone (the route's own test, with
+                // the listener on both ends of it).
+                if (listener.Id == play.Voice || !listener.State.Alive || !World.Bodies.HasRadio(listener.Id)
+                    || !VoiceRouting.Route(listener.State, listener.State, true, Train, tunnel, true, underground).HasFlag(VoicePath.Radio))
+                    continue;
+                _transport.Send(listener.Peer, _voiceWriter.Written, Delivery.Unreliable);
+                _bytesOut += _voiceWriter.Length;
+                RadioVoiceFramesSent++;
+            }
+        }
+        if (_radioSent >= play.Frames.Count)
+            _radioPlay = null;
     }
 
     uint VoiceFloorTicks => (uint)Math.Max(1, PlayerTuning.Link.VoiceFloorSeconds * SimConstants.TickRate);
