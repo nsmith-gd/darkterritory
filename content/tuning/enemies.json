@@ -1896,6 +1896,15 @@
     "roster": [],
     // App. B.1 v1.1 want balance: each want's target share of the budget; a want over its share weighs less.
     "wantShares": { "kill": 0.40, "split": 0.25, "trust": 0.20, "cargo": 0.15 },
+    // Note 1048: held to the shares. The shares weigh what the rules let in, and on a moving train that's mostly the Cinder
+    // Hounds alone; the night's chances can leave a want nothing at all (Local seed 1 rolled out every cargo kind but the Fire
+    // Flies). floor: each want with a share has this many of its kinds about tonight, brought back by their chances as the
+    // night's floor brings kinds back (stops.floorKinds; no chance changed), and with fill, one of its rule-less ("curve.kinds")
+    // if it has any; 0, none. fill: pressed, with all the rules let in
+    // now of wants over their shares and fillFrom spent tonight, the pressure spends on the curve's rule-less ("curve.kinds",
+    // their free gates open) of the wants under theirs instead, charged and paced as the curve's fill. Cargo has no rule-less
+    // kind: it comes by its rules.
+    "wantHold": { "floor": 2, "fill": true, "fillFrom": 6 },
     // App. B.1 hard caps: corrupted humans, one at a time (the zone cap, maxConcurrentZone, covers the rest).
     "maxCorrupted": 1
   }
