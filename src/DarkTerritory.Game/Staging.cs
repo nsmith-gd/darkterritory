@@ -1062,8 +1062,11 @@ public static partial class Staging
     /// The BBQ deck's party (note 698; `dt screenshot --upgrades bbqDeck --bbq`, the director: "a tiny party at the front ...
     /// the BBQ Dads at the end of the world"): two of the crew sat back in the chairs, one with a beer; one at the grill with
     /// a sausage off it; one by the cooler with a beer, turned to the others. Empty when the train has no deck.
+    /// <paramref name="cheers"/> (`--cheers`) makes it a party of five instead, every one of them at something: the chairs
+    /// cheersing with a can each, the grill tended, one on the beers and one pointing out at what is coming, with a hand lamp
+    /// on the cooler to light them.
     /// </summary>
-    public static (List<Crewmate> Crew, IReadOnlyList<Sim.Physics.Body> Bodies) BbqParty(TrainOnLine train, string content)
+    public static (List<Crewmate> Crew, IReadOnlyList<Sim.Physics.Body> Bodies) BbqParty(TrainOnLine train, string content, bool cheers = false)
     {
         var engine = train.Frames[0];
         var bodies = new Sim.Physics.Bodies();
@@ -1081,15 +1084,67 @@ public static partial class Staging
         }
         // C1's clips (note 791): the chairs' at the seat's own height; one sat back, one at the can; the grill tended; a can
         // up at the cooler.
-        var crew = new List<Crewmate>
-        {
-            At(40, deck.Chairs[0], 0, Art.CrewPose.Lounge),
-            At(41, deck.Chairs[1], 0, Art.CrewPose.LoungeDrink, Sim.Physics.BodyKind.Beer, new Double3(0.42, 0.68, -0.25)),
-            At(42, deck.Grill + new Double3(0, 0, 0.6), 0, Art.CrewPose.Grill, Sim.Physics.BodyKind.Sausage, new Double3(0, 1.1, -0.3)),
-            At(43, deck.Cooler + new Double3(0.9, 0, 0.9), Math.PI * 0.75, Art.CrewPose.Drink, Sim.Physics.BodyKind.Beer, new Double3(-0.25, 1.15, -0.25)),
-        };
-        return (crew, bodies.All);
+        if (!cheers)
+            return ([
+                At(40, deck.Chairs[0], 0, Art.CrewPose.Lounge),
+                At(41, deck.Chairs[1], 0, Art.CrewPose.LoungeDrink, Sim.Physics.BodyKind.Beer, new Double3(0.42, 0.68, -0.25)),
+                At(42, deck.Grill + new Double3(0, 0, 0.6), 0, Art.CrewPose.Grill, Sim.Physics.BodyKind.Sausage, new Double3(0, 1.1, -0.3)),
+                At(43, deck.Cooler + new Double3(0.9, 0, 0.9), Math.PI * 0.75, Art.CrewPose.Drink, Sim.Physics.BodyKind.Beer, new Double3(-0.25, 1.15, -0.25)),
+            ], bodies.All);
+        // Cheersing, the deck is a party of five, every one of them doing something: both chairs with a can and the cheers
+        // clip, turned in to each other over the cooler (a yaw about +Y swings the facing toward −X, so the left chair turns
+        // negative and the right positive); the grill tended, half turned to them; one stood at the back with a can at the
+        // mouth; and one at the front rail pointing out at what's crossing the ground, the only one who has seen it. The cans
+        // and the sausage are drawn in the fists by the clips, wherever the sim holds them (SceneArt.Fisted), so a hold is
+        // only a resting place; a pointing hand has no clip for one, so it carries nothing.
+        // A hand lamp stood on the cooler's lid between the chairs lights the pair over it: a lamp lying about is a practical
+        // light wherever it lies (GreyboxScene lights each car's lamps, the firebox, and any hand lamp lying about).
+        bodies.SpawnCrate(train, 0, deck.Cooler + new Double3(0, 0.5, 0), Sim.Physics.BodyKind.Lamp);
+        return ([
+            At(40, deck.Chairs[0], -CheersTurn, Art.CrewPose.Cheers, Sim.Physics.BodyKind.Beer, new Double3(0.6, 0.95, -0.2)),
+            At(41, deck.Chairs[1], CheersTurn, Art.CrewPose.Cheers, Sim.Physics.BodyKind.Beer, new Double3(-0.6, 0.95, -0.2)),
+            At(42, deck.Grill + new Double3(0, 0, 0.6), -0.3, Art.CrewPose.Grill, Sim.Physics.BodyKind.Sausage, new Double3(0, 1.1, -0.3)),
+            At(43, deck.Cooler + new Double3(1.6, 0, 1.3), 0.9, Art.CrewPose.Drink, Sim.Physics.BodyKind.Beer, new Double3(-0.2, 1.15, -0.2)),
+            At(44, deck.Cooler + new Double3(-1.7, 0, -0.5), PointOut, Art.CrewPose.Point),
+        ], bodies.All);
     }
+
+    /// <summary>How far each chair turns in to the other for the cheers (rad): in enough to read as a toast, not so far
+    /// that either turns its back on the line they're watching.</summary>
+    const double CheersTurn = 0.42;
+
+    /// <summary>Where the one at the rail points (rad): out over the left-hand ground and a little forward, the way
+    /// <see cref="DeckThreats"/> brings them in.</summary>
+    const double PointOut = 1.3;
+
+    /// <summary>
+    /// Three of the Territory's own closing on the BBQ deck over the ground ahead of the engine (`dt screenshot --upgrades
+    /// bbqDeck --bbq --cheers --deck-threats`): the Gaunt striding in, awake and angry, with a Ribbit closer in by the deck
+    /// and another further out, both swelling. All three are loose, so each faces the nearest car — out there, the deck they
+    /// have come for (GreyboxScene: "what's loose out there has come for the train"). The train has to be stood for it: these
+    /// are the stops' own, what a stopped train brings (GDD §21 OUTSIDE). Empty when the train has no deck.
+    /// </summary>
+    public static List<Enemy> DeckThreats(TrainOnLine train, EnemyTuning t)
+    {
+        var engine = train.Frames[0];
+        if (engine.Shape.Bbq is not { } deck)
+            return [];
+        // Out over the open ground off the engine's front quarter, measured from the deck's own front edge (ahead of it
+        // forward, behind it back along the engine), so none of them stands on the rails the engine is on.
+        Double3 Out(double ahead, double lateral) => OnGround(train, engine.ToWorld(new Double3(lateral, 0, deck.Front - ahead)));
+        var gaunt = Sim.Enemies.Gaunt.Asleep(DeckGauntId, Out(-1.3, -8.5), t.Gaunt);
+        // Awake (Extra is its waker, one of the pair in the chairs), angry (Extra2, its lean), and committed: it is coming.
+        gaunt.Restore(SpinePhase.Commit, 2.2, gaunt.Health, Enemy.Loose, gaunt.Local, 0, 0, 0, 41, 4);
+        var near = Ribbit.At(DeckRibbitId, 0, Out(-1.0, -5.0), t.Ribbits);
+        var side = Ribbit.At(DeckRibbitId + 1, 0, Out(-1.2, -14.0), t.Ribbits);
+        // Both swelling at the deck, throats up (their tell), the near one a beat ahead of the far.
+        side.Restore(SpinePhase.Telegraph, 0.72, side.Health, Enemy.Loose, side.Local, 0, 0, 0, 41, 0);
+        near.Restore(SpinePhase.Telegraph, 0.45, near.Health, Enemy.Loose, near.Local, 0, 0, 0, 41, 0);
+        return [gaunt, near, side];
+    }
+
+    /// <summary>The ids the deck's three staged threats take (note 698's promo shot).</summary>
+    public const int DeckGauntId = 960, DeckRibbitId = 962;
 
     /// <summary>
     /// The dining car's diners (note 974; `dt screenshot --diners`, views diningtable and diningbar): two sat at the table

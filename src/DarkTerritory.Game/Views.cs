@@ -330,6 +330,10 @@ public static class Views
             "bbq" => Camera.LookAt(engine.ToWorld(new Double3(4.6, 3.3, -engineHalf - 7.5)), engine.ToWorld(new Double3(-0.3, 1.8, -engineHalf - 1.4)), 55),
             "bbqparty" => Camera.LookAt(engine.ToWorld(new Double3(2.6, 3.0, -engineHalf - 4.6)), engine.ToWorld(new Double3(-0.4, 1.9, -engineHalf - 1.4)), 62),
             "bbqseat" => Camera.LookAt(engine.ToWorld(new Double3(-0.95, 2.45, -engineHalf - 2.0)), engine.ToWorld(new Double3(-0.6, 2.0, -engineHalf - 40)), 75),
+            // The deck's promo shot (note 698; `--upgrades bbqDeck --bbq --cheers --deck-threats`, the train stood): close in
+            // off the deck's front-right corner, just over its rail, back across the party at the chairs, so the five of them
+            // fill the frame lit by the lamp and the grill, with the ground they came over open past the far rail.
+            "bbqpromo" => Camera.LookAt(engine.ToWorld(new Double3(2.8, 2.6, -engineHalf - 5.2)), engine.ToWorld(new Double3(-1.0, 1.9, -engineHalf - 1.9)), 52),
             // The train's dressing (note 701; `--upgrades fuzzyDice,flames,...`): the back of the guard van from behind, low (the
             // stickers, the ribbon, the tiny caboose on its string); the engine's side (the flames down the hood, the hubcaps);
             // inside the guard van, across to the towels' rail with the disco ball turning over the aisle.

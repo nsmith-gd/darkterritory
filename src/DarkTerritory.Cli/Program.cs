@@ -2549,13 +2549,17 @@ static object Screenshot(TrainTuning t, string content, string[] args)
         scene.Own = new OwnView((float)camera.Yaw, (float)camera.Pitch, DarkTerritory.Game.Art.CrewPose.Cradle, false, -1, 1, Tool.None);
     }
     // --bbq (note 698; with --upgrades bbqDeck): the party at the front, the grill lit, a beer and a sausage going.
-    if (args.Contains("--bbq") && Staging.BbqParty(train, content) is var (party, partyBodies))
+    // --cheers: a party of five instead, the chairs cheersing, one pointing out, and a lamp on the cooler.
+    if (args.Contains("--bbq") && Staging.BbqParty(train, content, args.Contains("--cheers")) is var (party, partyBodies))
     {
         train.Vehicles[0].Grill = 120;
         scene.Vehicles = train.Vehicles;
         scene.Crew = party;
         scene.Bodies = partyBodies;
     }
+    // --deck-threats: the Gaunt and a pair of Ribbits closing on the deck over the ground off a stopped engine's front.
+    if (args.Contains("--deck-threats"))
+        scene.Enemies = Staging.DeckThreats(train, DataFile.Load<DarkTerritory.Sim.Enemies.EnemyTuning>(Path.Combine(content, DarkTerritory.Sim.Enemies.EnemyTuning.File)));
     // --pet-mood idle|walk|sleep|warn|fetch (note 745; with --upgrades yardCat,dog --stocked): the cat and the dog so.
     if (Str(args, "--pet-mood", "") is { Length: > 0 } petMood && scene.Bodies is { } petBodies)
         foreach (var pet in petBodies.Where(b => b.Kind is DarkTerritory.Sim.Physics.BodyKind.Cat or DarkTerritory.Sim.Physics.BodyKind.Dog))
